@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { checkDb } from "./check";
+import { createTestDb, servePgliteOverTcp } from "./testing";
 
 describe("@brain/db checkDb", () => {
+  it("AC-001-02 returns ok:true against a reachable Postgres over TCP", async () => {
+    const db = await createTestDb();
+    const server = await servePgliteOverTcp(db);
+    try {
+      await expect(checkDb(server.url, 2500)).resolves.toEqual({ ok: true });
+    } finally {
+      await server.close();
+      await db.close();
+    }
+  });
+
   it("AC-001-03 returns ok:false within the timeout for an unreachable host", async () => {
     const start = Date.now();
     const result = await checkDb("postgres://x:x@127.0.0.1:1/none", 1500);
