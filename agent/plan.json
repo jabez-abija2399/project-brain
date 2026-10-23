@@ -1,0 +1,36 @@
+{
+  "_comment": "Proposed from the FEAT-003 security pass (2026-10-23). Each criterion is already covered by a passing attacker test in apps/web/src/app/api/projects/security.test.ts; promoting them to features.json makes them permanent gates. Import with: python3 scripts/kit.py import (human only).",
+  "features": [
+    {
+      "id": "FEAT-003",
+      "title": "Sign in with GitHub and private projects",
+      "acceptance_additions": [
+        {
+          "id": "AC-003-08",
+          "kind": "attack",
+          "check": "User B creating/listing/revoking a token on user A's project id gets 404 and never affects A's tokens"
+        },
+        {
+          "id": "AC-003-09",
+          "kind": "attack",
+          "check": "POST /api/projects ignores owner_id / id in the body; the created project is always owned by the caller"
+        },
+        {
+          "id": "AC-003-10",
+          "kind": "attack",
+          "check": "PATCH /api/projects/[id] with any field other than name returns 400 and leaves the project row unchanged"
+        },
+        {
+          "id": "AC-003-11",
+          "kind": "boundary",
+          "check": "Deleting a project cascades to its tokens: the token's plaintext is rejected with 401 by GET /api/token/whoami"
+        },
+        {
+          "id": "AC-003-12",
+          "kind": "permission",
+          "check": "Signed-out POST/GET/DELETE to /api/projects/[id]/tokens[/tokenId] all return 401"
+        }
+      ]
+    }
+  ]
+}
