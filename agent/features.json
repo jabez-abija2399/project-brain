@@ -257,45 +257,64 @@
           "id": "AC-002-01",
           "kind": "happy",
           "check": "`pnpm --filter @brain/db migrate` creates all tables from docs/architecture.md (Data model) on an empty database",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 15:27; log contains AC-002-01"
         },
         {
           "id": "AC-002-02",
           "kind": "happy",
           "check": "Running migrate twice in a row is a no-op and exits 0",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 15:27; log contains AC-002-02"
         },
         {
           "id": "AC-002-03",
           "kind": "boundary",
           "check": "Inserting a second file with the same (project_id, path) fails with a unique-constraint error",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 15:27; log contains AC-002-03"
         },
         {
           "id": "AC-002-04",
           "kind": "permission",
           "check": "Every repository read/write function requires a projectId argument; a test calling a symbols query for project A returns zero rows of project B",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 15:27; log contains AC-002-04"
         },
         {
           "id": "AC-002-05",
           "kind": "negative",
           "check": "Deleting a project cascades to its files, symbols, features, sessions, requests and receipts (test counts 0 rows left)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 15:27; log contains AC-002-05"
         }
       ],
-      "status": "todo",
-      "notes": "Tables for better-auth are generated in FEAT-003; this feature owns the product tables. Repository tests run against PGlite via the @brain/db test helper."
+      "status": "done",
+      "notes": "Tables for better-auth are generated in FEAT-003; this feature owns the product tables. Repository tests run against PGlite via the @brain/db test helper.",
+      "files": [
+        "packages/db/migrations/0000_init.sql",
+        "packages/db/package.json",
+        "packages/db/src/db.ts",
+        "packages/db/src/index.ts",
+        "packages/db/src/migrate.mjs",
+        "packages/db/src/migrations.test.ts",
+        "packages/db/src/migrations.ts",
+        "packages/db/src/repos/features.ts",
+        "packages/db/src/repos/files.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/projects.ts",
+        "packages/db/src/repos/receipts.ts",
+        "packages/db/src/repos/repos.test.ts",
+        "packages/db/src/repos/requests.ts",
+        "packages/db/src/repos/symbols.ts",
+        "packages/db/src/schema.ts",
+        "packages/db/src/testing.ts"
+      ]
     },
     {
       "id": "FEAT-003",
@@ -1440,6 +1459,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 8
+    "tests_passed": 13
   }
 }
