@@ -14,7 +14,10 @@ type SessionResolver = (req: Request) => Promise<SessionUser | null>;
 function buildAuth() {
   const db = getDb();
   return betterAuth({
-    database: drizzleAdapter(db, { provider: "pg", schema }),
+    // usePlural: our drizzle exports are `users`/`sessions`/`accounts`/`verifications`
+    // (so other code reads `schema.users` naturally); better-auth otherwise
+    // looks for keys named `user`/`session`/…
+    database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),
     secret: process.env.BETTER_AUTH_SECRET || "dev-secret-change-me",
     baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
     socialProviders: {
