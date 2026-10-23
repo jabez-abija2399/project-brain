@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fromPglite } from "../db";
 import { createTestDb } from "../testing";
 import {
+  checklistItemsRepo,
   dbPoliciesRepo,
   dbTablesRepo,
+  featureFilesRepo,
   featuresRepo,
   filesRepo,
   projectTokensRepo,
@@ -103,13 +105,8 @@ describe("@brain/db project-scoped repositories", () => {
       `INSERT INTO decisions (id, project_id, title) VALUES ('d-a', $1, 'A'), ('d-b', $2, 'B')`,
       [projectA.id, projectB.id],
     );
-    await pg.query("INSERT INTO feature_files (feature_id, file_id) VALUES ($1, $2)", [
-      featureA.id,
-      fileA.id,
-    ]);
-    await pg.query(`INSERT INTO checklist_items (id, request_id, text) VALUES ('c-a', $1, 'A')`, [
-      reqA.id,
-    ]);
+    await featureFilesRepo.link(db, projectA.id, { featureId: featureA.id, fileId: fileA.id });
+    await checklistItemsRepo.insert(db, projectA.id, { requestId: reqA.id, text: "A" });
     await projectTokensRepo.create(db, projectA.id);
     await projectTokensRepo.create(db, projectB.id);
     const tableA = await dbTablesRepo.insert(db, projectA.id, { fileId: fileA.id, name: "t" });
@@ -202,6 +199,49 @@ describe("@brain/db project-scoped repositories", () => {
       [projectA.id],
     );
     expect(left.rows[0]?.n).toBe(1);
+  });
+
+  it("AC-002-04 feature_files and checklist_items cannot link rows of another project (KI-003)", async () => {
+    const { pg, db } = ctx;
+    await usersRepo.upsertById(db, { id: "owner-a", name: "A", email: "a@example.com" });
+    await usersRepo.upsertById(db, { id: "owner-b", name: "B", email: "b@example.com" });
+    const projectA = await projectsRepo.create(db, "owner-a", { name: "Alpha" });
+    const projectB = await projectsRepo.create(db, "owner-b", { name: "Beta" });
+    const fileA = await filesRepo.insert(db, projectA.id, { path: "a.ts", hash: "ha" });
+    const fileB = await filesRepo.insert(db, projectB.id, { path: "b.ts", hash: "hb" });
+    const featureA = await featuresRepo.insert(db, projectA.id, { name: "feat-A" });
+    const featureB = await featuresRepo.insert(db, projectB.id, { name: "feat-B" });
+    const requestA = await requestsRepo.insert(db, projectA.id, { text: "req A" });
+    const requestB = await requestsRepo.insert(db, projectB.id, { text: "req B" });
+
+    // The database itself refuses, whatever project_id the writer claims.
+    const rawRejects = async (sql: string, params: string[]) => {
+      await expect(pg.query(sql, params)).rejects.toMatchObject({ code: "23503" });
+    };
+    const linkSql =
+      "INSERT INTO feature_files (project_id, feature_id, file_id) VALUES ($1, $2, $3)";
+    await rawRejects(linkSql, [projectA.id, featureA.id, fileB.id]);
+    await rawRejects(linkSql, [projectA.id, featureB.id, fileA.id]);
+    await rawRejects(linkSql, [projectB.id, featureA.id, fileB.id]);
+    const itemSql =
+      "INSERT INTO checklist_items (id, project_id, request_id, text) VALUES ($1, $2, $3, 'x')";
+    await rawRejects(itemSql, ["c-1", projectA.id, requestB.id]);
+    await rawRejects(itemSql, ["c-2", projectB.id, requestA.id]);
+
+    await expect(
+      featureFilesRepo.link(db, projectA.id, { featureId: featureA.id, fileId: fileB.id }),
+    ).rejects.toMatchObject(FK_VIOLATION);
+    await expect(
+      checklistItemsRepo.insert(db, projectA.id, { requestId: requestB.id, text: "x" }),
+    ).rejects.toMatchObject(FK_VIOLATION);
+
+    // Same-project links work and are only visible to their own project.
+    await featureFilesRepo.link(db, projectA.id, { featureId: featureA.id, fileId: fileA.id });
+    await checklistItemsRepo.insert(db, projectA.id, { requestId: requestA.id, text: "A" });
+    expect(await featureFilesRepo.listForFeature(db, projectA.id, featureA.id)).toHaveLength(1);
+    expect(await featureFilesRepo.listForFeature(db, projectB.id, featureA.id)).toEqual([]);
+    expect(await checklistItemsRepo.listForRequest(db, projectA.id, requestA.id)).toHaveLength(1);
+    expect(await checklistItemsRepo.listForRequest(db, projectB.id, requestA.id)).toEqual([]);
   });
 
   it("AC-002-04 db policy and token writes/reads are scoped by projectId", async () => {

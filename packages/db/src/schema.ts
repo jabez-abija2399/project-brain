@@ -205,15 +205,24 @@ export const features = pgTable(
 export const featureFiles = pgTable(
   "feature_files",
   {
-    featureId: text("feature_id")
+    projectId: text("project_id")
       .notNull()
-      .references(() => features.id, { onDelete: "cascade" }),
-    fileId: text("file_id")
-      .notNull()
-      .references(() => files.id, { onDelete: "cascade" }),
+      .references(() => projects.id, { onDelete: "cascade" }),
+    featureId: text("feature_id").notNull(),
+    fileId: text("file_id").notNull(),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.featureId, t.fileId] }),
+    featureSameProjectFk: foreignKey({
+      name: "feature_files_feature_same_project_fk",
+      columns: [t.projectId, t.featureId],
+      foreignColumns: [features.projectId, features.id],
+    }).onDelete("cascade"),
+    fileSameProjectFk: foreignKey({
+      name: "feature_files_file_same_project_fk",
+      columns: [t.projectId, t.fileId],
+      foreignColumns: [files.projectId, files.id],
+    }).onDelete("cascade"),
   }),
 );
 
@@ -278,14 +287,21 @@ export const checklistItems = pgTable(
   "checklist_items",
   {
     id: id(),
-    requestId: text("request_id")
+    projectId: text("project_id")
       .notNull()
-      .references(() => requests.id, { onDelete: "cascade" }),
+      .references(() => projects.id, { onDelete: "cascade" }),
+    requestId: text("request_id").notNull(),
     text: text("text").notNull(),
     status: text("status").notNull().default("open"),
   },
   (t) => ({
     requestIdx: index("checklist_items_request_idx").on(t.requestId),
+    projectIdx: index("checklist_items_project_idx").on(t.projectId),
+    requestSameProjectFk: foreignKey({
+      name: "checklist_items_request_same_project_fk",
+      columns: [t.projectId, t.requestId],
+      foreignColumns: [requests.projectId, requests.id],
+    }).onDelete("cascade"),
   }),
 );
 
@@ -363,8 +379,12 @@ export type Symbol = typeof symbols.$inferSelect;
 export type NewSymbol = typeof symbols.$inferInsert;
 export type Feature = typeof features.$inferSelect;
 export type NewFeature = typeof features.$inferInsert;
+export type FeatureFile = typeof featureFiles.$inferSelect;
+export type NewFeatureFile = typeof featureFiles.$inferInsert;
 export type Request = typeof requests.$inferSelect;
 export type NewRequest = typeof requests.$inferInsert;
+export type ChecklistItem = typeof checklistItems.$inferSelect;
+export type NewChecklistItem = typeof checklistItems.$inferInsert;
 export type Receipt = typeof receipts.$inferSelect;
 export type NewReceipt = typeof receipts.$inferInsert;
 export type DbTable = typeof dbTables.$inferSelect;
