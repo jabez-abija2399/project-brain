@@ -1,0 +1,18 @@
+{
+  "context": { "fileName": ["AGENTS.md"] },
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "write_file|replace|edit|run_shell_command|read_file|read_many_files",
+        "hooks": [
+          {
+            "name": "ai-build-kit-guard",
+            "type": "command",
+            "command": "python3 \"$GEMINI_PROJECT_DIR/.claude/hooks/protect.py\" --agent gemini",
+            "description": "AI build kit: protects the plan, guard files, secrets and dependencies"
+          }
+        ]
+      }
+    ]
+  }
+}

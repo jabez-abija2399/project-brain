@@ -1,0 +1,34 @@
+# Later (parking lot). Agents add ideas here instead of building them. The human decides what moves into the plan.
+# Format: - YYYY-MM-DD | idea | why it came up
+- 2026-10-23 | Receipts posted as GitHub commit/PR comments | P2 of the spec; MVP shows receipts in the dashboard
+- 2026-10-23 | Semantic search with pgvector embeddings | D-005: lexical similarity first
+- 2026-10-23 | Memory hygiene: detect stale or contradicting decisions | P2 of the spec
+- 2026-10-23 | Project onboarding summary for new collaborators | P2 of the spec
+- 2026-10-23 | Spec drift alerts and receipt history timeline per feature | P2 of the spec
+- 2026-10-23 | Rollback by receipt | P3 of the spec
+- 2026-10-23 | Duplication detector and impact warnings from a dependency graph | P2 of the spec
+- 2026-10-23 | Scope hook that blocks out-of-scope edits (MVP only reports them in receipts) | P2 of the spec
+- 2026-10-23 | Architecture blueprints and structure checks | P2 of the spec
+- 2026-10-23 | Package advisor: approved packages per job, heavy/redundant warnings | P2 of the spec
+- 2026-10-23 | Access-control tester (two test users), input/endpoint checks, placeholder detector | P2 of the spec
+- 2026-10-23 | Destructive action guard hook, security score per feature | P2 of the spec
+- 2026-10-23 | Tests generated from acceptance criteria, feature-scoped test runs, regression alerts | P2 of the spec
+- 2026-10-23 | Performance checks (frontend, database, API cost watch, budgets) | P3 of the spec
+- 2026-10-23 | Design system engine: tokens, section pattern library, variety, density, accessibility checks | P2/P3
+- 2026-10-23 | Hooks for Codex and Gemini CLI; rules export for Lovable, Bolt, Replit | D-006
+- 2026-10-23 | Platform migration flow and .brain folder export | P2 of the spec
+- 2026-10-23 | Notifications (email/Slack), visual architecture map, client report export | P2/P3
+- 2026-10-23 | Plans, pricing and billing (Stripe or Paddle/Lemon Squeezy) | after the YC application
+- 2026-10-23 | Team Brains, roles, approvals; non-engineer guardrails for companies | P3
+- 2026-10-23 | Cross-project learning (opt-in), agent behavior profiles, Brain marketplace | P3 moat
+- 2026-10-23 | More stacks: Vue, Svelte, Firebase, Python backends, React Native | P3
+- 2026-10-23 | Independent second-opinion review of a change by a different model | adopted idea from the AI Build Kit
+- 2026-10-23 | Evaluator role: a separate session tests the running app before a feature counts as done | adopted from the AI Build Kit
+- 2026-10-23 | park_idea MCP tool: agents park out-of-scope ideas instead of building them (parking lot) | adopted from the AI Build Kit
+- 2026-10-23 | Declared edit scope before work + import-boundary rules enforced per project | adopted from the AI Build Kit
+- 2026-10-23 | Known-issues register per project, shown in the handoff note | adopted from the AI Build Kit
+- 2026-10-23 | Checklist items tagged by kind (happy, negative, boundary, permission, attack, state, perf) with at least one non-happy item | adopted from the AI Build Kit
+- 2026-10-23 | Full planning: architecture options compared, packages compared with 2 alternatives, design direction choice | extends FEAT-019
+- 2026-10-23 | Planning: threat models drafted for security-sensitive features, import rules proposed per project | extends FEAT-019
+- 2026-10-23 | Re-planning when the user changes their mind (proposals diffed against the approved plan) | extends FEAT-019
+- 2026-10-23 | Plan-versus-reality view: planned features vs built, drifting features highlighted | extends FEAT-019

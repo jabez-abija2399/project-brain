@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "python3 .claude/hooks/protect.py --agent copilot",
+        "powershell": "python .claude/hooks/protect.py --agent copilot"
+      }
+    ]
+  }
+}

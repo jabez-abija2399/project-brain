@@ -1,0 +1,3 @@
+#!/bin/sh
+# Works with every agent and editor. Blocks commits that break the guard rules or skip verification.
+python3 scripts/kit.py check --commit || { echo "Commit blocked by scripts/kit.py (see messages above)."; exit 1; }

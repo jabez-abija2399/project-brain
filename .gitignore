@@ -1,0 +1,36 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output (add your stack's own below)
+node_modules/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+target/
+.turbo/
+*.tsbuildinfo
+dist/
+build/
+.next/
+coverage/
+test-results/
+playwright-report/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Local agent settings (personal approvals)
+.claude/settings.local.json
+
+# AI build kit (generated, local)
+agent/.symbols-cache.json
+agent/.verify/
+agent/last-verify.log
+agent/last-verify.txt
+agent/review-pack.md

@@ -1,0 +1,13 @@
+# Proposes updates for the pinned GitHub Actions (and your packages) only after a cooldown:
+# brand-new releases are where hijacked versions hide. PROJECT: uncomment your package ecosystem.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    cooldown: { default-days: 7 }
+  # - package-ecosystem: npm        # or pip, uv, gomod, cargo
+  #   directory: /
+  #   schedule: { interval: weekly }
+  #   cooldown: { default-days: 7 }
+  #   open-pull-requests-limit: 5

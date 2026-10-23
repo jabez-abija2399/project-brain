@@ -1,0 +1,127 @@
+# Runs the same gate as `bash scripts/verify.sh`, plus the CI-only steps (build, e2e, audit, scanners, perf, mutation).
+# Stack setup is automatic. Project parts (database service, env, migrations) are marked PROJECT.
+# Hardened: every action pinned to a full commit SHA (tag in the comment), read-only token, no persisted credentials,
+# pinned tool versions, workflow linted by zizmor. Dependabot (.github/dependabot.yml) proposes updates after a cooldown.
+name: verify
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  OSV_SCANNER_VERSION: "v2.6.0"
+  ZIZMOR_VERSION: "1.30.1"
+  SEMGREP_VERSION: "1.179.0"
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # PROJECT: a database for integration tests
+    # services:
+    #   postgres:
+    #     image: postgres:17
+    #     env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: app }
+    #     ports: ["5432:5432"]
+    #     options: >-
+    #       --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Kit guard (always; works before any code exists)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          case "$BASE_SHA" in ""|0000000000000000000000000000000000000000) BASE_SHA=HEAD~1;; esac
+          if git rev-parse -q --verify "$BASE_SHA^{commit}" >/dev/null; then export KIT_BASE="$BASE_SHA"; fi
+          python3 scripts/kit.py check
+
+      - name: Lint this workflow (zizmor)
+        run: pipx run "zizmor==${ZIZMOR_VERSION}" --persona regular .github/workflows
+
+      - name: Detect stack
+        id: stack
+        run: |
+          has() { [ -n "$(git ls-files "$@" | head -1)" ] && echo true || echo false; }
+          {
+            echo "node=$(has package.json)"
+            echo "pnpm=$(has pnpm-lock.yaml)"
+            echo "python=$(has pyproject.toml requirements.txt setup.py)"
+            echo "playwright=$(has '*playwright.config.*')"
+          } >> "$GITHUB_OUTPUT"
+          if [ -n "$(git ls-files package.json pyproject.toml requirements.txt setup.py go.mod Cargo.toml | head -1)" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No project code yet (kickoff/FEAT-001 not done). Only the kit guard ran."
+          fi
+
+      # pnpm/action-setup reads the version from "packageManager" in package.json (e.g. "pnpm@10.x.y")
+      - if: steps.stack.outputs.pnpm == 'true'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - if: steps.stack.outputs.node == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: ${{ steps.stack.outputs.pnpm == 'true' && 'pnpm' || '' }}
+      - if: steps.stack.outputs.python == 'true'
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with: { python-version: "3.12" }
+      - if: steps.stack.outputs.code == 'true'
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version: stable, cache: false }   # also builds osv-scanner
+
+      - name: Install dependencies (lockfile only; respects the dependency cooldown)
+        if: steps.stack.outputs.code == 'true'
+        env:
+          PLAYWRIGHT: ${{ steps.stack.outputs.playwright }}
+        run: |
+          set -e
+          if [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile
+          elif [ -f yarn.lock ]; then corepack enable && yarn install --immutable
+          elif [ -f bun.lock ] || [ -f bun.lockb ]; then
+            echo "::error::bun project: add oven-sh/setup-bun (pinned to a commit SHA) before this step"; exit 1
+          elif [ -f package-lock.json ]; then npm ci
+          elif [ -f package.json ]; then npm install; fi
+          if [ -f uv.lock ]; then pipx install uv && uv sync --frozen
+          elif [ -f pyproject.toml ]; then pip install -e ".[dev]" 2>/dev/null || pip install -e .; fi
+          for r in requirements.txt requirements-dev.txt; do if [ -f "$r" ]; then pip install -r "$r"; fi; done
+          if [ -f go.mod ]; then go mod download; fi
+          if [ "$PLAYWRIGHT" = "true" ]; then npx playwright install --with-deps chromium; fi
+
+      - name: Install security scanners (pinned versions)
+        if: steps.stack.outputs.code == 'true'
+        run: |
+          pipx install "semgrep==${SEMGREP_VERSION}"
+          go install "github.com/google/osv-scanner/v2/cmd/osv-scanner@${OSV_SCANNER_VERSION}"
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+
+      # PROJECT: migrations / seed before tests
+      # - name: Migrate
+      #   run: <your migrate command>
+
+      - name: Verify gate (CI=true, so the CI-only steps run here)
+        if: steps.stack.outputs.code == 'true'
+        env:
+          VERIFY_STRICT: "1"
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # PROJECT: env the tests need (never real secrets; use GitHub secrets for anything sensitive)
+          # DATABASE_URL: "postgres://app:app@localhost:5432/app"
+        run: |
+          case "$BASE_SHA" in ""|0000000000000000000000000000000000000000) BASE_SHA=HEAD~1;; esac
+          if git rev-parse -q --verify "$BASE_SHA^{commit}" >/dev/null; then export KIT_BASE="$BASE_SHA"; fi
+          bash scripts/verify.sh
+
+      - name: Upload verify log
+        if: failure() && steps.stack.outputs.code == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with: { name: verify-log, path: agent/last-verify.log, retention-days: 7 }

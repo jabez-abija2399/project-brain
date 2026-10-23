@@ -1,0 +1,12 @@
+# Architecture boundaries, enforced by `kit.py check` (pre-commit and CI) on every changed file.
+# Format:  <files glob>  !->  <import glob>   # reason
+# The import glob is matched against the resolved path of relative imports and against the raw specifier
+# (package names, aliases like @/server/db). ** and * both match across folders. Supports JS/TS, Python, Go.
+packages/core/**            !->  **/apps/**          # core never imports the app
+packages/core/**            !->  @brain/db*          # core is pure logic; the app wires storage
+packages/core/**            !->  next*               # core is framework-free (also used by the CLI)
+packages/db/**              !->  **/apps/**          # the data layer never imports an app
+packages/cli/**             !->  @brain/db*          # the CLI talks to the API, never to the database
+packages/cli/**             !->  **/apps/**          # the CLI never imports app code
+apps/web/src/components/**  !->  @brain/db*          # UI never touches the database
+apps/web/src/components/**  !->  **/server/**        # UI goes through routes/server actions, not server internals

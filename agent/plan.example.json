@@ -1,0 +1,35 @@
+{
+  "_comment": "Example of agent/plan.json (what the kickoff and /change write). Import with: python3 scripts/kit.py import. This example file itself is never imported.",
+  "requirements": [
+    { "id": "REQ-001", "text": "Users can sign up and sign in with email", "features": ["FEAT-002"] }
+  ],
+  "features": [
+    {
+      "id": "FEAT-001",
+      "title": "Walking skeleton: project builds, one health endpoint, CI green",
+      "priority": 1,
+      "depends_on": [],
+      "origin": "TECHNICAL REQUIREMENT",
+      "acceptance": [
+        { "id": "AC-001-01", "kind": "happy", "check": "GET /health returns 200 with {\"ok\":true}" },
+        { "id": "AC-001-02", "kind": "negative", "check": "With the database unreachable, GET /health returns 503 within 3 s" }
+      ],
+      "notes": "Scaffold only. No product UI."
+    },
+    {
+      "id": "FEAT-002",
+      "title": "Email sign-in",
+      "priority": 2,
+      "depends_on": ["FEAT-001"],
+      "origin": "USER REQUIREMENT",
+      "spec": "docs/specs/FEAT-002.md",
+      "security_sensitive": true,
+      "acceptance": [
+        { "id": "AC-002-01", "kind": "happy", "check": "A user requests a sign-in link and is signed in after opening it" },
+        { "id": "AC-002-02", "kind": "boundary", "check": "A sign-in link expires after exactly 15 minutes and works only once" },
+        { "id": "AC-002-03", "kind": "attack", "check": "6 sign-in requests for one email within 1 minute: the 6th returns 429" },
+        { "id": "AC-002-04", "kind": "permission", "check": "Signed-out requests to any /api/* route except /api/auth/* return 401" }
+      ]
+    }
+  ]
+}
