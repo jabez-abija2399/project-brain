@@ -56,10 +56,10 @@ export const projectTokensRepo = {
     return rows[0] ?? null;
   },
 
-  async touchLastUsed(db: BrainDb, tokenId: string): Promise<void> {
+  async touchLastUsed(db: BrainDb, projectId: string, tokenId: string): Promise<void> {
     await db
       .update(projectTokens)
       .set({ lastUsedAt: new Date() })
-      .where(eq(projectTokens.id, tokenId));
+      .where(and(eq(projectTokens.id, tokenId), eq(projectTokens.projectId, projectId)));
   },
 };

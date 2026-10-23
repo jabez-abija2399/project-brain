@@ -27,6 +27,15 @@ export const dbTablesRepo = {
     return db.select().from(dbTables).where(eq(dbTables.projectId, projectId));
   },
 
+  async byId(db: BrainDb, projectId: string, id: string): Promise<DbTable | null> {
+    const rows = await db
+      .select()
+      .from(dbTables)
+      .where(and(eq(dbTables.projectId, projectId), eq(dbTables.id, id)))
+      .limit(1);
+    return rows[0] ?? null;
+  },
+
   async byName(db: BrainDb, projectId: string, name: string): Promise<DbTable | null> {
     const rows = await db
       .select()
@@ -38,13 +47,21 @@ export const dbTablesRepo = {
 };
 
 export const dbPoliciesRepo = {
-  async insert(db: BrainDb, data: NewDbPolicy): Promise<DbPolicy> {
+  async insert(db: BrainDb, projectId: string, data: NewDbPolicy): Promise<DbPolicy> {
+    // db_policies has no project_id; the parent table must belong to the project.
+    const table = await dbTablesRepo.byId(db, projectId, data.tableId);
+    if (!table) throw new Error("db_tables row not found in this project");
     const [row] = await db.insert(dbPolicies).values(data).returning();
     if (!row) throw new Error("insert db_policies returned no row");
     return row;
   },
 
-  async listForTable(db: BrainDb, tableId: string): Promise<DbPolicy[]> {
-    return db.select().from(dbPolicies).where(eq(dbPolicies.tableId, tableId));
+  async listForTable(db: BrainDb, projectId: string, tableId: string): Promise<DbPolicy[]> {
+    const rows = await db
+      .select({ policy: dbPolicies })
+      .from(dbPolicies)
+      .innerJoin(dbTables, eq(dbPolicies.tableId, dbTables.id))
+      .where(and(eq(dbTables.projectId, projectId), eq(dbPolicies.tableId, tableId)));
+    return rows.map((r) => r.policy);
   },
 };

@@ -2,27 +2,46 @@ import { type AddressInfo, createServer } from "node:net";
 import { PGlite } from "@electric-sql/pglite";
 import { type SqlExec, runMigrations } from "./migrations";
 
-function toDriver(db: PGlite): SqlExec {
+// PGlite itself or the transaction handle it passes to db.transaction().
+type PgliteLike = {
+  exec: (sql: string) => Promise<unknown>;
+  query: <T>(sql: string) => Promise<{ rows: T[] }>;
+};
+
+function toDriver(db: PgliteLike, transaction: SqlExec["transaction"]): SqlExec {
   return {
     exec: async (sql: string) => {
       await db.exec(sql);
     },
-    query: async <T = unknown>(sql: string, params?: unknown[]) => {
-      const result = await db.query<T>(sql, params as unknown[] | undefined);
+    query: async <T = unknown>(sql: string) => {
+      const result = await db.query<T>(sql);
       return result.rows;
     },
+    transaction,
   };
+}
+
+function pgliteToDriver(db: PGlite): SqlExec {
+  return toDriver(db, (fn) =>
+    db.transaction((tx) =>
+      fn(
+        toDriver(tx, () => {
+          throw new Error("nested transactions are not supported");
+        }),
+      ),
+    ),
+  );
 }
 
 export async function createTestDb(): Promise<PGlite> {
   const db = new PGlite();
   await db.waitReady;
-  await runMigrations(toDriver(db));
+  await runMigrations(pgliteToDriver(db));
   return db;
 }
 
 export function pgliteDriver(db: PGlite): SqlExec {
-  return toDriver(db);
+  return pgliteToDriver(db);
 }
 
 // Serves a PGlite instance on a 127.0.0.1 TCP port so code that takes a DATABASE_URL

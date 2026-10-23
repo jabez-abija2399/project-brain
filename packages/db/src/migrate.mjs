@@ -1,8 +1,6 @@
 #!/usr/bin/env node
-import { readFile, readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import postgres from "postgres";
+import { runMigrations } from "./migrations-core.mjs";
 
 const url = process.env.DATABASE_URL ?? "";
 if (!url) {
@@ -10,30 +8,21 @@ if (!url) {
   process.exit(0);
 }
 
-const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "..", "migrations");
 const sql = postgres(url, { max: 1, prepare: false, onnotice: () => {} });
 
-const TRACKING = `CREATE TABLE IF NOT EXISTS "_brain_migrations" (
-  "id" text PRIMARY KEY NOT NULL,
-  "applied_at" timestamptz NOT NULL DEFAULT now()
-);`;
+// Adapts a postgres.js client (or the tx handle from sql.begin) to the runner's driver.
+function driver(client) {
+  return {
+    exec: async (text) => {
+      await client.unsafe(text);
+    },
+    query: async (text) => [...(await client.unsafe(text))],
+    transaction: (fn) => sql.begin((tx) => fn(driver(tx))),
+  };
+}
 
 try {
-  await sql.unsafe(TRACKING);
-  const applied = await sql`SELECT id FROM _brain_migrations`;
-  const appliedIds = new Set(applied.map((row) => row.id));
-  const entries = (await readdir(migrationsDir)).filter((n) => n.endsWith(".sql")).sort();
-  const newlyApplied = [];
-  for (const name of entries) {
-    const id = name.replace(/\.sql$/, "");
-    if (appliedIds.has(id)) continue;
-    const body = await readFile(join(migrationsDir, name), "utf8");
-    await sql.begin(async (tx) => {
-      await tx.unsafe(body);
-      await tx`INSERT INTO _brain_migrations (id) VALUES (${id})`;
-    });
-    newlyApplied.push(id);
-  }
+  const { applied: newlyApplied } = await runMigrations(driver(sql));
   if (newlyApplied.length === 0) {
     console.log("[@brain/db] no new migrations to apply.");
   } else {

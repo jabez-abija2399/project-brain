@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  foreignKey,
   index,
   jsonb,
   pgTable,
@@ -152,6 +153,7 @@ export const files = pgTable(
   },
   (t) => ({
     projectPathUniq: uniqueIndex("files_project_path_uniq").on(t.projectId, t.path),
+    projectIdUniq: uniqueIndex("files_project_id_uniq").on(t.projectId, t.id),
     projectIdx: index("files_project_idx").on(t.projectId),
   }),
 );
@@ -163,9 +165,7 @@ export const symbols = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    fileId: text("file_id")
-      .notNull()
-      .references(() => files.id, { onDelete: "cascade" }),
+    fileId: text("file_id").notNull(),
     kind: text("kind").notNull(),
     name: text("name").notNull(),
     signature: text("signature"),
@@ -175,6 +175,11 @@ export const symbols = pgTable(
   (t) => ({
     projectKindNameIdx: index("symbols_project_kind_name_idx").on(t.projectId, t.kind, t.name),
     projectIdx: index("symbols_project_idx").on(t.projectId),
+    fileSameProjectFk: foreignKey({
+      name: "symbols_file_same_project_fk",
+      columns: [t.projectId, t.fileId],
+      foreignColumns: [files.projectId, files.id],
+    }).onDelete("cascade"),
   }),
 );
 
@@ -192,6 +197,7 @@ export const features = pgTable(
   },
   (t) => ({
     projectNameUniq: uniqueIndex("features_project_name_uniq").on(t.projectId, t.name),
+    projectIdUniq: uniqueIndex("features_project_id_uniq").on(t.projectId, t.id),
     projectIdx: index("features_project_idx").on(t.projectId),
   }),
 );
@@ -252,12 +258,19 @@ export const requests = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    featureId: text("feature_id").references(() => features.id, { onDelete: "set null" }),
+    featureId: text("feature_id"),
     text: text("text").notNull(),
     createdAt: createdAt(),
   },
   (t) => ({
     projectIdx: index("requests_project_idx").on(t.projectId),
+    projectIdUniq: uniqueIndex("requests_project_id_uniq").on(t.projectId, t.id),
+    // SQL uses ON DELETE SET NULL ("feature_id") so project_id stays (0002_same_project_refs.sql).
+    featureSameProjectFk: foreignKey({
+      name: "requests_feature_same_project_fk",
+      columns: [t.projectId, t.featureId],
+      foreignColumns: [features.projectId, features.id],
+    }).onDelete("set null"),
   }),
 );
 
@@ -283,13 +296,19 @@ export const receipts = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    requestId: text("request_id").references(() => requests.id, { onDelete: "set null" }),
+    requestId: text("request_id"),
     commitSha: text("commit_sha"),
     summaryJson: jsonb("summary_json"),
     createdAt: createdAt(),
   },
   (t) => ({
     projectCreatedIdx: index("receipts_project_created_idx").on(t.projectId, t.createdAt),
+    // SQL uses ON DELETE SET NULL ("request_id") so project_id stays (0002_same_project_refs.sql).
+    requestSameProjectFk: foreignKey({
+      name: "receipts_request_same_project_fk",
+      columns: [t.projectId, t.requestId],
+      foreignColumns: [requests.projectId, requests.id],
+    }).onDelete("set null"),
   }),
 );
 
@@ -300,14 +319,17 @@ export const dbTables = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    fileId: text("file_id")
-      .notNull()
-      .references(() => files.id, { onDelete: "cascade" }),
+    fileId: text("file_id").notNull(),
     name: text("name").notNull(),
     rlsEnabled: boolean("rls_enabled").notNull().default(false),
   },
   (t) => ({
     projectIdx: index("db_tables_project_idx").on(t.projectId),
+    fileSameProjectFk: foreignKey({
+      name: "db_tables_file_same_project_fk",
+      columns: [t.projectId, t.fileId],
+      foreignColumns: [files.projectId, files.id],
+    }).onDelete("cascade"),
   }),
 );
 

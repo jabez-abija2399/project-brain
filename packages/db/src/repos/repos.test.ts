@@ -2,14 +2,20 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fromPglite } from "../db";
 import { createTestDb } from "../testing";
 import {
+  dbPoliciesRepo,
+  dbTablesRepo,
   featuresRepo,
   filesRepo,
+  projectTokensRepo,
   projectsRepo,
   receiptsRepo,
   requestsRepo,
   symbolsRepo,
   usersRepo,
 } from "./index";
+
+// Drizzle wraps the driver error; Postgres code 23503 = foreign_key_violation.
+const FK_VIOLATION = { cause: { code: "23503" } };
 
 type Ctx = {
   pg: Awaited<ReturnType<typeof createTestDb>>;
@@ -93,6 +99,22 @@ describe("@brain/db project-scoped repositories", () => {
       [projectA.id, projectB.id],
     );
 
+    await pg.query(
+      `INSERT INTO decisions (id, project_id, title) VALUES ('d-a', $1, 'A'), ('d-b', $2, 'B')`,
+      [projectA.id, projectB.id],
+    );
+    await pg.query("INSERT INTO feature_files (feature_id, file_id) VALUES ($1, $2)", [
+      featureA.id,
+      fileA.id,
+    ]);
+    await pg.query(`INSERT INTO checklist_items (id, request_id, text) VALUES ('c-a', $1, 'A')`, [
+      reqA.id,
+    ]);
+    await projectTokensRepo.create(db, projectA.id);
+    await projectTokensRepo.create(db, projectB.id);
+    const tableA = await dbTablesRepo.insert(db, projectA.id, { fileId: fileA.id, name: "t" });
+    await dbPoliciesRepo.insert(db, projectA.id, { tableId: tableA.id, command: "SELECT" });
+
     await projectsRepo.delete(db, projectA.id, "owner-a");
 
     const count = async (table: string) => {
@@ -111,6 +133,9 @@ describe("@brain/db project-scoped repositories", () => {
       "agent_sessions",
       "requests",
       "receipts",
+      "decisions",
+      "project_tokens",
+      "db_tables",
     ]) {
       if (table === "projects") {
         const r = await pg.query<{ n: number }>(
@@ -123,10 +148,84 @@ describe("@brain/db project-scoped repositories", () => {
       }
     }
 
+    for (const [table, column, id] of [
+      ["feature_files", "feature_id", featureA.id],
+      ["checklist_items", "request_id", reqA.id],
+      ["db_policies", "table_id", tableA.id],
+    ] as const) {
+      const r = await pg.query<{ n: number }>(
+        `SELECT count(*)::int AS n FROM "${table}" WHERE "${column}" = $1`,
+        [id],
+      );
+      expect(r.rows[0]?.n, `${table} should have 0 rows for project A`).toBe(0);
+    }
+
     const otherProjectRows = await pg.query<{ n: number }>(
       "SELECT count(*)::int AS n FROM files WHERE project_id = $1",
       [projectB.id],
     );
     expect(otherProjectRows.rows[0]?.n).toBe(1);
+  });
+
+  it("AC-002-04 a row in project A cannot reference project B's file, feature or request", async () => {
+    const { pg, db } = ctx;
+    await usersRepo.upsertById(db, { id: "owner-a", name: "A", email: "a@example.com" });
+    await usersRepo.upsertById(db, { id: "owner-b", name: "B", email: "b@example.com" });
+    const projectA = await projectsRepo.create(db, "owner-a", { name: "Alpha" });
+    const projectB = await projectsRepo.create(db, "owner-b", { name: "Beta" });
+    const fileA = await filesRepo.insert(db, projectA.id, { path: "a.ts", hash: "ha" });
+    const fileB = await filesRepo.insert(db, projectB.id, { path: "b.ts", hash: "hb" });
+    const featureB = await featuresRepo.insert(db, projectB.id, { name: "feat-B" });
+    const requestB = await requestsRepo.insert(db, projectB.id, { text: "req B" });
+
+    await expect(
+      symbolsRepo.insert(db, projectA.id, { fileId: fileB.id, kind: "function", name: "x" }),
+    ).rejects.toMatchObject(FK_VIOLATION);
+    await expect(
+      dbTablesRepo.insert(db, projectA.id, { fileId: fileB.id, name: "t" }),
+    ).rejects.toMatchObject(FK_VIOLATION);
+    await expect(
+      requestsRepo.insert(db, projectA.id, { text: "req A", featureId: featureB.id }),
+    ).rejects.toMatchObject(FK_VIOLATION);
+    await expect(
+      receiptsRepo.insert(db, projectA.id, { requestId: requestB.id }),
+    ).rejects.toMatchObject(FK_VIOLATION);
+
+    // Same-project references still work, and deleting B never touches A's rows.
+    await symbolsRepo.insert(db, projectA.id, { fileId: fileA.id, kind: "function", name: "a" });
+    await dbTablesRepo.insert(db, projectA.id, { fileId: fileA.id, name: "t" });
+    await projectsRepo.delete(db, projectB.id, "owner-b");
+    expect(await symbolsRepo.list(db, projectA.id)).toHaveLength(1);
+    expect(await dbTablesRepo.list(db, projectA.id)).toHaveLength(1);
+    const left = await pg.query<{ n: number }>(
+      "SELECT count(*)::int AS n FROM files WHERE project_id = $1",
+      [projectA.id],
+    );
+    expect(left.rows[0]?.n).toBe(1);
+  });
+
+  it("AC-002-04 db policy and token writes/reads are scoped by projectId", async () => {
+    const { db } = ctx;
+    await usersRepo.upsertById(db, { id: "owner-a", name: "A", email: "a@example.com" });
+    await usersRepo.upsertById(db, { id: "owner-b", name: "B", email: "b@example.com" });
+    const projectA = await projectsRepo.create(db, "owner-a", { name: "Alpha" });
+    const projectB = await projectsRepo.create(db, "owner-b", { name: "Beta" });
+    const fileA = await filesRepo.insert(db, projectA.id, { path: "a.sql", hash: "ha" });
+    const tableA = await dbTablesRepo.insert(db, projectA.id, { fileId: fileA.id, name: "t" });
+
+    await dbPoliciesRepo.insert(db, projectA.id, { tableId: tableA.id, command: "SELECT" });
+    await expect(
+      dbPoliciesRepo.insert(db, projectB.id, { tableId: tableA.id, command: "DELETE" }),
+    ).rejects.toThrow(/not found/i);
+    expect(await dbPoliciesRepo.listForTable(db, projectA.id, tableA.id)).toHaveLength(1);
+    expect(await dbPoliciesRepo.listForTable(db, projectB.id, tableA.id)).toEqual([]);
+
+    const { row: tokenA } = await projectTokensRepo.create(db, projectA.id);
+    await projectTokensRepo.touchLastUsed(db, projectB.id, tokenA.id);
+    expect((await projectTokensRepo.getById(db, projectA.id, tokenA.id))?.lastUsedAt).toBeNull();
+    await projectTokensRepo.touchLastUsed(db, projectA.id, tokenA.id);
+    expect(
+      (await projectTokensRepo.getById(db, projectA.id, tokenA.id))?.lastUsedAt,
+    ).toBeInstanceOf(Date);
   });
 });

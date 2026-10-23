@@ -8,6 +8,6 @@ export async function requireProjectToken(db: BrainDb, req: Request): Promise<Pr
   if (!match || !match[1]) throw new AppError(401, "unauthenticated");
   const row = await projectTokensRepo.findActiveByValue(db, match[1].trim());
   if (!row) throw new AppError(401, "unauthenticated");
-  await projectTokensRepo.touchLastUsed(db, row.id).catch(() => {});
+  await projectTokensRepo.touchLastUsed(db, row.projectId, row.id).catch(() => {});
   return row;
 }

@@ -41,13 +41,13 @@ describe("@brain/db db_tables / db_policies", () => {
     });
     expect(table.rlsEnabled).toBe(true);
 
-    await dbPoliciesRepo.insert(db, {
+    await dbPoliciesRepo.insert(db, project.id, {
       tableId: table.id,
       command: "SELECT",
       allowsAll: false,
       checksOwnership: true,
     });
-    await dbPoliciesRepo.insert(db, {
+    await dbPoliciesRepo.insert(db, project.id, {
       tableId: table.id,
       command: "ALL",
       allowsAll: true,
@@ -83,7 +83,7 @@ describe("@brain/db db_tables / db_policies", () => {
     );
     expect(everyTableCol.rows.map((r) => r.table_name)).toEqual([]);
 
-    const policies = await dbPoliciesRepo.listForTable(db, table.id);
+    const policies = await dbPoliciesRepo.listForTable(db, project.id, table.id);
     expect(policies).toHaveLength(2);
     for (const p of policies) {
       expect(JSON.stringify(p)).not.toContain(SENTINEL);
