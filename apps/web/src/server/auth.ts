@@ -24,11 +24,22 @@ function buildAuth() {
       github: {
         clientId: process.env.GITHUB_CLIENT_ID || "",
         clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
-        // GitHub only returns the primary email when `user:email` is in scope
-        // AND the user has a verified public email. `read:user` lets better-auth
-        // read /user; `user:email` lets it fall back to /user/emails for the
-        // primary verified address when the public one is hidden.
         scope: ["read:user", "user:email"],
+        // GitHub's /user returns email: null when the primary address is
+        // marked private, even with user:email in scope. Fall back to the
+        // user's canonical noreply address so sign-in still works.
+        mapProfileToUser: (profile: {
+          id: number | string;
+          login?: string;
+          name?: string | null;
+          email?: string | null;
+          avatar_url?: string | null;
+        }) => ({
+          email:
+            profile.email ?? `${profile.id}+${profile.login ?? "user"}@users.noreply.github.com`,
+          name: profile.name ?? profile.login ?? `github-${profile.id}`,
+          image: profile.avatar_url ?? undefined,
+        }),
       },
     },
   });
