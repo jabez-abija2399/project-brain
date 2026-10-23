@@ -345,3 +345,7 @@ export type Request = typeof requests.$inferSelect;
 export type NewRequest = typeof requests.$inferInsert;
 export type Receipt = typeof receipts.$inferSelect;
 export type NewReceipt = typeof receipts.$inferInsert;
+export type DbTable = typeof dbTables.$inferSelect;
+export type NewDbTable = typeof dbTables.$inferInsert;
+export type DbPolicy = typeof dbPolicies.$inferSelect;
+export type NewDbPolicy = typeof dbPolicies.$inferInsert;

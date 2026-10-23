@@ -12,3 +12,13 @@ export type {
   RouteIndex,
   SkippedFile,
 } from "./indexer";
+
+export { readSupabaseMigrations } from "./supabase";
+export type {
+  ColumnDecl,
+  PolicyCommand,
+  PolicySchema,
+  SupabaseReadError,
+  SupabaseReadResult,
+  TableSchema,
+} from "./supabase";

@@ -502,45 +502,63 @@
           "id": "AC-005-01",
           "kind": "happy",
           "check": "For tests/fixtures/supabase/migrations, every CREATE TABLE is returned with its columns",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 21:01; log contains AC-005-01"
         },
         {
           "id": "AC-005-02",
           "kind": "happy",
           "check": "For each table, RLS enabled/disabled and each CREATE POLICY (command, roles, USING/WITH CHECK expression text) is returned",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 21:01; log contains AC-005-02"
         },
         {
           "id": "AC-005-03",
           "kind": "boundary",
           "check": "A table created in one migration and given RLS in a later migration is reported as RLS enabled",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 21:01; log contains AC-005-03"
         },
         {
           "id": "AC-005-04",
           "kind": "negative",
           "check": "A migration file that fails to parse is reported in errors[] with its file name; other files are still read",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 21:01; log contains AC-005-04"
         },
         {
           "id": "AC-005-05",
           "kind": "state",
           "check": "Tables and policies are saved to db_tables and db_policies as flags only; no SQL expression text is stored",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 21:01; log contains AC-005-05"
         }
       ],
-      "status": "todo",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "packages/core/src/index.ts",
+        "packages/core/src/supabase/index.ts",
+        "packages/core/src/supabase/parser.ts",
+        "packages/core/src/supabase/reader.test.ts",
+        "packages/core/src/supabase/reader.ts",
+        "packages/core/src/supabase/tokenize.ts",
+        "packages/core/src/supabase/types.ts",
+        "packages/db/src/repos/db-schema.test.ts",
+        "packages/db/src/repos/db-schema.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/schema.ts",
+        "tests/fixtures/supabase/migrations/0001_init.sql",
+        "tests/fixtures/supabase/migrations/0002_rls_profiles.sql",
+        "tests/fixtures/supabase/migrations/0003_rls_posts_later.sql",
+        "tests/fixtures/supabase/migrations/0004_broken.sql",
+        "tests/fixtures/supabase/migrations/0005_comments.sql"
+      ]
     },
     {
       "id": "FEAT-006",
@@ -1485,6 +1503,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 45
+    "tests_passed": 50
   }
 }

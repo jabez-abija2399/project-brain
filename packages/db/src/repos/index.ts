@@ -10,3 +10,4 @@ export {
   hashToken,
 } from "./project-tokens";
 export { usersRepo } from "./users";
+export { dbPoliciesRepo, dbTablesRepo } from "./db-schema";
