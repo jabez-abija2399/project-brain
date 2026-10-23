@@ -33,3 +33,5 @@
 - 2026-10-23 | Re-planning when the user changes their mind (proposals diffed against the approved plan) | extends FEAT-019
 - 2026-10-23 | Plan-versus-reality view: planned features vs built, drifting features highlighted | extends FEAT-019
 - 2026-10-23 | Dark mode for the dashboard | DESIGN.md: parked from v1; tokens structured so it can be added later without changing components
+- 2026-10-23 | checkDb: clear the race timer and stop awaiting sql.end past the budget (call can overrun timeoutMs by ~1 s) | peer review FEAT-001 finding L1
+- 2026-10-23 | /api/health: cache the result for a few seconds or rate-limit it; today every anonymous GET opens a new Neon connection | peer review FEAT-001 finding L2
