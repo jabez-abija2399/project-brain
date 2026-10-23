@@ -49,3 +49,13 @@ Trade-offs: free compute scales to zero after 5 min, so the first query after id
 target); 0.5 GB free storage per project (fine: metadata only). Revisit when: MCP p95 misses 500 ms because of cold
 starts (Launch plan can disable scale-to-zero) or storage nears 0.5 GB.
 Note: Supabase stays a TARGET stack in the product (FEAT-005 and FEAT-015 read users' Supabase migrations and RLS).
+
+## D-009 | 2026-10-23 | Receipt checklist judging uses the smallest Claude model, at most 1 LLM call per receipt
+Context: receipts must be fast and cheap; everything else in a receipt is deterministic.
+Options: (A) smallest Claude model, max 1 call per receipt CHOSEN. (B) larger model REJECTED (cost, latency). (C) no LLM REJECTED (receipts misjudge items).
+Trade-offs: we accept misses in dogfooding (users will correct them). Revisit when: receipts misjudge items in dogfooding.
+
+## D-010 | 2026-10-23 | Rate limits use a Postgres counter table (no new dependency)
+Context: FEAT-008 and the MCP route need per-token rate limiting; we already run Postgres.
+Options: (A) a `rate_counters(key, window_start, count)` table CHOSEN (no new dep, works on Vercel + Neon). (B) @upstash/ratelimit REJECTED (new provider + dep). (C) rate-limiter-flexible with a Postgres store REJECTED (extra dep for little gain).
+Trade-offs: a counter write per request; fine while traffic is low. Revisit when: request volume makes it slow (bump to Upstash/Redis).

@@ -72,7 +72,10 @@ symbols(project_id, file_id FK, kind component|function|route|table, name, signa
 features(project_id, name UNIQUE per project, description, status) · feature_files(feature_id, file_id; PK both) ·
 decisions(project_id, title, reason, created_at) · agent_sessions(project_id, goal, done, unfinished, next_step, created_at) ·
 requests(project_id, feature_id, text, created_at) · checklist_items(request_id, text, status open|done|partial|missed|dismissed) ·
-receipts(project_id, request_id NULL, commit_sha NULL, summary_json, created_at).
+receipts(project_id, request_id NULL, commit_sha NULL, summary_json, created_at) ·
+db_tables(project_id, file_id, name, rls_enabled) ·
+db_policies(table_id, command, allows_all boolean, checks_ownership boolean).
+Flags only, no policy expression text (D-002).
 Indexes: every table on project_id; symbols(project_id, kind, name); receipts(project_id, created_at desc).
 
 ## Performance budget

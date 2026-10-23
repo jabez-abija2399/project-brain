@@ -5,6 +5,8 @@ add a row here -> install. Prefer a well-known package over writing the code you
 New versions are only installed once they are a few days old (dependency cooldown: `python3 scripts/kit.py harden`).
 (The pre-commit hook and the Claude Code hook block packages that are not listed here or in docs/decisions.md.)
 
+**Cooldown: package versions younger than 3 days are never installed (set by `python3 scripts/kit.py harden`, default 3 days). Only the human can change it, with GUARD_ADMIN=1.**
+
 | Package | Where | Purpose | Alternatives considered (why not) | License | Checked |
 |---|---|---|---|---|---|
 | next | apps/web | framework: pages, API routes, MCP route | react-router (no API/MCP hosting story), @sveltejs/kit (smaller ecosystem) | MIT | 2026-10-23 |
@@ -37,6 +39,7 @@ Notes from dep-check (2026-10-23): inngest, @anthropic-ai/sdk, better-auth, @bio
 the cooldown (`kit.py harden`) makes the installer pick an older version. Weekly download counts were not reachable
 from the planning environment; re-run dep-check locally if you want them.
 shadcn/ui is not a dependency: its components are copied into apps/web/src/components/ui by its CLI (run once with npx).
+GitHub REST calls (fetching changed file contents in the FEAT-009 job) use the authenticated Octokit instance returned by `@octokit/app` (`app.getInstallationOctokit(installation_id)`); no separate `@octokit/rest` entry is needed.
 
 Binaries / services (not from a package registry): Neon (hosted Postgres: 'dev' branch for development, main branch or a separate project for production),
 Vercel (hosting), Inngest Cloud + `npx inngest-cli dev` (local job runner), GitHub OAuth app + GitHub App, Anthropic API.

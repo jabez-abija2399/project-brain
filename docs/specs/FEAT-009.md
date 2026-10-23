@@ -39,8 +39,8 @@ attacker tests, show them failing if vulnerable, fix, repeat once.
 ## 6. Performance budget
 See the perf criteria above (if any) and docs/architecture.md Performance budget.
 
-## 7. UI contract
-Components from docs/DESIGN.md; all states (loading, empty, error, success); 375 and 1280 px.
+## 7. Webhook response contract
+POST /api/github/webhook returns: 202 Accepted (`{ ok: true, enqueued: true }`) once the signature verifies and the Inngest event is enqueued; 200 OK (`{ ok: true, duplicate: true }`) for a replayed delivery id; 401 (`{ error: "bad_signature" }`) if the X-Hub-Signature-256 header is missing or does not match (no body is parsed before the check); 400 for an unknown event type we do not handle. The handler always responds within 2 s; any real work runs in the Inngest job.
 
 ## 8. Observability and errors
 Log: route/tool name, project id, duration, result. Never log tokens, secrets, OAuth tokens or source code.

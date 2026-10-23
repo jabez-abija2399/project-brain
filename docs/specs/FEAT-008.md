@@ -39,8 +39,8 @@ attacker tests, show them failing if vulnerable, fix, repeat once.
 ## 6. Performance budget
 See the perf criteria above (if any) and docs/architecture.md Performance budget.
 
-## 7. UI contract
-Components from docs/DESIGN.md; all states (loading, empty, error, success); 375 and 1280 px.
+## 7. CLI stdout and exit codes
+stdout: one line per phase ("Logged in as project <id>", "Indexing <N> files...", "Uploaded <N> changed, <M> unchanged", "Done in <s>s"). Errors go to stderr with a single clear message (no stack traces). Exit codes: 0 success; 1 generic failure; 2 bad arguments; 3 auth failure (login missing/revoked); 4 upload rejected (413); 5 server error. No colors when `NO_COLOR` is set.
 
 ## 8. Observability and errors
 Log: route/tool name, project id, duration, result. Never log tokens, secrets, OAuth tokens or source code.

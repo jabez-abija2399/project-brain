@@ -39,8 +39,8 @@ attacker tests, show them failing if vulnerable, fix, repeat once.
 ## 6. Performance budget
 See the perf criteria above (if any) and docs/architecture.md Performance budget.
 
-## 7. UI contract
-Components from docs/DESIGN.md; all states (loading, empty, error, success); 375 and 1280 px.
+## 7. MCP error shape
+Tool errors return a JSON-RPC error with `code` and `message` fields and no stack trace. Codes used: -32602 invalid params (field name in `data.field`), -32001 unauthorized (missing/invalid/revoked token), -32004 not_found (project id does not match the token's project; also used for cross-project reads so existence is never leaked), -32005 rate_limited (`data.retry_after_s`), -32603 internal (opaque; details only in server logs). Transport-level auth failures surface as HTTP 401 before any JSON-RPC frame is parsed.
 
 ## 8. Observability and errors
 Log: route/tool name, project id, duration, result. Never log tokens, secrets, OAuth tokens or source code.

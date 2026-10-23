@@ -11,7 +11,8 @@ Rejected for v1: trust and clarity matter more than delight for a verification p
 ## Tokens (CSS variables / theme file: apps/web/src/app/globals.css; never hard-code colors)
 --bg · --surface · --border · --text · --muted · --accent · --success · --warning · --danger
 Light: bg #FAFAF9, surface #FFFFFF, border #E7E5E4, text #1C1917, muted #78716C, accent #4F46E5,
-success #15803D, warning #B45309, danger #B91C1C. Dark mode: same tokens, values chosen in FEAT-017 (v1 ships both).
+success #15803D, warning #B45309, danger #B91C1C. Dark mode: not in v1 (parked in agent/later.md); tokens are
+structured so a dark theme can be added later without changing components.
 Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 8 px. Spacing scale 4/8/12/16/24/32.
 
 ## Component inventory (build each once, reuse everywhere; add a row before creating a new shared component)

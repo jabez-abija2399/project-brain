@@ -75,7 +75,7 @@ Codex/Gemini hooks, test generation, access-control tester, design system engine
 - [ASSUME] v1 users build with Claude Code or Cursor on TypeScript + React/Next.js + Supabase.
 - [ASSUME] Users are comfortable connecting GitHub.
 - [OPEN] Product name. Default: "Project Brain" (working name), CLI command `projectbrain`.
-- [OPEN] Receipt checklist judging uses an LLM. Default: smallest Claude model, max 1 call per receipt.
+- [DECIDED D-009] Receipt checklist judging uses the smallest Claude model, max 1 call per receipt.
 - [OPEN] Pricing in v1. Default: free during the trial; billing comes after the YC application.
 
 ## Success criteria (numbers)

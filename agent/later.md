@@ -32,3 +32,4 @@
 - 2026-10-23 | Planning: threat models drafted for security-sensitive features, import rules proposed per project | extends FEAT-019
 - 2026-10-23 | Re-planning when the user changes their mind (proposals diffed against the approved plan) | extends FEAT-019
 - 2026-10-23 | Plan-versus-reality view: planned features vs built, drifting features highlighted | extends FEAT-019
+- 2026-10-23 | Dark mode for the dashboard | DESIGN.md: parked from v1; tokens structured so it can be added later without changing components
