@@ -9,6 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    reporters: ["verbose"],
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     testTimeout: 30000,
     hookTimeout: 30000,
