@@ -3,8 +3,10 @@ pnpm-workspace.yaml
 tsconfig.base.json
 biome.json
 .nvmrc
+.env.example
 .github/workflows/verify.yml
 scripts/dev.sh
+scripts/load-env.mjs
 apps/web/**
 packages/core/**
 packages/db/**

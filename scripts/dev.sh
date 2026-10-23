@@ -12,10 +12,9 @@ fi
 [ -f .env ] || { echo "Missing .env: cp .env.example .env and fill it in." >&2; exit 1; }
 # Export root .env (and .env.local if present) so child processes see DATABASE_URL etc.
 # Next.js only auto-loads .env from apps/web, so without this the root .env is ignored.
-set -a
-. ./.env
-[ -f .env.local ] && . ./.env.local
-set +a
+# We parse with Node (scripts/load-env.mjs) because `. ./.env` breaks on unquoted
+# values containing shell metacharacters like '&' (common in Neon connection strings).
+eval "$(node scripts/load-env.mjs .env .env.local)"
 # Diagnostic: no values printed. If DATABASE_URL length is 0, your .env line is blank, commented out, or quoted strangely.
 echo "[dev] .env loaded. DATABASE_URL length: ${#DATABASE_URL}  BETTER_AUTH_SECRET length: ${#BETTER_AUTH_SECRET}"
 if [ -z "${DATABASE_URL:-}" ]; then
