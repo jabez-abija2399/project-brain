@@ -10,8 +10,17 @@ if [ ! -f package.json ]; then
   exit 1
 fi
 [ -f .env ] || { echo "Missing .env: cp .env.example .env and fill it in." >&2; exit 1; }
+# Export root .env (and .env.local if present) so child processes see DATABASE_URL etc.
+# Next.js only auto-loads .env from apps/web, so without this the root .env is ignored.
 set -a
 . ./.env
+[ -f .env.local ] && . ./.env.local
 set +a
+# Diagnostic: no values printed. If DATABASE_URL length is 0, your .env line is blank, commented out, or quoted strangely.
+echo "[dev] .env loaded. DATABASE_URL length: ${#DATABASE_URL}  BETTER_AUTH_SECRET length: ${#BETTER_AUTH_SECRET}"
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "[dev] DATABASE_URL is empty after sourcing .env." >&2
+  echo "[dev] Check that .env has an uncommented line of the form: DATABASE_URL=postgres://...  (no spaces around '=')." >&2
+fi
 pnpm --filter @brain/db migrate
 pnpm --filter @brain/web dev
