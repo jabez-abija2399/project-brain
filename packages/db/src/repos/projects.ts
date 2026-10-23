@@ -28,4 +28,18 @@ export const projectsRepo = {
   async delete(db: BrainDb, projectId: string, ownerId: string): Promise<void> {
     await db.delete(projects).where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)));
   },
+
+  async rename(
+    db: BrainDb,
+    projectId: string,
+    ownerId: string,
+    name: string,
+  ): Promise<Project | null> {
+    const [row] = await db
+      .update(projects)
+      .set({ name })
+      .where(and(eq(projects.id, projectId), eq(projects.ownerId, ownerId)))
+      .returning();
+    return row ?? null;
+  },
 };

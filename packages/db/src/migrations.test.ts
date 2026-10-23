@@ -4,6 +4,10 @@ import { runMigrations } from "./migrations";
 import { createTestDb, pgliteDriver } from "./testing";
 
 const EXPECTED_TABLES = [
+  "user",
+  "session",
+  "account",
+  "verification",
   "projects",
   "project_tokens",
   "files",
@@ -59,6 +63,9 @@ describe("@brain/db schema constraints", () => {
   it("AC-002-03 inserting a second file with the same (project_id, path) fails with a unique-constraint error", async () => {
     const db = await createTestDb();
     try {
+      await db.query(
+        `INSERT INTO "user" (id, name, email) VALUES ('owner-a', 'A', 'a@example.com')`,
+      );
       await db.query(
         `INSERT INTO projects (id, owner_id, name) VALUES ('p1', 'owner-a', 'Proj A')`,
       );

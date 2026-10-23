@@ -8,6 +8,7 @@ import {
   receiptsRepo,
   requestsRepo,
   symbolsRepo,
+  usersRepo,
 } from "./index";
 
 type Ctx = {
@@ -32,6 +33,8 @@ describe("@brain/db project-scoped repositories", () => {
 
   it("AC-002-04 symbols.list for project A never returns rows from project B", async () => {
     const { db } = ctx;
+    await usersRepo.upsertById(db, { id: "owner-a", name: "A", email: "a@example.com" });
+    await usersRepo.upsertById(db, { id: "owner-b", name: "B", email: "b@example.com" });
     const projectA = await projectsRepo.create(db, "owner-a", { name: "Alpha" });
     const projectB = await projectsRepo.create(db, "owner-b", { name: "Beta" });
 
@@ -62,6 +65,8 @@ describe("@brain/db project-scoped repositories", () => {
 
   it("AC-002-05 deleting a project cascades to files, symbols, features, agent_sessions, requests, receipts", async () => {
     const { pg, db } = ctx;
+    await usersRepo.upsertById(db, { id: "owner-a", name: "A", email: "a@example.com" });
+    await usersRepo.upsertById(db, { id: "owner-b", name: "B", email: "b@example.com" });
     const projectA = await projectsRepo.create(db, "owner-a", { name: "Alpha" });
     const projectB = await projectsRepo.create(db, "owner-b", { name: "Beta" });
 

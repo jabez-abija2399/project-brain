@@ -332,61 +332,62 @@
           "id": "AC-003-01",
           "kind": "happy",
           "check": "A user signs in with GitHub, creates a project named 'demo' and sees it in the project list",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 16:05; log contains AC-003-01"
         },
         {
           "id": "AC-003-02",
           "kind": "permission",
           "check": "Signed-out requests to /api/projects/* return 401",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 16:05; log contains AC-003-02"
         },
         {
           "id": "AC-003-03",
           "kind": "attack",
           "check": "User B requesting user A's project by id (GET /api/projects/<A-id>) gets 404, not 403 or 200",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 16:05; log contains AC-003-03"
         },
         {
           "id": "AC-003-04",
           "kind": "attack",
           "check": "User B sending PATCH /api/projects/<A-id> with a new name gets 404 and the name is unchanged",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 16:05; log contains AC-003-04"
         },
         {
           "id": "AC-003-05",
           "kind": "negative",
           "check": "Creating a project with an empty name or a name over 80 characters returns 400 with a field error",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 16:05; log contains AC-003-05"
         },
         {
           "id": "AC-003-06",
           "kind": "happy",
           "check": "A revoked token is rejected with 401 by GET /api/token/whoami",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 16:05; log contains AC-003-06"
         },
         {
           "id": "AC-003-07",
           "kind": "boundary",
           "check": "Project tokens are stored only as hashes: the token value appears once in the create response and nowhere in the database",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 16:05; log contains AC-003-07"
         }
       ],
-      "status": "todo",
-      "notes": "Builds requireUser, requireProjectAccess and requireProjectToken (docs/architecture.md building blocks)."
+      "status": "done",
+      "notes": "Builds requireUser, requireProjectAccess and requireProjectToken (docs/architecture.md building blocks).",
+      "files": []
     },
     {
       "id": "FEAT-004",
@@ -1459,6 +1460,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 13
+    "tests_passed": 20
   }
 }
