@@ -12,5 +12,6 @@ export async function GET() {
   if (result.ok) {
     return NextResponse.json({ ok: true, db: true }, { status: 200 });
   }
+  console.error("[/api/health] db check failed:", result.reason ?? "unknown");
   return NextResponse.json({ ok: false, db: false }, { status: 503 });
 }

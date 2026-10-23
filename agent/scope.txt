@@ -4,6 +4,7 @@ tsconfig.base.json
 biome.json
 .nvmrc
 .github/workflows/verify.yml
+scripts/dev.sh
 apps/web/**
 packages/core/**
 packages/db/**

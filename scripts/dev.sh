@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The ONE command that starts this project locally (agents and the evaluator use it before testing in a browser).
-# Applies migrations to the database in DATABASE_URL (a Neon 'dev' branch), then runs the Next.js app on
-# http://localhost:3000. No Docker needed.
+# Loads .env from the project root, applies migrations to DATABASE_URL (a Neon 'dev' branch), then runs the
+# Next.js app on http://localhost:3000. No Docker needed.
 # Background jobs: run `npx inngest-cli dev` in a second terminal.
 set -e
 cd "$(dirname "$0")/.."
@@ -10,5 +10,8 @@ if [ ! -f package.json ]; then
   exit 1
 fi
 [ -f .env ] || { echo "Missing .env: cp .env.example .env and fill it in." >&2; exit 1; }
+set -a
+. ./.env
+set +a
 pnpm --filter @brain/db migrate
 pnpm --filter @brain/web dev
