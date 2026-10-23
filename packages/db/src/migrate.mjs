@@ -42,7 +42,31 @@ try {
     );
   }
 } catch (err) {
-  console.error("[@brain/db] migrate failed:", err instanceof Error ? err.message : String(err));
+  // postgres.js errors often have the useful bits in .code/.detail/.hint/.where,
+  // not .message, so print everything we know.
+  const info = {};
+  if (err && typeof err === "object") {
+    for (const k of [
+      "message",
+      "name",
+      "code",
+      "severity",
+      "detail",
+      "hint",
+      "schema",
+      "table",
+      "column",
+      "constraint",
+      "where",
+      "position",
+      "query",
+    ]) {
+      const v = /** @type {Record<string, unknown>} */ (err)[k];
+      if (v !== undefined && v !== "") info[k] = v;
+    }
+  }
+  console.error("[@brain/db] migrate failed:", Object.keys(info).length ? info : err);
+  if (err && typeof err === "object" && "stack" in err) console.error(err.stack);
   process.exitCode = 1;
 } finally {
   await sql.end({ timeout: 1 }).catch(() => {});
