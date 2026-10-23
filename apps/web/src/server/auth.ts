@@ -24,6 +24,11 @@ function buildAuth() {
       github: {
         clientId: process.env.GITHUB_CLIENT_ID || "",
         clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+        // GitHub only returns the primary email when `user:email` is in scope
+        // AND the user has a verified public email. `read:user` lets better-auth
+        // read /user; `user:email` lets it fall back to /user/emails for the
+        // primary verified address when the public one is hidden.
+        scope: ["read:user", "user:email"],
       },
     },
   });
