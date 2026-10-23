@@ -405,61 +405,86 @@
           "id": "AC-004-01",
           "kind": "happy",
           "check": "indexRepo(files) in @brain/core returns, for the fixture repo tests/fixtures/next-app, every React component with its name, props and file path",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 20:37; log contains AC-004-01"
         },
         {
           "id": "AC-004-02",
           "kind": "happy",
           "check": "Next.js app-router routes (page.tsx, route.ts) are returned with their URL path, e.g. app/reviews/[id]/page.tsx -> /reviews/[id]",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 20:37; log contains AC-004-02"
         },
         {
           "id": "AC-004-03",
           "kind": "happy",
           "check": "Each file's imports are resolved to repo paths (relative and @/ alias from tsconfig)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 20:37; log contains AC-004-03"
         },
         {
           "id": "AC-004-04",
           "kind": "negative",
           "check": "A file with a syntax error is reported in errors[] and does not stop the rest of the index",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 20:37; log contains AC-004-04"
         },
         {
           "id": "AC-004-05",
           "kind": "boundary",
           "check": "Files over 1 MB, binaries, node_modules, .next and files in .gitignore are skipped and listed as skipped",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 20:37; log contains AC-004-05"
         },
         {
           "id": "AC-004-06",
           "kind": "perf",
           "check": "Indexing a generated 500-file fixture repo takes under 20 s on CI",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 20:37; log contains AC-004-06"
         },
         {
           "id": "AC-004-07",
           "kind": "state",
           "check": "The index output contains no source code: only paths, hashes, symbol names, signatures and line numbers",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-23 20:37; log contains AC-004-07"
         }
       ],
-      "status": "todo",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "biome.json",
+        "packages/core/package.json",
+        "packages/core/src/index.ts",
+        "packages/core/src/indexer/index.ts",
+        "packages/core/src/indexer/indexer.test.ts",
+        "packages/core/src/indexer/parser.ts",
+        "packages/core/src/indexer/perf.test.ts",
+        "packages/core/src/indexer/resolver.ts",
+        "packages/core/src/indexer/routes.ts",
+        "packages/core/src/indexer/types.ts",
+        "packages/core/src/indexer/walker.ts",
+        "packages/core/vitest.config.ts",
+        "tests/fixtures/next-app/.gitignore",
+        "tests/fixtures/next-app/src/app/(marketing)/about/page.tsx",
+        "tests/fixtures/next-app/src/app/api/health/route.ts",
+        "tests/fixtures/next-app/src/app/layout.tsx",
+        "tests/fixtures/next-app/src/app/page.tsx",
+        "tests/fixtures/next-app/src/app/reviews/[id]/page.tsx",
+        "tests/fixtures/next-app/src/broken.tsx",
+        "tests/fixtures/next-app/src/components/Button.tsx",
+        "tests/fixtures/next-app/src/components/Card.tsx",
+        "tests/fixtures/next-app/src/lib/utils.ts",
+        "tests/fixtures/next-app/tsconfig.json"
+      ]
     },
     {
       "id": "FEAT-005",
@@ -1460,6 +1485,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 20
+    "tests_passed": 45
   }
 }

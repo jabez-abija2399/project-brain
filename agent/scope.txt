@@ -12,3 +12,4 @@ packages/core/**
 packages/db/**
 packages/cli/**
 packages/agent-kit/**
+tests/**

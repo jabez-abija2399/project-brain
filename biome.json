@@ -9,6 +9,7 @@
       "**/build/**",
       "**/node_modules/**",
       "**/drizzle/**",
+      "tests/fixtures/**",
       "**/*.tsbuildinfo",
       "agent/**",
       "scripts/kit.py",
