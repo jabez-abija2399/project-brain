@@ -59,3 +59,13 @@ Trade-offs: we accept misses in dogfooding (users will correct them). Revisit wh
 Context: FEAT-008 and the MCP route need per-token rate limiting; we already run Postgres.
 Options: (A) a `rate_counters(key, window_start, count)` table CHOSEN (no new dep, works on Vercel + Neon). (B) @upstash/ratelimit REJECTED (new provider + dep). (C) rate-limiter-flexible with a Postgres store REJECTED (extra dep for little gain).
 Trade-offs: a counter write per request; fine while traffic is low. Revisit when: request volume makes it slow (bump to Upstash/Redis).
+
+## D-011 | 2026-10-23 | FEAT-004 indexer uses the TypeScript Compiler API, not web-tree-sitter
+Context: the MVP only indexes TypeScript/JavaScript (D-006: React/Next.js + Supabase target stack), and FEAT-004 needs
+exact component props, exported symbols and import resolution. Options: (A) TypeScript Compiler API CHOSEN: exact types,
+props and exports with no extra grammar; already a transitive dep of Next.js. (B) web-tree-sitter + ts-morph REJECTED
+for now: WASM grammars give syntax but not types; ts-morph wraps the same compiler with more overhead. Trade-offs:
+TS/JS only; the `typescript` package is large (~60 MB) and counts against the Vercel function size limit. web-tree-sitter
+and @vscode/tree-sitter-wasm stay approved (docs/dependencies.md) for when we add other languages. Revisit when: adding
+a non-TS language (Python, Go, Ruby), or if `typescript` pushes a Vercel function over the size limit (then move parsing
+to a job or swap in web-tree-sitter for the server path).
