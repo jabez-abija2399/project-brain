@@ -29,6 +29,16 @@
           "id": "AC-003-12",
           "kind": "permission",
           "check": "Signed-out POST/GET/DELETE to /api/projects/[id]/tokens[/tokenId] all return 401"
+        },
+        {
+          "id": "AC-003-13",
+          "kind": "boundary",
+          "check": "One GitHub account cannot be linked to two users: account(providerId, accountId) is UNIQUE and a duplicate insert fails at the database"
+        },
+        {
+          "id": "AC-003-14",
+          "kind": "boundary",
+          "check": "Deleting a user cascades to their sessions, accounts and projects; no orphaned auth rows survive"
         }
       ]
     }
