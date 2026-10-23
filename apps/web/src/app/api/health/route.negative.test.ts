@@ -19,4 +19,16 @@ describe("GET /api/health (unreachable DB)", () => {
     expect(res.status).toBe(503);
     await expect(res.json()).resolves.toEqual({ ok: false, db: false });
   });
+
+  it("AC-001-03 returns 503 within 3s when the host silently drops packets (no ECONNREFUSED)", async () => {
+    // 10.255.255.1 is non-routable: the TCP SYN is never answered, unlike a closed local port.
+    process.env.DATABASE_URL = "postgres://x:x@10.255.255.1:5432/none";
+    const { GET } = await import("./route");
+    const start = Date.now();
+    const res = await GET();
+    const elapsed = Date.now() - start;
+    expect(res.status).toBe(503);
+    expect(elapsed).toBeLessThan(3000);
+    await expect(res.json()).resolves.toEqual({ ok: false, db: false });
+  });
 });
