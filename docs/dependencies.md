@@ -34,6 +34,11 @@ New versions are only installed once they are a few days old (dependency cooldow
 | typescript | all (dev) | typecheck | (no real alternative) | Apache-2.0 | 2026-10-23 |
 | commander | packages/cli | CLI commands/args | citty (pre-1.0), yargs (heavier API) | MIT | 2026-10-23 |
 | @clack/prompts | packages/cli | interactive setup prompts | inquirer (heavier), prompts (unmaintained: last release 2021) | MIT | 2026-10-23 |
+| @brain/core | apps/web | workspace package (pure logic) | n/a — internal workspace package | internal | 2026-10-23 |
+| @brain/db | apps/web | workspace package (data access) | n/a — internal workspace package | internal | 2026-10-23 |
+| @types/node | all (dev) | Node type definitions | required by typescript when targeting Node runtimes | MIT | 2026-10-23 |
+| @types/react | apps/web (dev) | React type definitions | required by react typecheck | MIT | 2026-10-23 |
+| @types/react-dom | apps/web (dev) | ReactDOM type definitions | required by react-dom typecheck | MIT | 2026-10-23 |
 
 Notes from dep-check (2026-10-23): inngest, @anthropic-ai/sdk, better-auth, @biomejs/biome and @electric-sql/pglite published a release in the last 0-2 days;
 the cooldown (`kit.py harden`) makes the installer pick an older version. Weekly download counts were not reachable

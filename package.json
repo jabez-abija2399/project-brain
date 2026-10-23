@@ -1,0 +1,25 @@
+{
+  "name": "project-brain",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.34.7",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "test": "pnpm -r --if-present test -- --reporter=verbose",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "biome ci ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.9"
+  },
+  "pnpm": {
+    "overrides": {
+      "postcss@<8.5.18": ">=8.5.18"
+    }
+  }
+}

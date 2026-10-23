@@ -1,1 +1,11 @@
-*
+package.json
+pnpm-workspace.yaml
+tsconfig.base.json
+biome.json
+.nvmrc
+.github/workflows/verify.yml
+apps/web/**
+packages/core/**
+packages/db/**
+packages/cli/**
+packages/agent-kit/**
