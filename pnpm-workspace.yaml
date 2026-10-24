@@ -1,4 +1,4 @@
-minimumReleaseAge: 4320   # minutes; kit.py harden
+minimumReleaseAge: 10080   # minutes (7 days, D-013); kit.py harden
 packages:
   - "apps/*"
   - "packages/*"

@@ -14,7 +14,7 @@
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "ignore": "7.0.13",
+    "ignore": "7.0.12",
     "typescript": "^5.6.3"
   },
   "devDependencies": {

@@ -77,3 +77,11 @@ WASM dependency, nothing extra in the Vercel bundle. (B) libpg-query REJECTED fo
 native/WASM builds. (C) pgsql-ast-parser, node-sql-parser REJECTED (incomplete Postgres dialect). Trade-offs: we parse a
 subset of Postgres; unusual syntax can be misread or land in errors[]. libpg-query stays approved (docs/dependencies.md).
 Revisit when: the realistic-migrations criterion (AC-005-06) fails and cannot be fixed cleanly in the reader.
+
+## D-013 | 2026-10-24 | Dependency cooldown raised from 3 to 7 days
+Context: semgrep's supply-chain rule (pnpm-minimum-release-age) requires a 7-day minimum release age; ours was 3 days
+(kit.py harden default). Decision: Dependency cooldown raised from 3 to 7 days (semgrep supply-chain rule).
+Security fixes may bypass it only with human approval. Set as `minimumReleaseAge: 10080` in pnpm-workspace.yaml.
+Scope: our own install policy only. The product's check_package cooldown (FEAT-014, AC-014-06: flags versions younger
+than 3 days) stays a separate choice and is not changed by this decision.
+Revisit when: a security fix is needed sooner than 7 days (the human approves each bypass).

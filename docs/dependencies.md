@@ -2,10 +2,10 @@
 Every entry was checked with `python3 scripts/kit.py dep-check <name>` (exists, age, maintenance, downloads, license),
 and compared with 2 alternatives. Install these without a new entry. Anything else: dep-check it and 2 alternatives ->
 add a row here -> install. Prefer a well-known package over writing the code yourself.
-New versions are only installed once they are a few days old (dependency cooldown: `python3 scripts/kit.py harden`).
+New versions are only installed once they are 7 days old (dependency cooldown: `python3 scripts/kit.py harden`; D-013).
 (The pre-commit hook and the Claude Code hook block packages that are not listed here or in docs/decisions.md.)
 
-**Cooldown: package versions younger than 3 days are never installed (set by `python3 scripts/kit.py harden`, default 3 days). Only the human can change it, with GUARD_ADMIN=1.**
+**Cooldown: package versions younger than 7 days are never installed (`minimumReleaseAge: 10080` in pnpm-workspace.yaml; raised from the `kit.py harden` default of 3 days, see D-013). Security fixes may bypass it only with human approval. Only the human can change it, with GUARD_ADMIN=1.**
 
 | Package | Where | Purpose | Alternatives considered (why not) | License | Checked |
 |---|---|---|---|---|---|
@@ -28,7 +28,7 @@ New versions are only installed once they are a few days old (dependency cooldow
 | better-auth | apps/web | GitHub sign-in + OAuth provider for MCP | next-auth v4 (no MCP OAuth), @clerk/nextjs (paid at scale, lock-in) | MIT | 2026-10-23 |
 | zod | all | input validation, MCP tool schemas | valibot (smaller ecosystem), yup (less TS-native) | MIT | 2026-10-23 |
 | tailwindcss | apps/web | styling with tokens | unocss, @pandacss/dev (smaller ecosystems) | MIT | 2026-10-23 |
-| ignore | packages/core | .gitignore semantics for the indexer walker (anchored patterns, negation, dir-only, nested files); pinned to 7.0.13 because 7.0.14 was 0 days old | minimatch, picomatch (generic glob matchers: no gitignore negation/anchoring/last-match-wins rules, we would re-implement them) | MIT | 2026-10-24 |
+| ignore | packages/core | .gitignore semantics for the indexer walker (anchored patterns, negation, dir-only, nested files); pinned to 7.0.12: newest version past the 7-day cooldown (D-013) on 2026-10-24 | minimatch, picomatch (generic glob matchers: no gitignore negation/anchoring/last-match-wins rules, we would re-implement them) | MIT | 2026-10-24 |
 | vitest | all (dev) | unit/integration tests, verbose names | jest (slower, ESM friction), mocha (more setup) | MIT | 2026-10-23 |
 | @playwright/test | apps/web (dev) | browser checks for UI criteria (/evaluate) | cypress (heavier), puppeteer (no test runner) | Apache-2.0 | 2026-10-23 |
 | @biomejs/biome | root (dev) | lint + format (the pnpm-monorepo verify preset runs `pnpm biome ci .`) | eslint (slower, more config), oxlint (lint only, no formatter) | MIT OR Apache-2.0 | 2026-10-23 |

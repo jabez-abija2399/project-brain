@@ -9,3 +9,4 @@
 - 2026-10-23: Use Neon (not Supabase) for our own database: a 'dev' branch for development; tests stay on PGlite. Supabase remains a supported target stack for users' apps.
 - 2026-10-23: Parsing: FEAT-004 uses the TypeScript Compiler API (D-011); FEAT-005 uses a hand-written SQL reader, no libpg-query (D-012).
 - 2026-10-24: Token API responses use an allowlist: list and create return only id, createdAt, lastUsedAt, revokedAt (create also returns the plaintext token once); the create response key is `id`, not `tokenId`.
+- 2026-10-24: Dependency cooldown is 7 days (minimumReleaseAge 10080, D-013); security fixes may bypass it only with human approval.
