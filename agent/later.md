@@ -40,3 +40,10 @@
 - 2026-10-24 | Rate limit POST /api/projects/[id]/tokens (the 20-active-token cap bounds the list, not the request rate) and add "load more" to the projects/tokens pages (they show the first 50) | review FEAT-003 L5 follow-up
 - 2026-10-24 | Dashboard paging beyond 50: projects/[id]/page.tsx and projects/page.tsx ignore nextOffset, so an active token pushed past row 50 by revoked ones cannot be revoked from the UI (API still works); add "load more" or list active tokens first | review FEAT-003 L2
 - 2026-10-24 | Cap projects per user (and/or rate limit POST /api/projects); tokens are capped at 20 active, projects are not | review FEAT-003 L3
+- 2026-10-24 | FEAT-004 review L1: indexRepo takes a root directory, AC-004-01 says indexRepo(files); the GitHub webhook path will hand blobs, not a checkout (human to confirm the API shape) | agent/reviews/FEAT-004.md L1
+- 2026-10-24 | FEAT-004 review L2: routes ignore page.js/page.ts, and any folder named app/ counts as the app router (src/components/app/page.tsx -> false route) | agent/reviews/FEAT-004.md L2
+- 2026-10-24 | FEAT-004 review L3: indexer.test.ts AC-004-03 `if (external) expect(...)` never runs (home page has no react import); make it unconditional | agent/reviews/FEAT-004.md L3
+- 2026-10-24 | FEAT-004 review L4: FileIndex has no exported symbols although the feature title names exports (FEAT-007 and later) | agent/reviews/FEAT-004.md L4
+- 2026-10-24 | FEAT-004 review L5: IndexResult.root is the absolute server path; do not persist it or return it to clients | agent/reviews/FEAT-004.md L5
+- 2026-10-24 | FEAT-004 review L6: indexer.test.ts writes big.ts/binary.ts (1.4 MB) into the committed fixture; use a temp copy | agent/reviews/FEAT-004.md L6
+- 2026-10-24 | FEAT-004 review L7: no cap on files walked or skipped[] size, and each file is read twice (looksBinary + index); add limits before arbitrary repos | agent/reviews/FEAT-004.md L7

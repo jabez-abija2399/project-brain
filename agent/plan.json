@@ -21,6 +21,22 @@
           "check": "The GitHub Actions verify workflow passes on the latest commit of main, including the CI-only steps (build, gitleaks, semgrep, osv-scanner)"
         }
       ]
+    },
+    {
+      "id": "FEAT-004",
+      "title": "Code indexer: files, components, exports, imports and routes from TS/JS/TSX",
+      "acceptance": [
+        {
+          "id": "AC-004-08",
+          "kind": "attack",
+          "check": "A symlinked file or folder in the repo (including one pointing outside the repo root or at an ancestor) is never followed or read; it is listed in skipped[] with reason symlink"
+        },
+        {
+          "id": "AC-004-09",
+          "kind": "attack",
+          "check": "An import (relative, tsconfig paths or through a symlink) that resolves outside the repo root gets resolved: null, and the output is the same whether or not the outside target exists; relative and tsconfig-path cases are marked outside: true and are never looked up on disk"
+        }
+      ]
     }
   ]
 }
