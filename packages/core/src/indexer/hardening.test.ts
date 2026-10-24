@@ -178,3 +178,50 @@ describe("indexRepo detects common React component shapes", () => {
     expect(byName.get("Panel")?.path).toBe("src/panel.tsx");
   });
 });
+
+describe("indexRepo import graph", () => {
+  it("records re-exports and dynamic imports, and treats tsconfig aliases as internal", async () => {
+    const repo = tempDir();
+    writeTree(repo, {
+      "tsconfig.json": JSON.stringify({ compilerOptions: { paths: { "@/*": ["./src/*"] } } }),
+      "src/B.ts": "export const b = 1;\nexport type T = number;\n",
+      "src/C.ts": "export const c = 1;\n",
+      "src/index.ts": [
+        'export { b } from "./B";',
+        'export * from "./C";',
+        'export type { T } from "./B";',
+        "export const local = 1;",
+        "",
+      ].join("\n"),
+      "src/page.tsx": [
+        'import dynamic from "lazy-loader";',
+        'import { c } from "@/C";',
+        'const lazy = import("./B");',
+        'const D = dynamic(() => import("@/C"));',
+        "const name = './B';",
+        "const notStatic = import(name);",
+        "",
+      ].join("\n"),
+    });
+
+    const result = await indexRepo(repo);
+    const importsOf = (p: string) =>
+      (result.files.find((f) => f.path === p)?.imports ?? []).map((i) => ({
+        to: i.to,
+        resolved: i.resolved,
+        external: i.external,
+      }));
+
+    expect(importsOf("src/index.ts")).toEqual([
+      { to: "./B", resolved: "src/B.ts", external: false },
+      { to: "./C", resolved: "src/C.ts", external: false },
+      { to: "./B", resolved: "src/B.ts", external: false },
+    ]);
+    expect(importsOf("src/page.tsx")).toEqual([
+      { to: "lazy-loader", resolved: null, external: true },
+      { to: "@/C", resolved: "src/C.ts", external: false },
+      { to: "./B", resolved: "src/B.ts", external: false },
+      { to: "@/C", resolved: "src/C.ts", external: false },
+    ]);
+  });
+});

@@ -74,7 +74,7 @@ describe("indexRepo on the next-app fixture", () => {
     expect(home).toBeDefined();
     const aliasImport = home?.imports.find((i) => i.to === "@/components/Button");
     expect(aliasImport?.resolved).toBe("src/components/Button.tsx");
-    expect(aliasImport?.external).toBe(true);
+    expect(aliasImport?.external).toBe(false);
     const relImport = home?.imports.find((i) => i.to === "../components/Card");
     expect(relImport?.resolved).toBe("src/components/Card.tsx");
     expect(relImport?.external).toBe(false);

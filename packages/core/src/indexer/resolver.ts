@@ -130,9 +130,10 @@ function toPosix(p: string): string {
   return p.split(/[\\/]/).join("/");
 }
 
-export function isExternalSpec(spec: string): boolean {
-  if (spec.startsWith(".")) return false;
-  return true;
+// A package from node_modules: not relative, not absolute, and not one of the repo's tsconfig path aliases.
+export function isExternalSpec(spec: string, cfg: TsconfigPaths): boolean {
+  if (spec.startsWith(".") || spec.startsWith("/")) return false;
+  return !Object.keys(cfg.paths).some((alias) => matchAlias(alias, spec) !== null);
 }
 
 export function dirnameOf(relPath: string): string {

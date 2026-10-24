@@ -23,39 +23,19 @@ export function parseSource(
   const imports: ImportIndex[] = [];
   let hasJsx = false;
   const visit = (node: ts.Node) => {
-    if (ts.isImportDeclaration(node)) {
-      const spec = unquote(node.moduleSpecifier.getText(sf));
-      const line = lineOf(sf, node.getStart(sf));
+    const spec = moduleSpecifierOf(node);
+    if (spec !== null) {
       const { resolved, outside } = resolveImport(spec, relPath, repoRoot, cfg);
+      const line = lineOf(sf, node.getStart(sf));
       imports.push({
         from: relPath,
         to: spec,
         resolved,
         outside,
         line,
-        external: isExternalSpec(spec),
+        external: isExternalSpec(spec, cfg),
       });
-      return;
-    }
-    if (
-      ts.isCallExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === "require" &&
-      node.arguments.length === 1 &&
-      ts.isStringLiteralLike(node.arguments[0] as ts.Node)
-    ) {
-      const arg = node.arguments[0] as ts.StringLiteralLike;
-      const spec = arg.text;
-      const line = lineOf(sf, node.getStart(sf));
-      const { resolved, outside } = resolveImport(spec, relPath, repoRoot, cfg);
-      imports.push({
-        from: relPath,
-        to: spec,
-        resolved,
-        outside,
-        line,
-        external: isExternalSpec(spec),
-      });
+      if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return;
     }
     const comp = detectComponent(node, sf, relPath);
     if (comp) components.push(comp);
@@ -66,6 +46,19 @@ export function parseSource(
   return { components, imports, errors, hasJsx };
 }
 
+// The literal module specifier of import/export ... from, require("x") or import("x"); null otherwise.
+function moduleSpecifierOf(node: ts.Node): string | null {
+  if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+    const spec = node.moduleSpecifier;
+    return spec && ts.isStringLiteralLike(spec) ? spec.text : null;
+  }
+  if (!ts.isCallExpression(node) || node.arguments.length !== 1) return null;
+  const isRequire = ts.isIdentifier(node.expression) && node.expression.text === "require";
+  const isDynamicImport = node.expression.kind === ts.SyntaxKind.ImportKeyword;
+  const arg = node.arguments[0] as ts.Expression;
+  return (isRequire || isDynamicImport) && ts.isStringLiteralLike(arg) ? arg.text : null;
+}
+
 function collectParseErrors(sf: ts.SourceFile, relPath: string): IndexError[] {
   const diags = (sf as unknown as { parseDiagnostics?: ts.Diagnostic[] }).parseDiagnostics ?? [];
   return diags.map((d) => {
@@ -74,15 +67,6 @@ function collectParseErrors(sf: ts.SourceFile, relPath: string): IndexError[] {
     const message = ts.flattenDiagnosticMessageText(d.messageText, "\n");
     return { path: relPath, line, message };
   });
-}
-
-function unquote(text: string): string {
-  const t = text.trim();
-  if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) {
-    return t.slice(1, -1);
-  }
-  if (t.startsWith("`") && t.endsWith("`")) return t.slice(1, -1);
-  return t;
 }
 
 function kindFor(relPath: string): ts.ScriptKind {
