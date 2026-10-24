@@ -21,5 +21,8 @@ if [ -z "${DATABASE_URL:-}" ]; then
   echo "[dev] DATABASE_URL is empty after sourcing .env." >&2
   echo "[dev] Check that .env has an uncommented line of the form: DATABASE_URL=postgres://...  (no spaces around '=')." >&2
 fi
+# Node 20 gives each resolved address only 250 ms to connect; on a slow link or while Neon wakes
+# from scale-to-zero every attempt times out (AggregateError ETIMEDOUT). Allow 3 s per address.
+export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--network-family-autoselection-attempt-timeout=3000"
 pnpm --filter @brain/db migrate
 pnpm --filter @brain/web dev

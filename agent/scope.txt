@@ -1,8 +1,2 @@
-packages/db/migrations/0003_link_tables_project_id.sql
-packages/db/src/schema.ts
-packages/db/src/repos/feature-files.ts
-packages/db/src/repos/checklist-items.ts
-packages/db/src/repos/index.ts
-packages/db/src/repos/repos.test.ts
-agent/known-issues.md
+scripts/dev.sh
 agent/scope.txt
