@@ -530,18 +530,21 @@
           "evidence": "verify.sh PASS 2026-10-24 11:37; log contains AC-004-09"
         }
       ],
-      "status": "in_progress",
+      "status": "done",
       "notes": "",
       "files": [
         "biome.json",
         "packages/core/package.json",
         "packages/core/src/index.ts",
+        "packages/core/src/indexer/components.ts",
+        "packages/core/src/indexer/hardening.test.ts",
         "packages/core/src/indexer/index.ts",
         "packages/core/src/indexer/indexer.test.ts",
         "packages/core/src/indexer/parser.ts",
         "packages/core/src/indexer/perf.test.ts",
         "packages/core/src/indexer/resolver.ts",
         "packages/core/src/indexer/routes.ts",
+        "packages/core/src/indexer/symlink.test.ts",
         "packages/core/src/indexer/types.ts",
         "packages/core/src/indexer/walker.ts",
         "packages/core/vitest.config.ts",
@@ -1583,6 +1586,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 50
+    "tests_passed": 80
   }
 }
