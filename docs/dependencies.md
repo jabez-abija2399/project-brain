@@ -28,6 +28,7 @@ New versions are only installed once they are a few days old (dependency cooldow
 | better-auth | apps/web | GitHub sign-in + OAuth provider for MCP | next-auth v4 (no MCP OAuth), @clerk/nextjs (paid at scale, lock-in) | MIT | 2026-10-23 |
 | zod | all | input validation, MCP tool schemas | valibot (smaller ecosystem), yup (less TS-native) | MIT | 2026-10-23 |
 | tailwindcss | apps/web | styling with tokens | unocss, @pandacss/dev (smaller ecosystems) | MIT | 2026-10-23 |
+| ignore | packages/core | .gitignore semantics for the indexer walker (anchored patterns, negation, dir-only, nested files); pinned to 7.0.13 because 7.0.14 was 0 days old | minimatch, picomatch (generic glob matchers: no gitignore negation/anchoring/last-match-wins rules, we would re-implement them) | MIT | 2026-10-24 |
 | vitest | all (dev) | unit/integration tests, verbose names | jest (slower, ESM friction), mocha (more setup) | MIT | 2026-10-23 |
 | @playwright/test | apps/web (dev) | browser checks for UI criteria (/evaluate) | cypress (heavier), puppeteer (no test runner) | Apache-2.0 | 2026-10-23 |
 | @biomejs/biome | root (dev) | lint + format (the pnpm-monorepo verify preset runs `pnpm biome ci .`) | eslint (slower, more config), oxlint (lint only, no formatter) | MIT OR Apache-2.0 | 2026-10-23 |

@@ -100,6 +100,7 @@ describe("indexRepo on the next-app fixture", () => {
     const bySkipped = new Map(result.skipped.map((s) => [s.path, s.reason]));
     expect(bySkipped.get("big.ts")).toBe("too_large");
     expect(bySkipped.get("src/binary.ts")).toBe("binary");
+    expect(bySkipped.get("secret.txt")).toBe("gitignored");
     expect(
       result.skipped.some((s) => s.reason === "excluded_dir" && s.path === "node_modules"),
     ).toBe(true);

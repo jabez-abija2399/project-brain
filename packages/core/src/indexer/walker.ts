@@ -1,5 +1,6 @@
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { join, posix, relative, sep } from "node:path";
+import ignore, { type Ignore } from "ignore";
 import type { SkippedFile } from "./types";
 
 const SUPPORTED_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -28,12 +29,13 @@ export type WalkResult = {
 };
 
 export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): WalkResult {
-  const ignoreMatchers = loadGitignore(root);
   const files: WalkEntry[] = [];
   const skipped: SkippedFile[] = [];
-  const stack: string[] = [root];
+  const stack: { dir: string; rules: IgnoreRules[] }[] = [{ dir: root, rules: [] }];
   while (stack.length > 0) {
-    const dir = stack.pop() as string;
+    const { dir, rules: inherited } = stack.pop() as { dir: string; rules: IgnoreRules[] };
+    const own = loadGitignore(dir, toPosix(relative(root, dir)));
+    const rules = own ? [...inherited, own] : inherited;
     let entries: string[];
     try {
       entries = readdirSync(dir);
@@ -59,15 +61,15 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
           skipped.push({ path: rel, reason: "excluded_dir" });
           continue;
         }
-        if (isGitignored(rel, true, ignoreMatchers)) {
+        if (isGitignored(rel, true, rules)) {
           skipped.push({ path: rel, reason: "gitignored" });
           continue;
         }
-        stack.push(abs);
+        stack.push({ dir: abs, rules });
         continue;
       }
       if (!st.isFile()) continue;
-      if (isGitignored(rel, false, ignoreMatchers)) {
+      if (isGitignored(rel, false, rules)) {
         skipped.push({ path: rel, reason: "gitignored" });
         continue;
       }
@@ -92,60 +94,29 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
   return { files, skipped };
 }
 
-type IgnoreRule = { pattern: string; dirOnly: boolean; negate: boolean };
+// One .gitignore file; its patterns are relative to the directory it lives in (base, "" for the root).
+type IgnoreRules = { base: string; matcher: Ignore };
 
-function loadGitignore(root: string): IgnoreRule[] {
+function loadGitignore(dir: string, base: string): IgnoreRules | null {
+  const file = join(dir, ".gitignore");
   try {
-    const text = readFileSync(join(root, ".gitignore"), "utf8");
-    return parseGitignore(text);
+    if (!lstatSync(file).isFile()) return null;
+    return { base, matcher: ignore().add(readFileSync(file, "utf8")) };
   } catch {
-    return [];
+    return null;
   }
 }
 
-function parseGitignore(text: string): IgnoreRule[] {
-  const rules: IgnoreRule[] = [];
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line.startsWith("#")) continue;
-    let pattern = line;
-    const negate = pattern.startsWith("!");
-    if (negate) pattern = pattern.slice(1);
-    const dirOnly = pattern.endsWith("/");
-    if (dirOnly) pattern = pattern.slice(0, -1);
-    if (pattern.startsWith("/")) pattern = pattern.slice(1);
-    rules.push({ pattern, dirOnly, negate });
-  }
-  return rules;
-}
-
-function isGitignored(relPath: string, isDir: boolean, rules: IgnoreRule[]): boolean {
+// Git semantics: files are checked from the root down; a deeper .gitignore overrides a higher one.
+function isGitignored(relPath: string, isDir: boolean, rules: IgnoreRules[]): boolean {
   let ignored = false;
-  for (const rule of rules) {
-    if (rule.dirOnly && !isDir && !relPath.startsWith(`${rule.pattern}/`)) continue;
-    if (matchGitignore(rule.pattern, relPath)) ignored = !rule.negate;
+  for (const { base, matcher } of rules) {
+    const local = base ? posix.relative(base, relPath) : relPath;
+    const result = matcher.test(isDir ? `${local}/` : local);
+    if (result.ignored) ignored = true;
+    else if (result.unignored) ignored = false;
   }
   return ignored;
-}
-
-function matchGitignore(pattern: string, path: string): boolean {
-  if (!pattern.includes("/")) {
-    const segments = path.split("/");
-    return segments.some((s) => globMatch(pattern, s));
-  }
-  return globMatch(pattern, path) || path.startsWith(`${pattern}/`);
-}
-
-function globMatch(pattern: string, text: string): boolean {
-  const re = new RegExp(
-    `^${pattern
-      .replace(/[.+^${}()|[\]\\]/g, "\\$&")
-      .replace(/\*\*/g, "::DBL::")
-      .replace(/\*/g, "[^/]*")
-      .replace(/::DBL::/g, ".*")
-      .replace(/\?/g, "[^/]")}$`,
-  );
-  return re.test(text);
 }
 
 function looksBinary(abs: string): boolean {

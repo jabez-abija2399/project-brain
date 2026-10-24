@@ -87,3 +87,56 @@ describe("indexRepo stays inside the repo root", () => {
     expect(serialized).not.toContain(outside);
   });
 });
+
+describe("indexRepo follows .gitignore semantics", () => {
+  it("handles anchored patterns, negation, slashes, dir-only rules and nested .gitignore files", async () => {
+    const repo = tempDir();
+    const comp = "export const v = 1;\n";
+    writeTree(repo, {
+      ".gitignore": [
+        "/config.ts",
+        "*.gen.ts",
+        "!keep.gen.ts",
+        "docs/*.ts",
+        "tmp/",
+        "!tmp/x.ts",
+      ].join("\n"),
+      "config.ts": comp,
+      "src/config.ts": comp,
+      "src/a.gen.ts": comp,
+      "src/keep.gen.ts": comp,
+      "docs/a.ts": comp,
+      "src/docs/a.ts": comp,
+      "tmp/x.ts": comp,
+      "src/feature/.gitignore": "local.ts\n/anchored.ts\n",
+      "src/feature/local.ts": comp,
+      "src/feature/sub/local.ts": comp,
+      "src/feature/anchored.ts": comp,
+      "src/feature/sub/anchored.ts": comp,
+      "src/local.ts": comp,
+    });
+
+    const result = await indexRepo(repo);
+    const indexed = result.files.map((f) => f.path);
+    const reasons = new Map(result.skipped.map((s) => [s.path, s.reason]));
+
+    expect(indexed).toEqual([
+      "src/config.ts",
+      "src/docs/a.ts",
+      "src/feature/sub/anchored.ts",
+      "src/keep.gen.ts",
+      "src/local.ts",
+    ]);
+    for (const p of [
+      "config.ts",
+      "src/a.gen.ts",
+      "docs/a.ts",
+      "tmp",
+      "src/feature/local.ts",
+      "src/feature/sub/local.ts",
+      "src/feature/anchored.ts",
+    ]) {
+      expect(reasons.get(p), p).toBe("gitignored");
+    }
+  });
+});

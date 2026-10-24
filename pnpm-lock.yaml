@@ -89,10 +89,14 @@ importers:
         version: 2.1.9(@types/node@22.20.5)
 
   packages/core:
-    devDependencies:
+    dependencies:
+      ignore:
+        specifier: 7.0.13
+        version: 7.0.13
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+    devDependencies:
       vitest:
         specifier: ^2.1.9
         version: 2.1.9(@types/node@22.20.5)
@@ -1531,6 +1535,10 @@ packages:
   get-tsconfig@4.14.3:
     resolution: {integrity: sha512-++QEw4DIY7WGoukz+/+A/8dGYPT9l9yIadnmSgZ8Rjr3YVSVDipQSO9CdnJo9ePqFqUUqh+wk9uIaoiAwsiPkA==}
 
+  ignore@7.0.13:
+    resolution: {integrity: sha512-2E8Q6rh+1RRSq/YdaGsNfXsEZy9FVqv6BSSrkmZJP7BnaoPnRfKL+YaofPvP+5rzdk144qSm6i4+hvPgUcbV4Q==}
+    engines: {node: '>= 4'}
+
   jose@6.2.13:
     resolution: {integrity: sha512-7TIg10ZE1x82YediN+lcrPNvGMKge9yFHQD+Qho/b8y2adfugU3AsvvHfxV0fzyFllT6l9xCjf4RWY9g/Z9PJQ==}
 
@@ -2660,6 +2668,8 @@ snapshots:
   get-tsconfig@4.14.3:
     dependencies:
       resolve-pkg-maps: 1.0.0
+
+  ignore@7.0.13: {}
 
   jose@6.2.13: {}
 
