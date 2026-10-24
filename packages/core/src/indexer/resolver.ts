@@ -45,7 +45,10 @@ export function resolveImport(
     const match = matchAlias(alias, spec);
     if (match === null) continue;
     for (const target of targets) {
-      const expanded = target.replace("*", match);
+      // tsconfig allows at most one "*" per target: substitute that one occurrence.
+      const star = target.indexOf("*");
+      const expanded =
+        star === -1 ? target : target.slice(0, star) + match + target.slice(star + 1);
       const combined = path.join(cfg.baseUrl, expanded).replace(/^\.\//, "");
       const resolved = tryResolve(repoRoot, combined);
       if (resolved.resolved || resolved.outside) return resolved;
