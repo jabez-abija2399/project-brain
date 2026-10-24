@@ -12,9 +12,18 @@ const fixtureRoot = join(
 
 const bigFilePath = join(fixtureRoot, "big.ts");
 const binaryFilePath = join(fixtureRoot, "src", "binary.ts");
+// Created at runtime: the fixture's own .gitignore excludes them, so a fresh clone (CI) has none of them.
+const ignoredFilePath = join(fixtureRoot, "secret.txt");
+const nodeModulesDir = join(fixtureRoot, "node_modules");
+const nextDir = join(fixtureRoot, ".next");
 
 beforeAll(() => {
   mkdirSync(join(fixtureRoot, "src"), { recursive: true });
+  writeFileSync(ignoredFilePath, "ignored by the fixture .gitignore\n");
+  mkdirSync(join(nodeModulesDir, "evil"), { recursive: true });
+  writeFileSync(join(nodeModulesDir, "evil", "index.js"), "module.exports = { bad: true };\n");
+  mkdirSync(join(nextDir, "cache"), { recursive: true });
+  writeFileSync(join(nextDir, "cache", "junk.js"), "export const junk = 1;\n");
   writeFileSync(bigFilePath, "// pad\n".repeat(200_000));
   const bin = Buffer.alloc(16);
   bin[0] = 0x00;
@@ -24,9 +33,9 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  for (const p of [bigFilePath, binaryFilePath]) {
+  for (const p of [bigFilePath, binaryFilePath, ignoredFilePath, nodeModulesDir, nextDir]) {
     try {
-      rmSync(p);
+      rmSync(p, { recursive: true });
     } catch {
       /* ignore */
     }
