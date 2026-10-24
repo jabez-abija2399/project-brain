@@ -19,7 +19,7 @@ Chosen: **A** (D-001). Move to B or C when long jobs or paying users require it 
 | Data store | Neon Postgres + Drizzle ORM (tests: PGlite) | plain Postgres, auto-wakes from scale-to-zero, free branches, pgvector later; typed SQL | Supabase (extras we don't use; free projects pause), Prisma (heavier engine), Kysely (no migrations) |
 | Jobs | Inngest | serverless steps + retries, free tier, no worker server | Trigger.dev, QStash (both fine; Inngest has best Next.js DX) |
 | Parsing | TypeScript Compiler API (MVP, D-011); web-tree-sitter + ts-morph kept for other languages later | MVP is TS/JS only; the compiler gives exact types, props and exports with no extra grammar | native tree-sitter (native build on serverless), Babel (JS only) |
-| SQL / RLS | libpg-query | real Postgres parser, handles CREATE POLICY | pgsql-ast-parser, node-sql-parser (incomplete PG dialect) |
+| SQL / RLS | hand-written SQL reader in packages/core (MVP, D-012); libpg-query kept as fallback | only needs tables, RLS flags and policies; no native/WASM dependency | libpg-query (native/WASM build), pgsql-ast-parser, node-sql-parser (incomplete PG dialect) |
 | AI | @anthropic-ai/sdk, small model | checklist + receipt wording; cheap | Vercel AI SDK (extra layer), OpenAI |
 | GitHub | @octokit/app + @octokit/webhooks | official, signature verification built in | Probot (framework, own server) |
 | Auth | better-auth (GitHub provider) | GitHub OAuth + OAuth provider for MCP clients | next-auth v4 (no MCP OAuth), Clerk (paid at scale, vendor lock-in) |

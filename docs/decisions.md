@@ -69,3 +69,11 @@ TS/JS only; the `typescript` package is large (~60 MB) and counts against the Ve
 and @vscode/tree-sitter-wasm stay approved (docs/dependencies.md) for when we add other languages. Revisit when: adding
 a non-TS language (Python, Go, Ruby), or if `typescript` pushes a Vercel function over the size limit (then move parsing
 to a job or swap in web-tree-sitter for the server path).
+
+## D-012 | 2026-10-23 | FEAT-005 Supabase reader uses a hand-written SQL reader, not libpg-query
+Context: FEAT-005 only needs CREATE TABLE columns, ALTER TABLE ... ROW LEVEL SECURITY and CREATE POLICY from users'
+migrations. Options: (A) hand-written tokenizer + statement matchers in packages/core/src/supabase CHOSEN: no native or
+WASM dependency, nothing extra in the Vercel bundle. (B) libpg-query REJECTED for now: real Postgres parser, but ships
+native/WASM builds. (C) pgsql-ast-parser, node-sql-parser REJECTED (incomplete Postgres dialect). Trade-offs: we parse a
+subset of Postgres; unusual syntax can be misread or land in errors[]. libpg-query stays approved (docs/dependencies.md).
+Revisit when: the realistic-migrations criterion (AC-005-06) fails and cannot be fixed cleanly in the reader.

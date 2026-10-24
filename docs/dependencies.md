@@ -21,7 +21,7 @@ New versions are only installed once they are a few days old (dependency cooldow
 | web-tree-sitter | packages/core (not used yet; FEAT-004 uses the TypeScript Compiler API — D-011) | WASM code parser (works on Vercel); kept approved for when we add non-TS languages | tree-sitter (native build), @babel/parser (JS/TS only, no other languages later) | MIT | 2026-10-23 |
 | @vscode/tree-sitter-wasm | packages/core | prebuilt TS/TSX/JS grammars | tree-sitter-wasms (last release 1 year ago), build grammars ourselves | MIT | 2026-10-23 |
 | ts-morph | packages/core (not used yet; FEAT-004 uses the TypeScript Compiler API directly — D-011) | TS exports, props, types | typescript compiler API directly (verbose), @swc/core (no type info) | MIT | 2026-10-23 |
-| libpg-query | packages/core | parse Supabase SQL migrations + RLS policies | pgsql-ast-parser, node-sql-parser (incomplete Postgres dialect) | MIT | 2026-10-23 |
+| libpg-query | packages/core (not used yet; FEAT-005 uses a hand-written SQL reader — D-012) | parse Supabase SQL migrations + RLS policies; kept approved as the fallback if the hand-written reader fails | pgsql-ast-parser, node-sql-parser (incomplete Postgres dialect) | MIT | 2026-10-23 |
 | @anthropic-ai/sdk | packages/core | Claude API (checklists, receipts, summaries) | ai (extra abstraction), openai (different provider) | Apache-2.0 | 2026-10-23 |
 | @octokit/app | apps/web | GitHub App auth + API | octokit (all-in-one, larger), probot (framework + own server) | MIT | 2026-10-23 |
 | @octokit/webhooks | apps/web | webhook signature verification + types | probot, hand-written HMAC check (risky) | MIT | 2026-10-23 |
