@@ -36,6 +36,9 @@ afterAll(() => {
 describe("indexRepo on the next-app fixture", () => {
   it("AC-004-01 returns every React component with name, props and file path", async () => {
     const result = await indexRepo(fixtureRoot);
+    expect(result.components.map((c) => c.name).sort()).toEqual(
+      ["AboutPage", "Broken", "Button", "Card", "HomePage", "ReviewPage", "RootLayout"].sort(),
+    );
     const byName = new Map(result.components.map((c) => [c.name, c]));
     expect(byName.has("Button")).toBe(true);
     expect(byName.has("Card")).toBe(true);

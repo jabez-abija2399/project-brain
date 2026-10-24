@@ -140,3 +140,41 @@ describe("indexRepo follows .gitignore semantics", () => {
     }
   });
 });
+
+describe("indexRepo detects common React component shapes", () => {
+  it("finds conditional, forwardRef, memo, class and default-exported components, and nothing else", async () => {
+    const repo = tempDir();
+    writeTree(repo, {
+      "src/shapes.tsx": [
+        'import * as React from "react";',
+        'import { forwardRef, memo } from "react";',
+        "export function Toggle({ on }: { on: boolean }) { return on ? <b /> : <i />; }",
+        "export function Maybe({ show }: { show: boolean }) { return show && <p />; }",
+        "export const Input = forwardRef<HTMLInputElement, { label: string }>((props, ref) => <input ref={ref} />);",
+        "export const Row = memo(function Row({ id }: { id: string }) { return <tr />; });",
+        "export const Fancy = React.memo(React.forwardRef((p: { x: number }, ref) => (<div />)));",
+        "export class Legacy extends React.Component<{ title: string }> { render() { return <h1 />; } }",
+        "export class Store { render() { return 1; } }",
+        "export function helper() { return 1; }",
+        "export const NotComp = (a: number) => a + 1;",
+        "export const Wrapped = memo(helper);",
+        "",
+      ].join("\n"),
+      "src/anon.tsx": "export default function () { return <main />; }\n",
+      "src/panel.tsx":
+        'import { memo } from "react";\nexport default memo(function Panel() { return <aside />; });\n',
+    });
+
+    const result = await indexRepo(repo);
+    const names = result.components.map((c) => c.name).sort();
+    expect(names).toEqual(
+      ["Fancy", "Input", "Legacy", "Maybe", "Panel", "Row", "Toggle", "default"].sort(),
+    );
+    const byName = new Map(result.components.map((c) => [c.name, c]));
+    expect(byName.get("Toggle")?.props).toContain("on");
+    expect(byName.get("Row")?.props).toContain("id");
+    expect(byName.get("Legacy")?.props).toContain("title");
+    expect(byName.get("default")?.path).toBe("src/anon.tsx");
+    expect(byName.get("Panel")?.path).toBe("src/panel.tsx");
+  });
+});
