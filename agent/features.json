@@ -658,12 +658,12 @@
           "id": "AC-005-06",
           "kind": "boundary",
           "check": "A realistic migrations fixture is read correctly: $$ function and trigger bodies, comments, schema-qualified and quoted names, lowercase keywords, ALTER TABLE ONLY / IF EXISTS, policies FOR ALL and AS RESTRICTIVE, and RLS enabled in a later file.",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 20:27; log contains AC-005-06"
         }
       ],
-      "status": "in_progress",
+      "status": "done",
       "notes": "",
       "files": [
         "packages/core/src/index.ts",
@@ -676,12 +676,13 @@
         "packages/db/src/repos/db-schema.test.ts",
         "packages/db/src/repos/db-schema.ts",
         "packages/db/src/repos/index.ts",
-        "packages/db/src/schema.ts",
         "tests/fixtures/supabase/migrations/0001_init.sql",
         "tests/fixtures/supabase/migrations/0002_rls_profiles.sql",
         "tests/fixtures/supabase/migrations/0003_rls_posts_later.sql",
         "tests/fixtures/supabase/migrations/0004_broken.sql",
-        "tests/fixtures/supabase/migrations/0005_comments.sql"
+        "tests/fixtures/supabase/migrations/0005_comments.sql",
+        "tests/fixtures/supabase/realistic/migrations/20240101000000_init.sql",
+        "tests/fixtures/supabase/realistic/migrations/20240102000000_rls.sql"
       ]
     },
     {
@@ -1627,6 +1628,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 80
+    "tests_passed": 81
   }
 }

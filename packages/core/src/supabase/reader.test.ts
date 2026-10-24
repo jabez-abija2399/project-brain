@@ -5,6 +5,7 @@ import { readSupabaseMigrations } from "./reader";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = resolve(here, "../../../../tests/fixtures/supabase/migrations");
+const REALISTIC = resolve(here, "../../../../tests/fixtures/supabase/realistic/migrations");
 
 describe("@brain/core supabase reader", () => {
   it("AC-005-01 returns every CREATE TABLE with its columns", () => {
@@ -102,5 +103,53 @@ describe("@brain/core supabase reader", () => {
     expect(comments?.rlsEnabled).toBe(true);
     const commentsPolicy = result.policies.find((p) => p.name === "comments_all");
     expect(commentsPolicy).toBeDefined();
+  });
+
+  it("AC-005-06 reads a realistic migrations fixture ($$ bodies, comments, quoted names, lowercase, ONLY/IF EXISTS, FOR ALL, RESTRICTIVE)", () => {
+    const result = readSupabaseMigrations(REALISTIC);
+    expect(result.errors).toEqual([]);
+    expect(result.tables.map((t) => t.name).sort()).toEqual(["Team Members", "profiles"]);
+
+    const profiles = result.tables.find((t) => t.name === "profiles");
+    expect(profiles?.file).toBe("20240101000000_init.sql");
+    expect(profiles?.rlsEnabled).toBe(true);
+    expect(profiles?.columns).toEqual([
+      { name: "id", type: "uuid" },
+      { name: "username", type: "text" },
+      { name: "avatarUrl", type: "text" },
+      { name: "updated_at", type: "timestamp WITH TIME ZONE" },
+    ]);
+
+    const members = result.tables.find((t) => t.name === "Team Members");
+    expect(members?.file).toBe("20240101000000_init.sql");
+    expect(members?.rlsEnabled).toBe(true);
+    expect(members?.columns.map((c) => c.name)).toEqual(["id", "team_id", "user_id", "role"]);
+
+    expect(result.policies.map((p) => [p.name, p.table, p.command, p.roles])).toEqual([
+      ["Public profiles are viewable by everyone.", "profiles", "SELECT", ["public"]],
+      ["Users can insert their own profile.", "profiles", "INSERT", ["authenticated"]],
+      ["Users can update own profile.", "profiles", "UPDATE", ["authenticated"]],
+      ["Members manage team rows", "Team Members", "ALL", ["authenticated"]],
+      ["Block banned users", "Team Members", "ALL", ["authenticated"]],
+    ]);
+    expect(result.policies.every((p) => p.file === "20240102000000_rls.sql")).toBe(true);
+
+    const insertOwn = result.policies[1];
+    expect(insertOwn?.using).toBeNull();
+    expect(insertOwn?.withCheck).toBe("(select auth.uid()) = id");
+
+    const updateOwn = result.policies[2];
+    expect(updateOwn?.using).toBe("(select auth.uid()) = id");
+    expect(updateOwn?.withCheck).toBe("(select auth.uid()) = id");
+
+    const members_all = result.policies[3];
+    expect(members_all?.using).toBe("public.is_team_member(team_id)");
+    expect(members_all?.withCheck).toBe("public.is_team_member(team_id)");
+
+    const restrictive = result.policies[4];
+    expect(restrictive?.using).toBe(
+      "not exists (select 1 from public.bans b where b.user_id = auth.uid() and b.reason <> 'appeal (pending)')",
+    );
+    expect(restrictive?.withCheck).toBeNull();
   });
 });

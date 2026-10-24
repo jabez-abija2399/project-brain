@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-24 | FEAT-005 AC-005-06 | status: done
+Changed: new realistic fixture tests/fixtures/supabase/realistic/migrations (2 files); parser.ts now reads quoted names with spaces ("public"."Team Members", policy "Users can update own profile.") via one shared quote-aware identifier pattern; test AC-005-06.
+Verified (ran this session): fixture failed before the fix (2 file errors), passes after; verify.sh PASS (81 tests, typecheck, lint, kit guard); kit pass AC-005-06; kit done FEAT-005 (17 files, baseline 81).
+NOT VERIFIED: CI-only checks (audit, scanners, build, e2e). Not covered: E'...' escape strings, nested /* */ comments, same table name in two schemas (schema is dropped, so they merge).
+Next: FEAT-006 (feature map).
+
 ## 2026-10-24 | FEAT-003 AC-003-08..14 | status: done
 Changed: test names only. The existing security/review tests now start with their AC id: security.test.ts (AC-003-08 x3, -09, -10, -11, -12), auth-invariants.test.ts (AC-003-13, AC-003-14 x2). No new tests, no assertions changed, no app code changed.
 Verified (ran this session): verify.sh PASS (80 tests, typecheck, lint, kit guard); kit pass AC-003-08..14 (test-log); kit done FEAT-003 (36 files, baseline 80).

@@ -1,5 +1,5 @@
 agent/scope.txt
 agent/progress.md
 agent/later.md
-apps/web/src/app/api/projects/security.test.ts
-packages/db/src/repos/auth-invariants.test.ts
+packages/core/src/supabase/*
+tests/fixtures/supabase/realistic/**

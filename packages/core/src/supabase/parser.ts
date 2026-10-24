@@ -24,6 +24,11 @@ export type ParsedPolicy = {
 
 export type ParsedStatement = ParsedTable | ParsedRls | ParsedPolicy | null;
 
+// One identifier: "quoted (may contain spaces, dots, "")" or bare.
+const IDENT_PART = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_$]*)`;
+// Optionally schema-qualified: public.profiles, "public"."Team Members".
+const QUALIFIED = String.raw`${IDENT_PART}(?:\s*\.\s*${IDENT_PART})*`;
+
 export function parseStatement(stmt: string): ParsedStatement {
   const upper = stmt.toUpperCase();
   if (/^CREATE\s+(TEMP(ORARY)?\s+|UNLOGGED\s+)?TABLE\b/.test(upper)) {
@@ -39,10 +44,10 @@ export function parseStatement(stmt: string): ParsedStatement {
 }
 
 function parseCreateTable(stmt: string): ParsedTable {
-  const m =
-    /^CREATE\s+(?:TEMP(?:ORARY)?\s+|UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z0-9_."]+)\s*\(/i.exec(
-      stmt,
-    );
+  const m = new RegExp(
+    String.raw`^CREATE\s+(?:TEMP(?:ORARY)?\s+|UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(${QUALIFIED})\s*\(`,
+    "i",
+  ).exec(stmt);
   if (!m) throw new Error("CREATE TABLE: missing table name or opening paren");
   const name = normalizeIdent(stripSchema(m[1] as string));
   const openIdx = stmt.indexOf("(", m.index + m[0].length - 1);
@@ -54,9 +59,10 @@ function parseCreateTable(stmt: string): ParsedTable {
 }
 
 function parseAlterTable(stmt: string): ParsedRls | null {
-  const m = /^ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?([A-Za-z0-9_."]+)\s+(.+)$/is.exec(
-    stmt,
-  );
+  const m = new RegExp(
+    String.raw`^ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?(${QUALIFIED})\s+(.+)$`,
+    "is",
+  ).exec(stmt);
   if (!m) throw new Error("ALTER TABLE: could not parse");
   const table = normalizeIdent(stripSchema(m[1] as string));
   const rest = (m[2] as string).toUpperCase();
@@ -70,8 +76,10 @@ function parseAlterTable(stmt: string): ParsedRls | null {
 }
 
 function parseCreatePolicy(stmt: string): ParsedPolicy {
-  const head =
-    /^CREATE\s+POLICY\s+([A-Za-z0-9_."]+)\s+ON\s+(?:TABLE\s+)?([A-Za-z0-9_."]+)\s*/i.exec(stmt);
+  const head = new RegExp(
+    String.raw`^CREATE\s+POLICY\s+(${IDENT_PART})\s+ON\s+(?:TABLE\s+)?(${QUALIFIED})\s*`,
+    "i",
+  ).exec(stmt);
   if (!head) throw new Error("CREATE POLICY: missing name or table");
   const name = normalizeIdent(head[1] as string);
   const table = normalizeIdent(stripSchema(head[2] as string));
@@ -261,12 +269,12 @@ function matchParen(s: string, openIdx: number): number {
 }
 
 function stripSchema(ident: string): string {
-  const parts = ident.split(".");
+  const parts = ident.match(new RegExp(IDENT_PART, "g")) ?? [ident];
   return parts[parts.length - 1] as string;
 }
 
 function normalizeIdent(ident: string): string {
   const t = ident.trim();
-  if (t.startsWith('"') && t.endsWith('"')) return t.slice(1, -1);
+  if (t.startsWith('"') && t.endsWith('"')) return t.slice(1, -1).replace(/""/g, '"');
   return t.toLowerCase();
 }
