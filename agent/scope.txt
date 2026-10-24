@@ -17,3 +17,7 @@ packages/cli/package.json
 packages/db/package.json
 apps/web/src/server/validate.ts
 apps/web/src/app/api/projects/*
+.gitleaksignore
+.semgrepignore
+docs/decisions.md
+agent/directives.md

@@ -1,0 +1,3 @@
+# Fake Stripe key (not a real secret) quoted in agent/reviews/FEAT-004.md, introduced in commit 955ff20;
+# masked at HEAD in 79d2ee6. Only this one historical finding is ignored; no history rewrite.
+955ff20361d7fde68acdeb6f530e7b2819cf8a16:agent/reviews/FEAT-004.md:stripe-access-token:19
