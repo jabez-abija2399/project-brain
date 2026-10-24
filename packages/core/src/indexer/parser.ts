@@ -25,8 +25,15 @@ export function parseSource(
     if (ts.isImportDeclaration(node)) {
       const spec = unquote(node.moduleSpecifier.getText(sf));
       const line = lineOf(sf, node.getStart(sf));
-      const resolved = resolveImport(spec, relPath, repoRoot, cfg);
-      imports.push({ from: relPath, to: spec, resolved, line, external: isExternalSpec(spec) });
+      const { resolved, outside } = resolveImport(spec, relPath, repoRoot, cfg);
+      imports.push({
+        from: relPath,
+        to: spec,
+        resolved,
+        outside,
+        line,
+        external: isExternalSpec(spec),
+      });
       return;
     }
     if (
@@ -39,8 +46,15 @@ export function parseSource(
       const arg = node.arguments[0] as ts.StringLiteralLike;
       const spec = arg.text;
       const line = lineOf(sf, node.getStart(sf));
-      const resolved = resolveImport(spec, relPath, repoRoot, cfg);
-      imports.push({ from: relPath, to: spec, resolved, line, external: isExternalSpec(spec) });
+      const { resolved, outside } = resolveImport(spec, relPath, repoRoot, cfg);
+      imports.push({
+        from: relPath,
+        to: spec,
+        resolved,
+        outside,
+        line,
+        external: isExternalSpec(spec),
+      });
     }
     const comp = detectComponent(node, sf, relPath);
     if (comp) components.push(comp);

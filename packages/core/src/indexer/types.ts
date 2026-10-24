@@ -17,6 +17,8 @@ export type ImportIndex = {
   from: string;
   to: string;
   resolved: string | null;
+  /** The specifier points outside the repo root; resolved is always null then. */
+  outside: boolean;
   line: number;
   external: boolean;
 };

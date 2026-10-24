@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { posix as path, dirname, join } from "node:path";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { posix as path, dirname, join, sep } from "node:path";
 
 export type TsconfigPaths = {
   baseUrl: string;
@@ -27,12 +27,16 @@ export function loadTsconfigPaths(repoRoot: string): TsconfigPaths {
   return { baseUrl: ".", paths: {} };
 }
 
+export type Resolution = { resolved: string | null; outside: boolean };
+
+const UNRESOLVED: Resolution = { resolved: null, outside: false };
+
 export function resolveImport(
   spec: string,
   fromRelPath: string,
   repoRoot: string,
   cfg: TsconfigPaths,
-): string | null {
+): Resolution {
   if (spec.startsWith(".")) {
     const base = path.join(path.dirname(toPosix(fromRelPath)), spec);
     return tryResolve(repoRoot, base);
@@ -44,11 +48,11 @@ export function resolveImport(
       const expanded = target.replace("*", match);
       const combined = path.join(cfg.baseUrl, expanded).replace(/^\.\//, "");
       const resolved = tryResolve(repoRoot, combined);
-      if (resolved) return resolved;
+      if (resolved.resolved || resolved.outside) return resolved;
     }
-    return null;
+    return UNRESOLVED;
   }
-  return null;
+  return UNRESOLVED;
 }
 
 function matchAlias(alias: string, spec: string): string | null {
@@ -60,32 +64,53 @@ function matchAlias(alias: string, spec: string): string | null {
   return spec === alias ? "" : null;
 }
 
-function tryResolve(repoRoot: string, relCandidate: string): string | null {
-  const normalized = relCandidate.replace(/\\/g, "/");
-  const abs = join(repoRoot, normalized);
-  if (existsAsFile(abs)) return normalized;
-  for (const ext of CANDIDATE_EXTS) {
-    if (existsAsFile(`${abs}${ext}`)) return `${normalized}${ext}`;
+function tryResolve(repoRoot: string, relCandidate: string): Resolution {
+  const normalized = path.normalize(relCandidate.replace(/\\/g, "/"));
+  // Never touch the filesystem outside the repo: no path recorded, no existence check.
+  if (normalized === ".." || normalized.startsWith("../") || path.isAbsolute(normalized)) {
+    return { resolved: null, outside: true };
   }
-  if (existsAsDir(abs)) {
+  const realRoot = realpathOrNull(repoRoot);
+  if (!realRoot) return UNRESOLVED;
+  const abs = join(repoRoot, normalized);
+  const found = (resolved: string): Resolution => ({ resolved, outside: false });
+  if (existsAsFile(abs, realRoot)) return found(normalized);
+  for (const ext of CANDIDATE_EXTS) {
+    if (existsAsFile(`${abs}${ext}`, realRoot)) return found(`${normalized}${ext}`);
+  }
+  if (existsAsDir(abs, realRoot)) {
     for (const idx of INDEX_FILES) {
-      if (existsAsFile(join(abs, idx))) return `${normalized}/${idx}`;
+      if (existsAsFile(join(abs, idx), realRoot)) return found(`${normalized}/${idx}`);
     }
   }
-  return null;
+  return UNRESOLVED;
 }
 
-function existsAsFile(abs: string): boolean {
+// A path reached through a symlink that leaves the repo counts as missing, like the walker skipping symlinks.
+function insideRoot(abs: string, realRoot: string): boolean {
+  const real = realpathOrNull(abs);
+  return real !== null && (real === realRoot || real.startsWith(`${realRoot}${sep}`));
+}
+
+function realpathOrNull(abs: string): string | null {
   try {
-    return statSync(abs).isFile();
+    return realpathSync(abs);
+  } catch {
+    return null;
+  }
+}
+
+function existsAsFile(abs: string, realRoot: string): boolean {
+  try {
+    return insideRoot(abs, realRoot) && statSync(abs).isFile();
   } catch {
     return false;
   }
 }
 
-function existsAsDir(abs: string): boolean {
+function existsAsDir(abs: string, realRoot: string): boolean {
   try {
-    return statSync(abs).isDirectory();
+    return insideRoot(abs, realRoot) && statSync(abs).isDirectory();
   } catch {
     return false;
   }

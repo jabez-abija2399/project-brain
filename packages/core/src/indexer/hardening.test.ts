@@ -45,4 +45,45 @@ describe("indexRepo stays inside the repo root", () => {
     expect(skipped.get("src/File.tsx")).toBe("symlink");
     expect(skipped.get("src/loop")).toBe("symlink");
   });
+
+  it("records imports that resolve outside the repo root as outside, with no path", async () => {
+    const outside = tempDir();
+    writeTree(outside, { "probe.ts": "export const x = 1;\n", "lib/shared.ts": "export {};\n" });
+    const repo = tempDir();
+    const up = "../".repeat(12);
+    const outsideRel = `${up}${outside.replace(/^\//, "")}`;
+    writeTree(repo, {
+      "tsconfig.json": JSON.stringify({
+        compilerOptions: { baseUrl: ".", paths: { "@ext/*": [`${outsideRel}/lib/*`] } },
+      }),
+      "src/a.ts": [
+        `import x from "${outsideRel}/probe";`,
+        'import y from "@ext/shared";',
+        'import z from "./link/probe";',
+        'import w from "./b";',
+        "",
+      ].join("\n"),
+      "src/b.ts": "export default 1;\n",
+    });
+    symlinkSync(outside, join(repo, "src", "link"));
+
+    const result = await indexRepo(repo);
+    const imports = result.files.find((f) => f.path === "src/a.ts")?.imports ?? [];
+    const byTo = new Map(imports.map((i) => [i.to, i]));
+
+    const rel = byTo.get(`${outsideRel}/probe`);
+    expect(rel?.resolved).toBeNull();
+    expect(rel?.outside).toBe(true);
+    const alias = byTo.get("@ext/shared");
+    expect(alias?.resolved).toBeNull();
+    expect(alias?.outside).toBe(true);
+    expect(byTo.get("./link/probe")?.resolved).toBeNull();
+    expect(byTo.get("./b")?.resolved).toBe("src/b.ts");
+    expect(byTo.get("./b")?.outside).toBe(false);
+    const serialized = JSON.stringify(
+      result.files.flatMap((f) => f.imports.map((i) => i.resolved)),
+    );
+    expect(serialized).not.toContain("..");
+    expect(serialized).not.toContain(outside);
+  });
 });
