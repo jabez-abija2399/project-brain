@@ -114,3 +114,9 @@ Changed: H1 components.ts builds props/signature from the AST (binding names + t
 Verified (ran this session): each new/changed test FAILED before its fix and PASSED after; `bash scripts/verify.sh` PASS after every fix (indexer 12/12 tests).
 NOT VERIFIED: indexing a real-world Next.js repo (only fixtures and temp repos).
 Next step: human approval of agent/plan.json FEAT-004 AC-004-08 (symlinks) and AC-004-09 (outside imports), then `kit.py import`; LOW findings L1-L7 in agent/later.md; KI-008.
+
+## 2026-10-24 | FEAT-005 review H1, H2, H5, H6 | status: done
+Changed: the Supabase reader now parses migrations with libpg-query 18.1.5 (dep-check: 18.2.0 was 0 days old, 18.1.5 is past the 7-day cooldown; prebuilt WASM, no native build). tokenize.ts = Postgres scanner + top-level `;` split; parser.ts reads CreateStmt / CreateTableAsStmt / AlterTableStmt (AT_Enable/DisableRowSecurity commands) / CreatePolicyStmt from the AST; USING/WITH CHECK text and column types come from the source tokens. Each file is parsed whole, else statement by statement; a failing statement goes to errors[] with file + line and the rest of the file is still read. Tables and policies carry `schema` and are keyed by schema.name (default public). readSupabaseMigrations is now async. D-012 updated; directives line added. 4 review fixtures in tests/fixtures/supabase/review/.
+Verified (ran this session): 4 new tests FAILED on the old reader (schema merged; no line / file skipped; nested comment -> RLS on; string literal -> RLS on), PASS after; reader tests 9/9; `bash scripts/verify.sh` PASS (85 tests, typecheck, lint, kit guard).
+NOT VERIFIED: CI-only checks (audit, scanners, build, e2e); WASM loading inside a Vercel function (no build/deploy run).
+Next: KI-010 (review H3/H4: DROP TABLE, ALTER POLICY), KI-011 (M1-M3), then FEAT-006.

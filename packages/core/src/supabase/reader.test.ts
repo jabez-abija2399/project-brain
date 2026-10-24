@@ -6,10 +6,11 @@ import { readSupabaseMigrations } from "./reader";
 const here = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = resolve(here, "../../../../tests/fixtures/supabase/migrations");
 const REALISTIC = resolve(here, "../../../../tests/fixtures/supabase/realistic/migrations");
+const REVIEW = resolve(here, "../../../../tests/fixtures/supabase/review");
 
 describe("@brain/core supabase reader", () => {
-  it("AC-005-01 returns every CREATE TABLE with its columns", () => {
-    const result = readSupabaseMigrations(MIGRATIONS);
+  it("AC-005-01 returns every CREATE TABLE with its columns", async () => {
+    const result = await readSupabaseMigrations(MIGRATIONS);
     const names = result.tables.map((t) => t.name).sort();
     expect(names).toEqual(["Posts", "comments", "profiles"]);
 
@@ -35,8 +36,8 @@ describe("@brain/core supabase reader", () => {
     expect(postColNames).not.toContain("constraint");
   });
 
-  it("AC-005-02 returns RLS enabled/disabled and each CREATE POLICY with command, roles, USING/WITH CHECK text", () => {
-    const result = readSupabaseMigrations(MIGRATIONS);
+  it("AC-005-02 returns RLS enabled/disabled and each CREATE POLICY with command, roles, USING/WITH CHECK text", async () => {
+    const result = await readSupabaseMigrations(MIGRATIONS);
 
     const profiles = result.tables.find((t) => t.name === "profiles");
     const posts = result.tables.find((t) => t.name === "Posts");
@@ -83,8 +84,8 @@ describe("@brain/core supabase reader", () => {
     expect(allComments?.withCheck).toBe("true");
   });
 
-  it("AC-005-03 marks a table RLS-enabled when ENABLE arrives in a later migration file", () => {
-    const result = readSupabaseMigrations(MIGRATIONS);
+  it("AC-005-03 marks a table RLS-enabled when ENABLE arrives in a later migration file", async () => {
+    const result = await readSupabaseMigrations(MIGRATIONS);
     const posts = result.tables.find((t) => t.name === "Posts");
     expect(posts).toBeDefined();
     expect(posts?.file).toBe("0001_init.sql");
@@ -92,8 +93,8 @@ describe("@brain/core supabase reader", () => {
     expect(posts?.columns.length).toBeGreaterThan(0);
   });
 
-  it("AC-005-04 reports the failing file in errors[] and still reads the rest", () => {
-    const result = readSupabaseMigrations(MIGRATIONS);
+  it("AC-005-04 reports the failing file in errors[] and still reads the rest", async () => {
+    const result = await readSupabaseMigrations(MIGRATIONS);
     const brokenError = result.errors.find((e) => e.file === "0004_broken.sql");
     expect(brokenError).toBeDefined();
     expect(brokenError?.message).toMatch(/paren|parse|CREATE/i);
@@ -105,8 +106,8 @@ describe("@brain/core supabase reader", () => {
     expect(commentsPolicy).toBeDefined();
   });
 
-  it("AC-005-06 reads a realistic migrations fixture ($$ bodies, comments, quoted names, lowercase, ONLY/IF EXISTS, FOR ALL, RESTRICTIVE)", () => {
-    const result = readSupabaseMigrations(REALISTIC);
+  it("AC-005-06 reads a realistic migrations fixture ($$ bodies, comments, quoted names, lowercase, ONLY/IF EXISTS, FOR ALL, RESTRICTIVE)", async () => {
+    const result = await readSupabaseMigrations(REALISTIC);
     expect(result.errors).toEqual([]);
     expect(result.tables.map((t) => t.name).sort()).toEqual(["Team Members", "profiles"]);
 
@@ -151,5 +152,59 @@ describe("@brain/core supabase reader", () => {
       "not exists (select 1 from public.bans b where b.user_id = auth.uid() and b.reason <> 'appeal (pending)')",
     );
     expect(restrictive?.withCheck).toBeNull();
+  });
+
+  it("AC-005-01 keys tables and policies by schema.name, default schema public (review H1)", async () => {
+    const result = await readSupabaseMigrations(resolve(REVIEW, "schema"));
+    expect(result.errors).toEqual([]);
+    const tables = result.tables.map((t) => [
+      t.schema,
+      t.name,
+      t.rlsEnabled,
+      t.columns.map((c) => c.name),
+    ]);
+    expect(tables).toEqual([
+      ["private", "profiles", true, ["id"]],
+      ["public", "profiles", false, ["id", "email"]],
+    ]);
+    expect(result.policies.map((p) => [p.schema, p.table, p.name])).toEqual([
+      ["storage", "objects", "own files"],
+    ]);
+
+    const plain = await readSupabaseMigrations(MIGRATIONS);
+    expect(plain.tables.every((t) => t.schema === "public")).toBe(true);
+  });
+
+  it("AC-005-04 records a broken statement with file and line and keeps reading the same file (review H2)", async () => {
+    const result = await readSupabaseMigrations(resolve(REVIEW, "skip"));
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]?.file).toBe("0002_partition.sql");
+    expect(result.errors[0]?.line).toBe(10);
+
+    const byName = new Map(result.tables.map((t) => [t.name, t]));
+    expect(byName.get("events")?.rlsEnabled).toBe(false);
+    expect(byName.get("events_2024")?.columns).toEqual([]);
+    expect(byName.has("events_copy")).toBe(true);
+    expect(byName.get("notes")?.columns).toEqual([{ name: "note", type: "text" }]);
+    expect(byName.get("tags")?.rlsEnabled).toBe(true);
+    expect(byName.has("broken")).toBe(false);
+
+    const old = await readSupabaseMigrations(MIGRATIONS);
+    expect(old.errors.map((e) => [e.file, e.line])).toEqual([["0004_broken.sql", 2]]);
+  });
+
+  it("AC-005-02 ignores SQL inside nested block comments (review H5)", async () => {
+    const result = await readSupabaseMigrations(resolve(REVIEW, "nested"));
+    expect(result.errors).toEqual([]);
+    expect(result.tables.map((t) => [t.name, t.rlsEnabled])).toEqual([["c", false]]);
+  });
+
+  it("AC-005-02 reads ENABLE ROW LEVEL SECURITY only as an ALTER TABLE action, not from string literals (review H6)", async () => {
+    const result = await readSupabaseMigrations(resolve(REVIEW, "altermulti"));
+    expect(result.errors).toEqual([]);
+    expect(result.tables.map((t) => [t.name, t.rlsEnabled])).toEqual([
+      ["m", false],
+      ["n", true],
+    ]);
   });
 });

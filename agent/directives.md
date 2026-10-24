@@ -10,3 +10,4 @@
 - 2026-10-23: Parsing: FEAT-004 uses the TypeScript Compiler API (D-011); FEAT-005 uses a hand-written SQL reader, no libpg-query (D-012).
 - 2026-10-24: Token API responses use an allowlist: list and create return only id, createdAt, lastUsedAt, revokedAt (create also returns the plaintext token once); the create response key is `id`, not `tokenId`.
 - 2026-10-24: Dependency cooldown is 7 days (minimumReleaseAge 10080, D-013); security fixes may bypass it only with human approval.
+- 2026-10-24: FEAT-005 switches from the hand-written SQL reader to libpg-query (supersedes the 2026-10-23 D-012 line); tables and policies keyed by schema.name (default public); per-statement parse errors with file and line.

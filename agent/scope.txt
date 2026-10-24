@@ -1,5 +1,12 @@
 agent/scope.txt
 agent/progress.md
 agent/later.md
+agent/directives.md
+agent/known-issues.md
+docs/decisions.md
+docs/dependencies.md
+packages/core/package.json
+pnpm-lock.yaml
 packages/core/src/supabase/*
-tests/fixtures/supabase/realistic/**
+tests/fixtures/supabase/**
+agent/reviews/FEAT-005.md

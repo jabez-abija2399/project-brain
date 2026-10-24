@@ -1,67 +1,40 @@
-export function splitStatements(sql: string): string[] {
-  const out: string[] = [];
-  let buf = "";
-  let i = 0;
-  while (i < sql.length) {
-    const ch = sql[i];
-    const next = sql[i + 1];
-    if (ch === "-" && next === "-") {
-      while (i < sql.length && sql[i] !== "\n") i++;
-      continue;
+import { scanSync } from "libpg-query";
+
+// All offsets are UTF-8 byte offsets, as returned by libpg-query.
+export type SqlToken = {
+  start: number;
+  end: number;
+  text: string;
+  keyword: boolean;
+};
+
+export type SqlChunk = {
+  start: number;
+  end: number;
+};
+
+const COMMENT_TOKENS = new Set(["C_COMMENT", "SQL_COMMENT"]);
+
+// Lexes with the real Postgres scanner (nested /* */, E'' strings, $tag$ bodies). Comments are dropped.
+// Throws on a lexical error such as an unterminated string.
+export function scanTokens(sql: string): SqlToken[] {
+  return scanSync(sql)
+    .tokens.filter((t) => !COMMENT_TOKENS.has(t.tokenName))
+    .map((t) => ({ start: t.start, end: t.end, text: t.text, keyword: t.keywordKind > 0 }));
+}
+
+// Splits at top-level semicolons. Only used after a whole-file parse failed, to find the broken statement.
+export function splitStatements(tokens: SqlToken[]): SqlChunk[] {
+  const out: SqlChunk[] = [];
+  let start = -1;
+  for (const t of tokens) {
+    if (start === -1) start = t.start;
+    if (t.text === ";") {
+      out.push({ start, end: t.end });
+      start = -1;
     }
-    if (ch === "/" && next === "*") {
-      i += 2;
-      while (i < sql.length && !(sql[i] === "*" && sql[i + 1] === "/")) i++;
-      i += 2;
-      continue;
-    }
-    if (ch === "'" || ch === '"') {
-      const quote = ch;
-      buf += ch;
-      i++;
-      while (i < sql.length) {
-        const c = sql[i];
-        buf += c;
-        i++;
-        if (c === quote) {
-          if (sql[i] === quote) {
-            buf += sql[i];
-            i++;
-            continue;
-          }
-          break;
-        }
-      }
-      continue;
-    }
-    if (ch === "$") {
-      const tagMatch = /^\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(sql.slice(i));
-      if (tagMatch) {
-        const tag = tagMatch[0];
-        buf += tag;
-        i += tag.length;
-        const end = sql.indexOf(tag, i);
-        if (end === -1) {
-          buf += sql.slice(i);
-          i = sql.length;
-        } else {
-          buf += sql.slice(i, end + tag.length);
-          i = end + tag.length;
-        }
-        continue;
-      }
-    }
-    if (ch === ";") {
-      const trimmed = buf.trim();
-      if (trimmed.length > 0) out.push(trimmed);
-      buf = "";
-      i++;
-      continue;
-    }
-    buf += ch;
-    i++;
   }
-  const tail = buf.trim();
-  if (tail.length > 0) out.push(tail);
+  const last = tokens[tokens.length - 1];
+  if (start !== -1 && last) out.push({ start, end: last.end });
   return out;
 }

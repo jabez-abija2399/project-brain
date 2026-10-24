@@ -77,6 +77,14 @@ WASM dependency, nothing extra in the Vercel bundle. (B) libpg-query REJECTED fo
 native/WASM builds. (C) pgsql-ast-parser, node-sql-parser REJECTED (incomplete Postgres dialect). Trade-offs: we parse a
 subset of Postgres; unusual syntax can be misread or land in errors[]. libpg-query stays approved (docs/dependencies.md).
 Revisit when: the realistic-migrations criterion (AC-005-06) fails and cannot be fixed cleanly in the reader.
+Update 2026-10-24 (human request, FEAT-005 review H1/H2/H5/H6): switched to (B) libpg-query, pinned 18.1.5 (newest past
+the 7-day cooldown, D-013; prebuilt WASM, no install script, no native build). The review showed the hand-written reader
+reporting RLS as enabled when it is off: nested /* */ comments, RLS words inside string literals, one unreadable statement
+dropping the rest of its file, and schemas merged. The real Postgres parser and scanner fix these at the root. Each file is
+parsed whole; if that fails it is re-parsed statement by statement (split at top-level `;` by the Postgres scanner) and each
+failing statement goes to errors[] with file and line. Tables and policies are keyed by schema.name (default public).
+readSupabaseMigrations is now async (the WASM module loads once). Cost: ~1.7 MB WASM in packages/core.
+Revisit when: the WASM size matters for a Vercel function, or libpg-query stops tracking new Postgres versions.
 
 ## D-013 | 2026-10-24 | Dependency cooldown raised from 3 to 7 days
 Context: semgrep's supply-chain rule (pnpm-minimum-release-age) requires a 7-day minimum release age; ours was 3 days

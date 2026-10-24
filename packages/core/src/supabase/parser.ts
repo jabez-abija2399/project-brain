@@ -1,13 +1,25 @@
+import type {
+  AlterTableStmt,
+  ColumnDef,
+  CreatePolicyStmt,
+  CreateStmt,
+  CreateTableAsStmt,
+  Node,
+  RangeVar,
+} from "libpg-query";
+import type { SqlToken } from "./tokenize";
 import type { ColumnDecl, PolicyCommand } from "./types";
 
 export type ParsedTable = {
   kind: "table";
+  schema: string;
   name: string;
   columns: ColumnDecl[];
 };
 
 export type ParsedRls = {
   kind: "rls";
+  schema: string;
   table: string;
   enabled: boolean;
 };
@@ -15,6 +27,7 @@ export type ParsedRls = {
 export type ParsedPolicy = {
   kind: "policy";
   name: string;
+  schema: string;
   table: string;
   command: PolicyCommand;
   roles: string[];
@@ -24,257 +37,151 @@ export type ParsedPolicy = {
 
 export type ParsedStatement = ParsedTable | ParsedRls | ParsedPolicy | null;
 
-// One identifier: "quoted (may contain spaces, dots, "")" or bare.
-const IDENT_PART = String.raw`(?:"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_$]*)`;
-// Optionally schema-qualified: public.profiles, "public"."Team Members".
-const QUALIFIED = String.raw`${IDENT_PART}(?:\s*\.\s*${IDENT_PART})*`;
+// One statement from libpg-query plus the source it came from. start/end are byte offsets into `bytes`;
+// AST locations are relative to `base` (where the parsed text starts in `bytes`).
+export type SourceStatement = {
+  node: Node;
+  start: number;
+  end: number;
+  base: number;
+  bytes: Uint8Array;
+  tokens: SqlToken[];
+};
 
-export function parseStatement(stmt: string): ParsedStatement {
-  const upper = stmt.toUpperCase();
-  if (/^CREATE\s+(TEMP(ORARY)?\s+|UNLOGGED\s+)?TABLE\b/.test(upper)) {
-    return parseCreateTable(stmt);
-  }
-  if (/^ALTER\s+TABLE\b/.test(upper)) {
-    return parseAlterTable(stmt);
-  }
-  if (/^CREATE\s+POLICY\b/.test(upper)) {
-    return parseCreatePolicy(stmt);
-  }
+const DEFAULT_SCHEMA = "public";
+const decoder = new TextDecoder();
+
+export function parseStatement(stmt: SourceStatement): ParsedStatement {
+  const node = stmt.node;
+  if ("CreateStmt" in node) return readCreateTable(node.CreateStmt, stmt);
+  if ("CreateTableAsStmt" in node) return readCreateTableAs(node.CreateTableAsStmt);
+  if ("AlterTableStmt" in node) return readAlterTable(node.AlterTableStmt);
+  if ("CreatePolicyStmt" in node) return readCreatePolicy(node.CreatePolicyStmt, stmt);
   return null;
 }
 
-function parseCreateTable(stmt: string): ParsedTable {
-  const m = new RegExp(
-    String.raw`^CREATE\s+(?:TEMP(?:ORARY)?\s+|UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(${QUALIFIED})\s*\(`,
-    "i",
-  ).exec(stmt);
-  if (!m) throw new Error("CREATE TABLE: missing table name or opening paren");
-  const name = normalizeIdent(stripSchema(m[1] as string));
-  const openIdx = stmt.indexOf("(", m.index + m[0].length - 1);
-  const closeIdx = matchParen(stmt, openIdx);
-  if (closeIdx === -1) throw new Error("CREATE TABLE: unbalanced parentheses");
-  const body = stmt.slice(openIdx + 1, closeIdx);
-  const columns = parseColumns(body);
-  return { kind: "table", name, columns };
+function readCreateTable(create: CreateStmt, stmt: SourceStatement): ParsedTable {
+  const columns: ColumnDecl[] = [];
+  for (const elt of create.tableElts ?? []) {
+    if (!("ColumnDef" in elt)) continue;
+    const col = elt.ColumnDef;
+    if (!col.colname) continue;
+    columns.push({ name: col.colname, type: columnTypeText(col, stmt) });
+  }
+  return { kind: "table", ...relationName(create.relation), columns };
 }
 
-function parseAlterTable(stmt: string): ParsedRls | null {
-  const m = new RegExp(
-    String.raw`^ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?(${QUALIFIED})\s+(.+)$`,
-    "is",
-  ).exec(stmt);
-  if (!m) throw new Error("ALTER TABLE: could not parse");
-  const table = normalizeIdent(stripSchema(m[1] as string));
-  const rest = (m[2] as string).toUpperCase();
-  if (/\bENABLE\s+ROW\s+LEVEL\s+SECURITY\b/.test(rest)) {
-    return { kind: "rls", table, enabled: true };
-  }
-  if (/\bDISABLE\s+ROW\s+LEVEL\s+SECURITY\b/.test(rest)) {
-    return { kind: "rls", table, enabled: false };
-  }
-  return null;
+function readCreateTableAs(create: CreateTableAsStmt): ParsedTable | null {
+  if (create.objtype !== "OBJECT_TABLE") return null;
+  return { kind: "table", ...relationName(create.into?.rel), columns: [] };
 }
 
-function parseCreatePolicy(stmt: string): ParsedPolicy {
-  const head = new RegExp(
-    String.raw`^CREATE\s+POLICY\s+(${IDENT_PART})\s+ON\s+(?:TABLE\s+)?(${QUALIFIED})\s*`,
-    "i",
-  ).exec(stmt);
-  if (!head) throw new Error("CREATE POLICY: missing name or table");
-  const name = normalizeIdent(head[1] as string);
-  const table = normalizeIdent(stripSchema(head[2] as string));
-  let rest = stmt.slice(head.index + head[0].length);
-
-  let command: PolicyCommand = "ALL";
-  let roles: string[] = ["public"];
-  let usingExpr: string | null = null;
-  let withCheckExpr: string | null = null;
-
-  const asMatch = /^AS\s+(PERMISSIVE|RESTRICTIVE)\s*/i.exec(rest);
-  if (asMatch) rest = rest.slice(asMatch[0].length);
-
-  const forMatch = /^FOR\s+(ALL|SELECT|INSERT|UPDATE|DELETE)\s*/i.exec(rest);
-  if (forMatch) {
-    command = (forMatch[1] as string).toUpperCase() as PolicyCommand;
-    rest = rest.slice(forMatch[0].length);
+function readAlterTable(alter: AlterTableStmt): ParsedRls | null {
+  if (alter.objtype !== "OBJECT_TABLE") return null;
+  let enabled: boolean | null = null;
+  for (const cmd of alter.cmds ?? []) {
+    if (!("AlterTableCmd" in cmd)) continue;
+    if (cmd.AlterTableCmd.subtype === "AT_EnableRowSecurity") enabled = true;
+    if (cmd.AlterTableCmd.subtype === "AT_DisableRowSecurity") enabled = false;
   }
+  if (enabled === null) return null;
+  const { schema, name } = relationName(alter.relation);
+  return { kind: "rls", schema, table: name, enabled };
+}
 
-  const toMatch = /^TO\s+([^()]+?)(?=\s+(?:USING|WITH\s+CHECK)\b|\s*$)/i.exec(rest);
-  if (toMatch) {
-    roles = (toMatch[1] as string)
-      .split(",")
-      .map((r) => normalizeIdent(r.trim()))
-      .filter((r) => r.length > 0);
-    rest = rest.slice(toMatch[0].length).replace(/^\s+/, "");
-  }
-
-  while (rest.length > 0) {
-    const u = /^USING\s*\(/i.exec(rest);
-    if (u) {
-      const openIdx = u.index + u[0].length - 1;
-      const closeIdx = matchParen(rest, openIdx);
-      if (closeIdx === -1) throw new Error("CREATE POLICY: USING missing closing paren");
-      usingExpr = rest.slice(openIdx + 1, closeIdx).trim();
-      rest = rest.slice(closeIdx + 1).replace(/^\s+/, "");
-      continue;
-    }
-    const w = /^WITH\s+CHECK\s*\(/i.exec(rest);
-    if (w) {
-      const openIdx = w.index + w[0].length - 1;
-      const closeIdx = matchParen(rest, openIdx);
-      if (closeIdx === -1) throw new Error("CREATE POLICY: WITH CHECK missing closing paren");
-      withCheckExpr = rest.slice(openIdx + 1, closeIdx).trim();
-      rest = rest.slice(closeIdx + 1).replace(/^\s+/, "");
-      continue;
-    }
-    break;
-  }
-
+function readCreatePolicy(policy: CreatePolicyStmt, stmt: SourceStatement): ParsedPolicy {
+  const { schema, name: table } = relationName(policy.table);
+  const roles = (policy.roles ?? []).flatMap((r) =>
+    "RoleSpec" in r ? [roleName(r.RoleSpec)] : [],
+  );
+  const tokens = tokensIn(stmt);
   return {
     kind: "policy",
-    name,
+    name: policy.policy_name ?? "",
+    schema,
     table,
-    command,
-    roles,
-    using: usingExpr,
-    withCheck: withCheckExpr,
+    command: (policy.cmd_name ?? "all").toUpperCase() as PolicyCommand,
+    roles: roles.length > 0 ? roles : ["public"],
+    using: policy.qual ? clauseText(tokens, ["USING"], stmt.bytes) : null,
+    withCheck: policy.with_check ? clauseText(tokens, ["WITH", "CHECK"], stmt.bytes) : null,
   };
 }
 
-const COLUMN_CONSTRAINT_KEYWORDS = new Set([
-  "CONSTRAINT",
-  "PRIMARY",
-  "FOREIGN",
-  "UNIQUE",
-  "CHECK",
-  "EXCLUDE",
-  "LIKE",
-]);
-
-function parseColumns(body: string): ColumnDecl[] {
-  const items = splitTopLevel(body);
-  const cols: ColumnDecl[] = [];
-  for (const item of items) {
-    const trimmed = item.trim();
-    if (trimmed.length === 0) continue;
-    const firstWord = /^([A-Za-z_][A-Za-z0-9_]*|"[^"]+")/.exec(trimmed);
-    if (!firstWord) continue;
-    const keyword = (firstWord[1] as string).replace(/^"|"$/g, "").toUpperCase();
-    if (COLUMN_CONSTRAINT_KEYWORDS.has(keyword)) continue;
-    const name = normalizeIdent(firstWord[1] as string);
-    const afterName = trimmed.slice((firstWord[1] as string).length).trim();
-    const type = extractType(afterName);
-    cols.push({ name, type });
-  }
-  return cols;
+function relationName(rel: RangeVar | undefined): { schema: string; name: string } {
+  return { schema: rel?.schemaname ?? DEFAULT_SCHEMA, name: rel?.relname ?? "" };
 }
 
-function extractType(s: string): string {
-  if (s.length === 0) return "";
-  let i = 0;
-  while (i < s.length && /\s/.test(s[i] as string)) i++;
-  const start = i;
-  while (i < s.length) {
-    const ch = s[i] as string;
-    if (ch === "(") {
-      const close = matchParen(s, i);
-      if (close === -1) return s.slice(start).trim();
-      i = close + 1;
-      continue;
-    }
-    if (ch === "," || ch === " " || ch === "\t" || ch === "\n") break;
-    i++;
-  }
-  const first = s.slice(start, i).trim();
-  const rest = s.slice(i).toUpperCase();
-  const arrayMatch = /^\s*((?:\[\s*\d*\s*\]\s*)+)/.exec(s.slice(i));
-  let typeStr = first;
-  if (arrayMatch) typeStr += (arrayMatch[1] as string).replace(/\s+/g, "");
-  if (/^\s+WITH(OUT)?\s+TIME\s+ZONE\b/.test(rest)) {
-    const m2 = /^\s+(WITH(?:OUT)?\s+TIME\s+ZONE)/i.exec(s.slice(i));
-    if (m2) typeStr += ` ${(m2[1] as string).toUpperCase()}`;
-  }
-  return typeStr;
+function roleName(role: { roletype?: string; rolename?: string }): string {
+  if (role.roletype === "ROLESPEC_CSTRING") return role.rolename ?? "";
+  return (role.roletype ?? "ROLESPEC_PUBLIC").replace(/^ROLESPEC_/, "").toLowerCase();
 }
 
-function splitTopLevel(body: string): string[] {
-  const out: string[] = [];
+function tokensIn(stmt: SourceStatement): SqlToken[] {
+  return stmt.tokens.filter((t) => t.start >= stmt.start && t.end <= stmt.end);
+}
+
+// Source text inside the parens after a top-level keyword sequence (USING (...), WITH CHECK (...)).
+function clauseText(tokens: SqlToken[], words: string[], bytes: Uint8Array): string | null {
   let depth = 0;
-  let buf = "";
-  let i = 0;
-  while (i < body.length) {
-    const ch = body[i];
-    if (ch === "(") depth++;
-    else if (ch === ")") depth--;
-    else if (ch === "'" || ch === '"') {
-      const quote = ch;
-      buf += ch;
-      i++;
-      while (i < body.length) {
-        const c = body[i];
-        buf += c;
-        i++;
-        if (c === quote) {
-          if (body[i] === quote) {
-            buf += body[i];
-            i++;
-            continue;
-          }
-          break;
-        }
-      }
-      continue;
-    } else if (ch === "," && depth === 0) {
-      out.push(buf);
-      buf = "";
-      i++;
-      continue;
-    }
-    buf += ch;
-    i++;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i] as SqlToken;
+    if (t.text === "(") depth++;
+    else if (t.text === ")") depth--;
+    if (depth !== 0) continue;
+    const matches = words.every((w, k) => {
+      const tok = tokens[i + k];
+      return tok?.keyword === true && tok.text.toUpperCase() === w;
+    });
+    const open = tokens[i + words.length];
+    if (!matches || open?.text !== "(") continue;
+    const close = matchingParen(tokens, i + words.length);
+    if (close === -1) return null;
+    return decoder.decode(bytes.subarray(open.end, (tokens[close] as SqlToken).start)).trim();
   }
-  if (buf.length > 0) out.push(buf);
-  return out;
+  return null;
 }
 
-function matchParen(s: string, openIdx: number): number {
+function matchingParen(tokens: SqlToken[], openIdx: number): number {
   let depth = 0;
-  let i = openIdx;
-  while (i < s.length) {
-    const ch = s[i];
-    if (ch === "'" || ch === '"') {
-      const quote = ch;
-      i++;
-      while (i < s.length) {
-        const c = s[i];
-        i++;
-        if (c === quote) {
-          if (s[i] === quote) {
-            i++;
-            continue;
-          }
-          break;
-        }
-      }
-      continue;
-    }
-    if (ch === "(") depth++;
-    else if (ch === ")") {
-      depth--;
-      if (depth === 0) return i;
-    }
-    i++;
+  for (let i = openIdx; i < tokens.length; i++) {
+    const text = (tokens[i] as SqlToken).text;
+    if (text === "(") depth++;
+    else if (text === ")" && --depth === 0) return i;
   }
   return -1;
 }
 
-function stripSchema(ident: string): string {
-  const parts = ident.match(new RegExp(IDENT_PART, "g")) ?? [ident];
-  return parts[parts.length - 1] as string;
-}
+// The column type as written ("uuid", "text[]", "varchar(20)"); keywords after the first word are upper-cased
+// ("timestamp WITH TIME ZONE"). Ends at the first column constraint, COLLATE, or the next column.
+function columnTypeText(col: ColumnDef, stmt: SourceStatement): string {
+  const typeLoc = col.typeName?.location;
+  if (typeLoc === undefined || typeLoc < 0) return "";
+  const typeStart = stmt.base + typeLoc;
+  const stops = new Set<number>();
+  for (const c of col.constraints ?? []) {
+    if ("Constraint" in c && c.Constraint.location !== undefined)
+      stops.add(stmt.base + c.Constraint.location);
+  }
+  if (col.collClause?.location !== undefined) stops.add(stmt.base + col.collClause.location);
 
-function normalizeIdent(ident: string): string {
-  const t = ident.trim();
-  if (t.startsWith('"') && t.endsWith('"')) return t.slice(1, -1).replace(/""/g, '"');
-  return t.toLowerCase();
+  let out = "";
+  let depth = 0;
+  let prev = "";
+  for (const t of stmt.tokens) {
+    if (t.start < typeStart) continue;
+    if (t.start >= stmt.end || stops.has(t.start)) break;
+    if (depth === 0 && (t.text === "," || t.text === ")")) break;
+    if (t.text === "(" || t.text === "[") depth++;
+    else if (t.text === ")" || t.text === "]") depth--;
+    const word = out.length > 0 && t.keyword ? t.text.toUpperCase() : t.text;
+    const glued =
+      out.length === 0 ||
+      /^[([\]).,]$/.test(t.text) ||
+      prev === "(" ||
+      prev === "[" ||
+      prev === ".";
+    out += glued ? word : ` ${word}`;
+    prev = t.text;
+  }
+  return out;
 }
