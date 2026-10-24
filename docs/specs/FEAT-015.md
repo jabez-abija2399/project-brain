@@ -15,7 +15,7 @@ Requirement ids: REQ-012   Non-goals for this feature: automatic fixing, history
 | AC-015-01 | happy | A Supabase service-role key or a secret API key in a client-side file is flagged with file and line |
 | AC-015-02 | negative | The Supabase anon key in client code is not flagged |
 | AC-015-03 | attack | Detected secret values are masked (first 4 characters + ***) in receipts, API responses, the database and logs (test greps all four) |
-| AC-015-04 | happy | Supabase tables with RLS disabled, or with a policy whose USING is 'true' for writes, are flagged in the receipt |
+| AC-015-04 | happy | Tables with RLS disabled, or with a policy that allows everyone to write (USING (true) on UPDATE/DELETE, or WITH CHECK (true) on INSERT/UPDATE), are flagged in the receipt |
 | AC-015-05 | boundary | A secret in .env.example with an empty value or a placeholder like 'your-key-here' is not flagged |
 
 ## 4. Data and permissions
@@ -29,7 +29,7 @@ Entry points (routes, forms, uploads, webhooks, background jobs): receipt genera
 Abuse cases -> each becomes an `attack` or `permission` criterion with an executable test:
 - Secret re-exposure through our own system: values masked before storing, returning or logging (AC-015-03).
 - False positives that teach users to ignore warnings: anon key and placeholders not flagged (AC-015-02, AC-015-05).
-- Missed RLS issues: RLS disabled and USING (true) on insert/update/delete flagged (AC-015-04).
+- Missed RLS issues: RLS disabled, USING (true) on UPDATE/DELETE and WITH CHECK (true) on INSERT/UPDATE flagged (AC-015-04).
 Security pass (generate -> critique -> revise): after the first implementation, list "what would an attacker try next?", write
 attacker tests, show them failing if vulnerable, fix, repeat once.
 

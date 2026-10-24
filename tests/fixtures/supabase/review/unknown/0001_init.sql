@@ -1,0 +1,10 @@
+create table public.a (id int);
+alter table public.a enable row level security;
+create table public.b (id int);
+alter table public.b enable row level security;
+create table public.c (id int);
+alter table public.c enable row level security;
+create table public.d (id int);
+alter table public.d enable row level security;
+create table public.e (id int);
+alter table public.e enable row level security;

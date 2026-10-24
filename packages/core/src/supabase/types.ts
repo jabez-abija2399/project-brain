@@ -8,7 +8,10 @@ export type TableSchema = {
   name: string;
   file: string;
   columns: ColumnDecl[];
+  // true only when the migrations clearly enable RLS; false when disabled or unknown.
   rlsEnabled: boolean;
+  // A statement touching the table could not be read (or ran dynamic SQL), so its RLS state is not known.
+  rlsUnknown: boolean;
 };
 
 export type PolicyCommand = "ALL" | "SELECT" | "INSERT" | "UPDATE" | "DELETE";
@@ -20,6 +23,8 @@ export type PolicySchema = {
   file: string;
   command: PolicyCommand;
   roles: string[];
+  // AS PERMISSIVE (default) or AS RESTRICTIVE; a restrictive policy only narrows access, it never grants it.
+  permissive: boolean;
   using: string | null;
   withCheck: string | null;
 };

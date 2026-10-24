@@ -2,18 +2,28 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { loadModule, parseSync } from "libpg-query";
 import { type SourceStatement, parseStatement } from "./parser";
-import { type SqlToken, scanTokens, splitStatements } from "./tokenize";
-import type { PolicySchema, SupabaseReadError, SupabaseReadResult, TableSchema } from "./types";
+import { applyStatement, createReplay, markUnknown } from "./replay";
+import {
+  type Relation,
+  type SqlToken,
+  relationsNamedIn,
+  scanTokens,
+  splitStatements,
+} from "./tokenize";
+import type { SupabaseReadError, SupabaseReadResult } from "./types";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+// A statement in file order: parsed, or failed (with the tables it names; null = cannot tell which).
+type Item =
+  | { kind: "ok"; stmt: SourceStatement }
+  | { kind: "failed"; line: number; message: string; tables: Relation[] | null };
+
 export async function readSupabaseMigrations(migrationsDir: string): Promise<SupabaseReadResult> {
   await loadModule();
   const absRoot = resolve(migrationsDir);
-  // Keyed by "schema.name" so public.profiles and private.profiles stay separate.
-  const tables = new Map<string, TableSchema>();
-  const policies: PolicySchema[] = [];
+  const state = createReplay();
   const errors: SupabaseReadError[] = [];
   let files: string[];
   try {
@@ -45,91 +55,79 @@ export async function readSupabaseMigrations(migrationsDir: string): Promise<Sup
       errors.push({ file: rel, message: `read failed: ${(err as Error).message}` });
       continue;
     }
-    for (const stmt of statementsOf(source, rel, errors)) {
-      const parsed = parseStatement(stmt);
-      if (!parsed) continue;
-      if (parsed.kind === "table") {
-        const key = `${parsed.schema}.${parsed.name}`;
-        if (!tables.has(key)) {
-          tables.set(key, {
-            schema: parsed.schema,
-            name: parsed.name,
-            file: rel,
-            columns: parsed.columns,
-            rlsEnabled: false,
-          });
-        }
+    for (const item of statementsOf(source)) {
+      if (item.kind === "failed") {
+        errors.push({ file: rel, line: item.line, message: `parse error: ${item.message}` });
+        markUnknown(state, item.tables);
         continue;
       }
-      if (parsed.kind === "rls") {
-        const key = `${parsed.schema}.${parsed.table}`;
-        const existing = tables.get(key);
-        if (existing) {
-          existing.rlsEnabled = parsed.enabled;
-        } else {
-          tables.set(key, {
-            schema: parsed.schema,
-            name: parsed.table,
-            file: rel,
-            columns: [],
-            rlsEnabled: parsed.enabled,
-          });
-        }
-        continue;
-      }
-      policies.push({
-        name: parsed.name,
-        schema: parsed.schema,
-        table: parsed.table,
-        file: rel,
-        command: parsed.command,
-        roles: parsed.roles,
-        using: parsed.using,
-        withCheck: parsed.withCheck,
-      });
+      const parsed = parseStatement(item.stmt);
+      if (parsed) applyStatement(state, parsed, rel);
     }
   }
-  const tablesSorted = [...tables.values()].sort(
+  const tables = [...state.tables.values()].sort(
     (a, b) => a.name.localeCompare(b.name) || a.schema.localeCompare(b.schema),
   );
-  return { root: absRoot, tables: tablesSorted, policies, errors };
+  return { root: absRoot, tables, policies: state.policies, errors };
 }
 
 // Parses the whole file at once; if that fails, parses statement by statement so one broken statement
-// only costs itself. Each failing statement goes to errors[] with the line it starts on.
-function statementsOf(
-  source: string,
-  file: string,
-  errors: SupabaseReadError[],
-): SourceStatement[] {
+// only costs itself. After a lexical error (unterminated string or comment, which runs to the end of the file),
+// the complete statements before it are still read.
+function statementsOf(source: string): Item[] {
   const bytes = encoder.encode(source);
   let tokens: SqlToken[];
+  let lexError: { message: string; cut: number } | null = null;
   try {
     tokens = scanTokens(source);
   } catch {
-    // Lexical error (e.g. unterminated string or comment): it runs to the end of the file.
-    errors.push(parseError(source, bytes, file));
-    return [];
-  }
-  try {
-    return toStatements(source, bytes, 0, tokens);
-  } catch {
-    // fall through to per-statement parsing
-  }
-  const out: SourceStatement[] = [];
-  for (const chunk of splitStatements(tokens)) {
-    const text = decoder.decode(bytes.subarray(chunk.start, chunk.end));
+    const { message, cursor } = parseFailure(source);
+    const prefix = Array.from(source).slice(0, cursor).join("");
+    lexError = { message, cut: encoder.encode(prefix).length };
     try {
-      out.push(...toStatements(text, bytes, chunk.start, tokens));
-    } catch (err) {
-      errors.push({
-        file,
-        line: lineAt(bytes, chunk.start),
-        message: `parse error: ${(err as Error).message}`,
-      });
+      tokens = scanTokens(prefix);
+    } catch {
+      return [{ kind: "failed", line: lineAt(bytes, lexError.cut), message, tables: null }];
     }
   }
-  return out;
+  if (!lexError) {
+    try {
+      return toStatements(source, bytes, 0, tokens).map((stmt) => ({ kind: "ok", stmt }));
+    } catch {
+      // fall through to per-statement parsing
+    }
+  }
+  const items: Item[] = [];
+  for (const chunk of splitStatements(tokens)) {
+    const chunkTokens = tokens.filter((t) => t.start >= chunk.start && t.end <= chunk.end);
+    // The statement cut off by a lexical error never parses as written, even if its prefix would.
+    const cutOff = lexError !== null && chunkTokens[chunkTokens.length - 1]?.text !== ";";
+    let message = lexError?.message ?? "";
+    if (!cutOff) {
+      const text = decoder.decode(bytes.subarray(chunk.start, chunk.end));
+      try {
+        for (const stmt of toStatements(text, bytes, chunk.start, tokens)) {
+          items.push({ kind: "ok", stmt });
+        }
+        continue;
+      } catch (err) {
+        message = (err as Error).message;
+      }
+    }
+    const line = lineAt(bytes, chunk.start);
+    items.push({ kind: "failed", line, message, tables: relationsNamedIn(chunkTokens) });
+  }
+  const endedClean = tokens.length === 0 || tokens[tokens.length - 1]?.text === ";";
+  if (lexError && endedClean) {
+    // The unterminated string or comment starts a statement of its own.
+    items.push({
+      kind: "failed",
+      line: lineAt(bytes, lexError.cut),
+      message: lexError.message,
+      tables: [],
+    });
+  }
+  return items;
 }
 
 function toStatements(
@@ -156,16 +154,15 @@ function toStatements(
   });
 }
 
-function parseError(source: string, bytes: Uint8Array, file: string): SupabaseReadError {
+// Message and 0-based character offset of the first parse error in `source` (libpg-query cursorPosition).
+function parseFailure(source: string): { message: string; cursor: number } {
   try {
     parseSync(source);
   } catch (err) {
-    const cursor =
-      (err as { sqlDetails?: { cursorPosition?: number } }).sqlDetails?.cursorPosition ?? 1;
-    const line = lineAt(bytes, Math.max(0, cursor - 1));
-    return { file, line, message: `parse error: ${(err as Error).message}` };
+    const details = (err as { sqlDetails?: { cursorPosition?: number } }).sqlDetails;
+    return { message: (err as Error).message, cursor: details?.cursorPosition ?? 0 };
   }
-  return { file, line: 1, message: "parse error: could not tokenize" };
+  return { message: "could not tokenize", cursor: 0 };
 }
 
 function lineAt(bytes: Uint8Array, offset: number): number {

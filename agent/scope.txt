@@ -3,10 +3,12 @@ agent/progress.md
 agent/later.md
 agent/directives.md
 agent/known-issues.md
+agent/plan.json
+docs/specs/FEAT-015.md
 docs/decisions.md
-docs/dependencies.md
-packages/core/package.json
-pnpm-lock.yaml
 packages/core/src/supabase/*
+packages/db/src/schema/supabase.ts
+packages/db/src/repos/db-schema.ts
+packages/db/src/repos/db-schema.test.ts
+packages/db/migrations/0004_db_schema_flags.sql
 tests/fixtures/supabase/**
-agent/reviews/FEAT-005.md

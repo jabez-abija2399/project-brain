@@ -36,11 +36,22 @@ export const dbTablesRepo = {
     return rows[0] ?? null;
   },
 
-  async byName(db: BrainDb, projectId: string, name: string): Promise<DbTable | null> {
+  async byName(
+    db: BrainDb,
+    projectId: string,
+    name: string,
+    schema = "public",
+  ): Promise<DbTable | null> {
     const rows = await db
       .select()
       .from(dbTables)
-      .where(and(eq(dbTables.projectId, projectId), eq(dbTables.name, name)))
+      .where(
+        and(
+          eq(dbTables.projectId, projectId),
+          eq(dbTables.schema, schema),
+          eq(dbTables.name, name),
+        ),
+      )
       .limit(1);
     return rows[0] ?? null;
   },

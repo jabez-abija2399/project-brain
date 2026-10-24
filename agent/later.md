@@ -47,3 +47,6 @@
 - 2026-10-24 | FEAT-004 review L5: IndexResult.root is the absolute server path; do not persist it or return it to clients | agent/reviews/FEAT-004.md L5
 - 2026-10-24 | FEAT-004 review L6: indexer.test.ts writes big.ts/binary.ts (1.4 MB) into the committed fixture; use a temp copy | agent/reviews/FEAT-004.md L6
 - 2026-10-24 | FEAT-004 review L7: no cap on files walked or skipped[] size, and each file is read twice (looksBinary + index); add limits before arbitrary repos | agent/reviews/FEAT-004.md L7
+- 2026-10-25 | FEAT-005 review L1: regression tests for the RLS state machine | mostly covered now (review/ fixtures: schema, skip, nested, altermulti, recreate, alterpol, droppol, restrictive, rename, unknown); still missing: DISABLE after ENABLE across files, CREATE TABLE IF NOT EXISTS of an existing table
+- 2026-10-25 | FEAT-005 review L2: one shared quote scanner instead of three | likely moot since the libpg-query switch (the Postgres scanner does all quoting); re-check when touching tokenize.ts
+- 2026-10-25 | FEAT-005 review L3: column named "a""b" read as `a` | likely moot since the libpg-query switch (colname comes from the AST); add a fixture to confirm

@@ -1,13 +1,18 @@
 import type {
+  AlterObjectSchemaStmt,
+  AlterPolicyStmt,
   AlterTableStmt,
   ColumnDef,
   CreatePolicyStmt,
   CreateStmt,
   CreateTableAsStmt,
+  DoStmt,
+  DropStmt,
   Node,
   RangeVar,
+  RenameStmt,
 } from "libpg-query";
-import type { SqlToken } from "./tokenize";
+import { type Relation, type SqlToken, clauseText, relationsInCodeBody } from "./tokenize";
 import type { ColumnDecl, PolicyCommand } from "./types";
 
 export type ParsedTable = {
@@ -31,11 +36,58 @@ export type ParsedPolicy = {
   table: string;
   command: PolicyCommand;
   roles: string[];
+  permissive: boolean;
   using: string | null;
   withCheck: string | null;
 };
 
-export type ParsedStatement = ParsedTable | ParsedRls | ParsedPolicy | null;
+export type ParsedDropTables = { kind: "dropTables"; tables: Relation[] };
+
+export type ParsedDropPolicy = { kind: "dropPolicy"; schema: string; table: string; name: string };
+
+// ALTER POLICY: only the clauses present in the statement change (undefined = unchanged).
+export type ParsedAlterPolicy = {
+  kind: "alterPolicy";
+  schema: string;
+  table: string;
+  name: string;
+  roles?: string[];
+  using?: string | null;
+  withCheck?: string | null;
+};
+
+export type ParsedRenamePolicy = {
+  kind: "renamePolicy";
+  schema: string;
+  table: string;
+  name: string;
+  newName: string;
+};
+
+// ALTER TABLE ... RENAME TO / SET SCHEMA.
+export type ParsedMoveTable = {
+  kind: "moveTable";
+  schema: string;
+  table: string;
+  newSchema: string;
+  newName: string;
+};
+
+// A statement that may change RLS in a way we cannot follow (dynamic SQL in DO blocks).
+// tables null = it could be any table.
+export type ParsedUnknown = { kind: "unknown"; tables: Relation[] | null };
+
+export type ParsedStatement =
+  | ParsedTable
+  | ParsedRls
+  | ParsedPolicy
+  | ParsedDropTables
+  | ParsedDropPolicy
+  | ParsedAlterPolicy
+  | ParsedRenamePolicy
+  | ParsedMoveTable
+  | ParsedUnknown
+  | null;
 
 // One statement from libpg-query plus the source it came from. start/end are byte offsets into `bytes`;
 // AST locations are relative to `base` (where the parsed text starts in `bytes`).
@@ -49,7 +101,6 @@ export type SourceStatement = {
 };
 
 const DEFAULT_SCHEMA = "public";
-const decoder = new TextDecoder();
 
 export function parseStatement(stmt: SourceStatement): ParsedStatement {
   const node = stmt.node;
@@ -57,6 +108,11 @@ export function parseStatement(stmt: SourceStatement): ParsedStatement {
   if ("CreateTableAsStmt" in node) return readCreateTableAs(node.CreateTableAsStmt);
   if ("AlterTableStmt" in node) return readAlterTable(node.AlterTableStmt);
   if ("CreatePolicyStmt" in node) return readCreatePolicy(node.CreatePolicyStmt, stmt);
+  if ("AlterPolicyStmt" in node) return readAlterPolicy(node.AlterPolicyStmt, stmt);
+  if ("DropStmt" in node) return readDrop(node.DropStmt);
+  if ("RenameStmt" in node) return readRename(node.RenameStmt);
+  if ("AlterObjectSchemaStmt" in node) return readSetSchema(node.AlterObjectSchemaStmt);
+  if ("DoStmt" in node) return readDo(node.DoStmt);
   return null;
 }
 
@@ -91,9 +147,7 @@ function readAlterTable(alter: AlterTableStmt): ParsedRls | null {
 
 function readCreatePolicy(policy: CreatePolicyStmt, stmt: SourceStatement): ParsedPolicy {
   const { schema, name: table } = relationName(policy.table);
-  const roles = (policy.roles ?? []).flatMap((r) =>
-    "RoleSpec" in r ? [roleName(r.RoleSpec)] : [],
-  );
+  const roles = roleNames(policy.roles);
   const tokens = tokensIn(stmt);
   return {
     kind: "policy",
@@ -102,13 +156,95 @@ function readCreatePolicy(policy: CreatePolicyStmt, stmt: SourceStatement): Pars
     table,
     command: (policy.cmd_name ?? "all").toUpperCase() as PolicyCommand,
     roles: roles.length > 0 ? roles : ["public"],
+    permissive: policy.permissive === true,
     using: policy.qual ? clauseText(tokens, ["USING"], stmt.bytes) : null,
     withCheck: policy.with_check ? clauseText(tokens, ["WITH", "CHECK"], stmt.bytes) : null,
   };
 }
 
+function readAlterPolicy(policy: AlterPolicyStmt, stmt: SourceStatement): ParsedAlterPolicy {
+  const { schema, name: table } = relationName(policy.table);
+  const tokens = tokensIn(stmt);
+  const out: ParsedAlterPolicy = {
+    kind: "alterPolicy",
+    schema,
+    table,
+    name: policy.policy_name ?? "",
+  };
+  if (policy.roles) out.roles = roleNames(policy.roles);
+  if (policy.qual) out.using = clauseText(tokens, ["USING"], stmt.bytes);
+  if (policy.with_check) out.withCheck = clauseText(tokens, ["WITH", "CHECK"], stmt.bytes);
+  return out;
+}
+
+function readDrop(drop: DropStmt): ParsedDropTables | ParsedDropPolicy | null {
+  const names = (drop.objects ?? []).map((o) =>
+    "List" in o
+      ? (o.List.items ?? []).map((i) => ("String" in i ? (i.String.sval ?? "") : ""))
+      : [],
+  );
+  if (drop.removeType === "OBJECT_TABLE") {
+    const tables = names.map((n) => ({
+      schema: n.length > 1 ? (n[n.length - 2] as string) : DEFAULT_SCHEMA,
+      name: n[n.length - 1] ?? "",
+    }));
+    return { kind: "dropTables", tables };
+  }
+  if (drop.removeType === "OBJECT_POLICY" && names[0]) {
+    const n = names[0];
+    const schema = n.length > 2 ? (n[n.length - 3] as string) : DEFAULT_SCHEMA;
+    return {
+      kind: "dropPolicy",
+      schema,
+      table: n[n.length - 2] ?? "",
+      name: n[n.length - 1] ?? "",
+    };
+  }
+  return null;
+}
+
+function readRename(rename: RenameStmt): ParsedMoveTable | ParsedRenamePolicy | null {
+  const { schema, name } = relationName(rename.relation);
+  const newName = rename.newname ?? "";
+  if (rename.renameType === "OBJECT_TABLE") {
+    return { kind: "moveTable", schema, table: name, newSchema: schema, newName };
+  }
+  if (rename.renameType === "OBJECT_POLICY") {
+    return { kind: "renamePolicy", schema, table: name, name: rename.subname ?? "", newName };
+  }
+  return null;
+}
+
+function readSetSchema(move: AlterObjectSchemaStmt): ParsedMoveTable | null {
+  if (move.objectType !== "OBJECT_TABLE") return null;
+  const { schema, name } = relationName(move.relation);
+  return {
+    kind: "moveTable",
+    schema,
+    table: name,
+    newSchema: move.newschema ?? schema,
+    newName: name,
+  };
+}
+
+// DO blocks run dynamic SQL we cannot follow. If the body mentions row level security or policies, the tables it
+// names (also inside string literals, e.g. EXECUTE 'alter table ...') get RLS unknown; if it names none, all do.
+function readDo(stmt: DoStmt): ParsedUnknown | null {
+  const body = (stmt.args ?? [])
+    .map((a) =>
+      "DefElem" in a && a.DefElem.arg && "String" in a.DefElem.arg ? a.DefElem.arg.String.sval : "",
+    )
+    .join("\n");
+  if (!/row\s+level\s+security|\bpolicy\b/i.test(body)) return null;
+  return { kind: "unknown", tables: relationsInCodeBody(body) };
+}
+
 function relationName(rel: RangeVar | undefined): { schema: string; name: string } {
   return { schema: rel?.schemaname ?? DEFAULT_SCHEMA, name: rel?.relname ?? "" };
+}
+
+function roleNames(roles: Node[] | undefined): string[] {
+  return (roles ?? []).flatMap((r) => ("RoleSpec" in r ? [roleName(r.RoleSpec)] : []));
 }
 
 function roleName(role: { roletype?: string; rolename?: string }): string {
@@ -118,37 +254,6 @@ function roleName(role: { roletype?: string; rolename?: string }): string {
 
 function tokensIn(stmt: SourceStatement): SqlToken[] {
   return stmt.tokens.filter((t) => t.start >= stmt.start && t.end <= stmt.end);
-}
-
-// Source text inside the parens after a top-level keyword sequence (USING (...), WITH CHECK (...)).
-function clauseText(tokens: SqlToken[], words: string[], bytes: Uint8Array): string | null {
-  let depth = 0;
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i] as SqlToken;
-    if (t.text === "(") depth++;
-    else if (t.text === ")") depth--;
-    if (depth !== 0) continue;
-    const matches = words.every((w, k) => {
-      const tok = tokens[i + k];
-      return tok?.keyword === true && tok.text.toUpperCase() === w;
-    });
-    const open = tokens[i + words.length];
-    if (!matches || open?.text !== "(") continue;
-    const close = matchingParen(tokens, i + words.length);
-    if (close === -1) return null;
-    return decoder.decode(bytes.subarray(open.end, (tokens[close] as SqlToken).start)).trim();
-  }
-  return null;
-}
-
-function matchingParen(tokens: SqlToken[], openIdx: number): number {
-  let depth = 0;
-  for (let i = openIdx; i < tokens.length; i++) {
-    const text = (tokens[i] as SqlToken).text;
-    if (text === "(") depth++;
-    else if (text === ")" && --depth === 0) return i;
-  }
-  return -1;
 }
 
 // The column type as written ("uuid", "text[]", "varchar(20)"); keywords after the first word are upper-cased
