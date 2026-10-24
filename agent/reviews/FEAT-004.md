@@ -16,8 +16,8 @@ Tests run in this session:
 ### H1 Component props and signatures copy raw source text, so default values and secrets leak (AC-004-07, secret rule)
 parser.ts:81-89 stores `firstParam.getText(sf)` (up to 200 chars) as `props` and `signature`. That is verbatim source,
 including default-value expressions and inline type bodies.
-P1: `export function Pay({ apiKey = "sk_live_51HXXXXSECRETVALUE" }) {...}` gives
-`props: "{ apiKey = \"sk_live_51HXXXXSECRETVALUE\" }"` and the same string in `signature`.
+P1: `export function Pay({ apiKey = "sk_l***" }) {...}` gives
+`props: "{ apiKey = \"sk_l***\" }"` and the same string in `signature`.
 This breaks AC-004-07 ("no source code") and the project rule that secrets are masked before they are stored, returned
 or logged. The AC-004-07 test (indexer.test.ts:111-125) puts its sentinel in a plain `const` in a non-component file,
 which the parser never captures, so it cannot catch this. Fix direction: emit the prop names and their type text only,
