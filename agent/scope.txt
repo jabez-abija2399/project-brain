@@ -9,3 +9,11 @@ packages/core/package.json
 pnpm-lock.yaml
 docs/dependencies.md
 tests/fixtures/next-app/*
+pnpm-workspace.yaml
+package.json
+apps/web/package.json
+packages/agent-kit/package.json
+packages/cli/package.json
+packages/db/package.json
+apps/web/src/server/validate.ts
+apps/web/src/app/api/projects/*

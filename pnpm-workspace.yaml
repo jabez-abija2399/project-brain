@@ -2,3 +2,5 @@ minimumReleaseAge: 4320   # minutes; kit.py harden
 packages:
   - "apps/*"
   - "packages/*"
+trustPolicy: no-downgrade
+blockExoticSubdeps: true
