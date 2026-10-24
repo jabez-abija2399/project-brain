@@ -1,0 +1,20 @@
+# Kit tooling, not product code. Findings reviewed as false positives (2026-10-24):
+# SHA1 only labels duplicate-code windows (not a security hash); urllib only calls fixed registry URLs.
+scripts/kit.py
+
+# Semgrep's built-in defaults (a custom .semgrepignore replaces them, so they are repeated here)
+node_modules/
+build/
+dist/
+vendor/
+.env/
+.venv/
+.tox/
+*.min.js
+.npm/
+.yarn/
+test/
+tests/
+*_test.go
+.semgrep
+.semgrep_logs/
