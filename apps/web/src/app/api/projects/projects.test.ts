@@ -158,6 +158,35 @@ describe("FEAT-003 /api/projects and /api/token/whoami", () => {
     expect(longBody.fieldErrors?.name).toBeTruthy();
   });
 
+  it("rejects a whitespace-only project name with 400 on create and rename", async () => {
+    const user = await world.createUser();
+    world.signInAs(user);
+
+    const blankRes = await createProject(post("http://x/api/projects", { name: "   " }));
+    expect(blankRes.status).toBe(400);
+    const blankBody = (await blankRes.json()) as { fieldErrors?: Record<string, string> };
+    expect(blankBody.fieldErrors?.name).toBeTruthy();
+    const count = await world.pg.query<{ n: number }>("SELECT count(*)::int AS n FROM projects");
+    expect(count.rows[0]?.n).toBe(0);
+
+    const createRes = await createProject(post("http://x/api/projects", { name: "  demo  " }));
+    expect(createRes.status).toBe(201);
+    const { project } = (await createRes.json()) as { project: { id: string; name: string } };
+    expect(project.name).toBe("demo");
+
+    const renameRes = await patchProject(
+      patch(`http://x/api/projects/${project.id}`, { name: " \t " }),
+      paramsOf({ id: project.id }),
+    );
+    expect(renameRes.status).toBe(400);
+    const renameBody = (await renameRes.json()) as { fieldErrors?: Record<string, string> };
+    expect(renameBody.fieldErrors?.name).toBeTruthy();
+    const row = await world.pg.query<{ name: string }>("SELECT name FROM projects WHERE id = $1", [
+      project.id,
+    ]);
+    expect(row.rows[0]?.name).toBe("demo");
+  });
+
   it("AC-003-06 a revoked token is rejected with 401 by GET /api/token/whoami", async () => {
     const user = await world.createUser();
     world.signInAs(user);

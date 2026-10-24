@@ -72,3 +72,9 @@ Changed: tokens route.ts uses one allowlist serializer `toPublicToken` (id, crea
 Verified (ran this session): both new tests FAILED before the fix (key set mismatch; revokedAt changed 15 ms later), PASS after; apps/web projects tests 26/26; `bash scripts/verify.sh` PASS.
 NOT VERIFIED: tokens panel not opened in a browser after the key rename (typecheck only).
 Next step: agent/plan.json (AC-003-08..14) still awaits human approval.
+
+## 2026-10-24 | FEAT-003 review L4/L7 | status: done
+Changed: project name rule is one shared `projectNameSchema` (apps/web/src/server/validate.ts: trim, 1-80 chars) used by POST /api/projects and PATCH /api/projects/[id]; whitespace-only names now get 400 with fieldErrors.name and padded names are stored trimmed. auth.ts: `account.encryptOAuthTokens: true` (better-auth 1.7.10 encrypts GitHub tokens with the auth secret before writing account rows) and `disableDefaultScope: true` on GitHub, because the provider appended our scope to its defaults and sent "read:user user:email read:user user:email". later.md: review L2 (dashboard paging) and L3 (project cap); L5/L6 already had rows. KI-007 for pre-existing plaintext token rows.
+Verified (ran this session): 3 new tests FAILED before the fix (blank name 201; encryptOAuthTokens undefined; duplicated scope), PASS after; apps/web auth + projects tests 32/32; `bash scripts/verify.sh` PASS.
+NOT VERIFIED: a real GitHub sign-in writing an encrypted account row (no live OAuth run; the tests check the config and the authorization URL only).
+Next step: agent/plan.json (AC-003-08..14) still awaits human approval; evaluator run for AC-003-01 (review L1).

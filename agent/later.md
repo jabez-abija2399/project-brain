@@ -38,3 +38,5 @@
 - 2026-10-24 | Deduplicate the project-name zod rule (copied in api/projects/route.ts and api/projects/[id]/route.ts) and make the project pages use requireProjectAccess instead of projectsRepo.get | review FEAT-003 L4
 - 2026-10-24 | Remove the unused createUserForTests export from apps/web/src/server/auth.ts (production module, no callers) | review FEAT-003 L6
 - 2026-10-24 | Rate limit POST /api/projects/[id]/tokens (the 20-active-token cap bounds the list, not the request rate) and add "load more" to the projects/tokens pages (they show the first 50) | review FEAT-003 L5 follow-up
+- 2026-10-24 | Dashboard paging beyond 50: projects/[id]/page.tsx and projects/page.tsx ignore nextOffset, so an active token pushed past row 50 by revoked ones cannot be revoked from the UI (API still works); add "load more" or list active tokens first | review FEAT-003 L2
+- 2026-10-24 | Cap projects per user (and/or rate limit POST /api/projects); tokens are capped at 20 active, projects are not | review FEAT-003 L3

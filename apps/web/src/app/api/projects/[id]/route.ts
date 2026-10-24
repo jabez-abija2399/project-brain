@@ -1,7 +1,7 @@
 import { requireProjectAccess, requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { toResponse } from "@/server/errors";
-import { parseInput } from "@/server/validate";
+import { parseInput, projectNameSchema } from "@/server/validate";
 import { projectsRepo } from "@brain/db";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -15,7 +15,7 @@ type Ctx = { params: Promise<{ id: string }> };
 // (zod `strict`) so mass-assignment of owner_id/id is impossible.
 const patchSchema = z
   .object({
-    name: z.string().min(1, "name is required").max(80, "name must be 80 characters or fewer"),
+    name: projectNameSchema,
   })
   .strict();
 

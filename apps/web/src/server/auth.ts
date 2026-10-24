@@ -33,10 +33,16 @@ function buildAuth() {
     database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),
     secret: resolveAuthSecret(process.env),
     baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+    // GitHub access tokens are encrypted with the auth secret before they
+    // reach the account table, so a database leak does not expose them.
+    account: { encryptOAuthTokens: true },
     socialProviders: {
       github: {
         clientId: process.env.GITHUB_CLIENT_ID || "",
         clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+        // better-auth appends `scope` to its own defaults; disable those so the
+        // request is exactly the minimum we need.
+        disableDefaultScope: true,
         scope: ["read:user", "user:email"],
         // GitHub's /user returns email: null when the primary address is
         // marked private, even with user:email in scope. Fall back to the

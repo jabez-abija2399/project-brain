@@ -21,6 +21,13 @@ export async function parseInput<T>(req: Request, schema: ZodSchema<T>): Promise
   return result.data;
 }
 
+// Project name rule shared by create and rename: trimmed, 1-80 characters.
+export const projectNameSchema = z
+  .string()
+  .trim()
+  .min(1, "name is required")
+  .max(80, "name must be 80 characters or fewer");
+
 const pageSchema = z.object({
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(MAX_PAGE_SIZE),
   offset: z.coerce.number().int().min(0).default(0),

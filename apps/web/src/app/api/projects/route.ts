@@ -1,7 +1,7 @@
 import { requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { toResponse } from "@/server/errors";
-import { parseInput, parsePage } from "@/server/validate";
+import { parseInput, parsePage, projectNameSchema } from "@/server/validate";
 import { projectsRepo } from "@brain/db";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const createSchema = z.object({
-  name: z.string().min(1, "name is required").max(80, "name must be 80 characters or fewer"),
+  name: projectNameSchema,
 });
 
 export async function GET(req: Request) {
