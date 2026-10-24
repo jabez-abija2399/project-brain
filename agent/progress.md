@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-24 | FEAT-001 AC-001-06 CI red on main (bugfix) | status: partial
+Changed: AC-004-05 test writes its gitignored fixture files (secret.txt, .next/, node_modules/) at runtime (never committed, so CI had none); masked the fake sk_live_ key quoted in agent/reviews/FEAT-004.md; resolver.ts wildcard substitution by index (semgrep); pnpm trustPolicy + blockExoticSubdeps; vitest 2.1.9->4.1.12 (vite 8.3.5, @types/node declared in core/db/cli); zod 3->4.6.7; override @esbuild-kit/core-utils>esbuild ^0.25.12.
+Verified (ran this session): AC-004-05 fails with the untracked files moved away and passes after the fix; verify.sh PASS (80 tests); locally pnpm audit, osv-scanner 2.6.0, build clean. CI run 40083685738: typecheck, lint, tests, build, e2e, audit, osv-scanner, kit guard PASS.
+NOT VERIFIED / still red: gitleaks (fake key lives in pushed commit 955ff20; history scan), semgrep (minimumReleaseAge 4320 vs 10080; kit.py sha1 and urllib). All need human approval (history rewrite or scanner config, protected kit.py, cooldown change).
+Next: human decisions above, then re-run CI for AC-001-06. KI-009 (trustPolicy blocks re-resolution).
+
 ## 2026-10-24 | FEAT-004 AC-004-08/09 | status: done
 Changed: walker.ts readNoFollow (O_NOFOLLOW) used for every indexer read (files, binary sniff, .gitignore, tsconfig); a symlinked tsconfig.json is no longer read (before, it was followed: a real gap). New symlink.test.ts: AC-004-08 (file/dir/ancestor/self/tsconfig symlinks skipped, fs spy shows nothing outside touched) and AC-004-09 (relative, tsconfig-path, normalized ../ and through-symlink imports: resolved null, identical output after deleting the targets, no fs lookup of outside paths).
 Verified (ran this session): AC-004-08 test fails without the source change and passes with it. After the human's 64fd62a: verify.sh PASS (typecheck, lint, tests, kit guard); kit pass AC-004-08 and AC-004-09 (test-log).
