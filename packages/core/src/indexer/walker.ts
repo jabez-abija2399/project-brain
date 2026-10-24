@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { SkippedFile } from "./types";
 
@@ -43,10 +43,15 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
     for (const name of entries) {
       const abs = join(dir, name);
       const rel = toPosix(relative(root, abs));
-      let st: ReturnType<typeof statSync>;
+      let st: ReturnType<typeof lstatSync>;
       try {
-        st = statSync(abs);
+        // lstat: a symlink is never followed, so nothing outside the repo root is read.
+        st = lstatSync(abs);
       } catch {
+        continue;
+      }
+      if (st.isSymbolicLink()) {
+        skipped.push({ path: rel, reason: "symlink" });
         continue;
       }
       if (st.isDirectory()) {
