@@ -54,7 +54,7 @@ export function parseSource(
 function detectComponent(node: ts.Node, sf: ts.SourceFile, relPath: string): ComponentIndex | null {
   if (ts.isFunctionDeclaration(node) && node.name && isPascal(node.name.text)) {
     if (!returnsJsx(node)) return null;
-    return makeComponent(node.name.text, node.parameters[0], sf, relPath, node);
+    return makeComponent(node.name.text, node.parameters, sf, relPath, node);
   }
   if (ts.isVariableStatement(node)) {
     for (const decl of node.declarationList.declarations) {
@@ -64,7 +64,7 @@ function detectComponent(node: ts.Node, sf: ts.SourceFile, relPath: string): Com
       if (!init) continue;
       if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
         if (!returnsJsx(init)) continue;
-        return makeComponent(decl.name.text, init.parameters[0], sf, relPath, decl);
+        return makeComponent(decl.name.text, init.parameters, sf, relPath, decl);
       }
     }
   }
@@ -73,26 +73,78 @@ function detectComponent(node: ts.Node, sf: ts.SourceFile, relPath: string): Com
 
 function makeComponent(
   name: string,
-  firstParam: ts.ParameterDeclaration | undefined,
+  params: ts.NodeArray<ts.ParameterDeclaration>,
   sf: ts.SourceFile,
   relPath: string,
   anchor: ts.Node,
 ): ComponentIndex {
-  const propsText = firstParam ? firstParam.getText(sf).trim() : null;
-  const safeProps = propsText ? redactProps(propsText) : null;
-  const signature = `(${propsText ?? ""}) => JSX`;
+  // Built from the AST, never from source text: names and types only, no initializers or literal values.
+  const described = params.map((p) => describeParam(p, sf));
+  const first = described[0];
   return {
     name,
     path: relPath,
     line: lineOf(sf, anchor.getStart(sf)),
-    props: safeProps,
-    signature: redactProps(signature),
+    props: first ? cap(first) : null,
+    signature: cap(`(${described.join(", ")}) => JSX`),
   };
 }
 
-function redactProps(text: string): string {
+const MAX_SIGNATURE = 200;
+
+function cap(text: string): string {
   const flat = text.replace(/\s+/g, " ").trim();
-  return flat.length > 200 ? `${flat.slice(0, 200)}...` : flat;
+  return flat.length > MAX_SIGNATURE ? `${flat.slice(0, MAX_SIGNATURE - 3)}...` : flat;
+}
+
+function describeParam(p: ts.ParameterDeclaration, sf: ts.SourceFile): string {
+  const rest = p.dotDotDotToken ? "..." : "";
+  const optional = p.questionToken || p.initializer ? "?" : "";
+  const type = p.type ? `: ${typeWithoutLiterals(p.type, sf)}` : "";
+  return `${rest}${bindingNames(p.name)}${optional}${type}`;
+}
+
+function bindingNames(name: ts.BindingName): string {
+  if (ts.isIdentifier(name)) return name.text;
+  const parts = name.elements.map((el) => {
+    if (ts.isOmittedExpression(el)) return "";
+    const rest = el.dotDotDotToken ? "..." : "";
+    if (el.propertyName && ts.isIdentifier(el.propertyName))
+      return `${rest}${el.propertyName.text}`;
+    if (el.propertyName) return `${rest}[computed]`;
+    return `${rest}${bindingNames(el.name)}`;
+  });
+  return ts.isObjectBindingPattern(name) ? `{ ${parts.join(", ")} }` : `[${parts.join(", ")}]`;
+}
+
+const printer = ts.createPrinter({ removeComments: true, newLine: ts.NewLineKind.LineFeed });
+
+function typeWithoutLiterals(type: ts.TypeNode, sf: ts.SourceFile): string {
+  const keyword = (k: ts.KeywordTypeSyntaxKind) => ts.factory.createKeywordTypeNode(k);
+  const strip: ts.TransformerFactory<ts.Node> = (ctx) => (root) => {
+    const visit = (n: ts.Node): ts.Node => {
+      if (ts.isTemplateLiteralTypeNode(n)) return keyword(ts.SyntaxKind.StringKeyword);
+      if (ts.isLiteralTypeNode(n)) {
+        const lit = n.literal;
+        if (ts.isStringLiteral(lit) || ts.isNoSubstitutionTemplateLiteral(lit)) {
+          return keyword(ts.SyntaxKind.StringKeyword);
+        }
+        if (ts.isNumericLiteral(lit) || ts.isPrefixUnaryExpression(lit)) {
+          return keyword(ts.SyntaxKind.NumberKeyword);
+        }
+        if (ts.isBigIntLiteral(lit)) return keyword(ts.SyntaxKind.BigIntKeyword);
+      }
+      if (ts.isComputedPropertyName(n)) {
+        return ts.factory.createComputedPropertyName(ts.factory.createIdentifier("computed"));
+      }
+      return ts.visitEachChild(n, visit, ctx);
+    };
+    return visit(root);
+  };
+  const result = ts.transform(type, [strip]);
+  const text = printer.printNode(ts.EmitHint.Unspecified, result.transformed[0] as ts.Node, sf);
+  result.dispose();
+  return text;
 }
 
 function returnsJsx(fn: ts.FunctionLikeDeclarationBase): boolean {

@@ -2,9 +2,10 @@ agent/scope.txt
 agent/progress.md
 agent/known-issues.md
 agent/later.md
-apps/web/src/server/validate.ts
-apps/web/src/server/auth.ts
-apps/web/src/server/auth.test.ts
-apps/web/src/app/api/projects/route.ts
-apps/web/src/app/api/projects/[[]id]/route.ts  # brackets escaped: scope uses fnmatch
-apps/web/src/app/api/projects/projects.test.ts
+agent/plan.json
+agent/reviews/FEAT-004.md
+packages/core/src/indexer/*
+packages/core/package.json
+pnpm-lock.yaml
+docs/dependencies.md
+tests/fixtures/next-app/*

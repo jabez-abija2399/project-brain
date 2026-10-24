@@ -111,16 +111,47 @@ describe("indexRepo on the next-app fixture", () => {
   it("AC-004-07 output contains no source code: only paths, hashes, symbols and signatures", async () => {
     const sentinel = "SENTINEL_LEAK_777_SHOULD_NOT_APPEAR";
     const leakPath = join(fixtureRoot, "src", "lib", "secrets.ts");
+    const compPath = join(fixtureRoot, "src", "components", "Leaky.tsx");
     writeFileSync(leakPath, `export const api = "${sentinel}";\n`);
+    writeFileSync(
+      compPath,
+      [
+        `export function PayDefault({ apiKey = "${sentinel}_DEFAULT" }) {`,
+        "  return <div>{apiKey}</div>;",
+        "}",
+        `export function PayType({ mode }: { mode: "${sentinel}_TYPE" | 4242424242 }) {`,
+        "  return <div>{mode}</div>;",
+        "}",
+        `export const PaySig = (props: { cb: (k: string) => void }, ref = "${sentinel}_SIG") => (`,
+        "  <div>{ref}</div>",
+        ");",
+        `export function PayInit(p = { key: "${sentinel}_INIT", n: 31337 }) {`,
+        "  return <div>{p.key}</div>;",
+        "}",
+        "",
+      ].join("\n"),
+    );
     try {
       const result = await indexRepo(fixtureRoot);
       const serialized = JSON.stringify(result);
       expect(serialized).not.toContain(sentinel);
+      expect(serialized).not.toContain("4242424242");
+      expect(serialized).not.toContain("31337");
       const file = result.files.find((f) => f.path === "src/lib/secrets.ts");
       expect(file).toBeDefined();
       expect(file?.hash).toMatch(/^[a-f0-9]{64}$/);
+      const byName = new Map(result.components.map((c) => [c.name, c]));
+      for (const name of ["PayDefault", "PayType", "PaySig", "PayInit"]) {
+        const comp = byName.get(name);
+        expect(comp).toBeDefined();
+        expect(comp?.signature.length).toBeLessThanOrEqual(200);
+        expect(comp?.props?.length ?? 0).toBeLessThanOrEqual(200);
+      }
+      expect(byName.get("PayDefault")?.props).toContain("apiKey");
+      expect(byName.get("PayType")?.props).toContain("mode");
     } finally {
       rmSync(leakPath);
+      rmSync(compPath);
     }
   });
 });
