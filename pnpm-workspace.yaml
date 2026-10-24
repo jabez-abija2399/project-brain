@@ -4,3 +4,7 @@ packages:
   - "packages/*"
 trustPolicy: no-downgrade
 blockExoticSubdeps: true
+# undici-types 6.21.0 (via @types/node 22) has no provenance while earlier-published versions had it, so pnpm
+# reports a trust downgrade. Reviewed and accepted by the human on 2026-10-24 (KI-009); this exact version only.
+trustPolicyExclude:
+  - undici-types@6.21.0
