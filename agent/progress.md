@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-24 | FEAT-004 AC-004-08/09 | status: criteria pass; feature in_progress until FEAT-001 is done
+Changed: walker.ts readNoFollow (O_NOFOLLOW) used for every indexer read (files, binary sniff, .gitignore, tsconfig); a symlinked tsconfig.json is no longer read (before, it was followed: a real gap). New symlink.test.ts: AC-004-08 (file/dir/ancestor/self/tsconfig symlinks skipped, fs spy shows nothing outside touched) and AC-004-09 (relative, tsconfig-path, normalized ../ and through-symlink imports: resolved null, identical output after deleting the targets, no fs lookup of outside paths).
+Verified (ran this session): AC-004-08 test fails without the source change and passes with it. After the human's 64fd62a: verify.sh PASS (typecheck, lint, tests, kit guard); kit pass AC-004-08 and AC-004-09 (test-log).
+NOT VERIFIED: kit.py done FEAT-004 (blocked: depends on the reopened FEAT-001). CI-only steps (build, e2e, scanners).
+Next: FEAT-001 AC-001-06 (GitHub Actions green on main), then kit.py done FEAT-004. Open question: agent/plan.json is deleted in the working tree but not committed; left for the human.
+
 ## 2026-10-24 | KI-004, KI-005 | status: done
 Changed: packages/db/src/schema.ts split by responsibility into src/schema/{columns,auth,projects,code-index,features,sessions,receipts,supabase}.ts + index.ts (export *); package.json "./schema" export now points at src/schema/index.ts; all `../schema` and `@brain/db/schema` imports unchanged. Pure refactor: a script confirmed all 17 table definitions, 26 type exports and the id/createdAt helpers are byte-identical to HEAD; the exported names are identical (helpers stay internal). docs/architecture.md Data model: feature_files and checklist_items list project_id (migration 0003) + one line on same-project composite FKs.
 Verified (ran this session): `bash scripts/verify.sh` PASS (typecheck, lint, 61 tests, kit guard).

@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadTsconfigPaths, parseSource } from "./parser";
 import { detectRoute } from "./routes";
@@ -11,7 +10,7 @@ import type {
   IndexResult,
   RouteIndex,
 } from "./types";
-import { walkRepo } from "./walker";
+import { readNoFollow, walkRepo } from "./walker";
 
 export async function indexRepo(root: string, options: IndexOptions = {}): Promise<IndexResult> {
   const absRoot = resolve(root);
@@ -24,7 +23,7 @@ export async function indexRepo(root: string, options: IndexOptions = {}): Promi
   for (const entry of files) {
     let source: string;
     try {
-      source = readFileSync(entry.absPath, "utf8");
+      source = readNoFollow(entry.absPath).toString("utf8");
     } catch (err) {
       errors.push({
         path: entry.relPath,

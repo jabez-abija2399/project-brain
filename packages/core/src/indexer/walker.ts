@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync, readdirSync } from "node:fs";
+import { constants, closeSync, lstatSync, openSync, readFileSync, readdirSync } from "node:fs";
 import { join, posix, relative, sep } from "node:path";
 import ignore, { type Ignore } from "ignore";
 import type { SkippedFile } from "./types";
@@ -101,7 +101,7 @@ function loadGitignore(dir: string, base: string): IgnoreRules | null {
   const file = join(dir, ".gitignore");
   try {
     if (!lstatSync(file).isFile()) return null;
-    return { base, matcher: ignore().add(readFileSync(file, "utf8")) };
+    return { base, matcher: ignore().add(readNoFollow(file).toString("utf8")) };
   } catch {
     return null;
   }
@@ -121,12 +121,22 @@ function isGitignored(relPath: string, isDir: boolean, rules: IgnoreRules[]): bo
 
 function looksBinary(abs: string): boolean {
   try {
-    const buf = readFileSync(abs, { encoding: null });
+    const buf = readNoFollow(abs);
     const slice = buf.subarray(0, Math.min(buf.length, 8192));
     for (const byte of slice) if (byte === 0) return true;
     return false;
   } catch {
     return false;
+  }
+}
+
+// O_NOFOLLOW: a path swapped for a symlink after the walk fails to open instead of reading the target.
+export function readNoFollow(abs: string): Buffer {
+  const fd = openSync(abs, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  try {
+    return readFileSync(fd);
+  } finally {
+    closeSync(fd);
   }
 }
 

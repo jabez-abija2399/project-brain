@@ -517,17 +517,17 @@
           "id": "AC-004-08",
           "kind": "attack",
           "check": "A symlinked file or folder in the repo (including one pointing outside the repo root or at an ancestor) is never followed or read; it is listed in skipped[] with reason symlink",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 11:37; log contains AC-004-08"
         },
         {
           "id": "AC-004-09",
           "kind": "attack",
           "check": "An import (relative, tsconfig paths or through a symlink) that resolves outside the repo root gets resolved: null, and the output is the same whether or not the outside target exists; relative and tsconfig-path cases are marked outside: true and are never looked up on disk",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 11:37; log contains AC-004-09"
         }
       ],
       "status": "in_progress",

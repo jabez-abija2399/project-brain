@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { realpathSync, statSync } from "node:fs";
 import { posix as path, dirname, join, sep } from "node:path";
+import { readNoFollow } from "./walker";
 
 export type TsconfigPaths = {
   baseUrl: string;
@@ -12,10 +13,9 @@ const INDEX_FILES = CANDIDATE_EXTS.map((e) => `index${e}`);
 export function loadTsconfigPaths(repoRoot: string): TsconfigPaths {
   const candidates = ["tsconfig.json", "tsconfig.base.json"];
   for (const name of candidates) {
-    const abs = join(repoRoot, name);
-    if (!existsSync(abs)) continue;
     try {
-      const parsed = parseJsonc(readFileSync(abs, "utf8"));
+      // A symlinked tsconfig is never read (it could point outside the repo root).
+      const parsed = parseJsonc(readNoFollow(join(repoRoot, name)).toString("utf8"));
       const opts = parsed?.compilerOptions ?? {};
       const baseUrl = typeof opts.baseUrl === "string" ? opts.baseUrl : ".";
       const paths = (opts.paths ?? {}) as Record<string, string[]>;
