@@ -190,14 +190,15 @@
           "id": "AC-001-06",
           "kind": "happy",
           "check": "The GitHub Actions verify workflow passes on the latest commit of main, including the CI-only steps (build, gitleaks, semgrep, osv-scanner)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "manual",
+          "evidence": "GitHub Actions verify run 40086319317 on main tip fb69dbf: success, all 10 verify steps PASS"
         }
       ],
-      "status": "in_progress",
+      "status": "done",
       "notes": "Scaffold only. Package names as listed in AC-001-01. No Docker: development uses a Neon 'dev' branch (DATABASE_URL); tests use an in-process PGlite database through a shared test helper in @brain/db (no external DB needed locally or in CI). Add a `migrate` script in @brain/db (no tables yet).",
       "files": [
+        ".env.example",
         ".nvmrc",
         "apps/web/next-env.d.ts",
         "apps/web/next.config.ts",
@@ -221,6 +222,7 @@
         "packages/cli/src/bin.mjs",
         "packages/cli/src/index.test.ts",
         "packages/cli/src/index.ts",
+        "packages/cli/src/test-reporter.test.ts",
         "packages/cli/tsconfig.json",
         "packages/cli/vitest.config.ts",
         "packages/core/package.json",
@@ -238,6 +240,8 @@
         "packages/db/tsconfig.json",
         "packages/db/vitest.config.ts",
         "pnpm-workspace.yaml",
+        "scripts/dev.sh",
+        "scripts/load-env.mjs",
         "tsconfig.base.json"
       ]
     },

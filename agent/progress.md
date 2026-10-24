@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-24 | FEAT-001 AC-001-06 | status: done
+Changed: human decisions applied: .gitleaksignore (one fingerprint, 955ff20), .semgrepignore (scripts/kit.py + semgrep defaults), trustPolicyExclude undici-types@6.21.0 (KI-009 fixed), cooldown 3 -> 7 days (D-013; lockfile re-resolved, ignore pinned 7.0.12).
+Verified (ran this session): verify.sh PASS (80 tests); CI run 40086319317 on main tip fb69dbf: success, all 10 verify steps PASS. kit pass AC-001-06 (manual, CI evidence); kit done FEAT-001 (45 files, baseline 80).
+NOT VERIFIED: perf and mutation steps are opt-in OFF in verify.config.
+Next: FEAT-003 or FEAT-005 (both in progress).
+
 ## 2026-10-24 | FEAT-001 AC-001-06 CI red on main (bugfix) | status: partial
 Changed: AC-004-05 test writes its gitignored fixture files (secret.txt, .next/, node_modules/) at runtime (never committed, so CI had none); masked the fake sk_live_ key quoted in agent/reviews/FEAT-004.md; resolver.ts wildcard substitution by index (semgrep); pnpm trustPolicy + blockExoticSubdeps; vitest 2.1.9->4.1.12 (vite 8.3.5, @types/node declared in core/db/cli); zod 3->4.6.7; override @esbuild-kit/core-utils>esbuild ^0.25.12.
 Verified (ran this session): AC-004-05 fails with the untracked files moved away and passes after the fix; verify.sh PASS (80 tests); locally pnpm audit, osv-scanner 2.6.0, build clean. CI run 40083685738: typecheck, lint, tests, build, e2e, audit, osv-scanner, kit guard PASS.
