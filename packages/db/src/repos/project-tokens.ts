@@ -76,7 +76,14 @@ export const projectTokensRepo = {
     await db
       .update(projectTokens)
       .set({ revokedAt: new Date() })
-      .where(and(eq(projectTokens.id, tokenId), eq(projectTokens.projectId, projectId)));
+      // Already-revoked tokens keep their original revokedAt.
+      .where(
+        and(
+          eq(projectTokens.id, tokenId),
+          eq(projectTokens.projectId, projectId),
+          isNull(projectTokens.revokedAt),
+        ),
+      );
   },
 
   async findActiveByValue(db: BrainDb, token: string): Promise<ProjectToken | null> {

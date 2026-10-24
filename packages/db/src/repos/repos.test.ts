@@ -268,4 +268,20 @@ describe("@brain/db project-scoped repositories", () => {
       (await projectTokensRepo.getById(db, projectA.id, tokenA.id))?.lastUsedAt,
     ).toBeInstanceOf(Date);
   });
+
+  it("projectTokensRepo.revoke keeps the original revokedAt when called again", async () => {
+    const { db } = ctx;
+    await usersRepo.upsertById(db, { id: "owner-a", name: "A", email: "a@example.com" });
+    const project = await projectsRepo.create(db, "owner-a", { name: "Alpha" });
+    const { row } = await projectTokensRepo.create(db, project.id);
+
+    await projectTokensRepo.revoke(db, project.id, row.id);
+    const first = (await projectTokensRepo.getById(db, project.id, row.id))?.revokedAt;
+    expect(first).toBeInstanceOf(Date);
+
+    await new Promise((r) => setTimeout(r, 10));
+    await projectTokensRepo.revoke(db, project.id, row.id);
+    const second = (await projectTokensRepo.getById(db, project.id, row.id))?.revokedAt;
+    expect(second?.getTime()).toBe(first?.getTime());
+  });
 });

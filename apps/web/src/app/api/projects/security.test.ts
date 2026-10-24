@@ -87,9 +87,9 @@ describe("FEAT-003 security pass: attacker tests", () => {
       json(`http://x/api/projects/${projectId}/tokens`, "POST", {}),
       paramsOf({ id: projectId }),
     );
-    const { token, tokenId } = (await createdRes.json()) as {
+    const { token, id: tokenId } = (await createdRes.json()) as {
       token: string;
-      tokenId: string;
+      id: string;
     };
 
     const bob = await world.createUser({ name: "Bob" });
@@ -325,5 +325,30 @@ describe("FEAT-003 security pass: attacker tests", () => {
       }),
     );
     expect(t2.status).toBe(401);
+  });
+
+  it("token API responses never include the hash: create and list return only allowlisted keys", async () => {
+    const { projectId } = await newOwnedProject();
+    const created = await createToken(
+      json(`http://x/api/projects/${projectId}/tokens`, "POST", {}),
+      paramsOf({ id: projectId }),
+    );
+    const createdText = await created.text();
+    const listed = await listTokens(
+      req(`http://x/api/projects/${projectId}/tokens`),
+      paramsOf({ id: projectId }),
+    );
+    const listedText = await listed.text();
+
+    for (const text of [createdText, listedText]) expect(text).not.toMatch(/hash/i);
+    const createdBody = JSON.parse(createdText) as Record<string, unknown>;
+    expect(Object.keys(createdBody).sort()).toEqual(
+      ["createdAt", "id", "lastUsedAt", "ok", "revokedAt", "token"].sort(),
+    );
+    const listedBody = JSON.parse(listedText) as { tokens: Record<string, unknown>[] };
+    expect(listedBody.tokens).toHaveLength(1);
+    expect(Object.keys(listedBody.tokens[0] ?? {}).sort()).toEqual(
+      ["createdAt", "id", "lastUsedAt", "revokedAt"].sort(),
+    );
   });
 });

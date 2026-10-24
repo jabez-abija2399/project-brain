@@ -170,7 +170,7 @@ describe("FEAT-003 /api/projects and /api/token/whoami", () => {
       paramsOf({ id: project.id }),
     );
     expect(tokenRes.status).toBe(201);
-    const { token, tokenId } = (await tokenRes.json()) as { token: string; tokenId: string };
+    const { token, id: tokenId } = (await tokenRes.json()) as { token: string; id: string };
 
     const liveRes = await whoami(
       get("http://x/api/token/whoami", { authorization: `Bearer ${token}` }),

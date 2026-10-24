@@ -66,3 +66,9 @@ Changed: projectTokensRepo.create caps a project at 20 active tokens (transactio
 Verified (ran this session): limits.test.ts 4/4 PASS; `bash scripts/verify.sh` PASS.
 NOT VERIFIED: concurrent token creation against real Postgres (row lock tested only by design, PGlite is single-connection); UI pages not opened in a browser.
 Next step: agent/plan.json (AC-003-08..14) still awaits human approval; L4/L6 parked in agent/later.md.
+
+## 2026-10-24 | FEAT-003 hardening (token response allowlist, idempotent revoke) | status: done
+Changed: tokens route.ts uses one allowlist serializer `toPublicToken` (id, createdAt, lastUsedAt, revokedAt) for list and create; create now returns `{ ok, token, id, createdAt, lastUsedAt, revokedAt }` (key `tokenId` renamed to `id`, user-approved; tokens-panel.tsx and 3 tests updated, only the field name). projectTokensRepo.revoke adds `revoked_at IS NULL`, so the original revokedAt is kept. New tests: security.test.ts "token API responses never include the hash..." (checks for no "hash" text + exact key sets), repos.test.ts "revoke keeps the original revokedAt".
+Verified (ran this session): both new tests FAILED before the fix (key set mismatch; revokedAt changed 15 ms later), PASS after; apps/web projects tests 26/26; `bash scripts/verify.sh` PASS.
+NOT VERIFIED: tokens panel not opened in a browser after the key rename (typecheck only).
+Next step: agent/plan.json (AC-003-08..14) still awaits human approval.

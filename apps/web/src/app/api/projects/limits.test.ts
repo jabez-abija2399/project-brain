@@ -33,7 +33,7 @@ describe("FEAT-003 limits: active tokens per project and list pagination", () =>
     for (let i = 0; i < 20; i++) {
       const res = await createToken(req(url, "POST"), paramsOf({ id: project.id }));
       expect(res.status).toBe(201);
-      ids.push(((await res.json()) as { tokenId: string }).tokenId);
+      ids.push(((await res.json()) as { id: string }).id);
     }
 
     const over = await createToken(req(url, "POST"), paramsOf({ id: project.id }));

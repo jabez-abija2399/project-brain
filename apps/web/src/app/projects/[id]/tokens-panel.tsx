@@ -32,16 +32,18 @@ export default function ProjectTokensPanel({
       }
       const body = (await r.json()) as {
         token: string;
-        tokenId: string;
+        id: string;
         createdAt: string;
+        lastUsedAt: string | null;
+        revokedAt: string | null;
       };
       setPlaintext(body.token);
       setTokens((prev) => [
         {
-          id: body.tokenId,
+          id: body.id,
           createdAt: body.createdAt,
-          revokedAt: null,
-          lastUsedAt: null,
+          revokedAt: body.revokedAt,
+          lastUsedAt: body.lastUsedAt,
         },
         ...prev,
       ]);
