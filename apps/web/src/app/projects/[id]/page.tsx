@@ -21,7 +21,7 @@ export default async function ProjectDetailPage({
   const project = await projectsRepo.get(db, id, session.user.id);
   if (!project) notFound();
 
-  const tokens = await projectTokensRepo.listForProject(db, project.id);
+  const { items: tokens } = await projectTokensRepo.listForProject(db, project.id);
 
   return (
     <main style={{ padding: "48px 32px", maxWidth: 800, margin: "0 auto" }}>

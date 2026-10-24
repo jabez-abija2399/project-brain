@@ -35,3 +35,6 @@
 - 2026-10-23 | Dark mode for the dashboard | DESIGN.md: parked from v1; tokens structured so it can be added later without changing components
 - 2026-10-23 | checkDb: clear the race timer and stop awaiting sql.end past the budget (call can overrun timeoutMs by ~1 s) | peer review FEAT-001 finding L1
 - 2026-10-23 | /api/health: cache the result for a few seconds or rate-limit it; today every anonymous GET opens a new Neon connection | peer review FEAT-001 finding L2
+- 2026-10-24 | Deduplicate the project-name zod rule (copied in api/projects/route.ts and api/projects/[id]/route.ts) and make the project pages use requireProjectAccess instead of projectsRepo.get | review FEAT-003 L4
+- 2026-10-24 | Remove the unused createUserForTests export from apps/web/src/server/auth.ts (production module, no callers) | review FEAT-003 L6
+- 2026-10-24 | Rate limit POST /api/projects/[id]/tokens (the 20-active-token cap bounds the list, not the request rate) and add "load more" to the projects/tokens pages (they show the first 50) | review FEAT-003 L5 follow-up

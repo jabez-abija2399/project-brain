@@ -1,7 +1,7 @@
 import { requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { toResponse } from "@/server/errors";
-import { parseInput } from "@/server/validate";
+import { parseInput, parsePage } from "@/server/validate";
 import { projectsRepo } from "@brain/db";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -16,9 +16,10 @@ const createSchema = z.object({
 export async function GET(req: Request) {
   try {
     const user = await requireUser(req);
+    const page = parsePage(req);
     const db = getDb();
-    const projects = await projectsRepo.listByOwner(db, user.id);
-    return NextResponse.json({ ok: true, projects });
+    const { items, nextOffset } = await projectsRepo.listByOwner(db, user.id, page);
+    return NextResponse.json({ ok: true, projects: items, nextOffset });
   } catch (err) {
     return toResponse(err);
   }

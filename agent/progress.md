@@ -60,3 +60,9 @@ Changed: apps/web/src/server/auth.ts: new resolveAuthSecret(env); production wit
 Verified (ran this session): `bash scripts/verify.sh` PASS (typecheck, lint, tests, kit guard); web API + auth tests 24/24.
 NOT VERIFIED: real GitHub OAuth sign-in (AC-003-01) — needs an evaluator run on the live app with GITHUB_CLIENT_ID/SECRET. Review L4-L6 not addressed.
 Next step: human approves agent/plan.json + `kit.py import`; evaluator run for AC-003-01; fresh-session /peer-review FEAT-003.
+
+## 2026-10-24 | FEAT-003 fix: limits (review L5) | status: done
+Changed: projectTokensRepo.create caps a project at 20 active tokens (transaction + project row lock; TokenLimitError -> 409 token_limit_reached). projectsRepo.listByOwner / projectTokensRepo.listForProject take {limit, offset}, clamp to 50 and return {items, nextOffset}; GET /api/projects and GET /api/projects/[id]/tokens accept ?limit (1-50) & ?offset, 400 on invalid, and return nextOffset. Pages show the first 50. New test apps/web/src/app/api/projects/limits.test.ts (4 tests, shown failing first).
+Verified (ran this session): limits.test.ts 4/4 PASS; `bash scripts/verify.sh` PASS.
+NOT VERIFIED: concurrent token creation against real Postgres (row lock tested only by design, PGlite is single-connection); UI pages not opened in a browser.
+Next step: agent/plan.json (AC-003-08..14) still awaits human approval; L4/L6 parked in agent/later.md.

@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type NewProject, type Project, projects } from "../schema";
+import { type Page, type PageOptions, pageBounds, toPage } from "./page";
 
 export const projectsRepo = {
   async create(db: BrainDb, ownerId: string, data: Omit<NewProject, "ownerId">): Promise<Project> {
@@ -21,8 +22,16 @@ export const projectsRepo = {
     return rows[0] ?? null;
   },
 
-  async listByOwner(db: BrainDb, ownerId: string): Promise<Project[]> {
-    return db.select().from(projects).where(eq(projects.ownerId, ownerId));
+  async listByOwner(db: BrainDb, ownerId: string, opts?: PageOptions): Promise<Page<Project>> {
+    const { limit, offset } = pageBounds(opts);
+    const rows = await db
+      .select()
+      .from(projects)
+      .where(eq(projects.ownerId, ownerId))
+      .orderBy(desc(projects.createdAt), desc(projects.id))
+      .limit(limit + 1)
+      .offset(offset);
+    return toPage(rows, limit, offset);
   },
 
   async delete(db: BrainDb, projectId: string, ownerId: string): Promise<void> {

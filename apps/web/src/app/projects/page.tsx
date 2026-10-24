@@ -13,7 +13,7 @@ export default async function ProjectsPage() {
   if (!session?.user) redirect("/");
 
   const db = getDb();
-  const projects = await projectsRepo.listByOwner(db, session.user.id);
+  const { items: projects } = await projectsRepo.listByOwner(db, session.user.id);
 
   return (
     <main style={{ padding: "48px 32px", maxWidth: 800, margin: "0 auto" }}>

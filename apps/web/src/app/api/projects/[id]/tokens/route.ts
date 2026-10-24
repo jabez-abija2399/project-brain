@@ -1,7 +1,8 @@
 import { requireProjectAccess, requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
-import { toResponse } from "@/server/errors";
-import { projectTokensRepo } from "@brain/db";
+import { AppError, toResponse } from "@/server/errors";
+import { parsePage } from "@/server/validate";
+import { TokenLimitError, projectTokensRepo } from "@brain/db";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -13,17 +14,18 @@ export async function GET(req: Request, { params }: Ctx) {
   try {
     const user = await requireUser(req);
     const { id } = await params;
+    const page = parsePage(req);
     const db = getDb();
     await requireProjectAccess(db, id, user);
-    const rows = await projectTokensRepo.listForProject(db, id);
+    const { items, nextOffset } = await projectTokensRepo.listForProject(db, id, page);
     // Never return the hash to the client.
-    const tokens = rows.map((row) => ({
+    const tokens = items.map((row) => ({
       id: row.id,
       createdAt: row.createdAt,
       lastUsedAt: row.lastUsedAt,
       revokedAt: row.revokedAt,
     }));
-    return NextResponse.json({ ok: true, tokens });
+    return NextResponse.json({ ok: true, tokens, nextOffset });
   } catch (err) {
     return toResponse(err);
   }
@@ -43,6 +45,15 @@ export async function POST(req: Request, { params }: Ctx) {
       { status: 201 },
     );
   } catch (err) {
+    if (err instanceof TokenLimitError) {
+      return toResponse(
+        new AppError(
+          409,
+          "token_limit_reached",
+          `${err.message}; revoke a token to create a new one`,
+        ),
+      );
+    }
     return toResponse(err);
   }
 }
