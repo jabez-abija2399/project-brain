@@ -1,2 +1,15 @@
-scripts/dev.sh
 agent/scope.txt
+agent/known-issues.md
+agent/progress.md
+docs/architecture.md
+packages/db/package.json
+packages/db/src/schema.ts
+packages/db/src/schema/auth.ts
+packages/db/src/schema/code-index.ts
+packages/db/src/schema/columns.ts
+packages/db/src/schema/features.ts
+packages/db/src/schema/index.ts
+packages/db/src/schema/projects.ts
+packages/db/src/schema/receipts.ts
+packages/db/src/schema/sessions.ts
+packages/db/src/schema/supabase.ts
