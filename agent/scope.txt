@@ -1,15 +1,7 @@
 agent/scope.txt
-agent/known-issues.md
 agent/progress.md
-docs/architecture.md
-packages/db/package.json
-packages/db/src/schema.ts
-packages/db/src/schema/auth.ts
-packages/db/src/schema/code-index.ts
-packages/db/src/schema/columns.ts
-packages/db/src/schema/features.ts
-packages/db/src/schema/index.ts
-packages/db/src/schema/projects.ts
-packages/db/src/schema/receipts.ts
-packages/db/src/schema/sessions.ts
-packages/db/src/schema/supabase.ts
+agent/reviews/FEAT-003.md
+apps/web/src/server/auth.ts
+apps/web/src/server/auth.test.ts
+apps/web/src/app/api/projects/[[]id]/route.ts  # brackets escaped: scope uses fnmatch
+apps/web/src/app/api/projects/projects.test.ts

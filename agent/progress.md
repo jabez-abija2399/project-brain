@@ -54,3 +54,9 @@ Verified (command + result):
 NOT VERIFIED:
 Open questions for the human:
 Next step:
+
+## 2026-10-24 | FEAT-003 review fixes (agent/reviews/FEAT-003.md M1, L2, L3) | status: done
+Changed: apps/web/src/server/auth.ts: new resolveAuthSecret(env); production without BETTER_AUTH_SECRET now throws instead of falling back to the repo-visible dev secret (better-auth only rejects its own default). New apps/web/src/server/auth.test.ts (3 tests). projects.test.ts AC-003-02 also checks signed-out PATCH/DELETE /api/projects/[id] → 401. [id]/route.ts comment corrected (unknown keys are rejected with 400, not ignored). scope.txt: bracketed paths must be escaped as [[]id] because kit check uses fnmatch.
+Verified (ran this session): `bash scripts/verify.sh` PASS (typecheck, lint, tests, kit guard); web API + auth tests 24/24.
+NOT VERIFIED: real GitHub OAuth sign-in (AC-003-01) — needs an evaluator run on the live app with GITHUB_CLIENT_ID/SECRET. Review L4-L6 not addressed.
+Next step: human approves agent/plan.json + `kit.py import`; evaluator run for AC-003-01; fresh-session /peer-review FEAT-003.

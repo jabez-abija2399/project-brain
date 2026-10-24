@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-// Only `name` is editable. Any other key in the body is ignored (zod `strict`)
-// so mass-assignment of owner_id/id is impossible.
+// Only `name` is editable. Any other key in the body is rejected with 400
+// (zod `strict`) so mass-assignment of owner_id/id is impossible.
 const patchSchema = z
   .object({
     name: z.string().min(1, "name is required").max(80, "name must be 80 characters or fewer"),

@@ -11,6 +11,19 @@ export type SessionUser = { id: string; email: string; name: string };
 
 type SessionResolver = (req: Request) => Promise<SessionUser | null>;
 
+const DEV_SECRET = "dev-secret-change-me";
+
+// Production must never fall back to a secret that is readable in this repo:
+// better-auth only refuses its own default, so a custom fallback would boot.
+export function resolveAuthSecret(env: Record<string, string | undefined>): string {
+  const secret = env.BETTER_AUTH_SECRET;
+  if (secret) return secret;
+  if (env.NODE_ENV === "production") {
+    throw new Error("BETTER_AUTH_SECRET is not set; refusing to start auth in production");
+  }
+  return DEV_SECRET;
+}
+
 function buildAuth() {
   const db = getDb();
   return betterAuth({
@@ -18,7 +31,7 @@ function buildAuth() {
     // (so other code reads `schema.users` naturally); better-auth otherwise
     // looks for keys named `user`/`session`/…
     database: drizzleAdapter(db, { provider: "pg", schema, usePlural: true }),
-    secret: process.env.BETTER_AUTH_SECRET || "dev-secret-change-me",
+    secret: resolveAuthSecret(process.env),
     baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
     socialProviders: {
       github: {

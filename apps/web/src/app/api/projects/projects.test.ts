@@ -1,4 +1,8 @@
-import { GET as getProject, PATCH as patchProject } from "@/app/api/projects/[id]/route";
+import {
+  DELETE as deleteProject,
+  GET as getProject,
+  PATCH as patchProject,
+} from "@/app/api/projects/[id]/route";
 import { DELETE as deleteToken } from "@/app/api/projects/[id]/tokens/[tokenId]/route";
 import { POST as createToken } from "@/app/api/projects/[id]/tokens/route";
 import { POST as createProject, GET as listProjects } from "@/app/api/projects/route";
@@ -75,6 +79,18 @@ describe("FEAT-003 /api/projects and /api/token/whoami", () => {
       paramsOf({ id: "anything" }),
     );
     expect(getRes.status).toBe(401);
+
+    const patchRes = await patchProject(
+      patch("http://x/api/projects/anything", { name: "x" }),
+      paramsOf({ id: "anything" }),
+    );
+    expect(patchRes.status).toBe(401);
+
+    const deleteRes = await deleteProject(
+      del("http://x/api/projects/anything"),
+      paramsOf({ id: "anything" }),
+    );
+    expect(deleteRes.status).toBe(401);
   });
 
   it("AC-003-03 user B requesting user A's project id returns 404 (not 403, not 200)", async () => {
