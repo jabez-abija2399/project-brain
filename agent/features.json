@@ -189,13 +189,13 @@
         {
           "id": "AC-001-06",
           "kind": "happy",
-          "check": "The GitHub Actions verify workflow passes on the skeleton commit",
-          "passes": true,
-          "verified_by": "manual",
-          "evidence": "Local full gate (bash scripts/verify.sh) PASS: typecheck, lint, tests, kit guard. Simulated CI gate (CI=1 VERIFY_STRICT=1, with scanners VERIFY_CI_ONLY-skipped locally because gitleaks/semgrep/osv-scanner are not installed) ran PASS for: typecheck, lint, unit/integration tests, build, e2e, dependency audit, kit guard. The .github/workflows/verify.yml workflow installs those pinned scanners and runs the same bash scripts/verify.sh with VERIFY_STRICT=1, so the skeleton commit meets every step the workflow runs."
+          "check": "The GitHub Actions verify workflow passes on the latest commit of main, including the CI-only steps (build, gitleaks, semgrep, osv-scanner)",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
         }
       ],
-      "status": "done",
+      "status": "in_progress",
       "notes": "Scaffold only. Package names as listed in AC-001-01. No Docker: development uses a Neon 'dev' branch (DATABASE_URL); tests use an in-process PGlite database through a shared test helper in @brain/db (no external DB needed locally or in CI). Add a `migrate` script in @brain/db (no tables yet).",
       "files": [
         ".nvmrc",
@@ -512,9 +512,25 @@
           "passes": true,
           "verified_by": "test-log",
           "evidence": "verify.sh PASS 2026-10-23 20:37; log contains AC-004-07"
+        },
+        {
+          "id": "AC-004-08",
+          "kind": "attack",
+          "check": "A symlinked file or folder in the repo (including one pointing outside the repo root or at an ancestor) is never followed or read; it is listed in skipped[] with reason symlink",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-004-09",
+          "kind": "attack",
+          "check": "An import (relative, tsconfig paths or through a symlink) that resolves outside the repo root gets resolved: null, and the output is the same whether or not the outside target exists; relative and tsconfig-path cases are marked outside: true and are never looked up on disk",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
         }
       ],
-      "status": "done",
+      "status": "in_progress",
       "notes": "",
       "files": [
         "biome.json",
@@ -593,9 +609,17 @@
           "passes": true,
           "verified_by": "test-log",
           "evidence": "verify.sh PASS 2026-10-23 21:01; log contains AC-005-05"
+        },
+        {
+          "id": "AC-005-06",
+          "kind": "boundary",
+          "check": "A realistic migrations fixture is read correctly: $$ function and trigger bodies, comments, schema-qualified and quoted names, lowercase keywords, ALTER TABLE ONLY / IF EXISTS, policies FOR ALL and AS RESTRICTIVE, and RLS enabled in a later file.",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
         }
       ],
-      "status": "done",
+      "status": "in_progress",
       "notes": "",
       "files": [
         "packages/core/src/index.ts",
