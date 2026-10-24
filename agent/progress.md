@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-24 | FEAT-003 AC-003-08..14 | status: done
+Changed: test names only. The existing security/review tests now start with their AC id: security.test.ts (AC-003-08 x3, -09, -10, -11, -12), auth-invariants.test.ts (AC-003-13, AC-003-14 x2). No new tests, no assertions changed, no app code changed.
+Verified (ran this session): verify.sh PASS (80 tests, typecheck, lint, kit guard); kit pass AC-003-08..14 (test-log); kit done FEAT-003 (36 files, baseline 80).
+NOT VERIFIED: dependency audit, security scanners, build, e2e run in CI only. AC-003-10 is proven with one extra field (ownerId alongside name), not every possible field.
+Next: FEAT-005 (AC-005-06).
+
 ## 2026-10-24 | FEAT-001 AC-001-06 | status: done
 Changed: human decisions applied: .gitleaksignore (one fingerprint, 955ff20), .semgrepignore (scripts/kit.py + semgrep defaults), trustPolicyExclude undici-types@6.21.0 (KI-009 fixed), cooldown 3 -> 7 days (D-013; lockfile re-resolved, ignore pinned 7.0.12).
 Verified (ran this session): verify.sh PASS (80 tests); CI run 40086319317 on main tip fb69dbf: success, all 10 verify steps PASS. kit pass AC-001-06 (manual, CI evidence); kit done FEAT-001 (45 files, baseline 80).

@@ -23,7 +23,7 @@ describe("FEAT-003 schema invariants that back sign-in", () => {
     await pg.close();
   });
 
-  it("account(providerId, accountId) is UNIQUE: one GitHub account cannot be linked to two users", async () => {
+  it("AC-003-13 account(providerId, accountId) is UNIQUE: one GitHub account cannot be linked to two users", async () => {
     await newUser(pg, "user-1", "a@example.com");
     await newUser(pg, "user-2", "b@example.com");
 
@@ -45,7 +45,7 @@ describe("FEAT-003 schema invariants that back sign-in", () => {
     await expect(newUser(pg, "user-2", "shared@example.com")).rejects.toThrow(/unique|duplicate/i);
   });
 
-  it("deleting a user cascades to sessions and accounts (no orphaned auth rows)", async () => {
+  it("AC-003-14 deleting a user cascades to sessions and accounts (no orphaned auth rows)", async () => {
     await newUser(pg, "doomed", "d@example.com");
     await pg.query(
       `INSERT INTO "session" (id, "userId", token, "expiresAt")
@@ -68,7 +68,7 @@ describe("FEAT-003 schema invariants that back sign-in", () => {
     expect(acc.rows[0]?.n).toBe(0);
   });
 
-  it("deleting a user cascades to their projects (owner_id FK on delete cascade)", async () => {
+  it("AC-003-14 deleting a user cascades to their projects (owner_id FK on delete cascade)", async () => {
     await newUser(pg, "doomed", "d2@example.com");
     await pg.query(`INSERT INTO projects (id, owner_id, name) VALUES ('p1', 'doomed', 'Mine')`);
     await pg.query(`DELETE FROM "user" WHERE id = 'doomed'`);

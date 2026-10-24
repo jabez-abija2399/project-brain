@@ -45,7 +45,7 @@ describe("FEAT-003 security pass: attacker tests", () => {
     return { alice, projectId: body.project.id };
   }
 
-  it("IDOR POST /api/projects/[id]/tokens: user B creating a token on A's project returns 404", async () => {
+  it("AC-003-08 IDOR POST /api/projects/[id]/tokens: user B creating a token on A's project returns 404", async () => {
     const { projectId } = await newOwnedProject();
     const bob = await world.createUser({ name: "Bob" });
     world.signInAs(bob);
@@ -63,7 +63,7 @@ describe("FEAT-003 security pass: attacker tests", () => {
     expect(tokens.rows[0]?.n).toBe(0);
   });
 
-  it("IDOR GET /api/projects/[id]/tokens: user B listing A's tokens returns 404 (not an empty list)", async () => {
+  it("AC-003-08 IDOR GET /api/projects/[id]/tokens: user B listing A's tokens returns 404 (not an empty list)", async () => {
     const { alice, projectId } = await newOwnedProject();
     world.signInAs(alice);
     await createToken(
@@ -80,7 +80,7 @@ describe("FEAT-003 security pass: attacker tests", () => {
     expect(res.status).toBe(404);
   });
 
-  it("IDOR DELETE /api/projects/[id]/tokens/[tokenId]: user B cannot revoke A's token; A's token still works", async () => {
+  it("AC-003-08 IDOR DELETE /api/projects/[id]/tokens/[tokenId]: user B cannot revoke A's token; A's token still works", async () => {
     const { alice, projectId } = await newOwnedProject();
     world.signInAs(alice);
     const createdRes = await createToken(
@@ -129,7 +129,7 @@ describe("FEAT-003 security pass: attacker tests", () => {
     expect(row.rows[0]?.n).toBe(1);
   });
 
-  it("mass-assignment on POST /api/projects: owner_id in body is ignored; project is always owned by the caller", async () => {
+  it("AC-003-09 mass-assignment on POST /api/projects: owner_id in body is ignored; project is always owned by the caller", async () => {
     const alice = await world.createUser({ name: "Alice" });
     const bob = await world.createUser({ name: "Bob" });
     world.signInAs(bob);
@@ -153,7 +153,7 @@ describe("FEAT-003 security pass: attacker tests", () => {
     expect(aliceBody.projects.map((p) => p.name)).not.toContain("trojan");
   });
 
-  it("mass-assignment on PATCH /api/projects/[id]: a strict schema rejects unknown fields with 400", async () => {
+  it("AC-003-10 mass-assignment on PATCH /api/projects/[id]: a strict schema rejects unknown fields with 400", async () => {
     const { alice, projectId } = await newOwnedProject("original");
     world.signInAs(alice);
     const res = await patchProject(
@@ -255,7 +255,7 @@ describe("FEAT-003 security pass: attacker tests", () => {
 
   // Round 2: what would the attacker try next?
 
-  it("round 2: deleting a project cascades to its tokens; the plaintext stops authenticating", async () => {
+  it("AC-003-11 deleting a project cascades to its tokens; the plaintext stops authenticating", async () => {
     const { alice, projectId } = await newOwnedProject("doomed");
     world.signInAs(alice);
     const createdRes = await createToken(
@@ -278,7 +278,7 @@ describe("FEAT-003 security pass: attacker tests", () => {
     expect(res.status).toBe(401);
   });
 
-  it("round 2: all tokens routes require a session (unauthed POST/GET/DELETE return 401)", async () => {
+  it("AC-003-12 all tokens routes require a session (unauthed POST/GET/DELETE return 401)", async () => {
     const { projectId } = await newOwnedProject();
     world.signInAs(null);
     const postRes = await createToken(

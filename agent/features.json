@@ -392,62 +392,99 @@
           "id": "AC-003-08",
           "kind": "attack",
           "check": "User B creating/listing/revoking a token on user A's project id gets 404 and never affects A's tokens",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 20:15; log contains AC-003-08"
         },
         {
           "id": "AC-003-09",
           "kind": "attack",
           "check": "POST /api/projects ignores owner_id / id in the body; the created project is always owned by the caller",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 20:15; log contains AC-003-09"
         },
         {
           "id": "AC-003-10",
           "kind": "attack",
           "check": "PATCH /api/projects/[id] with any field other than name returns 400 and leaves the project row unchanged",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 20:15; log contains AC-003-10"
         },
         {
           "id": "AC-003-11",
           "kind": "boundary",
           "check": "Deleting a project cascades to its tokens: the token's plaintext is rejected with 401 by GET /api/token/whoami",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 20:15; log contains AC-003-11"
         },
         {
           "id": "AC-003-12",
           "kind": "permission",
           "check": "Signed-out POST/GET/DELETE to /api/projects/[id]/tokens[/tokenId] all return 401",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 20:15; log contains AC-003-12"
         },
         {
           "id": "AC-003-13",
           "kind": "boundary",
           "check": "One GitHub account cannot be linked to two users: account(providerId, accountId) is UNIQUE and a duplicate insert fails at the database",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 20:15; log contains AC-003-13"
         },
         {
           "id": "AC-003-14",
           "kind": "boundary",
           "check": "Deleting a user cascades to their sessions, accounts and projects; no orphaned auth rows survive",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-24 20:15; log contains AC-003-14"
         }
       ],
-      "status": "in_progress",
+      "status": "done",
       "notes": "Builds requireUser, requireProjectAccess and requireProjectToken (docs/architecture.md building blocks).",
-      "files": []
+      "files": [
+        "apps/web/package.json",
+        "apps/web/src/app/api/auth/[...all]/route.ts",
+        "apps/web/src/app/api/projects/[id]/route.ts",
+        "apps/web/src/app/api/projects/[id]/tokens/[tokenId]/route.ts",
+        "apps/web/src/app/api/projects/[id]/tokens/route.ts",
+        "apps/web/src/app/api/projects/limits.test.ts",
+        "apps/web/src/app/api/projects/projects.test.ts",
+        "apps/web/src/app/api/projects/route.ts",
+        "apps/web/src/app/api/projects/security.test.ts",
+        "apps/web/src/app/api/token/whoami/route.ts",
+        "apps/web/src/app/page.tsx",
+        "apps/web/src/app/projects/[id]/page.tsx",
+        "apps/web/src/app/projects/[id]/tokens-panel.tsx",
+        "apps/web/src/app/projects/create-form.tsx",
+        "apps/web/src/app/projects/page.tsx",
+        "apps/web/src/app/sign-in-button.tsx",
+        "apps/web/src/server/auth.test.ts",
+        "apps/web/src/server/auth.ts",
+        "apps/web/src/server/db.ts",
+        "apps/web/src/server/errors.ts",
+        "apps/web/src/server/test-helpers.ts",
+        "apps/web/src/server/tokens.ts",
+        "apps/web/src/server/validate.ts",
+        "apps/web/vitest.config.ts",
+        "packages/db/migrations/0001_auth.sql",
+        "packages/db/package.json",
+        "packages/db/src/migrate.mjs",
+        "packages/db/src/migrations.test.ts",
+        "packages/db/src/repos/auth-invariants.test.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/page.ts",
+        "packages/db/src/repos/project-tokens.ts",
+        "packages/db/src/repos/projects.ts",
+        "packages/db/src/repos/repos.test.ts",
+        "packages/db/src/repos/users.ts",
+        "packages/db/vitest.config.ts"
+      ]
     },
     {
       "id": "FEAT-004",
