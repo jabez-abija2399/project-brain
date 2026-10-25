@@ -610,8 +610,8 @@
         "FEAT-004"
       ],
       "origin": "USER REQUIREMENT",
-      "spec": null,
-      "security_sensitive": false,
+      "spec": "docs/specs/FEAT-005.md",
+      "security_sensitive": true,
       "review_required": false,
       "acceptance": [
         {
@@ -685,9 +685,49 @@
           "passes": true,
           "verified_by": "test-log",
           "evidence": "verify.sh PASS 2026-10-26 00:14; log contains AC-005-09"
+        },
+        {
+          "id": "AC-005-10",
+          "kind": "state",
+          "check": "RLS state and policies come from executing the migrations in a sandboxed in-memory Postgres with Supabase stand-ins; a statement that fails marks the tables it touches unknown.",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-005-11",
+          "kind": "attack",
+          "check": "A migration with an infinite loop or huge memory use is stopped by the time and memory limits and all tables become unknown.",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-005-12",
+          "kind": "attack",
+          "check": "The sandbox process starts with an empty environment, so no secret env vars are reachable from the migrations.",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-005-13",
+          "kind": "boundary",
+          "check": "When the migrations produce more than 5,000 tables or more than 5,000 policies, processing stops and the result is marked unknown.",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-005-14",
+          "kind": "attack",
+          "check": "Postgres error messages in errors[] are cut to 200 characters and secrets in them are masked (first 4 chars + ***).",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
         }
       ],
-      "status": "done",
+      "status": "in_progress",
       "notes": "",
       "files": [
         "packages/core/package.json",
