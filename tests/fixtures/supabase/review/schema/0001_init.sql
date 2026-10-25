@@ -1,4 +1,5 @@
 -- Review H1: same table name in two schemas; RLS only on private.profiles.
+create schema private;
 create table private.profiles (id uuid primary key);
 alter table private.profiles enable row level security;
 

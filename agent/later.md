@@ -50,3 +50,5 @@
 - 2026-10-25 | FEAT-005 review L1: regression tests for the RLS state machine | mostly covered now (review/ fixtures: schema, skip, nested, altermulti, recreate, alterpol, droppol, restrictive, rename, unknown); still missing: DISABLE after ENABLE across files, CREATE TABLE IF NOT EXISTS of an existing table
 - 2026-10-25 | FEAT-005 review L2: one shared quote scanner instead of three | likely moot since the libpg-query switch (the Postgres scanner does all quoting); re-check when touching tokenize.ts
 - 2026-10-25 | FEAT-005 review L3: column named "a""b" read as `a` | likely moot since the libpg-query switch (colname comes from the AST); add a fixture to confirm
+- 2026-10-26 | FEAT-005 sandbox: more stand-ins if real migrations need them: auth.role(), auth.email(), roles supabase_admin/authenticator/supabase_auth_admin, stub net/vault/cron functions | spec section 9 OPEN
+- 2026-10-26 | FEAT-005 sandbox: the indexing job (FEAT-009) must log section 8 fields (outcome, counts, duration) and include packages/sandbox/src/child.mjs in the function bundle (outputFileTracingIncludes) | spec sections 8, 9

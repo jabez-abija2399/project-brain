@@ -16,3 +16,10 @@ docs/specs/FEAT-005.md
 agent/reviews/FEAT-005.md
 docs/boundaries.txt
 docs/dependencies.md
+packages/sandbox/**
+packages/core/package.json
+packages/core/src/index.ts
+pnpm-lock.yaml
+packages/core/src/mask.ts
+packages/core/src/mask.test.ts
+packages/core/vitest.config.ts

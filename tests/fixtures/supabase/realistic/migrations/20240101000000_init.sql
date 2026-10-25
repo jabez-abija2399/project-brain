@@ -20,6 +20,12 @@ create table "public"."Team Members" (
   role text not null default 'member; viewer' -- semicolon inside a string
 );
 
+-- Read by the restrictive policy in the next file.
+create table public.bans (
+  user_id uuid not null references auth.users on delete cascade,
+  reason text not null
+);
+
 -- A function whose $$ body contains semicolons and SQL-looking text.
 create or replace function public.handle_new_user()
 returns trigger

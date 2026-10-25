@@ -4,4 +4,5 @@ create policy "read drafts" on public.drafts for select using (true);
 alter table public.drafts rename to posts;
 alter table public.posts enable row level security;
 create table public.scratch (id int);
+create schema private;
 alter table public.scratch set schema private;

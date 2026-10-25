@@ -19,6 +19,7 @@
     "typescript": "^5.6.3"
   },
   "devDependencies": {
+    "@brain/sandbox": "workspace:*",
     "@types/node": "^22.9.0",
     "vitest": "^4.1.12"
   }

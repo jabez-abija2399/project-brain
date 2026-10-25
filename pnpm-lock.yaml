@@ -104,6 +104,9 @@ importers:
         specifier: ^5.6.3
         version: 5.9.3
     devDependencies:
+      '@brain/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
       '@types/node':
         specifier: ^22.9.0
         version: 22.20.5
@@ -129,6 +132,22 @@ importers:
       drizzle-kit:
         specifier: ^0.31.11
         version: 0.31.11
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.12
+        version: 4.1.12(@types/node@22.20.5)(vite@8.3.4(@types/node@22.20.5)(esbuild@0.28.2)(tsx@4.23.15))
+
+  packages/sandbox:
+    dependencies:
+      '@electric-sql/pglite':
+        specifier: 0.5.10
+        version: 0.5.10
+    devDependencies:
+      '@types/node':
+        specifier: ^22.9.0
+        version: 22.20.5
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
@@ -276,6 +295,9 @@ packages:
 
   '@electric-sql/pglite@0.2.17':
     resolution: {integrity: sha512-qEpKRT2oUaWDH6tjRxLHjdzMqRUGYDnGZlKrnL4dJ77JVMcP2Hpo3NYnOSPKdZdeec57B6QPprCUFg0picx5Pw==}
+
+  '@electric-sql/pglite@0.5.10':
+    resolution: {integrity: sha512-tXc/25U3ulOkiRQuTFdwIv+JhBqtMdAF7Gvo6CfZZWtSB4+hgC4Wr2vwK5ngvvN5PJfAAEGIsfyCVy1JhCOBYw==}
 
   '@emnapi/runtime@1.11.3':
     resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
@@ -1657,6 +1679,8 @@ snapshots:
   '@drizzle-team/brocli@0.10.2': {}
 
   '@electric-sql/pglite@0.2.17': {}
+
+  '@electric-sql/pglite@0.5.10': {}
 
   '@emnapi/runtime@1.11.3':
     dependencies:

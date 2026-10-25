@@ -125,3 +125,12 @@ measurements above are repeated on 0.5.10 before relying on them. Stand-ins also
 empty schemas do not make CREATE EXTENSION succeed (measured: "extension pg_net is not available"), so CREATE EXTENSION
 of a listed Supabase extension is answered as succeeded without running it. New criteria cover T6 (empty env), T9
 (5,000 table/policy cap) and T10 (error messages cut and masked).
+Update 2026-10-26 (implementation, measured on PGlite 0.5.10 / Node 20): the 0.2.17 results hold (statement_timeout
+ignored; WASM memory cap stops a 900 MB string with 53200 at ~790 MB peak RSS; no host files, dblink/postgres_fdw/http/
+pg_net/file_fdw unavailable), except COPY FROM PROGRAM, which no longer errors but runs nothing and breaks the session
+(run ends as crash, all unknown). uuid-ossp and pgcrypto are loaded from PGlite's bundled extensions (human decision).
+New: migrations run as a superuser in PGlite but not in Supabase, and a superuser could forge "RLS enabled" with
+catalog DML that Supabase refuses (measured); a non-superuser session is not possible in PGlite, so the sandbox adds
+triggers that refuse catalog DML with 42501 (they need a dump and reopen to load on nailed catalogs) and treats any
+change to them as tampering (all unknown). Cost: 6-10 s per scan instead of < 3 s (KI-015). Node's permission model
+cannot be used (PGlite calls process.binding).

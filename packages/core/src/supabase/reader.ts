@@ -1,8 +1,9 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
 import { loadModule, parseSync } from "libpg-query";
+import { type Entry, executeEntries, readError } from "./execute";
 import { type SourceStatement, parseStatement } from "./parser";
-import { applyStatement, createReplay, markUnknown } from "./replay";
+import type { MigrationSandbox } from "./sandbox";
 import {
   type Relation,
   type SqlToken,
@@ -20,10 +21,25 @@ type Item =
   | { kind: "ok"; stmt: SourceStatement }
   | { kind: "failed"; line: number; message: string; tables: Relation[] | null };
 
-export async function readSupabaseMigrations(migrationsDir: string): Promise<SupabaseReadResult> {
+// Supabase-only extensions: CREATE EXTENSION is answered as succeeded without running it (spec section 2).
+const SUPABASE_EXTENSIONS = new Set([
+  "pg_net",
+  "supabase_vault",
+  "pg_cron",
+  "pgsodium",
+  "pg_graphql",
+  "pg_stat_statements",
+  "pgjwt",
+]);
+
+// Reads tables, RLS state and policies by executing the migrations in file order in `sandbox` (D-014).
+export async function readSupabaseMigrations(
+  migrationsDir: string,
+  sandbox: MigrationSandbox,
+): Promise<SupabaseReadResult> {
   await loadModule();
   const absRoot = resolve(migrationsDir);
-  const state = createReplay();
+  const entries: Entry[] = [];
   const errors: SupabaseReadError[] = [];
   let files: string[];
   try {
@@ -35,7 +51,7 @@ export async function readSupabaseMigrations(migrationsDir: string): Promise<Sup
       root: absRoot,
       tables: [],
       policies: [],
-      errors: [{ file: ".", message: `cannot read migrations dir: ${(err as Error).message}` }],
+      errors: [readError(".", undefined, `cannot read migrations dir: ${(err as Error).message}`)],
     };
   }
   for (const name of files) {
@@ -52,23 +68,36 @@ export async function readSupabaseMigrations(migrationsDir: string): Promise<Sup
     try {
       source = readFileSync(abs, "utf8");
     } catch (err) {
-      errors.push({ file: rel, message: `read failed: ${(err as Error).message}` });
+      errors.push(readError(rel, undefined, `read failed: ${(err as Error).message}`));
       continue;
     }
     for (const item of statementsOf(source)) {
       if (item.kind === "failed") {
-        errors.push({ file: rel, line: item.line, message: `parse error: ${item.message}` });
-        markUnknown(state, item.tables);
+        entries.push({ ...item, file: rel });
         continue;
       }
-      const parsed = parseStatement(item.stmt);
-      if (parsed) applyStatement(state, parsed, rel);
+      const { stmt } = item;
+      const first = stmt.tokens.find((t) => t.start >= stmt.start) ?? stmt;
+      entries.push({
+        kind: "ok",
+        file: rel,
+        line: lineAt(stmt.bytes, first.start),
+        stmt,
+        parsed: parseStatement(stmt),
+        sql: decoder.decode(stmt.bytes.subarray(stmt.start, stmt.end)),
+        skip: isSupabaseExtension(stmt),
+      });
     }
   }
-  const tables = [...state.tables.values()].sort(
-    (a, b) => a.name.localeCompare(b.name) || a.schema.localeCompare(b.schema),
+  const result = await executeEntries(entries, sandbox);
+  return { root: absRoot, ...result, errors: [...errors, ...result.errors] };
+}
+
+function isSupabaseExtension(stmt: SourceStatement): boolean {
+  const node = stmt.node;
+  return (
+    "CreateExtensionStmt" in node && SUPABASE_EXTENSIONS.has(node.CreateExtensionStmt.extname ?? "")
   );
-  return { root: absRoot, tables, policies: state.policies, errors };
 }
 
 // Parses the whole file at once; if that fails, parses statement by statement so one broken statement
@@ -78,6 +107,8 @@ function statementsOf(source: string): Item[] {
   const bytes = encoder.encode(source);
   let tokens: SqlToken[];
   let lexError: { message: string; cut: number } | null = null;
+  // Tables named in the text an unterminated string or comment swallowed (null = cannot tell).
+  let swallowed: Relation[] | null = [];
   try {
     tokens = scanTokens(source);
   } catch {
@@ -89,6 +120,7 @@ function statementsOf(source: string): Item[] {
     } catch {
       return [{ kind: "failed", line: lineAt(bytes, lexError.cut), message, tables: null }];
     }
+    swallowed = swallowedRelations(source, cursor);
   }
   if (!lexError) {
     try {
@@ -115,7 +147,9 @@ function statementsOf(source: string): Item[] {
       }
     }
     const line = lineAt(bytes, chunk.start);
-    items.push({ kind: "failed", line, message, tables: relationsNamedIn(chunkTokens) });
+    const named = relationsNamedIn(chunkTokens);
+    const tables = !cutOff ? named : swallowed === null ? null : [...named, ...swallowed];
+    items.push({ kind: "failed", line, message, tables });
   }
   const endedClean = tokens.length === 0 || tokens[tokens.length - 1]?.text === ";";
   if (lexError && endedClean) {
@@ -124,7 +158,7 @@ function statementsOf(source: string): Item[] {
       kind: "failed",
       line: lineAt(bytes, lexError.cut),
       message: lexError.message,
-      tables: [],
+      tables: swallowed,
     });
   }
   return items;
@@ -152,6 +186,20 @@ function toStatements(
       },
     ];
   });
+}
+
+// The text after an unterminated string, quoted name or comment is not SQL to Postgres, but the author may have meant
+// it as such ('oops; alter table t disable row level security;). Its tables are treated as touched.
+function swallowedRelations(source: string, cursor: number): Relation[] | null {
+  const tail = Array.from(source)
+    .slice(cursor)
+    .join("")
+    .replace(/^(?:[Ee]?'|"|\/\*|\$[^$]*\$)/, "");
+  try {
+    return relationsNamedIn(scanTokens(tail));
+  } catch {
+    return null;
+  }
 }
 
 // Message and 0-based character offset of the first parse error in `source` (libpg-query cursorPosition).

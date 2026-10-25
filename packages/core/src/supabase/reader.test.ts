@@ -1,7 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { readSupabaseMigrations } from "./reader";
+import { readFixture } from "./sandbox.testing";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const MIGRATIONS = resolve(here, "../../../../tests/fixtures/supabase/migrations");
@@ -10,7 +10,7 @@ const REVIEW = resolve(here, "../../../../tests/fixtures/supabase/review");
 
 describe("@brain/core supabase reader", () => {
   it("AC-005-01 returns every CREATE TABLE with its columns", async () => {
-    const result = await readSupabaseMigrations(MIGRATIONS);
+    const result = await readFixture(MIGRATIONS);
     const names = result.tables.map((t) => t.name).sort();
     expect(names).toEqual(["Posts", "comments", "profiles"]);
 
@@ -37,7 +37,7 @@ describe("@brain/core supabase reader", () => {
   });
 
   it("AC-005-02 returns RLS enabled/disabled and each CREATE POLICY with command, roles, USING/WITH CHECK text", async () => {
-    const result = await readSupabaseMigrations(MIGRATIONS);
+    const result = await readFixture(MIGRATIONS);
 
     const profiles = result.tables.find((t) => t.name === "profiles");
     const posts = result.tables.find((t) => t.name === "Posts");
@@ -85,7 +85,7 @@ describe("@brain/core supabase reader", () => {
   });
 
   it("AC-005-03 marks a table RLS-enabled when ENABLE arrives in a later migration file", async () => {
-    const result = await readSupabaseMigrations(MIGRATIONS);
+    const result = await readFixture(MIGRATIONS);
     const posts = result.tables.find((t) => t.name === "Posts");
     expect(posts).toBeDefined();
     expect(posts?.file).toBe("0001_init.sql");
@@ -94,7 +94,7 @@ describe("@brain/core supabase reader", () => {
   });
 
   it("AC-005-04 reports the failing file in errors[] and still reads the rest", async () => {
-    const result = await readSupabaseMigrations(MIGRATIONS);
+    const result = await readFixture(MIGRATIONS);
     const brokenError = result.errors.find((e) => e.file === "0004_broken.sql");
     expect(brokenError).toBeDefined();
     expect(brokenError?.message).toMatch(/paren|parse|CREATE/i);
@@ -107,9 +107,9 @@ describe("@brain/core supabase reader", () => {
   });
 
   it("AC-005-06 reads a realistic migrations fixture ($$ bodies, comments, quoted names, lowercase, ONLY/IF EXISTS, FOR ALL, RESTRICTIVE)", async () => {
-    const result = await readSupabaseMigrations(REALISTIC);
+    const result = await readFixture(REALISTIC);
     expect(result.errors).toEqual([]);
-    expect(result.tables.map((t) => t.name).sort()).toEqual(["Team Members", "profiles"]);
+    expect(result.tables.map((t) => t.name).sort()).toEqual(["Team Members", "bans", "profiles"]);
 
     const profiles = result.tables.find((t) => t.name === "profiles");
     expect(profiles?.file).toBe("20240101000000_init.sql");
@@ -118,7 +118,7 @@ describe("@brain/core supabase reader", () => {
       { name: "id", type: "uuid" },
       { name: "username", type: "text" },
       { name: "avatarUrl", type: "text" },
-      { name: "updated_at", type: "timestamp WITH TIME ZONE" },
+      { name: "updated_at", type: "timestamp with time zone" },
     ]);
 
     const members = result.tables.find((t) => t.name === "Team Members");
@@ -155,7 +155,7 @@ describe("@brain/core supabase reader", () => {
   });
 
   it("AC-005-01 keys tables and policies by schema.name, default schema public (review H1)", async () => {
-    const result = await readSupabaseMigrations(resolve(REVIEW, "schema"));
+    const result = await readFixture(resolve(REVIEW, "schema"));
     expect(result.errors).toEqual([]);
     const tables = result.tables.map((t) => [
       t.schema,
@@ -171,36 +171,40 @@ describe("@brain/core supabase reader", () => {
       ["storage", "objects", "own files"],
     ]);
 
-    const plain = await readSupabaseMigrations(MIGRATIONS);
+    const plain = await readFixture(MIGRATIONS);
     expect(plain.tables.every((t) => t.schema === "public")).toBe(true);
   });
 
   it("AC-005-04 records a broken statement with file and line and keeps reading the same file (review H2)", async () => {
-    const result = await readSupabaseMigrations(resolve(REVIEW, "skip"));
+    const result = await readFixture(resolve(REVIEW, "skip"));
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]?.file).toBe("0002_partition.sql");
     expect(result.errors[0]?.line).toBe(10);
 
     const byName = new Map(result.tables.map((t) => [t.name, t]));
     expect(byName.get("events")?.rlsEnabled).toBe(false);
-    expect(byName.get("events_2024")?.columns).toEqual([]);
+    // A partition has its parent's columns (Postgres, D-014).
+    expect(byName.get("events_2024")?.columns).toEqual([
+      { name: "id", type: "bigint" },
+      { name: "created_at", type: "date" },
+    ]);
     expect(byName.has("events_copy")).toBe(true);
     expect(byName.get("notes")?.columns).toEqual([{ name: "note", type: "text" }]);
     expect(byName.get("tags")?.rlsEnabled).toBe(true);
     expect(byName.has("broken")).toBe(false);
 
-    const old = await readSupabaseMigrations(MIGRATIONS);
+    const old = await readFixture(MIGRATIONS);
     expect(old.errors.map((e) => [e.file, e.line])).toEqual([["0004_broken.sql", 2]]);
   });
 
   it("AC-005-02 ignores SQL inside nested block comments (review H5)", async () => {
-    const result = await readSupabaseMigrations(resolve(REVIEW, "nested"));
+    const result = await readFixture(resolve(REVIEW, "nested"));
     expect(result.errors).toEqual([]);
     expect(result.tables.map((t) => [t.name, t.rlsEnabled])).toEqual([["c", false]]);
   });
 
   it("AC-005-02 reads ENABLE ROW LEVEL SECURITY only as an ALTER TABLE action, not from string literals (review H6)", async () => {
-    const result = await readSupabaseMigrations(resolve(REVIEW, "altermulti"));
+    const result = await readFixture(resolve(REVIEW, "altermulti"));
     expect(result.errors).toEqual([]);
     expect(result.tables.map((t) => [t.name, t.rlsEnabled])).toEqual([
       ["m", false],

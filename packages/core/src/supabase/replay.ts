@@ -3,21 +3,25 @@ import type { Relation } from "./tokenize";
 import type { PolicySchema, TableSchema } from "./types";
 
 // Applies migration statements in file order, the way Postgres would. Tables are keyed by "schema.name".
+// Since D-014 the sandbox decides the end state; this static replay names the tables when the sandbox gave no
+// answer, and keeps the policy expression text as written, with the statement (step) that last set it.
 export type Replay = {
   tables: Map<string, TableSchema>;
   policies: PolicySchema[];
+  textAt: Map<PolicySchema, { using: number; withCheck: number }>;
 };
 
 const key = (schema: string, name: string) => `${schema}.${name}`;
 
 export function createReplay(): Replay {
-  return { tables: new Map(), policies: [] };
+  return { tables: new Map(), policies: [], textAt: new Map() };
 }
 
 export function applyStatement(
   state: Replay,
   parsed: NonNullable<ParsedStatement>,
   file: string,
+  step = -1,
 ): void {
   const { tables } = state;
   switch (parsed.kind) {
@@ -54,8 +58,10 @@ export function applyStatement(
     }
     case "policy": {
       if (findPolicy(state, parsed.schema, parsed.table, parsed.name)) return;
-      const { kind: _kind, ...policy } = parsed;
-      state.policies.push({ ...policy, file });
+      const { kind: _kind, ...rest } = parsed;
+      const policy = { ...rest, file };
+      state.policies.push(policy);
+      state.textAt.set(policy, { using: step, withCheck: step });
       return;
     }
     case "dropTables":
@@ -75,8 +81,16 @@ export function applyStatement(
       const p = findPolicy(state, parsed.schema, parsed.table, parsed.name);
       if (!p) return;
       if (parsed.roles !== undefined) p.roles = parsed.roles.length > 0 ? parsed.roles : ["public"];
-      if (parsed.using !== undefined) p.using = parsed.using;
-      if (parsed.withCheck !== undefined) p.withCheck = parsed.withCheck;
+      const at = state.textAt.get(p) ?? { using: -1, withCheck: -1 };
+      if (parsed.using !== undefined) {
+        p.using = parsed.using;
+        at.using = step;
+      }
+      if (parsed.withCheck !== undefined) {
+        p.withCheck = parsed.withCheck;
+        at.withCheck = step;
+      }
+      state.textAt.set(p, at);
       return;
     }
     case "renamePolicy": {
@@ -119,7 +133,7 @@ export function markUnknown(state: Replay, relations: Relation[] | null): void {
   }
 }
 
-function findPolicy(
+export function findPolicy(
   state: Replay,
   schema: string,
   table: string,

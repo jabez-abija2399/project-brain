@@ -13,11 +13,15 @@ export type {
   SkippedFile,
 } from "./indexer";
 
+export { maskSecret, maskSecretsIn } from "./mask";
 export { readSupabaseMigrations } from "./supabase";
 export type {
   ColumnDecl,
+  MigrationSandbox,
   PolicyCommand,
   PolicySchema,
+  SandboxRun,
+  SandboxStatement,
   SupabaseReadError,
   SupabaseReadResult,
   TableSchema,

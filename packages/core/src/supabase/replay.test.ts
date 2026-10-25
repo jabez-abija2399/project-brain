@@ -1,11 +1,11 @@
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { readSupabaseMigrations } from "./reader";
+import { readFixture } from "./sandbox.testing";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const REVIEW = resolve(here, "../../../../tests/fixtures/supabase/review");
-const read = (probe: string) => readSupabaseMigrations(resolve(REVIEW, probe));
+const read = (probe: string) => readFixture(resolve(REVIEW, probe));
 
 describe("@brain/core supabase reader replays migrations in file order", () => {
   it("AC-005-07 DROP TABLE removes the table and its policies; CREATE after DROP starts fresh (review H3)", async () => {
@@ -42,7 +42,7 @@ describe("@brain/core supabase reader replays migrations in file order", () => {
       ["deny", false],
       ["allow", true],
     ]);
-    const real = await readSupabaseMigrations(resolve(REVIEW, "../realistic/migrations"));
+    const real = await readFixture(resolve(REVIEW, "../realistic/migrations"));
     expect(real.policies.map((p) => p.permissive)).toEqual([true, true, true, true, false]);
   });
 
@@ -65,7 +65,8 @@ describe("@brain/core supabase reader replays migrations in file order", () => {
     );
     expect(state).toEqual({
       a: [false, true],
-      b: [false, true],
+      // The DO block's dynamic SQL is executed (D-014), so b's state is known: disabled.
+      b: [false, false],
       c: [true, false],
       d: [false, false],
       e: [false, true],

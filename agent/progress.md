@@ -1,5 +1,12 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-26 | FEAT-005 AC-005-10..14 (D-014 sandbox) | status: done
+Changed: new packages/sandbox (PGlite 0.5.10 child: empty env, WASM/heap caps, 30 s SIGKILL, uuid-ossp+pgcrypto, Supabase stand-ins incl. auth.users/storage.buckets, catalog-DML guard + tamper check, 5,000 caps); core reader executes statements there (execute.ts), mask.ts; 12 review probes un-failed; fixtures schema/rename/realistic made valid Postgres; 3 assertions changed to Postgres values (partition columns, type casing, DO-block table b known).
+Verified (ran this session): verify.sh PASS (typecheck, lint, tests 125, kit guard); 0.5.10 measurements (timeout ignored, mem cap 53200 at ~790 MB, no host files/network); kit pass AC-005-10..14 (test-log); kit done FEAT-005.
+NOT VERIFIED: CI-only checks (audit, scanners, build, e2e); limits in the FEAT-009 job environment (KI-014).
+Open questions: AC-005-09 wording ("not followed" DO blocks -> unknown) no longer matches D-014 behaviour; scan setup 6-10 s vs 3 s target (KI-015).
+Next: FEAT-006 (feature map).
+
 ## 2026-10-26 | FEAT-005 AC-005-07..09 | status: done
 Changed: no code; docs/specs/FEAT-015.md section 3 gains rows AC-015-06 and AC-015-07 (text copied from agent/features.json).
 Verified (ran this session): verify.sh PASS (typecheck, lint, tests, kit guard); read replay.test.ts + db-schema.test.ts + review/unknown fixture to confirm each clause of AC-005-07/08/09 is asserted; kit pass AC-005-07/08/09 (test-log); kit done FEAT-005 (37 files, baseline 92).
