@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-26 | FEAT-005 AC-005-07..09 | status: done
+Changed: no code; docs/specs/FEAT-015.md section 3 gains rows AC-015-06 and AC-015-07 (text copied from agent/features.json).
+Verified (ran this session): verify.sh PASS (typecheck, lint, tests, kit guard); read replay.test.ts + db-schema.test.ts + review/unknown fixture to confirm each clause of AC-005-07/08/09 is asserted; kit pass AC-005-07/08/09 (test-log); kit done FEAT-005 (37 files, baseline 92).
+NOT VERIFIED: CI-only checks (audit, scanners, build, e2e).
+Next: FEAT-006 (feature map).
+
 ## 2026-10-24 | FEAT-005 AC-005-06 | status: done
 Changed: new realistic fixture tests/fixtures/supabase/realistic/migrations (2 files); parser.ts now reads quoted names with spaces ("public"."Team Members", policy "Users can update own profile.") via one shared quote-aware identifier pattern; test AC-005-06.
 Verified (ran this session): fixture failed before the fix (2 file errors), passes after; verify.sh PASS (81 tests, typecheck, lint, kit guard); kit pass AC-005-06; kit done FEAT-005 (17 files, baseline 81).

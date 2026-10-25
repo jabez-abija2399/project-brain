@@ -666,47 +666,67 @@
           "id": "AC-005-07",
           "kind": "state",
           "check": "Migrations are applied in file order like Postgres: DROP TABLE removes the table and its policies, CREATE TABLE after DROP starts fresh (new columns, RLS off), ALTER TABLE ... RENAME TO / SET SCHEMA moves the table and its policies, DROP POLICY removes the policy, and ALTER POLICY changes only the USING, WITH CHECK or roles it names",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-26 00:14; log contains AC-005-07"
         },
         {
           "id": "AC-005-08",
           "kind": "happy",
           "check": "Each policy is reported as permissive or restrictive (AS RESTRICTIVE), and db_policies stores it as a flag; a restrictive policy never counts as allowing everyone (db_policies rejects allows_all = true on a restrictive policy)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-26 00:14; log contains AC-005-08"
         },
         {
           "id": "AC-005-09",
           "kind": "negative",
           "check": "A table touched by a statement that cannot be parsed (syntax error, unterminated string) or followed (dynamic SQL in a DO block that changes RLS or policies) is reported with RLS unknown (rlsUnknown true, rlsEnabled false), never enabled; unparseable statements are in errors[] with file and line, and a later explicit ENABLE/DISABLE makes the state known again",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-26 00:14; log contains AC-005-09"
         }
       ],
-      "status": "in_progress",
+      "status": "done",
       "notes": "",
       "files": [
+        "packages/core/package.json",
         "packages/core/src/index.ts",
         "packages/core/src/supabase/index.ts",
         "packages/core/src/supabase/parser.ts",
         "packages/core/src/supabase/reader.test.ts",
         "packages/core/src/supabase/reader.ts",
+        "packages/core/src/supabase/replay.test.ts",
+        "packages/core/src/supabase/replay.ts",
         "packages/core/src/supabase/tokenize.ts",
         "packages/core/src/supabase/types.ts",
+        "packages/db/migrations/0004_db_schema_flags.sql",
         "packages/db/src/repos/db-schema.test.ts",
         "packages/db/src/repos/db-schema.ts",
         "packages/db/src/repos/index.ts",
+        "packages/db/src/schema/supabase.ts",
         "tests/fixtures/supabase/migrations/0001_init.sql",
         "tests/fixtures/supabase/migrations/0002_rls_profiles.sql",
         "tests/fixtures/supabase/migrations/0003_rls_posts_later.sql",
         "tests/fixtures/supabase/migrations/0004_broken.sql",
         "tests/fixtures/supabase/migrations/0005_comments.sql",
         "tests/fixtures/supabase/realistic/migrations/20240101000000_init.sql",
-        "tests/fixtures/supabase/realistic/migrations/20240102000000_rls.sql"
+        "tests/fixtures/supabase/realistic/migrations/20240102000000_rls.sql",
+        "tests/fixtures/supabase/review/altermulti/0001_alter.sql",
+        "tests/fixtures/supabase/review/alterpol/0001_alter_policy.sql",
+        "tests/fixtures/supabase/review/droppol/0001_drop_policy.sql",
+        "tests/fixtures/supabase/review/nested/0001_nested.sql",
+        "tests/fixtures/supabase/review/recreate/0001_init.sql",
+        "tests/fixtures/supabase/review/recreate/0002_recreate.sql",
+        "tests/fixtures/supabase/review/rename/0001_rename.sql",
+        "tests/fixtures/supabase/review/restrictive/0001_restrictive.sql",
+        "tests/fixtures/supabase/review/schema/0001_init.sql",
+        "tests/fixtures/supabase/review/skip/0001_events.sql",
+        "tests/fixtures/supabase/review/skip/0002_partition.sql",
+        "tests/fixtures/supabase/review/unknown/0001_init.sql",
+        "tests/fixtures/supabase/review/unknown/0002_unreadable.sql",
+        "tests/fixtures/supabase/review/unknown/0003_unterminated.sql",
+        "tests/fixtures/supabase/review/unknown/0004_lexical_line.sql"
       ]
     },
     {
@@ -1668,6 +1688,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 81
+    "tests_passed": 92
   }
 }

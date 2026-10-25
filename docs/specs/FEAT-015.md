@@ -17,6 +17,8 @@ Requirement ids: REQ-012   Non-goals for this feature: automatic fixing, history
 | AC-015-03 | attack | Detected secret values are masked (first 4 characters + ***) in receipts, API responses, the database and logs (test greps all four) |
 | AC-015-04 | happy | Tables with RLS disabled, or with a policy that allows everyone to write (USING (true) on UPDATE/DELETE, or WITH CHECK (true) on INSERT/UPDATE), are flagged in the receipt |
 | AC-015-05 | boundary | A secret in .env.example with an empty value or a placeholder like 'your-key-here' is not flagged |
+| AC-015-06 | negative | A table whose RLS state is unknown is reported as 'RLS cannot be confirmed', never as safe and never silently skipped. |
+| AC-015-07 | boundary | A restrictive policy is never counted as allowing everyone, even with USING (true) or WITH CHECK (true). |
 
 ## 4. Data and permissions
 receipts.summary_json.findings: [{type, file, line, masked_value, hint}]. No raw secret is ever stored.
