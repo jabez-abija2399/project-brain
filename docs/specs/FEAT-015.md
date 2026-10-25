@@ -30,6 +30,8 @@ Abuse cases -> each becomes an `attack` or `permission` criterion with an execut
 - Secret re-exposure through our own system: values masked before storing, returning or logging (AC-015-03).
 - False positives that teach users to ignore warnings: anon key and placeholders not flagged (AC-015-02, AC-015-05).
 - Missed RLS issues: RLS disabled, USING (true) on UPDATE/DELETE and WITH CHECK (true) on INSERT/UPDATE flagged (AC-015-04).
+- Unknown RLS state passed off as safe: a table whose RLS state is unknown is reported as 'RLS cannot be confirmed', never as safe and never silently skipped (AC-015-06).
+- Restrictive policies miscounted: a restrictive policy is never counted as allowing everyone, even with USING (true) or WITH CHECK (true) (AC-015-07).
 Security pass (generate -> critique -> revise): after the first implementation, list "what would an attacker try next?", write
 attacker tests, show them failing if vulnerable, fix, repeat once.
 

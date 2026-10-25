@@ -12,3 +12,4 @@
 - 2026-10-24: Dependency cooldown is 7 days (minimumReleaseAge 10080, D-013); security fixes may bypass it only with human approval.
 - 2026-10-24: FEAT-005 switches from the hand-written SQL reader to libpg-query (supersedes the 2026-10-23 D-012 line); tables and policies keyed by schema.name (default public); per-statement parse errors with file and line.
 - 2026-10-25: FEAT-005 replays migrations in file order like Postgres (DROP/ALTER/RENAME TABLE, DROP/ALTER POLICY); policies keep permissive/restrictive (restrictive never counts as allowing everyone); a table touched by an unreadable statement gets RLS state unknown, never enabled.
+- 2026-10-26: FEAT-015 adds AC-015-06 (RLS state unknown is reported as 'RLS cannot be confirmed', never safe, never skipped) and AC-015-07 (a restrictive policy never counts as allowing everyone, even with USING (true) / WITH CHECK (true)).
