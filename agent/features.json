@@ -661,9 +661,33 @@
           "passes": true,
           "verified_by": "test-log",
           "evidence": "verify.sh PASS 2026-10-24 20:27; log contains AC-005-06"
+        },
+        {
+          "id": "AC-005-07",
+          "kind": "state",
+          "check": "Migrations are applied in file order like Postgres: DROP TABLE removes the table and its policies, CREATE TABLE after DROP starts fresh (new columns, RLS off), ALTER TABLE ... RENAME TO / SET SCHEMA moves the table and its policies, DROP POLICY removes the policy, and ALTER POLICY changes only the USING, WITH CHECK or roles it names",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-005-08",
+          "kind": "happy",
+          "check": "Each policy is reported as permissive or restrictive (AS RESTRICTIVE), and db_policies stores it as a flag; a restrictive policy never counts as allowing everyone (db_policies rejects allows_all = true on a restrictive policy)",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-005-09",
+          "kind": "negative",
+          "check": "A table touched by a statement that cannot be parsed (syntax error, unterminated string) or followed (dynamic SQL in a DO block that changes RLS or policies) is reported with RLS unknown (rlsUnknown true, rlsEnabled false), never enabled; unparseable statements are in errors[] with file and line, and a later explicit ENABLE/DISABLE makes the state known again",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
         }
       ],
-      "status": "done",
+      "status": "in_progress",
       "notes": "",
       "files": [
         "packages/core/src/index.ts",
@@ -1340,6 +1364,22 @@
           "id": "AC-015-05",
           "kind": "boundary",
           "check": "A secret in .env.example with an empty value or a placeholder like 'your-key-here' is not flagged",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-015-06",
+          "kind": "negative",
+          "check": "A table whose RLS state is unknown is reported as 'RLS cannot be confirmed', never as safe and never silently skipped.",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
+        },
+        {
+          "id": "AC-015-07",
+          "kind": "boundary",
+          "check": "A restrictive policy is never counted as allowing everyone, even with USING (true) or WITH CHECK (true).",
           "passes": false,
           "verified_by": "",
           "evidence": ""
