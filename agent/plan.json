@@ -1,0 +1,14 @@
+{
+  "features": [
+    {
+      "id": "FEAT-005",
+      "title": "Supabase reader: tables and RLS policies from SQL migrations",
+      "spec": "docs/specs/FEAT-005.md",
+      "security_sensitive": true,
+      "acceptance": [
+        { "id": "AC-005-10", "kind": "state", "check": "RLS state and policies come from executing the migrations in a sandboxed in-memory Postgres with Supabase stand-ins; a statement that fails marks the tables it touches unknown." },
+        { "id": "AC-005-11", "kind": "attack", "check": "A migration with an infinite loop or huge memory use is stopped by the time and memory limits and all tables become unknown." }
+      ]
+    }
+  ]
+}

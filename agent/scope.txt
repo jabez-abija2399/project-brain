@@ -12,3 +12,5 @@ packages/db/src/repos/db-schema.ts
 packages/db/src/repos/db-schema.test.ts
 packages/db/migrations/0004_db_schema_flags.sql
 tests/fixtures/supabase/**
+docs/specs/FEAT-005.md
+agent/reviews/FEAT-005.md

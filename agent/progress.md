@@ -132,3 +132,13 @@ Changed: new replay.ts applies statements in file order: DROP TABLE (removes tab
 Verified (ran this session): 6 new core tests + 1 new db test FAILED before the fix, PASS after; line-exactness fixture FAILED with a 1-based cursor, PASS with 0-based; supabase tests 15/15, db-schema 2/2; `kit.py import --dry-run` adds AC-005-07..09 cleanly; `bash scripts/verify.sh` PASS (92 tests, typecheck, lint, kit guard).
 NOT VERIFIED: CI-only checks; migration 0004 on the Neon dev branch (PGlite only).
 Next: human approves agent/plan.json -> kit.py import -> kit pass AC-005-07..09; FEAT-015 must treat rlsUnknown as "cannot confirm RLS" and ignore restrictive policies for "allows everyone".
+
+## 2026-10-26 | FEAT-005 change: execute migrations in a sandboxed PGlite (D-014) | status: waiting for approval
+Changed: directive line; D-014; docs/specs/FEAT-005.md (threat model for executing untrusted SQL); agent/plan.json proposes
+AC-005-10 (state), AC-005-11 (attack), security_sensitive + spec (dry run clean, not imported); 12 review probes (H1 x5,
+H2 x5, M1, L3) as fixtures in tests/fixtures/supabase/review/<probe>/ and it.fails tests in packages/core/src/supabase/execute.test.ts.
+Verified (ran this session): each probe test fails today on its RLS/policy assertion (ran without .fails); expected values
+match real PGlite run one statement at a time; PGlite ignores statement_timeout, cannot read host files or run programs,
+has no dblink; --wasm-max-mem-pages=8192 turns a 900 MB allocation into "out of memory" at ~680 MB RSS; verify.sh PASS.
+NOT VERIFIED: CI-only checks; nothing implemented yet.
+Next: human approves -> kit.py import -> implement D-014, drop .fails from execute.test.ts.

@@ -93,3 +93,28 @@ Security fixes may bypass it only with human approval. Set as `minimumReleaseAge
 Scope: our own install policy only. The product's check_package cooldown (FEAT-014, AC-014-06: flags versions younger
 than 3 days) stays a separate choice and is not changed by this decision.
 Revisit when: a security fix is needed sooner than 7 days (the human approves each bypass).
+
+## D-014 | 2026-10-26 | FEAT-005 gets RLS state by executing migrations in a sandboxed PGlite, not by static replay
+Context: the 2026-10-26 review (agent/reviews/FEAT-005.md, H1, H2, M1, L3) found 12 valid migrations where the static
+replay (D-012 update) reports RLS enabled or a policy as safe while Postgres ends with RLS off or USING (true): dynamic SQL
+through format()/||, functions called by SELECT, DROP SCHEMA, DDL inside DO blocks, SET search_path, BEGIN/ROLLBACK.
+Each fix in the static reader only covers one more pattern. Options: (A) keep extending the static replay REJECTED: it
+fails open on anything it does not model. (B) execute the migrations in a disposable in-memory Postgres and read the
+result from pg_catalog / pg_policies CHOSEN: Postgres itself decides the end state, so every probe above is right by
+construction. (C) a real Postgres per scan (Docker, Neon branch) REJECTED: no Docker (D-007), network round trips, cost.
+Decision: PGlite (already approved, docs/dependencies.md) runs in a child process with no env, `--wasm-max-mem-pages`
+and `--max-old-space-size` caps, SIGKILL after 30 s total. It first creates Supabase stand-ins (roles anon,
+authenticated, service_role; schema auth with stub auth.uid() / auth.jwt(); schema storage with an objects table;
+schema extensions), then runs each statement separately in file order (split by libpg-query, as today) and finally reads
+tables, columns, relrowsecurity and pg_policies. A statement that fails goes to errors[] with file and line and the
+tables it touches become RLS unknown, found by the existing static reader (all tables when it cannot tell). Timeout,
+out-of-memory or a dead child makes every table unknown. libpg-query and the static reader stay, for splitting and for
+naming the tables of failed statements. packages/core stays pure: it takes the sandbox as an argument (interface
+MigrationSandbox); the PGlite runner lives in packages/db, where PGlite moves from a dev to a production dependency.
+Trade-offs: user SQL now runs (threat model: docs/specs/FEAT-005.md section 5); PGlite cold start (~1-2 s) and up to
+~700 MB RSS per scan; Supabase-only objects we did not stand in (pg_net, vault, cron, other roles) fail and make their
+tables unknown, never enabled. Measured 2026-10-26 on PGlite 0.2.x / Node 20: statement_timeout is ignored (pg_sleep(1)
+ran under a 100 ms limit), so the time limit must be enforced from outside; host files and programs are not reachable
+(pg_read_file, COPY FROM PROGRAM, lo_import fail on PGlite's in-memory filesystem); dblink is not available; with
+`--wasm-max-mem-pages=8192` a 900 MB string fails with "out of memory" at ~680 MB RSS instead of ~1.4 GB.
+Revisit when: scans need Supabase objects the stand-ins cannot fake, or PGlite cold start breaks the 30 s budget.

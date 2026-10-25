@@ -1,93 +1,97 @@
-# Review FEAT-005: Supabase reader (tables, RLS, policies from SQL migrations)
-Date: 2026-10-24 | Base 532f727 .. Head c8418bb (also read 88e8154 code: parser.ts, reader.ts, tokenize.ts, types.ts, db-schema.ts)
+# Review FEAT-005: Supabase reader (re-review after the libpg-query + replay.ts rewrite)
+Date: 2026-10-26 | Head db4c5df | Code read: packages/core/src/supabase/{parser,replay,reader,tokenize,types}.ts,
+replay.test.ts, reader.test.ts, tests/fixtures/supabase/review/unknown/*
 
 ## How this was checked
-- Ran `pnpm vitest run packages/core/src/supabase/reader.test.ts packages/db/src/repos/db-schema.test.ts`: 6/6 pass.
-- Ran `readSupabaseMigrations` (via tsx) on 12 small migration folders in /tmp/feat005-probe/ (script: probe.ts).
-  Every finding below quotes the actual output. No source files were changed.
-- Scope note: FEAT-015 (AC-015-04) will flag "RLS disabled" and "USING/WITH CHECK (true) on writes" from this output.
-  So a wrong `rlsEnabled: true` or a missing/stale policy is a silent security miss downstream.
+- `pnpm vitest run packages/core/src/supabase packages/db/src/repos/db-schema.test.ts`: 3 files, 17/17 pass.
+- Re-created the probes from the 2026-10-24 review plus 21 new ones in /tmp/feat005-probe2/cases{,2}/ and ran
+  `readSupabaseMigrations` on each (probe.mts, via tsx). Output is quoted as `table -> ON/off/UNKNOWN`. No source files were changed.
+- Question asked: can any probe still give a false "RLS enabled" or a false "safe policy"? **Yes, see H1 and H2.**
 
-## HIGH (wrong "RLS enabled" or wrong "safe policy")
+## Previous probes: all fixed
+| Old finding | Probe | Now |
+|---|---|---|
+| H1 schemas merged | schema | private.profiles ON, public.profiles off (cols id, email) |
+| H2 rest of file skipped | skip, estr | events off; partition table read; E'it\'s' is fine, a off, b ON |
+| H3 DROP + re-create | recreate | notes off, cols [id, body] |
+| H4 ALTER POLICY | alterpol | using "true" (FEAT-015 can flag it) |
+| H5 nested comments | nested | c off |
+| H6 RLS text in a string | altermulti | m off |
+| M1 DROP POLICY | droppol | only "own" left |
+| M2 RESTRICTIVE | restrictive, permissive_default | RESTR / perm right; default and AS PERMISSIVE are perm |
+| M3 RENAME / SET SCHEMA | rename, setschema | posts ON with its columns; private.s ON, new public.s off |
+| DO EXECUTE with a literal name | doexec | d UNKNOWN |
+| L3 `"a""b"` columns | quotes | column `a"b` |
 
-H1. Same table name in different schemas is merged; RLS from one schema is reported for the other.
-  - parser.ts:52, 67, 85 `stripSchema(...)` drops the schema; reader.ts:48-69 uses the bare name as the map key.
-  - Probe `schema`: `create table private.profiles` + `alter table private.profiles enable row level security` +
-    `create table public.profiles (id, email)` -> output `[["profiles", true, ["id"]]]`.
-    public.profiles really has RLS off and is exposed through the Supabase API; we report it as protected
-    (and with the wrong columns). Same for policies: a policy on `storage.objects` is attached to `public.objects`.
-  - Fix direction: key tables and policies by `schema.name` (default `public`), keep `schema` in TableSchema/PolicySchema.
+## HIGH (false "RLS enabled" / false "safe policy")
 
-H2. One unreadable statement skips the rest of the file, including later RLS changes.
-  - reader.ts:42-86: a single try/catch wraps the whole statement loop, so the first throw abandons the file.
-  - Probe `skip`: file 1 creates partitioned `public.events` and enables RLS; file 2 has
-    `create table public.events_2024 partition of public.events for values ...` (valid PostgreSQL, no column list,
-    parser.ts:51 throws) followed by `alter table public.events disable row level security`.
-    Output: `[["events", true, ...]]` with one error for 0002.sql. RLS is actually OFF; we report ON.
-  - Other valid SQL that also throws and skips the rest of the file: `CREATE TABLE x AS SELECT ...`, `CREATE TABLE x OF type`,
-    `E'...\'...'` escape strings (probe `estr`: tokenize.ts:18-35 does not treat `\'` as an escape, so the paren
-    matching fails and both tables in the file vanish).
-  - AC-005-04 says "other files are still read", which holds, but the remaining statements of the same file are lost.
-  - Fix direction: try/catch per statement, record `{file, statement index/line, message}`, continue; treat
-    `PARTITION OF` / `AS SELECT` / `OF type` as tables without a column list rather than errors.
+H1. Dynamic SQL in a DO block that names its table through a variable keeps the table "RLS enabled". This breaks AC-005-09.
+  - tokenize.ts:62-80 `relationsNamedIn`: when the name after `TABLE`/`ON` is only partly literal, it still returns a
+    made-up relation. (a) `public.%I`: it stops at `%` and pushes `{public, public}`. (b) `'alter table ' || quote_ident(t) || ' disable ...'`:
+    the next token across the string pieces is the unreserved keyword `disable`, which `isIdent` (line 133) accepts.
+    `relationsInCodeBody` (line 96) then returns a non-empty list instead of `null`, so `markUnknown` changes only the
+    made-up table and leaves the real one alone.
+  - Ran `relationsInCodeBody` directly: case (a) gives `[{"schema":"public","name":"public"}]` and case (b) gives `[{"schema":"public","name":"disable"}]`.
+  - Probe `do_fmt_schema`: `alter table public.secrets enable rls` and then the common loop
+    `for t in select tablename from pg_tables ... execute format('alter table public.%I disable row level security', t)`
+    -> `public.secrets -> ON`. RLS is actually OFF on every public table.
+  - Probe `do_concat`: `execute 'alter table ' || quote_ident(t) || ' disable row level security'` -> `secrets -> ON`.
+  - False safe policy: in probe `pol_do_fmt`, `execute format('alter policy %I on public.%I using (true)', 'owner writes', 'docs')`
+    gives `docs -> ON` and the policy still shows `using "auth.uid() = owner"`. In probe `pol_do_concat`
+    (`... on public.' || quote_ident(t) || ' using (true)'`) the output is the same. The real policy is `USING (true)` on UPDATE, so anyone can write to the table.
+  - Probe `comment_in_do`: `'... disable row ' || 'level security'` splits the words, so the regex at parser.ts:233 misses
+    them and the block is ignored (`c2 -> ON`). This is unlikely in practice, but the cause is the same: the code decides from the text that the block is harmless.
+  - Fix direction: a name only counts when every part is a complete identifier and the next token cannot continue
+    the name (not `.`, `%`, `||` or the end of a string piece). Otherwise return `null` (all tables unknown). For a DO block that
+    contains EXECUTE, a safer choice is to always return `null`.
 
-H3. DROP TABLE and re-create keeps the old table's RLS flag and columns.
-  - reader.ts:48 `if (!tables.has(parsed.name))` keeps the first definition; DROP TABLE is not handled (parser.ts:32-44).
-  - Probe `recreate`: 0001 creates `notes` + enables RLS; 0002 `drop table public.notes; create table public.notes (id, body)`.
-    Output `[["notes", true, ["id"]]]`. The new table has RLS OFF and a `body` column; we report RLS ON and stale columns.
-
-H4. ALTER POLICY is ignored, so a policy loosened later is still reported as the safe original.
-  - parser.ts:32-44 only handles CREATE TABLE / ALTER TABLE / CREATE POLICY.
-  - Probe `alterpol`: `create policy "owner writes" ... for update using (auth.uid() = owner)` then
-    `alter policy "owner writes" on public.docs using (true)`. Output keeps `using: "auth.uid() = owner"`.
-    The table is actually writable by everyone; FEAT-015 would not flag it.
-
-H5. Nested block comments leak commented-out SQL into the parse (PostgreSQL allows nested /* */).
-  - tokenize.ts:12-16 ends the comment at the first `*/`.
-  - Probe `nested`: `/* outer /* inner */ still comment; alter table public.c enable row level security; */`
-    then `create table public.c (id int)`. Output `[["c", true, []]]`: RLS is OFF in the real database, reported ON.
-
-H6. "ENABLE ROW LEVEL SECURITY" is searched anywhere in the ALTER TABLE text, including string literals.
-  - parser.ts:68-71 tests the regex against the whole remainder, strings included.
-  - Probe `altermulti`: `alter table public.m add column flag text default 'enable row level security'`
-    -> `[["m", true, ...]]`. RLS is OFF. Likelihood is low, but per the review brief any false "RLS enabled" is HIGH.
-  - Fix direction: match the action list token-wise (outside quotes), e.g. split top-level actions on commas.
+H2. A statement the replay does not recognize has no effect, so tables that are changed out of sight keep their earlier "enabled" state.
+  - parser.ts:107-118 returns `null` for every other node type and reader.ts:67 skips it. Only DO blocks whose text
+    matches a regex become "unknown". Each probe below is valid PostgreSQL that the reader reports as RLS ON while the real table has RLS OFF:
+    - `func_call`: `create function public.open_up() ... $$ begin alter table public.secrets disable row level security; end $$;`
+      `select public.open_up();` -> `secrets -> ON`. Function bodies are never examined, and SELECT/CALL are ignored.
+    - `drop_schema`: 0002 `drop schema public cascade; create schema public; create table public.notes (id, body)`
+      -> `notes -> ON`, cols `[id]`, and the old policy `own using (true)` is still listed. DROP SCHEMA is not replayed, so the
+      new CREATE TABLE hits "keep the first" (replay.ts:27). Resetting `public` this way is a known pattern.
+    - `do_drop_recreate`: `do $$ begin if exists (...) then drop table public.notes; end if; end $$;` plus
+      `create table public.notes (id, body)` -> `notes -> ON`, cols `[id]`. A static DROP inside a DO block is not "RLS text", so it is ignored.
+    - `do_rename`: `do $$ begin alter table public.k rename to k_old; end $$; create table public.k (...)` -> `k -> ON`.
+    - `search_path`: `set search_path to app; create table profiles ...; alter table profiles enable rls` -> the
+      existing `public.profiles -> ON`. parser.ts:240 always resolves unqualified names to `public`.
+  - The replay fails open: when it cannot follow a statement, it keeps the previous state. AC-005-09's principle
+    ("never enabled" when a statement cannot be followed) is only applied to parse errors and to DO blocks that mention RLS.
+  - Fix direction: fail closed. (1) DROP SCHEMA x [CASCADE]: drop tables and policies in x. (2) A DO block, or a SELECT/CALL
+    of a function defined in the migrations, whose body contains DDL (ALTER/DROP/CREATE ... TABLE/POLICY): mark its tables unknown, or all
+    tables when it cannot tell. (3) After a SET search_path / set_config('search_path') to anything except public, mark unqualified names unknown.
 
 ## MEDIUM
 
-M1. DROP POLICY is ignored: dropped policies are still reported (false alarms, and wrong policy counts).
-  - Probe `droppol`: `create policy "open" ... for update using (true); drop policy "open" on public.t; create policy "own" ...`
-    -> both `open` (using "true") and `own` reported. FEAT-015 would flag a policy that no longer exists;
-    docs/specs/FEAT-015.md section 5 lists false positives as an abuse case ("teach users to ignore warnings").
-    Same root cause as H4: the reader must replay DROP/ALTER POLICY by (schema, table, name).
-
-M2. AS RESTRICTIVE vs PERMISSIVE is parsed and then discarded (parser.ts:93-94; not in ParsedPolicy / PolicySchema).
-  - Probe `restrictive`: `create policy "deny" on public.r as restrictive for update using (true)` comes out identical
-    to a permissive `using (true)`. A restrictive `true` grants nothing, so FEAT-015 would raise a false
-    "allows everyone to write"; conversely FEAT-015 cannot tell that a table with only restrictive policies is closed.
-    AC-005-06 requires reading AS RESTRICTIVE; dropping it is a partial pass.
-
-M3. ALTER TABLE ... RENAME TO is ignored: phantom old table plus a column-less new one.
-  - Probe `rename`: `create table public.drafts (id)`; `alter table public.drafts rename to posts`;
-    `alter table public.posts enable row level security` -> `drafts` (RLS false, columns [id]) and `posts`
-    (RLS true, columns []). FEAT-015 would flag a table that no longer exists, and posts loses its columns.
-    (Also not handled: `ALTER TABLE ... SET SCHEMA`, and RLS enabled by `EXECUTE` inside DO $$ blocks, which gives a false "disabled".)
+M1. When an unterminated string swallows the rest of the file, the tables named in that text are not marked unknown.
+  - reader.ts:120-128 adds the cut-off tail with `tables: []`.
+  - Probe `unterminated2`: `alter table public.u enable rls;` then `select 'oops; alter table public.u disable row level security;`
+    -> `u -> ON` with an error at line 3. AC-005-09 lists "unterminated string" as a statement that cannot be parsed,
+    and the swallowed text clearly touches `u`. Whatever version of this file was really deployed, its effect on `u` is unknown.
+    The 0003_unterminated fixture only covers the case where the cut happens inside the statement that names the table.
+  - Fix direction: run `relationsNamedIn` on the tokens of the tail text (or use `null`) instead of `[]`.
 
 ## LOW
 
-L1. Test coverage only exercises happy paths for the RLS state machine: no test for DROP/ALTER POLICY, DROP TABLE,
-    two schemas, a statement error mid-file, or DISABLE after ENABLE across files. Each HIGH above would be a
-    one-file regression test.
-L2. Quote scanning is implemented three times (tokenize.ts:18-35, parser.ts:209-226, parser.ts:245-259), and none of them
-    handles E'' strings. One shared scanner would fix H2's escape-string case in one place.
-L3. parseColumns (parser.ts:160) uses `"[^"]+"` for the first word, so a column named `"a""b"` gets the name `a`.
-    The table-name path handles `""` correctly (probe `quotes`).
+L1. The AC-005-09 test (replay.test.ts:61, fixture review/unknown/0002) only uses a literal table name inside EXECUTE.
+    There is no case for `format('%I')`, `public.%I`, string concatenation, a function call, or DROP SCHEMA. Each of H1, H2 and M1 above can be a one-file regression fixture.
+L2. A valid PG14+ `create function f() ... begin atomic select 1; select 2; end;` is reported as a parse error when another
+    statement in the same file fails. The cause is that the per-statement fallback splits at every top-level `;` (tokenize.ts:40), so a valid file gets a false error.
+    Probe `atomic`: errors at line 3 ("syntax error at end of input") and line 5. RLS output is still right (`q -> off`).
+L3. `begin; alter table public.x enable row level security; rollback;` -> `x -> ON` (probe `rollback`). This is unusual in migrations,
+    but it is another false "enabled". Ignoring statements between BEGIN and ROLLBACK would fix it.
 
 ## Criteria
-- AC-005-01..03, 05: satisfied as written (tests pass, DB stores only flags; dbPoliciesRepo.insert checks project ownership
-  via the parent table, db_tables has a same-project FK to files).
-- AC-005-04: satisfied at file level; see H2 for statements lost within the failing file.
-- AC-005-06: fixture passes, but RESTRICTIVE is not represented in the output (M2).
-- Security/authz/perf: no issues found in the repo layer; reader is O(file size), no unbounded network or DB work.
+- AC-005-01..06, 08: satisfied. Probes and tests agree, and the DB check constraints keep `NOT (rls_enabled AND rls_unknown)`
+  and `permissive OR NOT allows_all`.
+- AC-005-07: satisfied as written (DROP/RENAME/SET SCHEMA/DROP and ALTER POLICY all replay correctly). DROP SCHEMA is not covered (H2).
+- AC-005-09: **not satisfied.** Dynamic SQL in a DO block that changes RLS or policies through `format('...public.%I')` or `||` keeps
+  the table "enabled" (H1). The unterminated-string tail also does not make the tables it names unknown (M1).
+- Security/architecture/perf: packages/core stays pure (libpg-query is WASM, no I/O except reading the migrations dir).
+  The repo layer has not changed since the last review. Per-statement fallback filters every token for every chunk
+  (reader.ts:103), which is O(n²) on a large broken file. That is acceptable for migration sizes, so it is not a finding.
 
 VERDICT: FAIL
