@@ -8,5 +8,7 @@ packages/core/**            !->  next*               # core is framework-free (a
 packages/db/**              !->  **/apps/**          # the data layer never imports an app
 packages/cli/**             !->  @brain/db*          # the CLI talks to the API, never to the database
 packages/cli/**             !->  **/apps/**          # the CLI never imports app code
+packages/sandbox/**         !->  **/apps/**          # the SQL sandbox never imports the app
+packages/sandbox/**         !->  @brain/db*          # the sandbox runs untrusted SQL; it never touches our database (the CLI uses it too)
 apps/web/src/components/**  !->  @brain/db*          # UI never touches the database
 apps/web/src/components/**  !->  **/server/**        # UI goes through routes/server actions, not server internals

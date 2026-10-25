@@ -118,3 +118,10 @@ ran under a 100 ms limit), so the time limit must be enforced from outside; host
 (pg_read_file, COPY FROM PROGRAM, lo_import fail on PGlite's in-memory filesystem); dblink is not available; with
 `--wasm-max-mem-pages=8192` a 900 MB string fails with "out of memory" at ~680 MB RSS instead of ~1.4 GB.
 Revisit when: scans need Supabase objects the stand-ins cannot fake, or PGlite cold start breaks the 30 s budget.
+Update 2026-10-26 (human decision): the PGlite runner goes in a new package packages/sandbox (@brain/sandbox), not
+packages/db, because the CLI indexes locally (D-003) and must not import @brain/db; boundaries.txt forbids
+packages/sandbox from importing apps/** or @brain/db*. PGlite is pinned to 0.5.10 there (cooldown, D-013); the 0.2.17
+measurements above are repeated on 0.5.10 before relying on them. Stand-ins also get empty schemas net, vault and cron;
+empty schemas do not make CREATE EXTENSION succeed (measured: "extension pg_net is not available"), so CREATE EXTENSION
+of a listed Supabase extension is answered as succeeded without running it. New criteria cover T6 (empty env), T9
+(5,000 table/policy cap) and T10 (error messages cut and masked).

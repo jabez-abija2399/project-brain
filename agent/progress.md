@@ -142,3 +142,12 @@ match real PGlite run one statement at a time; PGlite ignores statement_timeout,
 has no dblink; --wasm-max-mem-pages=8192 turns a 900 MB allocation into "out of memory" at ~680 MB RSS; verify.sh PASS.
 NOT VERIFIED: CI-only checks; nothing implemented yet.
 Next: human approves -> kit.py import -> implement D-014, drop .fails from execute.test.ts.
+
+## 2026-10-26 | FEAT-005 change, round 2 (human decisions) | status: waiting for the human to run kit.py import
+Changed: packages/sandbox (@brain/sandbox) chosen for the runner; boundaries.txt rules for it; PGlite 0.5.10 production
+row in docs/dependencies.md (dep-check: exists, Apache-2.0; 0.5.11 is inside the cooldown); D-014 update; plan.json adds
+AC-005-12 (T6), AC-005-13 (T9), AC-005-14 (T10); spec lists stand-ins (net, vault, cron, extensions + CREATE EXTENSION
+allowlist answered without running); KI-014 (limits must be verified in the FEAT-009 job environment).
+Verified (ran this session): empty schemas do not make CREATE EXTENSION pg_net/supabase_vault/pg_cron/uuid-ossp/pgcrypto
+succeed in PGlite 0.2.17; kit.py import --dry-run clean (5 new criteria, no rewording); verify.sh (see commit).
+NOT VERIFIED: nothing implemented; measurements not repeated on PGlite 0.5.10.
