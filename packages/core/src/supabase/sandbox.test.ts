@@ -79,10 +79,15 @@ describe("@brain/core supabase reader executes migrations in a sandbox (D-014)",
     expect(result.policies).toEqual([]);
   });
 
-  it("AC-005-10 catalog DML that Supabase refuses cannot forge RLS enabled (T7)", async () => {
+  it("AC-005-10 catalog DML that Supabase refuses cannot forge RLS enabled, even when the refusal is swallowed (T7)", async () => {
     const result = await read("catalog_dml");
-    expect(result.errors).toEqual([]);
-    expect(rls(result)).toEqual({ "public.exposed": [false, false] });
+    expect(result.errors).toEqual([
+      {
+        file: ".",
+        message: "migrations tried to write the system catalogs; RLS cannot be confirmed",
+      },
+    ]);
+    expect(rls(result)).toEqual({ "public.exposed": [false, true] });
   });
 
   it("AC-005-10 switching off the catalog guard makes every table unknown (T7)", async () => {
@@ -91,6 +96,7 @@ describe("@brain/core supabase reader executes migrations in a sandbox (D-014)",
     expect(result.errors.map((e) => [e.file, e.line, e.message])).toEqual([
       ["0001_guard_tamper.sql", 5, "permission denied for table pg_class"],
       [".", undefined, "migrations changed the sandbox's catalog guard; RLS cannot be confirmed"],
+      [".", undefined, "migrations tried to write the system catalogs; RLS cannot be confirmed"],
     ]);
   });
 

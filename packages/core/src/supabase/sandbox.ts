@@ -34,6 +34,8 @@ export type SandboxRun = {
   openTransaction: boolean;
   // User SQL changed the guard that blocks catalog DML (a superuser-only escape, see @brain/sandbox).
   tampered?: boolean;
+  // User SQL tried to write a system catalog (refused, even if an exception handler swallowed the refusal).
+  catalogWrite?: boolean;
   steps: SandboxStep[];
   tables: {
     oid: string;

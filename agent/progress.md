@@ -158,3 +158,10 @@ allowlist answered without running); KI-014 (limits must be verified in the FEAT
 Verified (ran this session): empty schemas do not make CREATE EXTENSION pg_net/supabase_vault/pg_cron/uuid-ossp/pgcrypto
 succeed in PGlite 0.2.17; kit.py import --dry-run clean (5 new criteria, no rewording); verify.sh (see commit).
 NOT VERIFIED: nothing implemented; measurements not repeated on PGlite 0.5.10.
+
+## 2026-10-26 | FEAT-005 security pass: catalog guard bypasses (T7) | status: waiting for human review + kit.py import (AC-005-15)
+Changed: child.mjs guard now on every pg_catalog table except pg_am/pg_amproc/pg_index/pg_opclass/pg_trigger (those crash PGlite's relcache; their built-in rows are xmin-checked instead); guard warns before refusing so a swallowed catalog write sets catalogWrite -> all unknown; stand-in roles pinned by oid+name; final read does reset all / session authorization / role and search_path pg_catalog, pg_temp. execute.ts + both SandboxRun types: catalogWrite. 14 attacker fixtures + guard.test.ts; sandbox.test.ts catalog_dml now expects unknown (was known false), guard_tamper expects the extra error. Spec section 2 + T7 row; KI-015 note; plan.json AC-005-15.
+Found (failing before the fix): temp tables named pg_class/pg_policy shadowed the final read (forged RLS enabled, hid a USING (true) policy); renaming anon to service_role disguised an anon policy; swallowed refusals left tables known.
+Verified (ran this session): core vitest 72/72 (incl. 14 attacker tests); sandbox vitest 5/5 run alone; typecheck, lint, kit guard PASS.
+verify.sh: FAIL x2 under host load (sandbox runner tests hit the 30 s kill, load avg 6-9); then PASS on a quiet machine (load avg 2.3, 139 passing tests, run by the agent with NO_COLOR=1: a colour-coded log counts 0 tests in kit.py).
+NOT VERIFIED: CI-only checks; AC-005-15 not imported yet (plan.json left uncommitted).

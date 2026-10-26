@@ -64,7 +64,7 @@ const key = (schema: string, name: string) => `${schema}.${name}`;
 
 // Runs the parsed statements in the sandbox and builds the result from what Postgres ended up with (D-014).
 // Fail-closed: a failed statement makes the tables it touches unknown; a timeout, crash, cap, out-of-memory, a
-// transaction left open or a tampered catalog guard makes every table unknown.
+// transaction left open, a tampered catalog guard or any attempted catalog write makes every table unknown.
 export async function executeEntries(
   entries: Entry[],
   sandbox: MigrationSandbox,
@@ -98,7 +98,11 @@ export async function executeEntries(
     if (!step || step.searchPath === run.searchPath) unknown.known(e.parsed, seq, created);
   }
 
-  const failed = run.outcome !== "ok" || run.openTransaction || run.tampered === true;
+  const failed =
+    run.outcome !== "ok" ||
+    run.openTransaction ||
+    run.tampered === true ||
+    run.catalogWrite === true;
   if (run.outcome !== "ok") errors.push({ file: ".", message: OUTCOME_ERRORS[run.outcome] });
   if (run.openTransaction)
     errors.push({ file: ".", message: "a transaction was left open; RLS cannot be confirmed" });
@@ -106,6 +110,11 @@ export async function executeEntries(
     errors.push({
       file: ".",
       message: "migrations changed the sandbox's catalog guard; RLS cannot be confirmed",
+    });
+  if (run.catalogWrite)
+    errors.push({
+      file: ".",
+      message: "migrations tried to write the system catalogs; RLS cannot be confirmed",
     });
 
   const fileAt = (oid: string): string | undefined => {

@@ -41,33 +41,53 @@ create extension pgcrypto with schema extensions;
 const SEARCH_PATH = `set search_path to "$user", public, extensions`;
 
 // Migrations run as a superuser here, but as the non-superuser "postgres" in Supabase. A superuser could forge the
-// result with catalog DML (update pg_class set relrowsecurity = true) that Supabase refuses. These triggers refuse it
-// the same way (42501). DDL writes the catalogs directly and is not affected. pg_class and pg_authid are "nailed"
+// result with catalog DML (update pg_class set relrowsecurity = true) that Supabase refuses. These triggers, on every
+// pg_catalog table but UNGUARDED, refuse it the same way (42501). DDL writes the catalogs directly and is not affected. Before
+// refusing, the guard sends a warning (its own client_min_messages, so user SQL cannot mute it) that the child sees
+// even when user SQL swallows the error: any attempt makes the result unknown. pg_class and pg_authid are "nailed"
 // catalogs whose triggers only load in a new session, so the database is dumped and reopened after this.
-const GUARDED = ["pg_class", "pg_attribute", "pg_namespace", "pg_policy", "pg_authid"];
+const GUARD_NOTICE = "brain_guard: catalog write refused";
+// Triggers on these overflow the stack of PGlite's relcache (measured on 0.5.10); CATALOG_CHANGED watches their
+// built-in rows instead, and GUARD_STATE the guard's own pg_trigger rows.
+const UNGUARDED = ["pg_am", "pg_amproc", "pg_index", "pg_opclass", "pg_trigger"];
+const GUARDED_FILTER = `relnamespace operator(pg_catalog.=) 'pg_catalog'::pg_catalog.regnamespace
+  and relkind operator(pg_catalog.=) 'r'::pg_catalog."char"
+  and relname operator(pg_catalog.<>) all ('{${UNGUARDED.join(",")}}'::pg_catalog.name[])`;
 const GUARD = `
 create schema brain_guard;
-create function brain_guard.deny() returns trigger language plpgsql as $$
-begin raise exception 'permission denied for table %', tg_table_name using errcode = '42501'; end $$;
+create function brain_guard.deny() returns trigger language plpgsql set client_min_messages = warning as $$
+begin
+  raise warning '${GUARD_NOTICE}';
+  raise exception 'permission denied for table %', tg_table_name using errcode = '42501';
+end $$;
 set allow_system_table_mods = on;
-${GUARDED.map(
-  (t) => `create trigger brain_guard before insert or update or delete on pg_catalog.${t}
-  for each row execute function brain_guard.deny();
-alter table pg_catalog.${t} enable always trigger brain_guard;`,
-).join("\n")}
+do $$ declare t text; begin
+  foreach t in array array(select relname::text from pg_class where ${GUARDED_FILTER}) loop
+    execute format('create trigger brain_guard before insert or update or delete on pg_catalog.%I
+      for each row execute function brain_guard.deny()', t);
+    execute format('alter table pg_catalog.%I enable always trigger brain_guard', t);
+  end loop;
+end $$;
 reset allow_system_table_mods;
 `;
-// Row versions of the guard objects: any change by user SQL (disable, drop, replace, update) shows up here.
+// Row versions of the guard objects: any change by user SQL (disable, drop, replace, update) shows up here. The
+// stand-in roles are pinned by oid and name, so renaming anon to service_role cannot disguise a policy's roles.
 const GUARD_STATE = `select t.tgrelid::pg_catalog.text as name, t.xmin::pg_catalog.text as xmin,
     t.tgenabled::pg_catalog.text as enabled
   from pg_catalog.pg_trigger t where t.tgname operator(pg_catalog.=) 'brain_guard'::pg_catalog.name
   union all
   select p.oid::pg_catalog.text, p.xmin::pg_catalog.text, p.prosrc from pg_catalog.pg_proc p
   where p.pronamespace operator(pg_catalog.=) 'brain_guard'::pg_catalog.regnamespace
+  union all
+  select r.oid::pg_catalog.text, 'role', r.rolname::pg_catalog.text from pg_catalog.pg_authid r
+  where r.rolname operator(pg_catalog.=) any ('{anon,authenticated,service_role}'::pg_catalog.name[])
   order by 1`;
+const GUARDED_COUNT = `select pg_catalog.count(*)::pg_catalog.int4 as n from pg_catalog.pg_class
+  where ${GUARDED_FILTER}`;
 // A superuser may also replace what our final read relies on with DDL, which the guard triggers do not see
 // (create or replace function pg_catalog.pg_get_expr ..., or view pg_catalog.pg_roles). Any pg_catalog function,
-// relation, rule, type, operator or cast written after the baseline transaction counts as tampering.
+// relation, rule, type, operator or cast written after the baseline transaction counts as tampering, and so does any
+// built-in row (oid below 16384) of the UNGUARDED catalogs.
 const CATALOG_CHANGED = `select exists (select from pg_proc where pronamespace = 'pg_catalog'::regnamespace and $1 < xmin::text::int8)
   or exists (select from pg_class where relnamespace = 'pg_catalog'::regnamespace and $1 < xmin::text::int8)
   or exists (select from pg_rewrite r join pg_class c on c.oid = r.ev_class
@@ -77,6 +97,10 @@ const CATALOG_CHANGED = `select exists (select from pg_proc where pronamespace =
   or exists (select from pg_cast where $1 < xmin::text::int8
              and (select typnamespace from pg_type where oid = castsource) = 'pg_catalog'::regnamespace
              and (select typnamespace from pg_type where oid = casttarget) = 'pg_catalog'::regnamespace)
+  or exists (select from pg_am where oid < 16384 and $1 < xmin::text::int8)
+  or exists (select from pg_amproc where oid < 16384 and $1 < xmin::text::int8)
+  or exists (select from pg_opclass where oid < 16384 and $1 < xmin::text::int8)
+  or exists (select from pg_index where indexrelid < 16384 and $1 < xmin::text::int8)
   as changed`;
 
 const REL_FILTER = `c.relkind in ('r', 'p') and n.nspname not in ('pg_catalog', 'information_schema')
@@ -138,7 +162,8 @@ async function run({ statements, cap }) {
   await setup.close();
   const db = await PGlite.create({ loadDataDir: image, extensions });
   await db.exec(SEARCH_PATH);
-  const guard = await guardState(db);
+  const guarded = (await db.query(GUARDED_COUNT)).rows[0].n;
+  const guard = await guardState(db, guarded);
   const baseline = (await db.query("select pg_catalog.txid_current()::pg_catalog.text as xid"))
     .rows[0].xid;
   const standIns = new Map((await db.query(TABLES, [cap + 1])).rows.map((t) => [t.oid, t.rls]));
@@ -146,11 +171,15 @@ async function run({ statements, cap }) {
   let last = initial;
   let outcome = "ok";
   const steps = [];
+  let catalogWrite = false;
+  const onNotice = (notice) => {
+    if (notice?.message === GUARD_NOTICE) catalogWrite = true;
+  };
   for (const st of statements) {
     const before = st.capture ? await capture(db, st.capture) : undefined;
     let error;
     try {
-      await db.exec(st.sql);
+      await db.exec(st.sql, { onNotice });
     } catch (err) {
       // The reader masks and cuts to 200 characters; cut here too so huge messages cannot exhaust the child.
       error = { message: String(err?.message ?? err).slice(0, 1000), code: err?.code };
@@ -178,9 +207,15 @@ async function run({ statements, cap }) {
     if (err?.code === "25P02") openTransaction = true;
   }
   if (openTransaction) await db.exec("rollback");
-  await db.exec("reset role; set search_path to pg_catalog");
+  // pg_temp is searched before pg_catalog for relations unless it is listed: a temp table named pg_class would
+  // otherwise answer the reads below.
+  await db.exec(
+    "reset all; reset session authorization; reset role; set search_path to pg_catalog, pg_temp",
+  );
   const tampered =
-    guard === undefined || (await guardState(db)) !== guard || (await catalogChanged(db, baseline));
+    guard === undefined ||
+    (await guardState(db, guarded)) !== guard ||
+    (await catalogChanged(db, baseline));
 
   const tableRows = (await db.query(TABLES, [cap + standIns.size + 1])).rows.filter(
     (t) => !standIns.has(t.oid) || standIns.get(t.oid) !== t.rls,
@@ -219,6 +254,7 @@ async function run({ statements, cap }) {
     searchPath: initial.sp,
     openTransaction,
     tampered,
+    catalogWrite,
     steps,
     tables,
     policies,
@@ -234,10 +270,11 @@ async function catalogChanged(db, baseline) {
   }
 }
 
-async function guardState(db) {
+// One trigger per guarded catalog, the guard function and the three stand-in roles.
+async function guardState(db, guarded) {
   try {
     const rows = (await db.query(GUARD_STATE)).rows;
-    return rows.length === GUARDED.length + 1 ? JSON.stringify(rows) : undefined;
+    return rows.length === guarded + 4 ? JSON.stringify(rows) : undefined;
   } catch {
     return undefined; // e.g. schema brain_guard dropped
   }
