@@ -5,7 +5,9 @@ import { afterAll, describe, expect, it } from "vitest";
 import { SANDBOX_ROW_CAP, SANDBOX_TIME_LIMIT_MS, createPgliteSandbox } from "./index";
 
 // Attacks from docs/specs/FEAT-005.md section 5, run against the real child process.
-const sandbox = createPgliteSandbox();
+// Tests that do not check the time limit get 120 s, so a cold start on a loaded host is not cut short (KI-016).
+const TEST_TIME_LIMIT_MS = 120_000;
+const sandbox = createPgliteSandbox({ timeLimitMs: TEST_TIME_LIMIT_MS });
 const marker = mkdtempSync(join(tmpdir(), "brain-sandbox-"));
 afterAll(() => rmSync(marker, { recursive: true, force: true }));
 
@@ -82,7 +84,7 @@ describe("@brain/sandbox PGlite child process", () => {
   // The cap is injected small so the test stays far from the 30 s limit on a loaded host (KI-015); the default of
   // 5,000 is asserted above. More than the cap is in packages/core/src/supabase/sandbox.test.ts.
   it("AC-005-13 exactly the cap (50 tables, 50 policies) is within the cap", async () => {
-    const run = await createPgliteSandbox({ rowCap: 50 }).run([
+    const run = await createPgliteSandbox({ rowCap: 50, timeLimitMs: TEST_TIME_LIMIT_MS }).run([
       {
         sql: "do $$ begin for i in 1..50 loop execute format('create table public.t%s (id int)', i); end loop; end $$",
       },

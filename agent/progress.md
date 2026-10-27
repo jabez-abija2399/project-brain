@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-28 | KI-016 fix: sandbox test timing flake | status: done
+Changed: packages/sandbox + packages/core vitest maxWorkers 1, testTimeout 150 s; sandbox tests use timeLimitMs 120 s (TEST_TIME_LIMIT_MS) except the time-limit tests (1 ms cap check, 20 s loop). Production limit stays 30 s.
+Verified (ran this session): verify.sh PASS (typecheck, lint, tests, kit guard); before, verify.sh had failed twice before (core 1 failed under load avg 7-10; core alone 76/76).
+NOT VERIFIED: CI-only checks. packages still run concurrently under `pnpm -r` (verify.config is human-only).
+Next: FEAT-007.
+
 ## 2026-10-27 | FEAT-006 fix: re-index keeps user renames and moves (review M1/M2) | status: done (AC-006-06 pending import)
 Changed: migration 0006 features.key (path-derived, unique per project, backfilled = name) + feature_files.placed_by (auto|user); saveMap finds features by key, keeps user-placed files, replaces automatic links of mapped files; PATCH moves are placed_by user; 3 AC-006-06 re-index tests; AC-006-06 proposed in agent/plan.json.
 Verified (ran this session): 3 new tests failed before the fix, pass after (features.test.ts 13/13); verify.sh PASS (typecheck, lint, tests, kit guard) after the KI-016 test fix.

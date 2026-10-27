@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { createPgliteSandbox } from "@brain/sandbox";
 import { describe, expect, it } from "vitest";
 import { readSupabaseMigrations } from "./reader";
-import { readFixture } from "./sandbox.testing";
+import { TEST_TIME_LIMIT_MS, readFixture } from "./sandbox.testing";
 
 // D-014: the reader executes the migrations in a sandboxed PGlite (packages/sandbox) and reads the end state.
 const here = dirname(fileURLToPath(import.meta.url));
@@ -148,7 +148,10 @@ describe("@brain/core supabase reader executes migrations in a sandbox (D-014)",
   // The cap is injected small (50; the default 5,000 is asserted in packages/sandbox) so these runs stay far from the
   // 30 s limit on a loaded host (KI-015). The fixtures make 51 tables and 51 policies, one more than the cap.
   const capped = (fixture: string) =>
-    readSupabaseMigrations(resolve(SANDBOX, fixture), createPgliteSandbox({ rowCap: 50 }));
+    readSupabaseMigrations(
+      resolve(SANDBOX, fixture),
+      createPgliteSandbox({ rowCap: 50, timeLimitMs: TEST_TIME_LIMIT_MS }),
+    );
 
   it("AC-005-13 more tables than the cap stops processing and every table is unknown", async () => {
     const result = await capped("many_tables");
