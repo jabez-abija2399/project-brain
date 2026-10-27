@@ -725,6 +725,14 @@
           "passes": true,
           "verified_by": "test-log",
           "evidence": "verify.sh PASS 2026-10-26 02:19; log contains AC-005-14"
+        },
+        {
+          "id": "AC-005-15",
+          "kind": "attack",
+          "check": "A superuser migration that tries to get past the catalog guard (session_replication_role = replica, DISABLE or DROP TRIGGER, CREATE OR REPLACE of the guard function, direct pg_trigger/pg_proc/catalog DML even with the refusal swallowed, TRUNCATE of a catalog, SECURITY DEFINER functions, SET/RESET ROLE or SET SESSION AUTHORIZATION, temp tables named like catalogs, renaming the anon/authenticated/service_role roles) never produces RLS enabled or a disguised policy: the affected tables (or all tables) are reported unknown.",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-27 13:21; log contains AC-005-15"
         }
       ],
       "status": "done",
@@ -736,6 +744,7 @@
         "packages/core/src/mask.ts",
         "packages/core/src/supabase/execute.test.ts",
         "packages/core/src/supabase/execute.ts",
+        "packages/core/src/supabase/guard.test.ts",
         "packages/core/src/supabase/index.ts",
         "packages/core/src/supabase/parser.ts",
         "packages/core/src/supabase/reader.test.ts",
@@ -802,7 +811,21 @@
         "tests/fixtures/supabase/sandbox/failing/0001_failing.sql",
         "tests/fixtures/supabase/sandbox/failing_call/0001_failing_call.sql",
         "tests/fixtures/supabase/sandbox/forge/0001_forge.sql",
+        "tests/fixtures/supabase/sandbox/guard_disable_all/0001_guard_disable_all.sql",
+        "tests/fixtures/supabase/sandbox/guard_disable_user/0001_guard_disable_user.sql",
+        "tests/fixtures/supabase/sandbox/guard_drop_trigger/0001_guard_drop_trigger.sql",
+        "tests/fixtures/supabase/sandbox/guard_enable_origin/0001_guard_enable_origin.sql",
+        "tests/fixtures/supabase/sandbox/guard_pg_proc/0001_guard_pg_proc.sql",
+        "tests/fixtures/supabase/sandbox/guard_pg_trigger/0001_guard_pg_trigger.sql",
+        "tests/fixtures/supabase/sandbox/guard_replace_function/0001_guard_replace_function.sql",
+        "tests/fixtures/supabase/sandbox/guard_replica/0001_guard_replica.sql",
+        "tests/fixtures/supabase/sandbox/guard_replica_caught/0001_guard_replica_caught.sql",
+        "tests/fixtures/supabase/sandbox/guard_role_rename/0001_guard_role_rename.sql",
+        "tests/fixtures/supabase/sandbox/guard_roles/0001_guard_roles.sql",
+        "tests/fixtures/supabase/sandbox/guard_security_definer/0001_guard_security_definer.sql",
         "tests/fixtures/supabase/sandbox/guard_tamper/0001_guard_tamper.sql",
+        "tests/fixtures/supabase/sandbox/guard_temp_shadow/0001_guard_temp_shadow.sql",
+        "tests/fixtures/supabase/sandbox/guard_truncate/0001_guard_truncate.sql",
         "tests/fixtures/supabase/sandbox/loop/0001_loop.sql",
         "tests/fixtures/supabase/sandbox/many_policies/0001_many_policies.sql",
         "tests/fixtures/supabase/sandbox/many_tables/0001_many_tables.sql",
@@ -1771,6 +1794,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 125
+    "tests_passed": 139
   }
 }

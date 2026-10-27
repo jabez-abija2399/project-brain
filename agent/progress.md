@@ -1,5 +1,12 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-27 | FEAT-005 AC-005-15 (catalog guard attacks, T7) | status: done
+Changed: guard.test.ts test names now start with AC-005-15 (14 tests; names only, no assertion or fixture changes); AC-005-15 imported by the human.
+Verified (ran this session): verify.sh FAIL once (AC-005-13 5,000-table test hit the 30 s limit at load avg ~12; alone it passes in 7.5 s), then verify.sh PASS (typecheck, lint, tests, kit guard); kit pass AC-005-15 (test-log); kit done FEAT-005 (95 files, baseline 139).
+NOT VERIFIED: CI-only checks (audit, scanners, build, e2e).
+Open questions: AC-005-13 5,000-table test is timing-sensitive under machine load (related to KI-015); not yet logged as a known issue.
+Next: FEAT-006 (feature map).
+
 ## 2026-10-26 | FEAT-005 AC-005-10..14 (D-014 sandbox) | status: done
 Changed: new packages/sandbox (PGlite 0.5.10 child: empty env, WASM/heap caps, 30 s SIGKILL, uuid-ossp+pgcrypto, Supabase stand-ins incl. auth.users/storage.buckets, catalog-DML guard + tamper check, 5,000 caps); core reader executes statements there (execute.ts), mask.ts; 12 review probes un-failed; fixtures schema/rename/realistic made valid Postgres; 3 assertions changed to Postgres values (partition columns, type casing, DO-block table b known).
 Verified (ran this session): verify.sh PASS (typecheck, lint, tests 125, kit guard); 0.5.10 measurements (timeout ignored, mem cap 53200 at ~790 MB, no host files/network); kit pass AC-005-10..14 (test-log); kit done FEAT-005.

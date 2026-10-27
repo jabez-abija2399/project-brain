@@ -28,15 +28,15 @@ describe("@brain/core supabase sandbox: superuser attacks on the catalog guard (
     ["guard_pg_proc", "direct UPDATE of the guard's pg_proc.prosrc, refusals swallowed"],
     ["guard_security_definer", "SECURITY DEFINER function with replica mode, called as anon"],
     ["guard_roles", "SET/RESET ROLE and SET SESSION AUTHORIZATION, session left as anon"],
-  ])("%s: %s leaves the table unknown, never enabled", async (fixture) => {
+  ])("AC-005-15 %s: %s leaves the table unknown, never enabled", async (fixture) => {
     expect(await exposed(fixture)).toEqual(UNKNOWN);
   });
 
-  it("TRUNCATE pg_policy (no row triggers) cannot hide a USING (true) policy behind RLS enabled", async () => {
+  it("AC-005-15 TRUNCATE pg_policy (no row triggers) cannot hide a USING (true) policy behind RLS enabled", async () => {
     expect(await exposed("guard_truncate")).toEqual(UNKNOWN);
   });
 
-  it("temp relations named pg_class / pg_policy / pg_roles do not shadow the final catalog read", async () => {
+  it("AC-005-15 temp relations named pg_class / pg_policy / pg_roles do not shadow the final catalog read", async () => {
     const result = await read("guard_temp_shadow");
     expect(await exposed("guard_temp_shadow")).toEqual([false, false]);
     expect(result.policies.map((p) => [p.table, p.name, p.roles, p.using])).toEqual([
@@ -44,7 +44,7 @@ describe("@brain/core supabase sandbox: superuser attacks on the catalog guard (
     ]);
   });
 
-  it("renaming anon to service_role cannot make an anon policy look like a service_role one", async () => {
+  it("AC-005-15 renaming anon to service_role cannot make an anon policy look like a service_role one", async () => {
     expect(await exposed("guard_role_rename")).toEqual(UNKNOWN);
   });
 });
