@@ -36,7 +36,7 @@ New versions are only installed once they are 7 days old (dependency cooldown: `
 | typescript | all (dev) | typecheck | (no real alternative) | Apache-2.0 | 2026-10-23 |
 | commander | packages/cli | CLI commands/args | citty (pre-1.0), yargs (heavier API) | MIT | 2026-10-23 |
 | @clack/prompts | packages/cli | interactive setup prompts | inquirer (heavier), prompts (unmaintained: last release 2021) | MIT | 2026-10-23 |
-| @brain/core | apps/web | workspace package (pure logic) | n/a — internal workspace package | internal | 2026-10-23 |
+| @brain/core | apps/web, packages/sandbox | workspace package (pure logic); packages/sandbox imports only the sandbox run types (type-only; core has @brain/sandbox as a dev dependency for its tests) | n/a — internal workspace package | internal | 2026-10-23 |
 | @brain/db | apps/web | workspace package (data access) | n/a — internal workspace package | internal | 2026-10-23 |
 | @types/node | all (dev) | Node type definitions | required by typescript when targeting Node runtimes | MIT | 2026-10-23 |
 | @types/react | apps/web (dev) | React type definitions | required by react typecheck | MIT | 2026-10-23 |

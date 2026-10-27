@@ -141,6 +141,9 @@ importers:
 
   packages/sandbox:
     dependencies:
+      '@brain/core':
+        specifier: workspace:*
+        version: link:../core
       '@electric-sql/pglite':
         specifier: 0.5.10
         version: 0.5.10

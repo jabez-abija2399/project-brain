@@ -1,5 +1,14 @@
 export { readSupabaseMigrations } from "./reader";
-export type { MigrationSandbox, SandboxRun, SandboxStatement } from "./sandbox";
+export type {
+  MigrationSandbox,
+  PolicyKey,
+  PolicyTrees,
+  SandboxPolicy,
+  SandboxRun,
+  SandboxStatement,
+  SandboxStep,
+  SandboxTable,
+} from "./sandbox";
 export type {
   ColumnDecl,
   PolicyCommand,

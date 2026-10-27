@@ -46,6 +46,7 @@ export function createPgliteSandbox(options: PgliteSandboxOptions = {}) {
         };
         const failed = (outcome: "timeout" | "crash"): PgliteSandboxRun => ({
           outcome,
+          rowCap: cap,
           openTransaction: false,
           steps: [],
           tables: [],
@@ -56,7 +57,7 @@ export function createPgliteSandbox(options: PgliteSandboxOptions = {}) {
         child.on("message", (msg: ChildMessage) => {
           if (msg?.type === "result") {
             const { type: _type, ...run } = msg;
-            finish(run);
+            finish({ ...run, rowCap: cap });
           } else finish(failed("crash"));
         });
         child.on("error", () => finish(failed("crash")));
@@ -68,4 +69,6 @@ export function createPgliteSandbox(options: PgliteSandboxOptions = {}) {
   };
 }
 
-type ChildMessage = ({ type: "result" } & PgliteSandboxRun) | { type: "fatal"; message: string };
+type ChildMessage =
+  | ({ type: "result" } & Omit<PgliteSandboxRun, "rowCap">)
+  | { type: "fatal"; message: string };

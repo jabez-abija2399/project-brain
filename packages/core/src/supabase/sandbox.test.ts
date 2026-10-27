@@ -145,27 +145,32 @@ describe("@brain/core supabase reader executes migrations in a sandbox (D-014)",
     ]);
   });
 
-  it("AC-005-13 more than 5,000 tables stops processing and every table is unknown", async () => {
-    const result = await read("many_tables");
-    expect(result.tables.length).toBeGreaterThanOrEqual(5_000);
+  // The cap is injected small (50; the default 5,000 is asserted in packages/sandbox) so these runs stay far from the
+  // 30 s limit on a loaded host (KI-015). The fixtures make 51 tables and 51 policies, one more than the cap.
+  const capped = (fixture: string) =>
+    readSupabaseMigrations(resolve(SANDBOX, fixture), createPgliteSandbox({ rowCap: 50 }));
+
+  it("AC-005-13 more tables than the cap stops processing and every table is unknown", async () => {
+    const result = await capped("many_tables");
+    expect(result.tables.length).toBeGreaterThanOrEqual(50);
     expect(result.tables.every((t) => t.rlsUnknown && !t.rlsEnabled)).toBe(true);
     expect(rls(result)["public.accounts"]).toEqual([false, true]);
     expect(result.errors).toEqual([
       {
         file: ".",
-        message: "migrations create more than 5,000 tables or policies; RLS cannot be confirmed",
+        message: "migrations create more than 50 tables or policies; RLS cannot be confirmed",
       },
     ]);
   });
 
-  it("AC-005-13 more than 5,000 policies stops processing and every table is unknown", async () => {
-    const result = await read("many_policies");
+  it("AC-005-13 more policies than the cap stops processing and every table is unknown", async () => {
+    const result = await capped("many_policies");
     expect(rls(result)).toEqual({ "public.accounts": [false, true] });
-    expect(result.policies).toHaveLength(5_000);
+    expect(result.policies).toHaveLength(50);
     expect(result.errors).toEqual([
       {
         file: ".",
-        message: "migrations create more than 5,000 tables or policies; RLS cannot be confirmed",
+        message: "migrations create more than 50 tables or policies; RLS cannot be confirmed",
       },
     ]);
   });

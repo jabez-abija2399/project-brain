@@ -53,12 +53,13 @@ const NAMED_ONLY = new Set([
   "ViewStmt",
 ]);
 
-const OUTCOME_ERRORS: Record<Exclude<SandboxRun["outcome"], "ok">, string> = {
+const OUTCOME_ERRORS: Record<Exclude<SandboxRun["outcome"], "ok" | "capped">, string> = {
   timeout: "migrations did not finish within the time limit; RLS cannot be confirmed",
   oom: "migrations ran out of memory; RLS cannot be confirmed",
   crash: "the SQL sandbox stopped unexpectedly; RLS cannot be confirmed",
-  capped: "migrations create more than 5,000 tables or policies; RLS cannot be confirmed",
 };
+const capped = (rowCap: number) =>
+  `migrations create more than ${rowCap.toLocaleString("en-US")} tables or policies; RLS cannot be confirmed`;
 
 const key = (schema: string, name: string) => `${schema}.${name}`;
 
@@ -103,7 +104,8 @@ export async function executeEntries(
     run.openTransaction ||
     run.tampered === true ||
     run.catalogWrite === true;
-  if (run.outcome !== "ok") errors.push({ file: ".", message: OUTCOME_ERRORS[run.outcome] });
+  if (run.outcome === "capped") errors.push({ file: ".", message: capped(run.rowCap) });
+  else if (run.outcome !== "ok") errors.push({ file: ".", message: OUTCOME_ERRORS[run.outcome] });
   if (run.openTransaction)
     errors.push({ file: ".", message: "a transaction was left open; RLS cannot be confirmed" });
   if (run.tampered)

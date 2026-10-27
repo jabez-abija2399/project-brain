@@ -172,3 +172,9 @@ Found (failing before the fix): temp tables named pg_class/pg_policy shadowed th
 Verified (ran this session): core vitest 72/72 (incl. 14 attacker tests); sandbox vitest 5/5 run alone; typecheck, lint, kit guard PASS.
 verify.sh: FAIL x2 under host load (sandbox runner tests hit the 30 s kill, load avg 6-9); then PASS on a quiet machine (load avg 2.3, 139 passing tests, run by the agent with NO_COLOR=1: a colour-coded log counts 0 tests in kit.py).
 NOT VERIFIED: CI-only checks; AC-005-15 not imported yet (plan.json left uncommitted).
+
+## 2026-10-27 | FEAT-005 sandbox test stability (KI-015) | status: done
+Changed: AC-005-13 cap tests inject rowCap 50 (runner: 50 tables + 50 policies within; core: fixtures with 51 tables / 51 policies over) instead of 5,000+; default 5,000 still asserted as a constant and on a default sandbox (1 ms time limit, no PGlite). SandboxRun carries rowCap; the capped error message uses it. Run types defined once in packages/core/src/supabase/sandbox.ts; packages/sandbox/src/types.ts re-exports them (@brain/core added as a workspace dependency of @brain/sandbox). KI-015 note added.
+Verified (ran this session): verify.sh PASS twice in a row (140 tests; load average 2.5-3.6 at the time, not the ~12 that caused the earlier failure).
+NOT VERIFIED: CI-only checks (audit, scanners, build, e2e); behaviour at load average ~12.
+Next: FEAT-006 (feature map).

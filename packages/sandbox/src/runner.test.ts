@@ -73,13 +73,26 @@ describe("@brain/sandbox PGlite child process", () => {
     expect(existsSync(join(marker, "ran"))).toBe(false);
   });
 
-  it("AC-005-13 exactly 5,000 tables is within the cap", async () => {
-    const run = await sandbox.run([
+  it("AC-005-13 a sandbox created without options caps at 5,000 tables and policies", async () => {
+    // 1 ms: the run ends as a timeout before the child starts, so no PGlite is needed to see the cap in force.
+    const run = await createPgliteSandbox({ timeLimitMs: 1 }).run([]);
+    expect(run.rowCap).toBe(5_000);
+  });
+
+  // The cap is injected small so the test stays far from the 30 s limit on a loaded host (KI-015); the default of
+  // 5,000 is asserted above. More than the cap is in packages/core/src/supabase/sandbox.test.ts.
+  it("AC-005-13 exactly the cap (50 tables, 50 policies) is within the cap", async () => {
+    const run = await createPgliteSandbox({ rowCap: 50 }).run([
       {
-        sql: "do $$ begin for i in 1..5000 loop execute format('create table public.t%s (id int)', i); end loop; end $$",
+        sql: "do $$ begin for i in 1..50 loop execute format('create table public.t%s (id int)', i); end loop; end $$",
+      },
+      {
+        sql: "do $$ begin for i in 1..50 loop execute format('create policy p%s on public.t1 using (false)', i); end loop; end $$",
       },
     ]);
     expect(run.outcome).toBe("ok");
-    expect(run.tables).toHaveLength(5_000);
+    expect(run.rowCap).toBe(50);
+    expect(run.tables).toHaveLength(50);
+    expect(run.policies).toHaveLength(50);
   });
 });
