@@ -13,6 +13,15 @@ export type {
   SkippedFile,
 } from "./indexer";
 
+export {
+  FALLBACK_FEATURE,
+  ROOT_FEATURE,
+  SHARED_MIN_FEATURES,
+  featureFromPath,
+  groupFeatures,
+} from "./features";
+export type { FeatureGroup, FeatureMap, SharedFile } from "./features";
+
 export { maskSecret, maskSecretsIn } from "./mask";
 export { readSupabaseMigrations } from "./supabase";
 export type {

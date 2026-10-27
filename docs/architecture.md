@@ -69,7 +69,7 @@ Inngest jobs --> Claude API (checklist, receipt wording only)
 users, sessions (better-auth tables) · projects(id, owner_id FK, name, repo_full_name UNIQUE per owner) ·
 project_tokens(id, project_id FK, hash UNIQUE, created_at, revoked_at) · files(project_id, path, hash; UNIQUE project+path) ·
 symbols(project_id, file_id FK, kind component|function|route|table, name, signature, summary<=200) ·
-features(project_id, name UNIQUE per project, description, status) · feature_files(project_id, feature_id, file_id; PK feature+file) ·
+features(project_id, name UNIQUE per project, description, status) · feature_files(project_id, feature_id, file_id, role primary|shared; PK feature+file; one primary per file) ·
 decisions(project_id, title, reason, created_at) · agent_sessions(project_id, goal, done, unfinished, next_step, created_at) ·
 requests(project_id, feature_id, text, created_at) · checklist_items(project_id, request_id, text, status open|done|partial|missed|dismissed) ·
 receipts(project_id, request_id NULL, commit_sha NULL, summary_json, created_at) ·

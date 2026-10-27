@@ -1,4 +1,13 @@
-import { foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import {
+  check,
+  foreignKey,
+  index,
+  pgTable,
+  primaryKey,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { files } from "./code-index";
 import { createdAt, id } from "./columns";
 import { projects } from "./projects";
@@ -30,9 +39,17 @@ export const featureFiles = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     featureId: text("feature_id").notNull(),
     fileId: text("file_id").notNull(),
+    // 'primary': the one feature the file belongs to; 'shared': used by this feature among 3+ (0005).
+    role: text("role", { enum: ["primary", "shared"] })
+      .notNull()
+      .default("primary"),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.featureId, t.fileId] }),
+    onePrimary: uniqueIndex("feature_files_one_primary_uniq")
+      .on(t.projectId, t.fileId)
+      .where(sql`${t.role} = 'primary'`),
+    roleCheck: check("feature_files_role_check", sql`${t.role} IN ('primary', 'shared')`),
     featureSameProjectFk: foreignKey({
       name: "feature_files_feature_same_project_fk",
       columns: [t.projectId, t.featureId],

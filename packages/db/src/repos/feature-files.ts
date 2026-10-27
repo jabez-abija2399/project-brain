@@ -23,4 +23,11 @@ export const featureFilesRepo = {
       .from(featureFiles)
       .where(and(eq(featureFiles.projectId, projectId), eq(featureFiles.featureId, featureId)));
   },
+
+  async listForFile(db: BrainDb, projectId: string, fileId: string): Promise<FeatureFile[]> {
+    return db
+      .select()
+      .from(featureFiles)
+      .where(and(eq(featureFiles.projectId, projectId), eq(featureFiles.fileId, fileId)));
+  },
 };

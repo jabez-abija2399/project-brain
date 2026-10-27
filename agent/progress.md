@@ -1,5 +1,12 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-27 | FEAT-006 feature map | status: done
+Changed: core groupFeatures (routes/folders name features; other files follow their importers; used by 3+ features = shared); fixture tests/fixtures/feature-app; migration 0005 feature_files.role (primary|shared, one primary per file); featuresRepo.byId/update/saveMap, featureFilesRepo.listForFile; PATCH /api/projects/:id/features/:fid (rename, moveFiles; 404 cross-project, 409 duplicate name, atomic).
+Verified (ran this session): group/route/db tests (15 new); verify.sh PASS (typecheck, lint, tests, kit guard); kit pass AC-006-01..05 (test-log); kit done FEAT-006 (baseline 155).
+NOT VERIFIED: CI-only checks (audit, scanners, build, e2e); no UI (later.md); saveMap not yet called by an index upload (FEAT-008).
+Open questions: first verify --quick hit a sandbox timing flake (AC-005-12) under load; logged as KI-016.
+Next: FEAT-007.
+
 ## 2026-10-27 | FEAT-005 AC-005-15 (catalog guard attacks, T7) | status: done
 Changed: guard.test.ts test names now start with AC-005-15 (14 tests; names only, no assertion or fixture changes); AC-005-15 imported by the human.
 Verified (ran this session): verify.sh FAIL once (AC-005-13 5,000-table test hit the 30 s limit at load avg ~12; alone it passes in 7.5 s), then verify.sh PASS (typecheck, lint, tests, kit guard); kit pass AC-005-15 (test-log); kit done FEAT-005 (95 files, baseline 139).

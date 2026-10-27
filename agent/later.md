@@ -52,3 +52,5 @@
 - 2026-10-25 | FEAT-005 review L3: column named "a""b" read as `a` | likely moot since the libpg-query switch (colname comes from the AST); add a fixture to confirm
 - 2026-10-26 | FEAT-005 sandbox: more stand-ins if real migrations need them: auth.role(), auth.email(), roles supabase_admin/authenticator/supabase_auth_admin, stub net/vault/cron functions | spec section 9 OPEN
 - 2026-10-26 | FEAT-005 sandbox: the indexing job (FEAT-009) must log section 8 fields (outcome, counts, duration) and include packages/sandbox/src/child.mjs in the function bundle (outputFileTracingIncludes) | spec sections 8, 9
+- 2026-10-27 | Dashboard UI to view the feature map and rename/move files (API exists: PATCH /api/projects/:id/features/:fid) plus a paginated GET list | extends FEAT-006, FEAT-017
+- 2026-10-27 | Wire featuresRepo.saveMap into the index upload so grouping runs on every index; renamed features keep their files on re-index, but a re-index may re-create a feature under its old route name | extends FEAT-006, FEAT-008
