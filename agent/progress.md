@@ -178,3 +178,8 @@ Changed: AC-005-13 cap tests inject rowCap 50 (runner: 50 tables + 50 policies w
 Verified (ran this session): verify.sh PASS twice in a row (140 tests; load average 2.5-3.6 at the time, not the ~12 that caused the earlier failure).
 NOT VERIFIED: CI-only checks (audit, scanners, build, e2e); behaviour at load average ~12.
 Next: FEAT-006 (feature map).
+
+## 2026-10-27 | FEAT-005 drop packages/sandbox/src/types.ts | status: done
+Changed: deleted packages/sandbox/src/types.ts (human approved); index.ts and runner.ts import the run types from @brain/core directly.
+Verified (ran this session): verify.sh PASS (140 tests).
+Open questions: agent/features.json (FEAT-005 files) still lists packages/sandbox/src/types.ts; only the human can change it.

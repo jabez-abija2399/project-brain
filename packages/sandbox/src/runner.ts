@@ -1,6 +1,6 @@
 import { fork } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import type { SandboxRun, SandboxStatement } from "./types";
+import type { SandboxRun, SandboxStatement } from "@brain/core";
 
 // Limits from docs/specs/FEAT-005.md section 5 (T1, T2, T9).
 export const SANDBOX_TIME_LIMIT_MS = 30_000;
