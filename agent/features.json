@@ -886,9 +886,17 @@
           "passes": true,
           "verified_by": "test-log",
           "evidence": "verify.sh PASS 2026-10-27 22:13; log contains AC-006-05"
+        },
+        {
+          "id": "AC-006-06",
+          "kind": "state",
+          "check": "After a re-index, features the user renamed and files the user moved keep the user's choice, and no duplicate feature is created.",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
         }
       ],
-      "status": "done",
+      "status": "in_progress",
       "notes": "",
       "files": [
         "apps/web/src/app/api/projects/[id]/features/[fid]/route.ts",
