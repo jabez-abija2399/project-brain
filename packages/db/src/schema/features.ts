@@ -20,12 +20,17 @@ export const features = pgTable(
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    // Stable path-derived key a re-index matches on; the user renames `name` only. Null when user-created (0006).
+    key: text("key"),
     description: text("description"),
     status: text("status").notNull().default("todo"),
     createdAt: createdAt(),
   },
   (t) => ({
     projectNameUniq: uniqueIndex("features_project_name_uniq").on(t.projectId, t.name),
+    projectKeyUniq: uniqueIndex("features_project_key_uniq")
+      .on(t.projectId, t.key)
+      .where(sql`${t.key} IS NOT NULL`),
     projectIdUniq: uniqueIndex("features_project_id_uniq").on(t.projectId, t.id),
     projectIdx: index("features_project_idx").on(t.projectId),
   }),
@@ -43,6 +48,10 @@ export const featureFiles = pgTable(
     role: text("role", { enum: ["primary", "shared"] })
       .notNull()
       .default("primary"),
+    // 'auto': placed by grouping, replaced on re-index; 'user': moved by the user, kept on re-index (0006).
+    placedBy: text("placed_by", { enum: ["auto", "user"] })
+      .notNull()
+      .default("auto"),
   },
   (t) => ({
     pk: primaryKey({ columns: [t.featureId, t.fileId] }),
@@ -50,6 +59,7 @@ export const featureFiles = pgTable(
       .on(t.projectId, t.fileId)
       .where(sql`${t.role} = 'primary'`),
     roleCheck: check("feature_files_role_check", sql`${t.role} IN ('primary', 'shared')`),
+    placedByCheck: check("feature_files_placed_by_check", sql`${t.placedBy} IN ('auto', 'user')`),
     featureSameProjectFk: foreignKey({
       name: "feature_files_feature_same_project_fk",
       columns: [t.projectId, t.featureId],

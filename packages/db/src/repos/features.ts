@@ -19,7 +19,7 @@ function isUniqueViolation(err: unknown): boolean {
   return false;
 }
 
-/** Feature names map to file paths; paths must already be stored in `files`. */
+/** Feature names (path-derived keys) map to file paths; paths must already be stored in `files`. */
 export type FeatureMapInput = {
   features: { name: string; files: string[] }[];
   shared: { path: string; usedBy: string[] }[];
@@ -64,8 +64,8 @@ export const featuresRepo = {
   },
 
   /**
-   * Renames the feature and/or moves files into it as their primary feature (a moved shared file stops
-   * being shared), in one transaction. Returns null when the feature or any file is not in the project.
+   * Renames the feature (its key stays) and/or moves files into it as their primary feature (a moved shared
+   * file stops being shared; the move is user-placed, so a re-index keeps it), in one transaction. Returns null when the feature or any file is not in the project.
    * Throws FeatureNameTakenError on a duplicate name.
    */
   async update(
@@ -94,11 +94,15 @@ export const featuresRepo = {
             .where(
               and(eq(featureFiles.projectId, projectId), inArray(featureFiles.fileId, fileIds)),
             );
-          await tx
-            .insert(featureFiles)
-            .values(
-              fileIds.map((fileId) => ({ projectId, featureId, fileId, role: "primary" as const })),
-            );
+          await tx.insert(featureFiles).values(
+            fileIds.map((fileId) => ({
+              projectId,
+              featureId,
+              fileId,
+              role: "primary" as const,
+              placedBy: "user" as const,
+            })),
+          );
         }
         if (change.name === undefined || change.name === feature.name) return feature;
         const [renamed] = await tx
@@ -116,26 +120,39 @@ export const featuresRepo = {
   },
 
   /**
-   * Stores a grouped feature map: creates missing features by name and links each file (primary, or shared
-   * to every feature using it). Files that already have a primary feature keep it, so user corrections
-   * survive a re-run. Throws when a path is not a stored file of the project.
+   * Stores a grouped feature map (a re-index calls it again). Map feature names are stable path-derived keys:
+   * an existing feature is found by key, so a user rename survives; a new one gets the key as its name (a free
+   * variant when the user already took it). Automatic links of every mapped file are replaced by the new map;
+   * files the user placed keep their links. Throws when a path is not a stored file of the project.
    */
   async saveMap(db: BrainDb, projectId: string, map: FeatureMapInput): Promise<void> {
     await db.transaction(async (tx) => {
-      const names = new Set([
+      const keys = new Set([
         ...map.features.map((f) => f.name),
         ...map.shared.flatMap((s) => s.usedBy),
       ]);
-      if (names.size === 0) return;
-      await tx
-        .insert(features)
-        .values([...names].map((name) => ({ projectId, name })))
-        .onConflictDoNothing();
-      const featureRows = await tx
-        .select({ id: features.id, name: features.name })
+      if (keys.size === 0) return;
+      const existing = await tx
+        .select({ id: features.id, key: features.key, name: features.name })
         .from(features)
-        .where(and(eq(features.projectId, projectId), inArray(features.name, [...names])));
-      const featureId = new Map(featureRows.map((f) => [f.name, f.id]));
+        .where(eq(features.projectId, projectId));
+      const featureId = new Map<string, string>();
+      for (const f of existing) if (f.key !== null) featureId.set(f.key, f.id);
+      const taken = new Set(existing.map((f) => f.name));
+      const freeName = (key: string) => {
+        let name = key;
+        for (let n = 2; taken.has(name); n++) name = `${key}-${n}`;
+        taken.add(name);
+        return name;
+      };
+      const missing = [...keys].filter((key) => !featureId.has(key));
+      if (missing.length > 0) {
+        const created = await tx
+          .insert(features)
+          .values(missing.map((key) => ({ projectId, key, name: freeName(key) })))
+          .returning({ id: features.id, key: features.key });
+        for (const f of created) featureId.set(f.key as string, f.id);
+      }
       const fileRows = await tx
         .select({ id: files.id, path: files.path })
         .from(files)
@@ -146,20 +163,41 @@ export const featuresRepo = {
         if (!id) throw new Error(`feature map path is not a stored file: ${path}`);
         return id;
       };
+      const userPlaced = new Set(
+        (
+          await tx
+            .select({ fileId: featureFiles.fileId })
+            .from(featureFiles)
+            .where(and(eq(featureFiles.projectId, projectId), eq(featureFiles.placedBy, "user")))
+        ).map((l) => l.fileId),
+      );
       const links = [
         ...map.features.flatMap((f) =>
-          f.files.map((path) => ({ role: "primary" as const, name: f.name, path })),
+          f.files.map((path) => ({ role: "primary" as const, key: f.name, path })),
         ),
         ...map.shared.flatMap((s) =>
-          s.usedBy.map((name) => ({ role: "shared" as const, name, path: s.path })),
+          s.usedBy.map((key) => ({ role: "shared" as const, key, path: s.path })),
         ),
-      ].map((l) => ({
-        projectId,
-        featureId: featureId.get(l.name) as string,
-        fileId: idOf(l.path),
-        role: l.role,
-      }));
-      if (links.length > 0) await tx.insert(featureFiles).values(links).onConflictDoNothing();
+      ]
+        .map((l) => ({
+          projectId,
+          featureId: featureId.get(l.key) as string,
+          fileId: idOf(l.path),
+          role: l.role,
+        }))
+        .filter((l) => !userPlaced.has(l.fileId));
+      const autoFiles = [...new Set(links.map((l) => l.fileId))];
+      if (autoFiles.length === 0) return;
+      await tx
+        .delete(featureFiles)
+        .where(
+          and(
+            eq(featureFiles.projectId, projectId),
+            eq(featureFiles.placedBy, "auto"),
+            inArray(featureFiles.fileId, autoFiles),
+          ),
+        );
+      await tx.insert(featureFiles).values(links);
     });
   },
 };

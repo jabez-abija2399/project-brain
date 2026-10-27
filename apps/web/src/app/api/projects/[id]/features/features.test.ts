@@ -46,14 +46,15 @@ describe("FEAT-006 PATCH /api/projects/:id/features/:fid", () => {
       const row = await filesRepo.insert(world.db, project.id, { path: f.path, hash: f.hash });
       fileIds.set(f.path, row.id);
     }
-    await featuresRepo.saveMap(world.db, project.id, groupFeatures(index.files));
+    const map = groupFeatures(index.files);
+    await featuresRepo.saveMap(world.db, project.id, map);
     const feature = async (n: string) => {
       const row = await featuresRepo.byName(world.db, project.id, n);
       if (!row) throw new Error(`feature ${n} missing`);
       return row;
     };
     const fileId = (path: string) => fileIds.get(path) as string;
-    return { user, projectId: project.id, feature, fileId };
+    return { user, projectId: project.id, feature, fileId, fileIds, map };
   }
 
   async function linksOf(projectId: string, fileId: string) {
@@ -201,5 +202,66 @@ describe("FEAT-006 PATCH /api/projects/:id/features/:fid", () => {
     });
     expect(res.status).toBe(200);
     expect((await second.feature("orders")).name).toBe("orders");
+  });
+
+  // A re-index stores a fresh map from the same paths; features are matched by their path-derived key.
+  it("AC-006-06 a renamed feature keeps its name after a re-index and no duplicate is created", async () => {
+    const { projectId, feature, fileIds, map } = await seedProject();
+    const reviews = await feature("reviews");
+    const before = (await featuresRepo.list(world.db, projectId)).length;
+    expect((await patch(projectId, reviews.id, { name: "customer reviews" })).status).toBe(200);
+
+    const stars = await filesRepo.insert(world.db, projectId, {
+      path: "src/components/reviews/ReviewStars.tsx",
+      hash: "h",
+    });
+    fileIds.set(stars.path, stars.id);
+    const next = structuredClone(map);
+    next.features.find((f) => f.name === "reviews")?.files.push(stars.path);
+    await featuresRepo.saveMap(world.db, projectId, next);
+
+    const after = await featuresRepo.list(world.db, projectId);
+    expect(after).toHaveLength(before);
+    expect(after.map((f) => f.name)).not.toContain("reviews");
+    expect((await featuresRepo.byId(world.db, projectId, reviews.id))?.name).toBe(
+      "customer reviews",
+    );
+    expect(await linksOf(projectId, stars.id)).toEqual([
+      { featureId: reviews.id, role: "primary" },
+    ]);
+  });
+
+  it("AC-006-06 a shared file the user moved stays where the user put it after a re-index", async () => {
+    const { projectId, feature, fileId, map } = await seedProject();
+    const auth = await feature("auth");
+    const button = fileId("src/components/ui/Button.tsx");
+    expect((await patch(projectId, auth.id, { moveFiles: [button] })).status).toBe(200);
+
+    await featuresRepo.saveMap(world.db, projectId, map);
+    expect(await linksOf(projectId, button)).toEqual([{ featureId: auth.id, role: "primary" }]);
+  });
+
+  it("AC-006-06 an automatic placement follows the new map after the files change", async () => {
+    const { projectId, feature, fileId, map } = await seedProject();
+    const reviews = await feature("reviews");
+    const billing = await feature("billing");
+    const format = fileId("src/lib/format.ts");
+    expect(await linksOf(projectId, format)).toEqual([{ featureId: reviews.id, role: "primary" }]);
+
+    // format.ts is now imported by billing instead of reviews.
+    const moved = structuredClone(map);
+    for (const f of moved.features) f.files = f.files.filter((p) => p !== "src/lib/format.ts");
+    moved.features.find((f) => f.name === "billing")?.files.push("src/lib/format.ts");
+    await featuresRepo.saveMap(world.db, projectId, moved);
+    expect(await linksOf(projectId, format)).toEqual([{ featureId: billing.id, role: "primary" }]);
+
+    // Later it is used by three features: shared only, no primary left behind.
+    const shared = structuredClone(moved);
+    for (const f of shared.features) f.files = f.files.filter((p) => p !== "src/lib/format.ts");
+    shared.shared.push({ path: "src/lib/format.ts", usedBy: ["auth", "billing", "reviews"] });
+    await featuresRepo.saveMap(world.db, projectId, shared);
+    const links = await linksOf(projectId, format);
+    expect(links).toHaveLength(3);
+    expect(links.every((l) => l.role === "shared")).toBe(true);
   });
 });

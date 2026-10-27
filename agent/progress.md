@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-27 | FEAT-006 fix: re-index keeps user renames and moves (review M1/M2) | status: done (AC-006-06 pending import)
+Changed: migration 0006 features.key (path-derived, unique per project, backfilled = name) + feature_files.placed_by (auto|user); saveMap finds features by key, keeps user-placed files, replaces automatic links of mapped files; PATCH moves are placed_by user; 3 AC-006-06 re-index tests; AC-006-06 proposed in agent/plan.json.
+Verified (ran this session): 3 new tests failed before the fix, pass after (features.test.ts 13/13); verify.sh PASS (typecheck, lint, tests, kit guard) after the KI-016 test fix.
+NOT VERIFIED: CI-only checks; kit import of AC-006-06 (human); review M3/L1/L2 open (KI-017).
+Next: human imports plan.json, then kit pass AC-006-06; FEAT-007.
+
 ## 2026-10-27 | FEAT-006 feature map | status: done
 Changed: core groupFeatures (routes/folders name features; other files follow their importers; used by 3+ features = shared); fixture tests/fixtures/feature-app; migration 0005 feature_files.role (primary|shared, one primary per file); featuresRepo.byId/update/saveMap, featureFilesRepo.listForFile; PATCH /api/projects/:id/features/:fid (rename, moveFiles; 404 cross-project, 409 duplicate name, atomic).
 Verified (ran this session): group/route/db tests (15 new); verify.sh PASS (typecheck, lint, tests, kit guard); kit pass AC-006-01..05 (test-log); kit done FEAT-006 (baseline 155).

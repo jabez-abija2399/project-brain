@@ -1,0 +1,15 @@
+{
+  "features": [
+    {
+      "id": "FEAT-006",
+      "title": "Feature map: group files into named features and let the user correct them",
+      "acceptance": [
+        {
+          "id": "AC-006-06",
+          "kind": "state",
+          "check": "After a re-index, features the user renamed and files the user moved keep the user's choice, and no duplicate feature is created."
+        }
+      ]
+    }
+  ]
+}
