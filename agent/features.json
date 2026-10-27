@@ -767,7 +767,6 @@
         "packages/sandbox/src/index.ts",
         "packages/sandbox/src/runner.test.ts",
         "packages/sandbox/src/runner.ts",
-        "packages/sandbox/src/types.ts",
         "packages/sandbox/tsconfig.json",
         "packages/sandbox/vitest.config.ts",
         "tests/fixtures/supabase/migrations/0001_init.sql",
