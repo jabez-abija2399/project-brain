@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type ChecklistItem, type NewChecklistItem, checklistItems } from "../schema";
 
@@ -26,5 +26,19 @@ export const checklistItemsRepo = {
       .select()
       .from(checklistItems)
       .where(and(eq(checklistItems.projectId, projectId), eq(checklistItems.requestId, requestId)));
+  },
+
+  // Open items of every request in the project (the handoff note shows them as unfinished work).
+  async listOpenForProject(
+    db: BrainDb,
+    projectId: string,
+    limit: number,
+  ): Promise<ChecklistItem[]> {
+    return db
+      .select()
+      .from(checklistItems)
+      .where(and(eq(checklistItems.projectId, projectId), eq(checklistItems.status, "open")))
+      .orderBy(asc(checklistItems.id))
+      .limit(limit);
   },
 };

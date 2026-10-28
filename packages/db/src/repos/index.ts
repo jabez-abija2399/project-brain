@@ -19,6 +19,9 @@ export { featureFilesRepo } from "./feature-files";
 export { requestsRepo } from "./requests";
 export { checklistItemsRepo } from "./checklist-items";
 export { receiptsRepo } from "./receipts";
+export { agentSessionsRepo } from "./agent-sessions";
+export { decisionsRepo } from "./decisions";
+export { type ActivateResult, directivesRepo } from "./directives";
 export {
   projectTokensRepo,
   MAX_ACTIVE_TOKENS,

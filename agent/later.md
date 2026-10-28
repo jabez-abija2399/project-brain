@@ -57,3 +57,9 @@
 - 2026-10-28 | featuresRepo.update: report a concurrent move hitting feature_files_one_primary_uniq as its own 409 (not feature_name_taken) by checking the constraint name or locking the file rows | FEAT-006 review L1 (KI-017)
 - 2026-10-28 | Package the CLI as a runnable bin (bundle src/index.ts + @brain/core, e.g. tsup/esbuild; dep-check first) and decide the default --api-url (production URL) | FEAT-008 (bin built 2026-10-28 with esbuild -> dist/projectbrain.mjs; default --api-url still open)
 - 2026-10-28 | Remove deleted files from the stored index on re-index (KI-024) | FEAT-008
+- 2026-10-28 | MCP transport for the FEAT-010 tools (save_progress, list_progress, add_decision, list_decisions, save_directive, where_did_we_stop): resolve the bearer token to a ToolToken and call the functions in apps/web/src/server/session-tools.ts; rate-limit the write tools | FEAT-011
+- 2026-10-28 | Proposal expiry: a directive proposal not confirmed within 30 days is hidden or removed ([ASSUME] in docs/specs/FEAT-010.md section 9) | FEAT-010 follow-up
+- 2026-10-28 | Dismiss a directive (status 'dismissed') from the dashboard; the column and CHECK already allow it, no route yet | FEAT-017
+- 2026-10-28 | Dashboard list of pending directive proposals for the owner to confirm (GET + confirm button) | FEAT-017
+- 2026-10-28 | Nothing sets features.status to 'in_progress' yet; the handoff note lists features with that status only | FEAT-006 / FEAT-017
+- 2026-10-28 | Handoff note: a per-section character budget instead of greedy line fitting, so one long section cannot push others out | FEAT-010 follow-up
