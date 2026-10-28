@@ -39,3 +39,6 @@ apps/web/src/app/api/projects/[id]/directives/[did]/route.ts
 apps/web/src/app/api/projects/[id]/directives/directives.test.ts
 packages/db/src/repos/checklist-items.ts
 packages/db/src/repos/features.ts
+packages/core/src/mask.ts
+packages/core/src/mask.test.ts
+apps/web/src/server/session-tools.security.test.ts

@@ -29,10 +29,21 @@ export type ToolToken = { id: string; projectId: string };
 
 const projectIdField = z.string().min(1).max(100);
 const listLimit = z.number().int().min(1).max(MAX_LIST).optional();
+const noNul = (value: string) => !value.includes("\u0000");
 const required = (max: number) =>
-  z.string().trim().min(1, "is required").max(max, `must be ${max} characters or fewer`);
+  z
+    .string()
+    .trim()
+    .min(1, "is required")
+    .max(max, `must be ${max} characters or fewer`)
+    .refine(noNul, "must not contain NUL bytes");
 const optional = (max: number) =>
-  z.string().trim().max(max, `must be ${max} characters or fewer`).optional();
+  z
+    .string()
+    .trim()
+    .max(max, `must be ${max} characters or fewer`)
+    .refine(noNul, "must not contain NUL bytes")
+    .optional();
 
 const progressSchema = z
   .object({
@@ -228,6 +239,12 @@ export async function confirmDirective(
       throw new AppError(404, "not_found");
     case "not_proposal":
       throw new AppError(409, "directive_not_proposal", `directive is already ${result.status}`);
+    case "too_many":
+      throw new AppError(
+        409,
+        "directive_limit",
+        `a project may have at most ${result.max} active directives`,
+      );
     case "over_budget":
       throw new AppError(
         409,

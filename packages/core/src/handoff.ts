@@ -55,9 +55,17 @@ const CHECKLIST = 5;
 const FEATURES = 6;
 const DECISIONS = 7;
 
+// Section words that the note itself prints. Saved text may not contain them in any case, so a value cannot pass
+// for a section (e.g. a fake standing instruction in a goal).
+const SECTION_WORDS =
+  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|FEATURES IN PROGRESS|PROJECT HANDOFF|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:)/gi;
+
 // Saved text is flattened to one line so a value cannot start a new section.
 function oneLine(value: string): string {
-  return value.replace(/\s+/g, " ").trim();
+  return value
+    .replace(/\s+/g, " ")
+    .replace(SECTION_WORDS, (word) => word.toLowerCase())
+    .trim();
 }
 
 function pieces(input: HandoffInput): Piece[] {
@@ -102,7 +110,10 @@ export function buildHandoffNote(input: HandoffInput): string {
     } else {
       const room = remaining - headCost - 1;
       if (room < MIN_PARTIAL) continue;
-      p.out = `${p.full.slice(0, room - 1)}…`;
+      // Cut before a lone high surrogate, so the note never ends in half of an emoji.
+      let cut = room - 1;
+      if (/[\uD800-\uDBFF]/.test(p.full.charAt(cut - 1))) cut -= 1;
+      p.out = `${p.full.slice(0, cut)}…`;
       remaining -= headCost + p.out.length + 1;
     }
     if (p.head) headPrinted.add(p.section);

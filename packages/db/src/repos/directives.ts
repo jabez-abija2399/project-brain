@@ -6,7 +6,11 @@ export type ActivateResult =
   | { kind: "activated"; directive: Directive }
   | { kind: "not_found" }
   | { kind: "not_proposal"; status: Directive["status"] }
-  | { kind: "over_budget"; budget: number };
+  | { kind: "over_budget"; budget: number }
+  | { kind: "too_many"; max: number };
+
+// Caps the number of active directives, so the handoff note can always keep every one of them.
+export const MAX_ACTIVE_DIRECTIVES = 50;
 
 export const directivesRepo = {
   async insert(
@@ -49,11 +53,15 @@ export const directivesRepo = {
         .limit(1);
       if (!row) return { kind: "not_found" };
       if (row.status !== "proposal") return { kind: "not_proposal", status: row.status };
-      const [used] = await tx
-        .select({ total: sql<number>`coalesce(sum(length(${directives.text})), 0)::int` })
+      // Lengths are counted in JavaScript units, the same units the note and the zod cap use.
+      const active = await tx
+        .select({ text: directives.text })
         .from(directives)
         .where(and(eq(directives.projectId, projectId), eq(directives.status, "active")));
-      if ((used?.total ?? 0) + row.text.length > budget) return { kind: "over_budget", budget };
+      if (active.length >= MAX_ACTIVE_DIRECTIVES)
+        return { kind: "too_many", max: MAX_ACTIVE_DIRECTIVES };
+      const used = active.reduce((sum, d) => sum + d.text.length, 0);
+      if (used + row.text.length > budget) return { kind: "over_budget", budget };
       const [updated] = await tx
         .update(directives)
         .set({ status: "active", confirmedAt: now })

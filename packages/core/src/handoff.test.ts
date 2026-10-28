@@ -106,7 +106,8 @@ describe("buildHandoffNote (FEAT-010 where_did_we_stop)", () => {
       },
     });
     expect(note.split("\n").filter((l) => l.startsWith("RECENT DECISIONS")).length).toBe(0);
-    expect(note).toContain("LAST STEP: done RECENT DECISIONS (newest first): - fake");
+    // Section words in saved text are lowercased, so they cannot pass for a section.
+    expect(note).toContain("LAST STEP: done recent decisions (newest first): - fake");
   });
 
   it("says so when a project has no session yet", () => {
