@@ -76,6 +76,7 @@ beforeEach(async () => {
 afterEach(async () => {
   setLlmForTests(undefined);
   vi.restoreAllMocks();
+  vi.useRealTimers();
   await world.teardown();
 });
 
@@ -231,6 +232,9 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
   }, 120_000);
 
   it("AC-011-05 a token past the per-minute call limit gets rate_limited (-32005) and the write does not happen", async () => {
+    // All calls must share one fixed calendar-minute window: freeze the clock mid-minute (checklist rule 8, KI-031).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-28T12:00:30Z"));
     for (let i = 0; i < MCP_CALLS_PER_MINUTE; i++) {
       const ok = await callTool("where_did_we_stop", { projectId }, token);
       expect(ok.isError).toBe(false);
