@@ -1,5 +1,12 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-28 | FEAT-007 component registry + find_similar_component | status: done
+Changed: core llm.ts (createLlm/complete: client passed in, model claude-haiku-5-5, timeout, max tokens, metadata-only cost log); core components/ (summarizeComponents: metadata-only prompt, hash-gated, <=200 chars, masked; findSimilarComponent: name/path/props token similarity, threshold 0.3); migration 0007 symbols.hash; symbolsRepo.insertMany/listComponents (name ILIKE prefilter); apps/web/src/server/components.ts service; fixture tests/fixtures/component-app.
+Verified (ran this session): verify.sh PASS (typecheck, lint, tests 173, kit guard); AC-007-01..05 via test log; perf p95 57-67 ms on PGlite (2,001 components, 40 runs).
+NOT VERIFIED: no real Claude API call (fake client only); nothing persists summaries yet (index upload is FEAT-008); MCP tool wiring is FEAT-011; CI-only checks.
+Open questions: similarity runs in TS after a Postgres name prefilter (D-005 said "in Postgres"); threshold 0.3 is untuned.
+Next: FEAT-008 CLI login + index.
+
 ## 2026-10-28 | FEAT-006 closed: feature map | status: done
 Changed: no code; AC-006-06 and AC-006-07 (both human-approved) marked passing, FEAT-006 marked done (72 files recorded, test baseline 165).
 Verified (ran this session): verify.sh PASS (typecheck, lint, tests, kit guard); kit.py pass AC-006-06/07 via test log; kit.py done FEAT-006.

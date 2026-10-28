@@ -22,6 +22,26 @@ export {
 } from "./features";
 export type { FeatureGroup, FeatureMap, SharedFile } from "./features";
 
+export {
+  DEFAULT_SIMILAR_LIMIT,
+  MAX_SUMMARY,
+  SIMILARITY_THRESHOLD,
+  componentHash,
+  componentKey,
+  findSimilarComponent,
+  similarNameFilter,
+  summarizeComponents,
+} from "./components";
+export type {
+  PreviousSummaries,
+  SimilarCandidate,
+  SimilarMatch,
+  SimilarOptions,
+  SummarizedComponent,
+} from "./components";
+export { DEFAULT_MODEL, createLlm } from "./llm";
+export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "./llm";
+
 export { maskSecret, maskSecretsIn } from "./mask";
 export { readSupabaseMigrations } from "./supabase";
 export type {

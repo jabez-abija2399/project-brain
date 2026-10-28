@@ -997,45 +997,68 @@
           "id": "AC-007-01",
           "kind": "happy",
           "check": "After indexing, each component has a summary of at most 200 characters generated through llm.complete",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 11:04; log contains AC-007-01"
         },
         {
           "id": "AC-007-02",
           "kind": "happy",
           "check": "findSimilarComponent('StarRatingInput') returns the existing 'StarRating' component as the top match for the fixture app",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 11:04; log contains AC-007-02"
         },
         {
           "id": "AC-007-03",
           "kind": "negative",
           "check": "A query with no match above the similarity threshold returns an empty list, not the closest unrelated component",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 11:04; log contains AC-007-03"
         },
         {
           "id": "AC-007-04",
           "kind": "boundary",
           "check": "Summaries are generated only for new or changed components (hash changed); re-indexing an unchanged repo makes 0 LLM calls",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 11:04; log contains AC-007-04"
         },
         {
           "id": "AC-007-05",
           "kind": "perf",
           "check": "findSimilarComponent answers in under 200 ms p95 for a project with 2,000 components",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 11:04; log contains AC-007-05"
         }
       ],
-      "status": "todo",
-      "notes": "Lexical similarity (name tokens, props, path) per D-005. Builds llm.complete in @brain/core."
+      "status": "done",
+      "notes": "Lexical similarity (name tokens, props, path) per D-005. Builds llm.complete in @brain/core.",
+      "files": [
+        "apps/web/src/server/components.test.ts",
+        "apps/web/src/server/components.ts",
+        "packages/core/src/components/components.test.ts",
+        "packages/core/src/components/index.ts",
+        "packages/core/src/components/similar.ts",
+        "packages/core/src/components/summarize.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/llm.test.ts",
+        "packages/core/src/llm.ts",
+        "packages/db/migrations/0007_symbol_hash.sql",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/symbols.test.ts",
+        "packages/db/src/repos/symbols.ts",
+        "packages/db/src/schema/code-index.ts",
+        "tests/fixtures/component-app/src/app/page.tsx",
+        "tests/fixtures/component-app/src/components/billing/PlanPicker.tsx",
+        "tests/fixtures/component-app/src/components/reviews/ReviewCard.tsx",
+        "tests/fixtures/component-app/src/components/reviews/StarRating.tsx",
+        "tests/fixtures/component-app/src/components/ui/Button.tsx",
+        "tests/fixtures/component-app/src/components/ui/TextInput.tsx",
+        "tests/fixtures/component-app/tsconfig.json"
+      ]
     },
     {
       "id": "FEAT-008",
@@ -1883,6 +1906,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 165
+    "tests_passed": 173
   }
 }

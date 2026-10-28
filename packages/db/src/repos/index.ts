@@ -1,6 +1,6 @@
 export { projectsRepo } from "./projects";
 export { filesRepo } from "./files";
-export { symbolsRepo } from "./symbols";
+export { symbolsRepo, type ComponentRow } from "./symbols";
 export {
   featuresRepo,
   FeatureNameTakenError,

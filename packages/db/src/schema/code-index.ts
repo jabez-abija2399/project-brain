@@ -32,6 +32,8 @@ export const symbols = pgTable(
     name: text("name").notNull(),
     signature: text("signature"),
     summary: text("summary"),
+    // Hash of the summary inputs (path, name, signature); the summary is regenerated only when it changes (0007).
+    hash: text("hash"),
     createdAt: createdAt(),
   },
   (t) => ({
