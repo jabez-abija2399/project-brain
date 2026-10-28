@@ -1516,61 +1516,81 @@
           "id": "AC-012-01",
           "kind": "happy",
           "check": "create_checklist(request) stores the request on its feature and splits it into 1-10 concrete items through llm.complete",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 19:40; log contains AC-012-01"
         },
         {
           "id": "AC-012-02",
           "kind": "happy",
           "check": "For 'Add a pricing page with 3 plans and a monthly/yearly toggle' the checklist contains separate items for the page, the 3 plans and the toggle",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 19:40; log contains AC-012-02"
         },
         {
           "id": "AC-012-03",
           "kind": "negative",
           "check": "An empty request or one over 4,000 characters returns 400",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 19:40; log contains AC-012-03"
         },
         {
           "id": "AC-012-04",
           "kind": "boundary",
           "check": "Ambiguous items are flagged needs_clarification=true instead of being guessed (fixture request 'make it better')",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 19:40; log contains AC-012-04"
         },
         {
           "id": "AC-012-05",
           "kind": "permission",
           "check": "Creating a checklist on another user's project returns 404",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 19:40; log contains AC-012-05"
         },
         {
           "id": "AC-012-06",
           "kind": "boundary",
           "check": "Once created, checklist items cannot be reworded or deleted through MCP tools; a change is stored as a proposal and applies only after the user confirms it in the dashboard",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 19:40; log contains AC-012-06"
         },
         {
           "id": "AC-012-07",
           "kind": "attack",
           "check": "Checklist text is always returned to agents labelled as user data, never as instructions; a request containing 'ignore previous instructions' is stored as plain text",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 19:40; log contains AC-012-07"
         }
       ],
-      "status": "todo",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/api/projects/[id]/checklist-items/[itemId]/route.ts",
+        "apps/web/src/app/mcp/mcp.test.ts",
+        "apps/web/src/server/checklist.security.test.ts",
+        "apps/web/src/server/checklist.test.ts",
+        "apps/web/src/server/checklist.ts",
+        "apps/web/src/server/context-pack.ts",
+        "apps/web/src/server/mcp-tools.ts",
+        "packages/core/package.json",
+        "packages/core/src/checklist.test.ts",
+        "packages/core/src/checklist.ts",
+        "packages/core/src/handoff.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/text.test.ts",
+        "packages/core/src/text.ts",
+        "packages/db/migrations/0017_checklist.sql",
+        "packages/db/src/repos/checklist-items.ts",
+        "packages/db/src/repos/requests.ts",
+        "packages/db/src/schema/receipts.ts"
+      ]
     },
     {
       "id": "FEAT-013",
@@ -2069,6 +2089,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 427
+    "tests_passed": 465
   }
 }

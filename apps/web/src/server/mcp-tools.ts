@@ -1,6 +1,7 @@
 import { projectTokensRepo } from "@brain/db";
 import { type AuthInfo, type McpServer, ProtocolError } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { createChecklist, proposeChecklistChange } from "./checklist";
 import { findSimilarComponents } from "./components";
 import { getContextPack } from "./context-pack";
 import { getDb } from "./db";
@@ -59,9 +60,19 @@ function toProtocolError(err: unknown): ProtocolError {
     }
     if (err.status === 401) return new ProtocolError(MCP_ERROR.unauthorized, "unauthorized");
     if (err.status === 404) return new ProtocolError(MCP_ERROR.notFound, "not_found");
+    if (err.code === "ai_budget_exhausted") {
+      const now = Date.now();
+      const nextDay = (Math.floor(now / 86_400_000) + 1) * 86_400_000;
+      return new ProtocolError(MCP_ERROR.rateLimited, "ai_budget_exhausted", {
+        retry_after_s: Math.ceil((nextDay - now) / 1000),
+      });
+    }
     if (err.status === 429) {
       return new ProtocolError(MCP_ERROR.rateLimited, "rate_limited", { retry_after_s: 60 });
     }
+    // Safe, fixed codes (ai_unavailable, ai_not_configured): what to do next, no internal detail.
+    if (err.status === 502 || err.status === 503)
+      return new ProtocolError(MCP_ERROR.internal, err.code);
   }
   console.error("[mcp] unexpected error:", err instanceof Error ? err.name : "unknown");
   return new ProtocolError(MCP_ERROR.internal, "internal error");
@@ -179,6 +190,43 @@ export function registerBrainTools(server: McpServer): void {
     async (args, ctx) =>
       run("add_decision", ctx.http?.authInfo, async (token) =>
         JSON.stringify(await addDecision(getDb(), token, args)),
+      ),
+  );
+
+  server.registerTool(
+    "create_checklist",
+    {
+      description:
+        "Store the user's request on a feature and split it into 1-10 checklist items (items that are too vague " +
+        "are flagged needs_clarification). Items can only be changed later through propose_checklist_change.",
+      inputSchema: z.object({
+        projectId,
+        featureId: z.string().describe("Feature id the request belongs to"),
+        request: z.string().describe("The user's request, as they wrote it (max 4,000 characters)"),
+      }),
+    },
+    async (args, ctx) =>
+      run("create_checklist", ctx.http?.authInfo, async (token) =>
+        JSON.stringify(await createChecklist(getDb(), token, args)),
+      ),
+  );
+
+  server.registerTool(
+    "propose_checklist_change",
+    {
+      description:
+        "Propose new wording for a checklist item, or dismissing it. Nothing changes until the project owner " +
+        "confirms the proposal in the dashboard.",
+      inputSchema: z.object({
+        projectId,
+        itemId: z.string().describe("Checklist item id"),
+        text: z.string().optional().describe("Proposed new wording"),
+        dismiss: z.literal(true).optional().describe("Propose dismissing the item"),
+      }),
+    },
+    async (args, ctx) =>
+      run("propose_checklist_change", ctx.http?.authInfo, async (token) =>
+        JSON.stringify(await proposeChecklistChange(getDb(), token, args)),
       ),
   );
 }

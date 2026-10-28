@@ -105,6 +105,27 @@ apps/web/src/app/api/github/**
 apps/web/src/app/api/inngest/**
 apps/web/src/app/github/**
 docs/dependencies.md
+packages/db/migrations/0017_checklist.sql
+packages/db/src/schema/receipts.ts
+packages/db/src/repos/requests.ts
+packages/db/src/repos/checklist-items.ts
+packages/db/src/repos/checklist.test.ts
+packages/core/src/checklist.ts
+packages/core/src/checklist.test.ts
+apps/web/src/server/checklist.ts
+apps/web/src/server/checklist*.test.ts
+apps/web/src/server/mcp-tools.ts
+apps/web/src/server/context-pack.ts
+apps/web/src/server/context-pack.test.ts
+apps/web/src/app/mcp/mcp.test.ts  # AC-011-01 lists the tools; FEAT-012 adds create_checklist and propose_checklist_change
+apps/web/src/app/api/projects/[id]/checklist-items/**
+packages/core/package.json
+apps/web/src/app/api/projects/[id]/checklist-items/[itemId]/route.ts
+apps/web/src/app/api/projects/[[]id]/checklist-items/[[]itemId]/route.ts  # FEAT-012 owner confirm route (brackets escaped for fnmatch)
+packages/core/src/text.ts
+packages/core/src/text.test.ts
+packages/core/src/handoff.ts
+apps/web/src/server/checklist.security.test.ts
 packages/core/src/llm.test.ts  # gitleaks fix requested by the user: fake keys built at runtime
 .gitleaksignore  # gitleaks fix requested by the user: fingerprints of confirmed fake test values in old commits
 apps/web/src/app/mcp/mcp.test.ts  # KI-031 fix requested by the user: freeze the clock for the per-minute rate-limit test

@@ -129,8 +129,10 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
     expect(names).toEqual(
       [
         "add_decision",
+        "create_checklist",
         "find_similar_component",
         "get_context_pack",
+        "propose_checklist_change",
         "save_progress",
         "where_did_we_stop",
       ].sort(),
