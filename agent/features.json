@@ -894,6 +894,14 @@
           "passes": false,
           "verified_by": "",
           "evidence": ""
+        },
+        {
+          "id": "AC-006-07",
+          "kind": "happy",
+          "check": "Next.js route groups, the Pages Router, and Vite/React apps (Lovable layout) are grouped into features by their routes and feature folders, each proven by its own fixture.",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
         }
       ],
       "status": "in_progress",
