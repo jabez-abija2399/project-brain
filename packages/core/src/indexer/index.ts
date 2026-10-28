@@ -43,6 +43,7 @@ export async function indexRepo(root: string, options: IndexOptions = {}): Promi
       const anchor = parsed.components[0];
       routes.push({ ...route, line: anchor ? anchor.line : 1 });
     }
+    for (const r of parsed.routes) routes.push({ ...r, method: "page", declaredIn: entry.relPath });
   }
   return { root: absRoot, files: fileEntries, components, routes, skipped, errors };
 }

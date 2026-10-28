@@ -73,6 +73,8 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 
           return json(200, { ok: true, changed: files.map((f) => f.path), deleted: [] });
         }
         if (req.url === "/api/index/proj-1") return json(200, { ok: true });
+        if (req.url === "/api/index/proj-1/features")
+          return json(200, { ok: true, features: 1, shared: 0 });
         if (req.url === "/api/index/proj-1/summarize")
           return json(200, { ok: true, attempted: 0, remaining: 0, enabled: true });
         json(404, { ok: false });
@@ -128,6 +130,7 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 
       "GET /api/token/whoami",
       "POST /api/index/proj-1/diff",
       "POST /api/index/proj-1",
+      "POST /api/index/proj-1/features",
       "POST /api/index/proj-1/summarize",
     ]);
   });

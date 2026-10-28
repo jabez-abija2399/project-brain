@@ -5,4 +5,4 @@ export {
   featureFromPath,
   groupFeatures,
 } from "./group";
-export type { FeatureGroup, FeatureMap, SharedFile } from "./group";
+export type { FeatureGroup, FeatureMap, RouteInput, SharedFile } from "./group";

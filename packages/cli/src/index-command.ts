@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { type IndexResult, indexRepo, maskSecretsIn } from "@brain/core";
@@ -8,15 +9,37 @@ export const BATCH_FILES = 200;
 // Below the server's 5 MB limit, so a batch of long paths and signatures is split before the server says 413.
 const BATCH_BYTES = 4 * 1024 * 1024;
 const MAX_SUMMARIZE_ROUNDS = 200;
+// The server's cap on import paths per file (code-index-limits.ts MAX_IMPORTS_PER_FILE).
+const MAX_IMPORTS = 500;
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 type UploadSymbol = { kind: "component" | "route"; name: string; signature: string };
-export type UploadFile = { path: string; hash: string; symbols: UploadSymbol[] };
+export type UploadFile = {
+  path: string;
+  hash: string;
+  symbols: UploadSymbol[];
+  imports: string[];
+};
 
-// Metadata only: path, hash, and per symbol its kind, name and AST signature (secrets masked). No source text.
+// Metadata only: path, hash, the repo paths it imports, and per symbol its kind, name and AST signature (secrets
+// masked). No source text.
 export function toUpload(index: IndexResult): UploadFile[] {
   const byPath = new Map<string, UploadFile>(
-    index.files.map((f) => [f.path, { path: f.path, hash: f.hash, symbols: [] }]),
+    index.files.map((f) => [
+      f.path,
+      {
+        path: f.path,
+        hash: f.hash,
+        symbols: [],
+        imports: [
+          ...new Set(
+            f.imports.flatMap((i) => (i.resolved && i.resolved !== f.path ? [i.resolved] : [])),
+          ),
+        ]
+          .sort()
+          .slice(0, MAX_IMPORTS),
+      },
+    ]),
   );
   for (const c of index.components) {
     byPath.get(c.path)?.symbols.push({
@@ -25,8 +48,19 @@ export function toUpload(index: IndexResult): UploadFile[] {
       signature: maskSecretsIn(c.signature),
     });
   }
+  const declared = new Map<string, string[]>();
   for (const r of index.routes) {
     byPath.get(r.file)?.symbols.push({ kind: "route", name: r.path, signature: r.method });
+    if (r.declaredIn) declared.set(r.file, [...(declared.get(r.file) ?? []), r.path]);
+  }
+  // A React Router route lives in App.tsx but is stored on the page's file: the page's diff hash includes its URLs,
+  // so a route changed only in App.tsx re-uploads the page (and a removed route clears it).
+  for (const [path, urls] of declared) {
+    const f = byPath.get(path);
+    if (f)
+      f.hash = createHash("sha256")
+        .update(`${f.hash}\nroutes:${urls.sort().join("\n")}`)
+        .digest("hex");
   }
   return [...byPath.values()];
 }
@@ -117,7 +151,11 @@ export async function runIndex(
       `Ignoring the .git in ${ignoredGit}: it is your home folder or above it, so ${root} is indexed as the project root.`,
     );
   const all = toUpload(index)
-    .map((f) => (folder ? { ...f, path: `${folder}/${f.path}` } : f))
+    .map((f) =>
+      folder
+        ? { ...f, path: `${folder}/${f.path}`, imports: f.imports.map((i) => `${folder}/${i}`) }
+        : f,
+    )
     .sort((x, y) => byteOrder(x.path, y.path));
   const files = all.filter((f) => isStorablePath(f.path));
   const badNames = all.filter((f) => !isStorablePath(f.path)).map((f) => JSON.stringify(f.path));
@@ -177,6 +215,16 @@ export async function runIndex(
   );
   if (unreadable)
     print("Some files could not be read, so deleted files were not checked this time.");
+  // FEAT-006: the server groups the stored files into features (renames and files moved by hand are kept).
+  const grouped = await request<{ features: number; shared: number }>(
+    fetchImpl,
+    config,
+    "POST",
+    `${base}/features`,
+    {},
+    retry,
+  );
+  print(`Grouped into ${grouped.features} features (${grouped.shared} shared files)`);
 
   let summarized = 0;
   for (let round = 0; round < MAX_SUMMARIZE_ROUNDS; round++) {

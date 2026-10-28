@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_BATCH_FILES, MAX_BODY_BYTES } from "./code-index-limits";
+import { MAX_BATCH_FILES, MAX_BODY_BYTES, MAX_IMPORTS_PER_FILE } from "./code-index-limits";
 import { AppError } from "./errors";
 
 // Relative POSIX paths inside the repo only: no absolute, drive or backslash paths, no '.', '..' or empty parts, no
@@ -32,7 +32,13 @@ export const uploadSchema = z
     files: z
       .array(
         z
-          .object({ path: repoPath, hash: sha256, symbols: z.array(symbolSchema).max(500) })
+          .object({
+            path: repoPath,
+            hash: sha256,
+            symbols: z.array(symbolSchema).max(500),
+            // Repo paths the file imports (FEAT-006 grouping): paths only, under the same path rule.
+            imports: z.array(repoPath).max(MAX_IMPORTS_PER_FILE),
+          })
           .strict(),
       )
       .min(1)

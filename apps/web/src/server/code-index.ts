@@ -10,6 +10,7 @@ import { AppError } from "./errors";
 export * from "./code-index-input";
 export * from "./code-index-limits";
 export * from "./code-index-summarize";
+export * from "./code-index-features";
 
 /**
  * changed: paths whose stored hash differs or that are not stored yet, in request order. deleted (KI-024, only with a
@@ -70,6 +71,7 @@ export async function saveIndexBatch(
     return {
       path: f.path,
       hash: f.hash,
+      imports: f.imports,
       symbols: [
         ...components.map((c) => ({
           kind: "component",

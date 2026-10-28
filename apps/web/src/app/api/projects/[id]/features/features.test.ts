@@ -1,10 +1,17 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PATCH as patchFeature } from "@/app/api/projects/[id]/features/[fid]/route";
+import { POST as createFeature } from "@/app/api/projects/[id]/features/route";
 import { POST as createProject } from "@/app/api/projects/route";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
 import { groupFeatures, indexRepo } from "@brain/core";
-import { featureFilesRepo, featuresRepo, filesRepo } from "@brain/db";
+import {
+  MAX_FEATURES_PER_PROJECT,
+  featureFilesRepo,
+  features,
+  featuresRepo,
+  filesRepo,
+} from "@brain/db";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const fixtureRoot = join(
@@ -263,5 +270,103 @@ describe("FEAT-006 PATCH /api/projects/:id/features/:fid", () => {
     const links = await linksOf(projectId, format);
     expect(links).toHaveLength(3);
     expect(links.every((l) => l.role === "shared")).toBe(true);
+  });
+});
+
+describe("FEAT-006 POST /api/projects/:id/features (split a feature by hand)", () => {
+  let world: TestWorld;
+
+  beforeEach(async () => {
+    world = await createTestWorld();
+  });
+  afterEach(async () => {
+    await world.teardown();
+  });
+
+  async function newProject(name = "demo") {
+    const user = await world.createUser();
+    world.signInAs(user);
+    const res = await createProject(req("POST", "http://x/api/projects", { name }));
+    const { project } = (await res.json()) as { project: { id: string } };
+    return { user, projectId: project.id };
+  }
+  function create(projectId: string, body: unknown) {
+    return createFeature(req("POST", `http://x/api/projects/${projectId}/features`, body), {
+      params: Promise.resolve({ id: projectId }),
+    });
+  }
+
+  it("creates a feature (201) that a file can then be moved into, and a re-index keeps it", async () => {
+    const { projectId } = await newProject();
+    const page = await filesRepo.insert(world.db, projectId, { path: "src/App.tsx", hash: "h" });
+    await featuresRepo.saveMap(world.db, projectId, {
+      features: [{ key: "@home", name: "home", files: ["src/App.tsx"] }],
+      shared: [],
+    });
+    const res = await create(projectId, { name: "  reviews " });
+    expect(res.status).toBe(201);
+    const { feature } = (await res.json()) as { feature: { id: string; name: string } };
+    expect(feature.name).toBe("reviews");
+    const moved = await patchFeature(
+      req("PATCH", `http://x/api/projects/${projectId}/features/${feature.id}`, {
+        moveFiles: [page.id],
+      }),
+      paramsOf(projectId, feature.id),
+    );
+    expect(moved.status).toBe(200);
+    await featuresRepo.saveMap(world.db, projectId, {
+      features: [{ key: "@home", name: "home", files: ["src/App.tsx"] }],
+      shared: [],
+    });
+    const links = await featureFilesRepo.listForFile(world.db, projectId, page.id);
+    expect(links.map((l) => l.featureId)).toEqual([feature.id]);
+    expect((await featuresRepo.list(world.db, projectId)).map((f) => f.name).sort()).toEqual([
+      "home",
+      "reviews",
+    ]);
+  });
+
+  it("a duplicate name in the same project is 409; the same name in another project is fine", async () => {
+    const { projectId } = await newProject();
+    expect((await create(projectId, { name: "billing" })).status).toBe(201);
+    const dup = await create(projectId, { name: "billing" });
+    expect(dup.status).toBe(409);
+    expect(((await dup.json()) as { code: string }).code).toBe("feature_name_taken");
+    const other = await newProject("other");
+    expect((await create(other.projectId, { name: "billing" })).status).toBe(201);
+  });
+
+  it("attack: creating a feature in another user's project is 404 and creates nothing", async () => {
+    const victim = await newProject("victim");
+    await newProject("attacker");
+    const res = await create(victim.projectId, { name: "pwned" });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ ok: false, code: "not_found" });
+    expect((await create("no-such-project", { name: "x" })).status).toBe(404);
+    expect(await featuresRepo.list(world.db, victim.projectId)).toEqual([]);
+  });
+
+  it("attack: signed out is 401; unknown keys (projectId, key), blank or over-long names are 400", async () => {
+    const { projectId } = await newProject();
+    expect((await create(projectId, {})).status).toBe(400);
+    expect((await create(projectId, { name: "x", projectId: "other" })).status).toBe(400);
+    expect((await create(projectId, { name: "x", key: "reviews" })).status).toBe(400);
+    expect((await create(projectId, { name: "   " })).status).toBe(400);
+    expect((await create(projectId, { name: "x".repeat(81) })).status).toBe(400);
+    world.signInAs(null);
+    expect((await create(projectId, { name: "x" })).status).toBe(401);
+    expect(await featuresRepo.list(world.db, projectId)).toEqual([]);
+  });
+
+  it("attack: a project holds at most MAX_FEATURES_PER_PROJECT features; over it is 409", async () => {
+    const { projectId } = await newProject();
+    await world.db
+      .insert(features)
+      .values(
+        Array.from({ length: MAX_FEATURES_PER_PROJECT }, (_, i) => ({ projectId, name: `f${i}` })),
+      );
+    const res = await create(projectId, { name: "one more" });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as { code: string }).code).toBe("too_many_features");
   });
 });

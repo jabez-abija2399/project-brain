@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { POST as diff } from "@/app/api/index/[projectId]/diff/route";
+import { POST as group } from "@/app/api/index/[projectId]/features/route";
 import { POST as upload } from "@/app/api/index/[projectId]/route";
 import { POST as summarize } from "@/app/api/index/[projectId]/summarize/route";
 import { GET as whoami } from "@/app/api/token/whoami/route";
@@ -41,6 +42,7 @@ type Handler = (req: Request, ctx: { params: Promise<{ projectId: string }> }) =
 const routes: [RegExp, Handler][] = [
   [/^\/api\/index\/([^/]+)\/diff$/, diff],
   [/^\/api\/index\/([^/]+)\/summarize$/, summarize],
+  [/^\/api\/index\/([^/]+)\/features$/, group],
   [/^\/api\/index\/([^/]+)$/, upload],
 ];
 
@@ -196,6 +198,7 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
       "after",
       "files",
       "hash",
+      "imports",
       "kind",
       "name",
       "path",
@@ -333,10 +336,13 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     expect(paths).toContain("src/aaa/Button.tsx");
     expect(paths).not.toContain("src/components/ui/Button.tsx");
     const moved = stored.find((f) => f.path === "src/aaa/Button.tsx")?.id;
+    // Grouping (FEAT-006 wire-in) adds automatic links; the hand placement is the only user link.
     const links = await world.db.select().from(featureFiles);
-    expect(links.map((l) => [l.featureId, l.fileId, l.placedBy])).toEqual([
-      [featureId, moved, "user"],
-    ]);
+    expect(
+      links.filter((l) => l.placedBy === "user").map((l) => [l.featureId, l.fileId, l.placedBy]),
+    ).toEqual([[featureId, moved, "user"]]);
+    const ids = new Set(stored.map((f) => f.id));
+    expect(links.every((l) => ids.has(l.fileId))).toBe(true);
     const found = await findSimilarComponents(world.db, projectId, "Button");
     expect(found.filter((f) => f.name === "Button").map((f) => f.path)).toEqual([
       "src/aaa/Button.tsx",
@@ -359,7 +365,11 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     expect(paths).not.toContain("src/components/ui/Button.tsx");
     const components = await symbolsRepo.listComponents(world.db, projectId);
     expect(components.map((c) => c.name)).not.toContain("Button");
-    expect(await world.db.select().from(featureFiles)).toEqual([]);
+    // Grouping (FEAT-006 wire-in) adds automatic links; no user link is left and no link points at a deleted file.
+    const links = await world.db.select().from(featureFiles);
+    expect(links.filter((l) => l.placedBy === "user")).toEqual([]);
+    const ids = new Set((await filesRepo.list(world.db, projectId)).map((f) => f.id));
+    expect(links.every((l) => ids.has(l.fileId))).toBe(true);
   });
 
   it("KI-025 indexing a subfolder uploads repo-root paths and deletes only stored files inside it", async () => {
@@ -391,5 +401,50 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     expect(c.out.join("\n")).toMatch(
       /Daily AI budget for this project is used up: \d+ components wait until \d{4}-\d\d-\d\d \d\d:\d\d UTC\./,
     );
+  });
+
+  it("FEAT-006 wire-in: projectbrain index creates the feature map; a re-index keeps renames and follows App.tsx route changes", async () => {
+    setLlmForTests(countingLlm().llm);
+    const repo = mkdtempSync(join(tmpdir(), "pb-vite-"));
+    cpSync(join(fixtureRoot, "../vite-app"), repo, { recursive: true });
+    const c = cli(repo, serverFetch().fetchImpl);
+    await c.run("login", "--api-url", "https://brain.test");
+    expect(await c.run("index")).toBe(0);
+    expect(c.out).toContain("Grouped into 4 features (4 shared files)");
+
+    const stored = new Map((await filesRepo.list(world.db, projectId)).map((f) => [f.id, f.path]));
+    const featureOf = async (path: string) => {
+      const links = await world.db.select().from(featureFiles);
+      const link = links.find((l) => stored.get(l.fileId) === path && l.role === "primary");
+      const features = await featuresRepo.list(world.db, projectId);
+      return features.find((f) => f.id === link?.featureId)?.name;
+    };
+    expect((await featuresRepo.list(world.db, projectId)).map((f) => f.name).sort()).toEqual([
+      "billing",
+      "home",
+      "reviews",
+      "settings",
+    ]);
+    // KI-019 through the server: the detail page is named by its <Route path="/reviews/:id">.
+    expect(await featureOf("src/pages/ReviewDetail.tsx")).toBe("reviews");
+
+    const reviews = await featuresRepo.byName(world.db, projectId, "reviews");
+    await featuresRepo.update(world.db, projectId, reviews?.id as string, {
+      name: "customer reviews",
+    });
+    expect(await c.run("index")).toBe(0);
+    expect(c.out).toContain("Uploaded 0 changed, 16 unchanged");
+    expect((await featuresRepo.list(world.db, projectId)).map((f) => f.name).sort()).toEqual([
+      "billing",
+      "customer reviews",
+      "home",
+      "settings",
+    ]);
+
+    // The route moves in App.tsx only; ReviewDetail.tsx itself is unchanged but follows its new URL.
+    const app = join(repo, "src/App.tsx");
+    writeFileSync(app, readFileSync(app, "utf8").replace('"/reviews/:id"', '"/billing/:id"'));
+    expect(await c.run("index")).toBe(0);
+    expect(await featureOf("src/pages/ReviewDetail.tsx")).toBe("billing");
   });
 });
