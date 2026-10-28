@@ -10,22 +10,41 @@ export type TsconfigPaths = {
 const CANDIDATE_EXTS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const INDEX_FILES = CANDIDATE_EXTS.map((e) => `index${e}`);
 
+const NO_PATHS: TsconfigPaths = { baseUrl: ".", paths: {} };
+
 export function loadTsconfigPaths(repoRoot: string): TsconfigPaths {
   const candidates = ["tsconfig.json", "tsconfig.base.json"];
   for (const name of candidates) {
     try {
       // A symlinked tsconfig is never read (it could point outside the repo root).
-      const parsed = parseJsonc(readNoFollow(join(repoRoot, name)).toString("utf8"));
-      const opts = parsed?.compilerOptions ?? {};
-      const baseUrl = typeof opts.baseUrl === "string" ? opts.baseUrl : ".";
-      const paths = (opts.paths ?? {}) as Record<string, string[]>;
-      return { baseUrl, paths };
+      return tsconfigPathsFrom(readNoFollow(join(repoRoot, name)).toString("utf8"));
     } catch {
       /* fall through */
     }
   }
-  return { baseUrl: ".", paths: {} };
+  return NO_PATHS;
 }
+
+// The same paths from tsconfig text that was not read from disk (a file fetched from GitHub). Unreadable text = none.
+export function tsconfigPathsFromText(text: string | null): TsconfigPaths {
+  if (text === null) return NO_PATHS;
+  try {
+    return tsconfigPathsFrom(text);
+  } catch {
+    return NO_PATHS;
+  }
+}
+
+function tsconfigPathsFrom(text: string): TsconfigPaths {
+  const opts = parseJsonc(text)?.compilerOptions ?? {};
+  const baseUrl = typeof opts.baseUrl === "string" ? opts.baseUrl : ".";
+  const paths = (opts.paths ?? {}) as Record<string, string[]>;
+  return { baseUrl, paths };
+}
+
+// Which repo paths exist, for indexing files held in memory (a GitHub push): the resolver asks this instead of the
+// filesystem. Paths are repo-relative POSIX paths.
+export type FileLookup = { isFile(rel: string): boolean; isDir(rel: string): boolean };
 
 export type Resolution = { resolved: string | null; outside: boolean };
 
@@ -36,10 +55,11 @@ export function resolveImport(
   fromRelPath: string,
   repoRoot: string,
   cfg: TsconfigPaths,
+  lookup?: FileLookup,
 ): Resolution {
   if (spec.startsWith(".")) {
     const base = path.join(path.dirname(toPosix(fromRelPath)), spec);
-    return tryResolve(repoRoot, base);
+    return tryResolve(repoRoot, base, lookup);
   }
   for (const [alias, targets] of Object.entries(cfg.paths)) {
     const match = matchAlias(alias, spec);
@@ -50,7 +70,7 @@ export function resolveImport(
       const expanded =
         star === -1 ? target : target.slice(0, star) + match + target.slice(star + 1);
       const combined = path.join(cfg.baseUrl, expanded).replace(/^\.\//, "");
-      const resolved = tryResolve(repoRoot, combined);
+      const resolved = tryResolve(repoRoot, combined, lookup);
       if (resolved.resolved || resolved.outside) return resolved;
     }
     return UNRESOLVED;
@@ -67,23 +87,31 @@ function matchAlias(alias: string, spec: string): string | null {
   return spec === alias ? "" : null;
 }
 
-function tryResolve(repoRoot: string, relCandidate: string): Resolution {
+function tryResolve(repoRoot: string, relCandidate: string, lookup?: FileLookup): Resolution {
   const normalized = path.normalize(relCandidate.replace(/\\/g, "/"));
   // Never touch the filesystem outside the repo: no path recorded, no existence check.
   if (normalized === ".." || normalized.startsWith("../") || path.isAbsolute(normalized)) {
     return { resolved: null, outside: true };
   }
-  const realRoot = realpathOrNull(repoRoot);
-  if (!realRoot) return UNRESOLVED;
-  const abs = join(repoRoot, normalized);
-  const found = (resolved: string): Resolution => ({ resolved, outside: false });
-  if (existsAsFile(abs, realRoot)) return found(normalized);
-  for (const ext of CANDIDATE_EXTS) {
-    if (existsAsFile(`${abs}${ext}`, realRoot)) return found(`${normalized}${ext}`);
+  let isFile: (rel: string) => boolean;
+  let isDir: (rel: string) => boolean;
+  if (lookup) {
+    isFile = (rel) => lookup.isFile(rel);
+    isDir = (rel) => lookup.isDir(rel);
+  } else {
+    const realRoot = realpathOrNull(repoRoot);
+    if (!realRoot) return UNRESOLVED;
+    isFile = (rel) => existsAsFile(join(repoRoot, rel), realRoot);
+    isDir = (rel) => existsAsDir(join(repoRoot, rel), realRoot);
   }
-  if (existsAsDir(abs, realRoot)) {
+  const found = (resolved: string): Resolution => ({ resolved, outside: false });
+  if (isFile(normalized)) return found(normalized);
+  for (const ext of CANDIDATE_EXTS) {
+    if (isFile(`${normalized}${ext}`)) return found(`${normalized}${ext}`);
+  }
+  if (isDir(normalized)) {
     for (const idx of INDEX_FILES) {
-      if (existsAsFile(join(abs, idx), realRoot)) return found(`${normalized}/${idx}`);
+      if (isFile(`${normalized}/${idx}`)) return found(`${normalized}/${idx}`);
     }
   }
   return UNRESOLVED;

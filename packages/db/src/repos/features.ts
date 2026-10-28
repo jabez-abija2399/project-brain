@@ -15,7 +15,7 @@ class FileNotInProject extends Error {}
 export const MAX_FEATURES_PER_PROJECT = 500;
 const LINK_BATCH = 5000;
 
-function isUniqueViolation(err: unknown): boolean {
+export function isUniqueViolation(err: unknown): boolean {
   // drizzle wraps the driver error; walk the cause chain for Postgres code 23505.
   for (let e = err as { code?: string; cause?: unknown } | undefined; e; e = e.cause as typeof e) {
     if (e.code === "23505") return true;

@@ -15,7 +15,7 @@ const EXCLUDED_DIRS = new Set([
   ".turbo",
   ".vercel",
 ]);
-const DEFAULT_MAX_BYTES = 1024 * 1024;
+export const DEFAULT_MAX_BYTES = 1024 * 1024;
 
 export type WalkEntry = {
   absPath: string;
@@ -136,13 +136,25 @@ function isGitignored(relPath: string, isDir: boolean, rules: IgnoreRules[]): bo
 
 function looksBinary(abs: string): boolean {
   try {
-    const buf = readNoFollow(abs);
-    const slice = buf.subarray(0, Math.min(buf.length, 8192));
-    for (const byte of slice) if (byte === 0) return true;
-    return false;
+    return isBinary(readNoFollow(abs));
   } catch {
     return false;
   }
+}
+
+// A NUL byte in the first 8 KB means binary (the same rule for files on disk and files held in memory).
+export function isBinary(buf: Uint8Array): boolean {
+  const slice = buf.subarray(0, Math.min(buf.length, 8192));
+  for (const byte of slice) if (byte === 0) return true;
+  return false;
+}
+
+// The walker's path rules for a file that is not on disk (a GitHub push): an excluded folder anywhere in the path or
+// an unsupported extension skips it. .gitignore is not applied: a pushed file is committed, so it is not ignored.
+export function pathSkipReason(relPath: string): SkippedFile["reason"] | null {
+  const parts = relPath.split("/");
+  if (parts.slice(0, -1).some((part) => EXCLUDED_DIRS.has(part))) return "excluded_dir";
+  return SUPPORTED_EXT.has(extname(parts[parts.length - 1] ?? "")) ? null : "unsupported_ext";
 }
 
 // O_NOFOLLOW: a path swapped for a symlink after the walk fails to open instead of reading the target.

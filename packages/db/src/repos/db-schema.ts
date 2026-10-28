@@ -23,6 +23,17 @@ export const dbTablesRepo = {
     return row;
   },
 
+  // Fail closed (build checklist rule 2): every table of the project becomes RLS unknown, never enabled. Used when
+  // migrations changed but could not be re-read (FEAT-009 push while KI-014 keeps the sandbox out of the job).
+  async markAllRlsUnknown(db: BrainDb, projectId: string): Promise<number> {
+    const rows = await db
+      .update(dbTables)
+      .set({ rlsEnabled: false, rlsUnknown: true })
+      .where(eq(dbTables.projectId, projectId))
+      .returning({ id: dbTables.id });
+    return rows.length;
+  },
+
   async list(db: BrainDb, projectId: string): Promise<DbTable[]> {
     return db.select().from(dbTables).where(eq(dbTables.projectId, projectId));
   },
