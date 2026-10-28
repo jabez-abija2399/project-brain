@@ -1,4 +1,12 @@
-import { foreignKey, index, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  foreignKey,
+  index,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { createdAt, id } from "./columns";
 import { projects } from "./projects";
 
@@ -34,6 +42,10 @@ export const symbols = pgTable(
     summary: text("summary"),
     // Hash of the summary inputs (path, name, signature); the summary is regenerated only when it changes (0007).
     hash: text("hash"),
+    // Last summary attempt for this hash: 'ok' | 'empty' | 'error', NULL = not attempted (0008).
+    summaryStatus: text("summary_status").$type<"ok" | "empty" | "error">(),
+    summaryAttempts: integer("summary_attempts").notNull().default(0),
+    summaryAttemptedAt: timestamp("summary_attempted_at", { withTimezone: true, mode: "date" }),
     createdAt: createdAt(),
   },
   (t) => ({

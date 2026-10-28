@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-28 | FEAT-007 fix: review M1 + L1-L3 (agent/reviews/FEAT-007.md) | status: done
+Changed: summarizeComponents records summaryStatus ok/empty/error, summaryAttempts and summaryAttemptedAt per hash; an attempted unchanged component is not re-sent; errors retry at most once per 24 h, 3 times per hash; the batch stops after 5 errors in a row. createLlm logs failed calls (model, purpose, error class name only) and caps max tokens at options.maxTokens. Query words are capped at 20 for both the DB pre-filter and scoring. Migration 0008 (flags/counters/timestamp only); symbolsRepo lists the new columns. Tests: empty answer + 3 unchanged re-indexes = 0 calls; outage = 5 calls; retry schedule; masking of path/signature/answer.
+Verified (ran this session): verify.sh PASS (typecheck, lint, tests, kit guard); 9 new tests (7 failed before the fix; the masking test pins existing behaviour).
+NOT VERIFIED: no real Claude API call; nothing loads PreviousSummaries from the DB yet (KI-022, FEAT-008).
+Next: FEAT-008 CLI login + index.
+
 ## 2026-10-28 | FEAT-007 component registry + find_similar_component | status: done
 Changed: core llm.ts (createLlm/complete: client passed in, model claude-haiku-5-5, timeout, max tokens, metadata-only cost log); core components/ (summarizeComponents: metadata-only prompt, hash-gated, <=200 chars, masked; findSimilarComponent: name/path/props token similarity, threshold 0.3); migration 0007 symbols.hash; symbolsRepo.insertMany/listComponents (name ILIKE prefilter); apps/web/src/server/components.ts service; fixture tests/fixtures/component-app.
 Verified (ran this session): verify.sh PASS (typecheck, lint, tests 173, kit guard); AC-007-01..05 via test log; perf p95 57-67 ms on PGlite (2,001 components, 40 runs).

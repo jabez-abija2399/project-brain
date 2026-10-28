@@ -5,6 +5,8 @@ packages/core/src/llm.test.ts
 packages/core/src/components/**
 packages/core/src/index.ts
 packages/db/migrations/0007_symbol_hash.sql
+packages/db/migrations/0008_symbol_summary_attempts.sql
+agent/known-issues.md
 packages/db/src/schema/code-index.ts
 packages/db/src/repos/symbols.ts
 packages/db/src/repos/index.ts

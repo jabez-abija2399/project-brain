@@ -38,6 +38,8 @@ export type {
   SimilarMatch,
   SimilarOptions,
   SummarizedComponent,
+  SummaryState,
+  SummaryStatus,
 } from "./components";
 export { DEFAULT_MODEL, createLlm } from "./llm";
 export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "./llm";

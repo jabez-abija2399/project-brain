@@ -9,6 +9,9 @@ export type ComponentRow = {
   signature: string | null;
   summary: string | null;
   hash: string | null;
+  summaryStatus: "ok" | "empty" | "error" | null;
+  summaryAttempts: number;
+  summaryAttemptedAt: Date | null;
 };
 
 const INSERT_BATCH = 500;
@@ -80,6 +83,9 @@ export const symbolsRepo = {
         signature: symbols.signature,
         summary: symbols.summary,
         hash: symbols.hash,
+        summaryStatus: symbols.summaryStatus,
+        summaryAttempts: symbols.summaryAttempts,
+        summaryAttemptedAt: symbols.summaryAttemptedAt,
       })
       .from(symbols)
       .innerJoin(files, and(eq(files.projectId, symbols.projectId), eq(files.id, symbols.fileId)))

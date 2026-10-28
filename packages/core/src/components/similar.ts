@@ -9,6 +9,8 @@ export type SimilarOptions = { threshold?: number; limit?: number };
 export const SIMILARITY_THRESHOLD = 0.3;
 export const DEFAULT_SIMILAR_LIMIT = 5;
 const MAX_QUERY = 200;
+// The database name pre-filter takes at most 20 words (symbolsRepo MAX_NAME_TOKENS); scoring uses the same ones.
+const MAX_QUERY_TOKENS = 20;
 const NAME_WEIGHT = 0.8;
 const CONTEXT_WEIGHT = 0.2;
 
@@ -53,6 +55,10 @@ export function nameTokens(text: string): string[] {
   return [...out];
 }
 
+function queryTokens(query: string): string[] {
+  return nameTokens(query.slice(0, MAX_QUERY)).slice(0, MAX_QUERY_TOKENS);
+}
+
 function contextTokens(c: SimilarCandidate): Set<string> {
   const tokens = [...nameTokens(c.path), ...nameTokens(c.signature ?? "")];
   return new Set(tokens.filter((t) => !NOISE.has(t)));
@@ -80,7 +86,7 @@ export function similarNameFilter(
   options: SimilarOptions = {},
 ): string[] | undefined {
   const threshold = options.threshold ?? SIMILARITY_THRESHOLD;
-  return threshold > CONTEXT_WEIGHT ? nameTokens(query.slice(0, MAX_QUERY)) : undefined;
+  return threshold > CONTEXT_WEIGHT ? queryTokens(query) : undefined;
 }
 
 // Best matches at or above the threshold, best first. Nothing similar enough -> [] (never the closest unrelated one).
@@ -91,7 +97,7 @@ export function findSimilarComponent<T extends SimilarCandidate>(
 ): SimilarMatch<T>[] {
   const threshold = options.threshold ?? SIMILARITY_THRESHOLD;
   const limit = options.limit ?? DEFAULT_SIMILAR_LIMIT;
-  const q = nameTokens(query.slice(0, MAX_QUERY));
+  const q = queryTokens(query);
   // Path and props alone can never reach the threshold: a candidate must share a name token.
   const needsName = threshold > CONTEXT_WEIGHT;
   const matches: SimilarMatch<T>[] = [];

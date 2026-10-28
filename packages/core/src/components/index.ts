@@ -5,7 +5,12 @@ export {
   componentKey,
   summarizeComponents,
 } from "./summarize";
-export type { PreviousSummaries, SummarizedComponent } from "./summarize";
+export type {
+  PreviousSummaries,
+  SummarizedComponent,
+  SummaryState,
+  SummaryStatus,
+} from "./summarize";
 export {
   DEFAULT_SIMILAR_LIMIT,
   SIMILARITY_THRESHOLD,

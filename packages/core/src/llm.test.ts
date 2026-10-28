@@ -51,3 +51,38 @@ describe("llm.complete", () => {
     ]);
   });
 });
+
+describe("llm.complete options", () => {
+  it("caps max tokens at createLlm's maxTokens", async () => {
+    const sent: number[] = [];
+    const client: LlmClient = {
+      messages: {
+        async create(params) {
+          sent.push(params.max_tokens);
+          return { content: [] };
+        },
+      },
+    };
+    const llm = createLlm(client, { maxTokens: 50 });
+    await llm.complete({ prompt: "a", purpose: "t" });
+    await llm.complete({ prompt: "b", maxTokens: 200, purpose: "t" });
+    await llm.complete({ prompt: "c", maxTokens: 20, purpose: "t" });
+    expect(sent).toEqual([50, 50, 20]);
+  });
+
+  it("logs a failed call with model, purpose and error type only, then rethrows", async () => {
+    const client: LlmClient = {
+      messages: {
+        async create() {
+          throw Object.assign(new Error("401 bad key sk-ant-ABCDEFGHIJKLMNOPQRSTUV"), {
+            name: "AuthenticationError",
+          });
+        },
+      },
+    };
+    const log: LlmCostEntry[] = [];
+    const llm = createLlm(client, { log: (e) => log.push(e) });
+    await expect(llm.complete({ prompt: "secret prompt", purpose: "t" })).rejects.toThrow();
+    expect(log).toEqual([{ model: DEFAULT_MODEL, purpose: "t", error: "AuthenticationError" }]);
+  });
+});

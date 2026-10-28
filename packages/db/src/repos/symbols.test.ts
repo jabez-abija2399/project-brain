@@ -58,6 +58,9 @@ describe("FEAT-007 symbolsRepo components", () => {
         signature: "() => JSX",
         summary: "Stars",
         hash: "h1",
+        summaryStatus: null,
+        summaryAttempts: 0,
+        summaryAttemptedAt: null,
       },
     ]);
     const byToken = (tokens: string[]) =>
@@ -67,5 +70,49 @@ describe("FEAT-007 symbolsRepo components", () => {
     expect(await byToken(["rating", "zzz"])).toEqual(["StarRating"]);
     expect(await byToken(["%"])).toEqual([]);
     expect(await byToken([])).toEqual([]);
+  });
+
+  it("AC-007-04 stores and lists the summary attempt state for each component (0008)", async () => {
+    await usersRepo.upsertById(db, { id: "u1", name: "u1", email: "u1@example.com" });
+    const mine = await projectsRepo.create(db, "u1", { name: "mine" });
+    const file = await filesRepo.insert(db, mine.id, { path: "src/A.tsx", hash: "f1" });
+    const at = new Date("2026-10-28T10:00:00Z");
+    await symbolsRepo.insertMany(db, mine.id, [
+      {
+        fileId: file.id,
+        kind: "component",
+        name: "Failed",
+        signature: null,
+        summary: null,
+        hash: "h1",
+        summaryStatus: "error",
+        summaryAttempts: 2,
+        summaryAttemptedAt: at,
+      },
+      { fileId: file.id, kind: "component", name: "Legacy", signature: null, hash: "h2" },
+    ]);
+    const rows = await symbolsRepo.listComponents(db, mine.id);
+    const byName = Object.fromEntries(rows.map(({ id: _id, ...r }) => [r.name, r]));
+    expect(byName.Failed).toMatchObject({
+      summaryStatus: "error",
+      summaryAttempts: 2,
+      summaryAttemptedAt: at,
+    });
+    expect(byName.Legacy).toMatchObject({
+      summaryStatus: null,
+      summaryAttempts: 0,
+      summaryAttemptedAt: null,
+    });
+    await expect(
+      symbolsRepo.insertMany(db, mine.id, [
+        {
+          fileId: file.id,
+          kind: "component",
+          name: "Bad",
+          hash: "h3",
+          summaryStatus: "maybe" as "ok",
+        },
+      ]),
+    ).rejects.toThrow();
   });
 });
