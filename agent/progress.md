@@ -315,3 +315,10 @@ Security pass (fresh context): 24 attacker tests, 3 findings fixed with one shar
 Verified (ran this session): verify.sh PASS (typecheck, lint, 465 tests, kit guard); semgrep --config auto: 0 findings; kit.py pass AC-012-01..07; kit.py done FEAT-012.
 NOT VERIFIED: the real model (AC-012-02 and AC-012-04 run on scripted model answers; the prompt never ran against Claude here); real Postgres concurrency for the budget and the proposal row lock (PGlite); gitleaks and CI-only steps.
 Next: human review (security-sensitive); FEAT-017 dashboard for proposals (confirm should carry proposed_at).
+
+## 2026-10-28 | FEAT-013 change receipt | status: done
+Changed: MCP tool generate_receipt (core buildReceipt + web service): per-item done/partial/missed with file evidence, changed files grouped by feature, outside_scope list, Not verified section (no evidence or no test changed). One AI call max under the daily budget; 0 files = all missed, no call, no stored status change. Checklist items get a position column (migration 0020) so order is stable.
+Security pass (fresh context, 23 attacker tests): fixed concurrent receipts reopening done items (setStatuses only touches open/partial/missed), loose verdict parse ("donez"), ordinary long paths masked as secrets (mask per path segment).
+Verified (ran this session): verify.sh PASS (typecheck, lint, tests, kit guard); kit check 0 errors; semgrep (typescript + secrets) 0 findings on the changed files.
+NOT verified: real model quality (fake LLM in tests); gitleaks/osv/build/e2e run in CI only.
+Next: FEAT-017 receipts feed; design notes in agent/later.md.
