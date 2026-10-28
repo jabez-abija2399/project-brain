@@ -85,7 +85,13 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
           EXIT.usage,
           "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `projectbrain login` again.",
         );
-      await runIndex(deps.fetch, config, resolve(deps.cwd, args[0] ?? "."), deps.stdout);
+      await runIndex(
+        deps.fetch,
+        config,
+        resolve(deps.cwd, args[0] ?? "."),
+        deps.stdout,
+        deps.homedir ?? osHomedir(),
+      );
     } else {
       deps.stderr(helpText());
       return EXIT.usage;

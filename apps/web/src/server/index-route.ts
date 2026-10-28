@@ -9,7 +9,8 @@ import { requireTokenProject } from "./tokens";
 type Ctx = { params: Promise<{ projectId: string }> };
 
 // Shared shell of the /api/index/:projectId routes: the token must belong to the URL's project (else 404), one rate
-// limit per token (Postgres counter shared by all instances), one log line (route, project, duration, outcome; never
+// limit per token and one per project, so extra tokens don't multiply it (Postgres counters shared by all
+// instances), one log line (route, project, duration, outcome; never
 // the body or the token), one error shape.
 export function indexRoute(
   name: string,
@@ -23,6 +24,7 @@ export function indexRoute(
       const db = getDb();
       const token = await requireTokenProject(db, req, projectId);
       await rateLimit(db, `index:${token.id}`, INDEX_REQUESTS_PER_MINUTE);
+      await rateLimit(db, `index-project:${projectId}`, INDEX_REQUESTS_PER_MINUTE);
       return NextResponse.json({ ok: true, ...(await handle(db, projectId, req)) });
     } catch (err) {
       const res = toResponse(err);

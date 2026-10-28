@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { type IndexResult, indexRepo, maskSecretsIn } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
@@ -31,17 +31,36 @@ export function toUpload(index: IndexResult): UploadFile[] {
   return [...byPath.values()];
 }
 
+// Paths in messages are quoted when they hold characters a terminal could act on.
+function shown(path: string): string {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this escapes
+  return /[\u0000-\u001f\u007f]/.test(path) ? JSON.stringify(path) : path;
+}
+
 // Byte order (UTF-8), the server's order for diff ranges (Postgres COLLATE "C").
 function byteOrder(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a), Buffer.from(b));
 }
 
 // KI-025: a subfolder of a git repo is indexed with repo-root paths and its folder, so only files there can be deleted.
-export function repoFolder(dir: string): string | undefined {
+// L4: a .git in the home folder or above it (a dotfiles repo) is not the app's repo; it is returned as ignoredGit.
+export function repoFolder(dir: string, home?: string): { folder?: string; ignoredGit?: string } {
   for (let at = dir; ; at = dirname(at)) {
-    if (existsSync(join(at, ".git"))) return relative(at, dir).split(sep).join("/") || undefined;
-    if (dirname(at) === at) return undefined;
+    if (existsSync(join(at, ".git"))) {
+      const fromHome = home === undefined ? ".." : relative(at, home);
+      if (!fromHome.startsWith("..") && !isAbsolute(fromHome)) return { ignoredGit: at };
+      const folder = relative(at, dir).split(sep).join("/");
+      return folder ? { folder } : {};
+    }
+    if (dirname(at) === at) return {};
   }
+}
+
+// The server's path rule (code-index.ts repoPath): no backslash, control character or drive prefix, at most 1024
+// characters. Legal file names on Linux and macOS can break it; such files are skipped, not the whole index.
+function isStorablePath(path: string): boolean {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this rejects
+  return path.length <= 1024 && !/[\\\u0000-\u001f\u007f]/.test(path) && !/^[A-Za-z]:/.test(path);
 }
 
 export function batches<T>(
@@ -71,19 +90,39 @@ export async function runIndex(
   config: CliConfig,
   root: string,
   print: (line: string) => void,
+  home?: string,
 ): Promise<void> {
   const started = Date.now();
   const index = await indexRepo(root);
   print(
     `Indexing ${index.files.length} files (${index.skipped.length} skipped, ${index.errors.length} errors)...`,
   );
+  // M1: an unreadable folder's files are missing from the index; going on would delete them on the server.
+  const unreadableDirs = index.errors
+    .filter((e) => e.message.startsWith("folder read failed"))
+    .map((e) => e.path);
+  if (unreadableDirs.length > 0)
+    throw new CliError(
+      EXIT.failure,
+      `Cannot read folder${unreadableDirs.length > 1 ? "s" : ""} ${unreadableDirs.map(shown).join(", ")}: fix its permissions and run index again. Nothing was uploaded or deleted.`,
+    );
   // Nothing found usually means the wrong folder: stop before a diff range would delete the whole stored index.
   if (index.files.length === 0)
     throw new CliError(EXIT.usage, `No files to index in ${root}: run it in the repo root.`);
-  const folder = repoFolder(root);
-  const files = toUpload(index)
+  const { folder, ignoredGit } = repoFolder(root, home);
+  if (ignoredGit)
+    print(
+      `Ignoring the .git in ${ignoredGit}: it is your home folder or above it, so ${root} is indexed as the project root.`,
+    );
+  const all = toUpload(index)
     .map((f) => (folder ? { ...f, path: `${folder}/${f.path}` } : f))
     .sort((x, y) => byteOrder(x.path, y.path));
+  const files = all.filter((f) => isStorablePath(f.path));
+  const badNames = all.filter((f) => !isStorablePath(f.path)).map((f) => JSON.stringify(f.path));
+  if (badNames.length > 0)
+    print(
+      `Skipped ${badNames.length} file${badNames.length > 1 ? "s" : ""} whose names the server cannot store (backslash, control character, drive letter or too long): ${badNames.join(", ")}`,
+    );
   const base = `/api/index/${encodeURIComponent(config.projectId)}`;
 
   // KI-024: each diff batch covers the local paths in (after, through]; the server deletes stored files in that range

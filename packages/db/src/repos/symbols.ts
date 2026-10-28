@@ -1,4 +1,4 @@
-import { and, eq, ilike, inArray, or } from "drizzle-orm";
+import { and, asc, eq, gt, ilike, inArray, or } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type NewSymbol, type Symbol as SymbolRow, files, symbols } from "../schema";
 
@@ -61,13 +61,14 @@ export const symbolsRepo = {
   },
 
   // Components of one project with their file path: the candidate set for findSimilarComponent and the previous
-  // hashes/summaries for a re-index. Bounded by the project's size (v1 budget: 2,000 files). nameContainsAny keeps
-  // only names containing one of the tokens (case-insensitive), so the lookup reads candidates, not the whole set;
-  // paths keeps only the components of those files (an index upload batch).
+  // hashes/summaries for a re-index. Bounded by the project's storage caps (default 100,000 symbols). nameContainsAny
+  // keeps only names containing one of the tokens (case-insensitive), so the lookup reads candidates, not the whole
+  // set; paths keeps only the components of those files (an index upload batch); limit reads one page in id order,
+  // after afterId.
   async listComponents(
     db: BrainDb,
     projectId: string,
-    filter: { nameContainsAny?: string[]; paths?: string[] } = {},
+    filter: { nameContainsAny?: string[]; paths?: string[]; afterId?: string; limit?: number } = {},
   ): Promise<ComponentRow[]> {
     const conditions = [eq(symbols.projectId, projectId), eq(symbols.kind, "component")];
     if (filter.paths) {
@@ -80,7 +81,8 @@ export const symbolsRepo = {
       const nameFilter = or(...tokens.map((t) => ilike(symbols.name, likePattern(t))));
       if (nameFilter) conditions.push(nameFilter);
     }
-    return db
+    if (filter.afterId !== undefined) conditions.push(gt(symbols.id, filter.afterId));
+    const query = db
       .select({
         id: symbols.id,
         name: symbols.name,
@@ -95,6 +97,7 @@ export const symbolsRepo = {
       .from(symbols)
       .innerJoin(files, and(eq(files.projectId, symbols.projectId), eq(files.id, symbols.fileId)))
       .where(and(...conditions));
+    return filter.limit === undefined ? query : query.orderBy(asc(symbols.id)).limit(filter.limit);
   },
 
   async deleteByFile(db: BrainDb, projectId: string, fileId: string): Promise<void> {

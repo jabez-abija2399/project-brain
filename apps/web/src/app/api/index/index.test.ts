@@ -5,7 +5,14 @@ import { POST as summarize } from "@/app/api/index/[projectId]/summarize/route";
 import { setLlmForTests } from "@/server/llm";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
 import type { Llm } from "@brain/core";
-import { filesRepo, projectTokensRepo, projectsRepo, symbolsRepo } from "@brain/db";
+import {
+  featureFiles,
+  featuresRepo,
+  filesRepo,
+  projectTokensRepo,
+  projectsRepo,
+  symbolsRepo,
+} from "@brain/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Handler = (req: Request, ctx: { params: Promise<{ projectId: string }> }) => Promise<Response>;
@@ -211,13 +218,21 @@ describe("FEAT-008 /api/index", () => {
     });
   });
 
+  // The rate-limit tests freeze the clock mid-minute, so their requests never straddle a minute window (L5).
+  const freezeMidMinute = () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-28T12:00:30Z"));
+  };
+
   it("more than 60 index requests a minute with one token get 429", async () => {
+    freezeMidMinute();
     const body = { files: [{ path: "src/A.tsx", hash: sha("x") }] };
     for (let i = 0; i < 60; i++) expect((await call(diff, a.id, a.token, body)).status).toBe(200);
     expect((await call(diff, a.id, a.token, body)).status).toBe(429);
     expect((await call(diff, b.id, b.token, body)).status).toBe(200);
   });
   it("AC-008-08 KI-023 the per-token rate limit is shared by every server instance (Postgres counter, D-010)", async () => {
+    freezeMidMinute();
     const body = { files: [{ path: "src/A.tsx", hash: sha("x") }] };
     for (let i = 0; i < 30; i++) expect((await call(diff, a.id, a.token, body)).status).toBe(200);
     // A second server instance: fresh modules (no shared memory), same database.
@@ -421,5 +436,125 @@ describe("FEAT-008 /api/index", () => {
       );
     }
     expect(await filesRepo.list(world.db, a.id)).toEqual([]);
+  });
+
+  it("AC-008-08 M2 the rate limit also counts per project, so a second token does not double it", async () => {
+    freezeMidMinute();
+    const second = (await projectTokensRepo.create(world.db, a.id)).token;
+    const body = { files: [{ path: "src/A.tsx", hash: sha("x") }] };
+    for (let i = 0; i < 30; i++) expect((await call(diff, a.id, a.token, body)).status).toBe(200);
+    for (let i = 0; i < 30; i++) expect((await call(diff, a.id, second, body)).status).toBe(200);
+    const res = await call(diff, a.id, second, body);
+    expect(res.status).toBe(429);
+    expect((await call(diff, a.id, a.token, body)).status).toBe(429);
+    expect((await call(diff, b.id, b.token, body)).status).toBe(200);
+    // The next minute starts a fresh window.
+    vi.setSystemTime(new Date("2026-10-28T12:01:30Z"));
+    expect((await call(diff, a.id, second, body)).status).toBe(200);
+  });
+
+  it("M2 a project stores at most its file and symbol caps; over a cap the upload is 413, says why and stores nothing", async () => {
+    vi.stubEnv("INDEX_MAX_FILES_PER_PROJECT", "3");
+    vi.stubEnv("INDEX_MAX_SYMBOLS_PER_PROJECT", "5");
+    expect(
+      (await call(upload, a.id, a.token, { files: [file("src/A.tsx"), file("src/B.tsx")] })).status,
+    ).toBe(200);
+    const tooMany = await call(upload, a.id, a.token, {
+      files: [file("src/C.tsx"), file("src/D.tsx")],
+    });
+    expect(tooMany.status).toBe(413);
+    expect(await tooMany.json()).toMatchObject({
+      ok: false,
+      code: "project_storage_full",
+      message:
+        "this project can store at most 3 files and 5 symbols; this upload would make it 4 files and 4 symbols",
+    });
+    // Re-uploading stored files does not count them twice; replaced symbols are not counted twice either.
+    expect(
+      (
+        await call(upload, a.id, a.token, {
+          files: [file("src/A.tsx", ["X", "Y"]), file("src/C.tsx", ["Z", "W"])],
+        })
+      ).status,
+    ).toBe(200);
+    const symbolsOver = await call(upload, a.id, a.token, {
+      files: [file("src/B.tsx", ["P", "Q"])],
+    });
+    expect(symbolsOver.status).toBe(413);
+    expect((await filesRepo.list(world.db, a.id)).map((f) => f.path).sort()).toEqual([
+      "src/A.tsx",
+      "src/B.tsx",
+      "src/C.tsx",
+    ]);
+    expect(await symbolsRepo.list(world.db, a.id)).toHaveLength(5);
+    // The caps are per project: project B is not affected by A's usage.
+    expect(
+      (await call(upload, b.id, b.token, { files: [file("src/A.tsx"), file("src/B.tsx")] })).status,
+    ).toBe(200);
+  });
+
+  it("M2 the storage caps default to 10,000 files and 100,000 symbols and ignore invalid settings", async () => {
+    const { projectStorageCaps } = await import("@/server/code-index");
+    expect(projectStorageCaps({})).toEqual({ files: 10_000, symbols: 100_000 });
+    expect(
+      projectStorageCaps({ INDEX_MAX_FILES_PER_PROJECT: "x", INDEX_MAX_SYMBOLS_PER_PROJECT: "0" }),
+    ).toEqual({ files: 10_000, symbols: 100_000 });
+    expect(
+      projectStorageCaps({
+        INDEX_MAX_FILES_PER_PROJECT: "20",
+        INDEX_MAX_SYMBOLS_PER_PROJECT: "30",
+      }),
+    ).toEqual({ files: 20, symbols: 30 });
+  });
+
+  it("M2 summarize reads the project's components in pages, never all at once", async () => {
+    const { summarizeDue } = await import("@/server/code-index");
+    await call(upload, a.id, a.token, {
+      files: [
+        file(
+          "src/A.tsx",
+          Array.from({ length: 50 }, (_, i) => `W${i}`),
+        ),
+      ],
+    });
+    const fake = fakeLlm();
+    // The same module instance summarizeDue uses (an earlier test resets the module registry).
+    const spy = vi.spyOn((await import("@brain/db")).symbolsRepo, "listComponents");
+    const first = await summarizeDue(world.db, a.id, fake.llm, 7);
+    expect(first).toMatchObject({ attempted: 40, remaining: 10 });
+    expect(spy.mock.calls.length).toBeGreaterThan(1);
+    for (const [, , filter] of spy.mock.calls) expect(filter?.limit).toBe(7);
+    for (const r of spy.mock.results)
+      expect(((await r.value) as unknown[]).length).toBeLessThanOrEqual(7);
+    expect(await summarizeDue(world.db, a.id, fake.llm, 7)).toMatchObject({
+      attempted: 10,
+      remaining: 0,
+    });
+    expect(new Set(fake.prompts).size).toBe(50);
+  });
+
+  it("M1 a diff never deletes a file the user placed in a feature by hand, even when it is missing from the range", async () => {
+    await call(upload, a.id, a.token, {
+      files: [file("src/A.tsx"), file("src/B.tsx"), file("src/C.tsx")],
+    });
+    const feature = await featuresRepo.insert(world.db, a.id, { name: "billing" });
+    const stored = await filesRepo.list(world.db, a.id);
+    const idOf = (p: string) => stored.find((f) => f.path === p)?.id as string;
+    await world.db.insert(featureFiles).values([
+      { projectId: a.id, featureId: feature.id, fileId: idOf("src/B.tsx"), placedBy: "user" },
+      { projectId: a.id, featureId: feature.id, fileId: idOf("src/C.tsx"), placedBy: "auto" },
+    ]);
+    const res = await call(diff, a.id, a.token, {
+      files: [{ path: "src/A.tsx", hash: sha("src/A.tsx") }],
+      after: null,
+      through: null,
+    });
+    expect(await res.json()).toEqual({ ok: true, changed: [], deleted: ["src/C.tsx"] });
+    expect((await filesRepo.list(world.db, a.id)).map((f) => f.path).sort()).toEqual([
+      "src/A.tsx",
+      "src/B.tsx",
+    ]);
+    const links = await world.db.select().from(featureFiles);
+    expect(links.map((l) => [l.fileId, l.placedBy])).toEqual([[idOf("src/B.tsx"), "user"]]);
   });
 });

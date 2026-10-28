@@ -1,17 +1,12 @@
 import { homedir } from "node:os";
-import { createInterface } from "node:readline";
 import { main } from "./index";
+import { readHiddenLine } from "./prompt";
 
-// Reads the token: everything piped in, or one pasted line in a terminal.
+// Reads the token: everything piped in, or one pasted line in a terminal (not echoed).
 async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) {
-    process.stderr.write("Paste the project token and press Enter: ");
-    const rl = createInterface({ input: process.stdin, terminal: false });
-    for await (const line of rl) {
-      rl.close();
-      return line;
-    }
-    return "";
+    process.stderr.write("Paste the project token and press Enter (it is not shown): ");
+    return readHiddenLine(process.stdin, (s) => process.stderr.write(s));
   }
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) chunks.push(chunk as Buffer);

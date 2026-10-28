@@ -1,5 +1,6 @@
 import {
   type Llm,
+  MAX_ATTEMPTS,
   type PreviousSummaries,
   componentHash,
   componentKey,
@@ -8,7 +9,13 @@ import {
   summarizeComponents,
   withPreviousSummaries,
 } from "@brain/core";
-import { type BrainDb, type ComponentRow, codeIndexRepo, symbolsRepo } from "@brain/db";
+import {
+  type BrainDb,
+  type ComponentRow,
+  type StorageCaps,
+  codeIndexRepo,
+  symbolsRepo,
+} from "@brain/db";
 import { z } from "zod";
 import { AppError } from "./errors";
 import { nextUtcDay, releaseDaily, reserveDaily } from "./rate-limit";
@@ -18,14 +25,31 @@ export const MAX_BODY_BYTES = 5 * 1024 * 1024;
 // One summarize request makes at most this many AI calls (~10 calls at a time of 4 = a few seconds); the CLI
 // calls again while some are left.
 export const SUMMARIZE_MAX_CALLS = 40;
+// M2: summarize reads the project's components this many at a time and keeps only the few it will send.
+export const SUMMARIZE_PAGE = 1000;
 export const INDEX_REQUESTS_PER_MINUTE = 60;
 // KI-023: AI calls per project per UTC day; AI_CALLS_PER_PROJECT_PER_DAY overrides it (a positive integer).
 export const DEFAULT_AI_CALLS_PER_DAY = 2000;
+// M2: stored files and symbols per project; INDEX_MAX_FILES_PER_PROJECT / INDEX_MAX_SYMBOLS_PER_PROJECT override them.
+export const DEFAULT_MAX_FILES_PER_PROJECT = 10_000;
+export const DEFAULT_MAX_SYMBOLS_PER_PROJECT = 100_000;
+
+function positiveInt(raw: string | undefined, fallback: number): number {
+  const n = raw && /^\d+$/.test(raw) ? Number(raw) : 0;
+  return n > 0 ? n : fallback;
+}
 
 export function dailyAiBudget(env: Record<string, string | undefined> = process.env): number {
-  const raw = env.AI_CALLS_PER_PROJECT_PER_DAY;
-  const n = raw && /^\d+$/.test(raw) ? Number(raw) : 0;
-  return n > 0 ? n : DEFAULT_AI_CALLS_PER_DAY;
+  return positiveInt(env.AI_CALLS_PER_PROJECT_PER_DAY, DEFAULT_AI_CALLS_PER_DAY);
+}
+
+export function projectStorageCaps(
+  env: Record<string, string | undefined> = process.env,
+): StorageCaps {
+  return {
+    files: positiveInt(env.INDEX_MAX_FILES_PER_PROJECT, DEFAULT_MAX_FILES_PER_PROJECT),
+    symbols: positiveInt(env.INDEX_MAX_SYMBOLS_PER_PROJECT, DEFAULT_MAX_SYMBOLS_PER_PROJECT),
+  };
 }
 
 // Relative POSIX paths inside the repo only: no absolute, drive or backslash paths, no '.', '..' or empty parts, no
@@ -190,7 +214,8 @@ function asPrevious(rows: ComponentRow[]): PreviousSummaries {
 }
 
 // Replaces the batch's files and symbols. Components whose summary inputs did not change keep their summary and
-// attempt state (KI-022), so a re-upload never causes a new AI call for them.
+// attempt state (KI-022), so a re-upload never causes a new AI call for them. A batch that would take the project
+// past its storage caps (M2) is a 413 and stores nothing.
 export async function saveIndexBatch(
   db: BrainDb,
   projectId: string,
@@ -237,7 +262,16 @@ export async function saveIndexBatch(
       ],
     };
   });
-  await codeIndexRepo.saveFiles(db, projectId, files);
+  const caps = projectStorageCaps();
+  const stored = await codeIndexRepo.saveFiles(db, projectId, files, caps);
+  if (!stored.saved) {
+    const n = (x: number) => x.toLocaleString("en-US");
+    throw new AppError(
+      413,
+      "project_storage_full",
+      `this project can store at most ${n(caps.files)} files and ${n(caps.symbols)} symbols; this upload would make it ${n(stored.files)} files and ${n(stored.symbols)} symbols`,
+    );
+  }
 }
 
 export type SummarizeResult = {
@@ -249,23 +283,51 @@ export type SummarizeResult = {
   resumesAt: string | null;
 };
 
+const asInput = (r: ComponentRow) => ({
+  id: r.id,
+  path: r.path,
+  name: r.name,
+  signature: r.signature ?? "",
+});
+
 // Summarizes the project's due components, at most SUMMARIZE_MAX_CALLS per request and within the project's daily AI
 // budget (KI-023). The previous summaries and attempt state come from the database (KI-022) and every attempt is
-// stamped with the server's clock.
+// stamped with the server's clock. M2: components are read in pages; only the due ones this request can send (and as
+// many that used up their attempts, for the final attempt after a success) are kept, the rest are only counted.
 export async function summarizeDue(
   db: BrainDb,
   projectId: string,
   llm: Llm | null,
+  pageSize = SUMMARIZE_PAGE,
 ): Promise<SummarizeResult> {
   const now = new Date();
-  const rows = await symbolsRepo.listComponents(db, projectId);
-  const inputs = rows.map((r) => ({
-    id: r.id,
-    path: r.path,
-    name: r.name,
-    signature: r.signature ?? "",
-  }));
-  const due = withPreviousSummaries(inputs, asPrevious(rows)).filter((c) => isSummaryDue(c, now));
+  const picked: ComponentRow[] = [];
+  let dueTotal = 0;
+  let pickedDue = 0;
+  let pickedExhausted = 0;
+  for (let afterId: string | undefined; ; ) {
+    const page = await symbolsRepo.listComponents(db, projectId, { afterId, limit: pageSize });
+    for (const row of page) {
+      const [c] = withPreviousSummaries([asInput(row)], asPrevious([row]));
+      if (!c) continue;
+      if (isSummaryDue(c, now)) {
+        dueTotal++;
+        if (pickedDue < SUMMARIZE_MAX_CALLS) {
+          picked.push(row);
+          pickedDue++;
+        }
+      } else if (
+        c.summaryStatus === "error" &&
+        c.summaryAttempts === MAX_ATTEMPTS &&
+        pickedExhausted < SUMMARIZE_MAX_CALLS
+      ) {
+        picked.push(row);
+        pickedExhausted++;
+      }
+    }
+    if (page.length < pageSize) break;
+    afterId = page.at(-1)?.id;
+  }
   const result = (attempted: number, remaining: number, exhausted: boolean) => ({
     attempted,
     remaining,
@@ -273,23 +335,23 @@ export async function summarizeDue(
     budgetExhausted: exhausted,
     resumesAt: exhausted ? nextUtcDay(now).toISOString() : null,
   });
-  if (!llm || due.length === 0) return result(0, due.length, false);
+  if (!llm || dueTotal === 0) return result(0, dueTotal, false);
 
   // Reserve calls before making them; whatever is not used goes back to the budget.
   const key = `ai:${projectId}`;
-  const want = Math.min(SUMMARIZE_MAX_CALLS, due.length);
+  const want = Math.min(SUMMARIZE_MAX_CALLS, dueTotal);
   const granted = await reserveDaily(db, key, dailyAiBudget(), want, now);
   let used = 0;
   try {
-    if (granted === 0) return result(0, due.length, true);
-    const out = await summarizeComponents(inputs, llm, asPrevious(rows), {
+    if (granted === 0) return result(0, dueTotal, true);
+    const out = await summarizeComponents(picked.map(asInput), llm, asPrevious(picked), {
       now,
       maxCalls: granted,
     });
     const attempted = out.filter((c) => c.summaryAttemptedAt === now);
     used = attempted.length;
     await codeIndexRepo.saveSummaries(db, projectId, attempted);
-    const remaining = out.filter((c) => isSummaryDue(c, now)).length;
+    const remaining = dueTotal - pickedDue + out.filter((c) => isSummaryDue(c, now)).length;
     return result(used, remaining, remaining > 0 && granted < want && used === granted);
   } finally {
     await releaseDaily(db, key, want - used, now);

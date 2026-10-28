@@ -1,6 +1,6 @@
-import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { type NewSymbol, files, symbols } from "../schema";
+import { type NewSymbol, featureFiles, files, projects, symbols } from "../schema";
 
 export type IndexedSymbol = Omit<NewSymbol, "id" | "projectId" | "fileId" | "createdAt">;
 export type IndexedFile = { path: string; hash: string; symbols: IndexedSymbol[] };
@@ -11,6 +11,10 @@ export type SummaryUpdate = {
   summaryAttempts: number;
   summaryAttemptedAt: Date | null;
 };
+
+export type StorageCaps = { files: number; symbols: number };
+/** The project's totals after a saveFiles call; saved is false when they would pass the caps (nothing changed). */
+export type StorageResult = { saved: boolean; files: number; symbols: number };
 
 const INSERT_BATCH = 500;
 
@@ -26,10 +30,50 @@ export const codeIndexRepo = {
     return new Map(rows.map((r) => [r.path, r.hash]));
   },
 
-  /** Upserts the files and replaces all their symbols, in one transaction. */
-  async saveFiles(db: BrainDb, projectId: string, input: IndexedFile[]): Promise<void> {
-    if (input.length === 0) return;
-    await db.transaction(async (tx) => {
+  /**
+   * Upserts the files and replaces all their symbols, in one transaction. With caps (M2) the project's totals after
+   * the batch are checked first, under a lock on the project row so parallel uploads cannot pass the caps together.
+   */
+  async saveFiles(
+    db: BrainDb,
+    projectId: string,
+    input: IndexedFile[],
+    caps?: StorageCaps,
+  ): Promise<StorageResult> {
+    if (input.length === 0) return { saved: true, files: 0, symbols: 0 };
+    return db.transaction(async (tx) => {
+      let totals = { files: 0, symbols: 0 };
+      if (caps) {
+        await tx
+          .select({ id: projects.id })
+          .from(projects)
+          .where(eq(projects.id, projectId))
+          .for("update");
+        const paths = input.map((f) => f.path);
+        const [stored] = await tx
+          .select({ n: count() })
+          .from(files)
+          .where(eq(files.projectId, projectId));
+        const [inBatch] = await tx
+          .select({ n: count() })
+          .from(files)
+          .where(and(eq(files.projectId, projectId), inArray(files.path, paths)));
+        // Symbols of files outside the batch stay; the batch's files get exactly the uploaded symbols.
+        const [kept] = await tx
+          .select({ n: count() })
+          .from(symbols)
+          .innerJoin(
+            files,
+            and(eq(files.projectId, symbols.projectId), eq(files.id, symbols.fileId)),
+          )
+          .where(and(eq(symbols.projectId, projectId), notInArray(files.path, paths)));
+        totals = {
+          files: (stored?.n ?? 0) + input.length - (inBatch?.n ?? 0),
+          symbols: (kept?.n ?? 0) + input.reduce((n, f) => n + f.symbols.length, 0),
+        };
+        if (totals.files > caps.files || totals.symbols > caps.symbols)
+          return { saved: false, ...totals };
+      }
       const saved = await tx
         .insert(files)
         .values(input.map((f) => ({ projectId, path: f.path, hash: f.hash })))
@@ -54,6 +98,7 @@ export const codeIndexRepo = {
       for (let i = 0; i < rows.length; i += INSERT_BATCH) {
         await tx.insert(symbols).values(rows.slice(i, i + INSERT_BATCH));
       }
+      return { saved: true, ...totals };
     });
   },
 
@@ -78,6 +123,7 @@ export const codeIndexRepo = {
    * KI-024: deletes this project's files whose path is in the range (after, through] (null = open end) and not in
    * keep, with their symbols and feature links (FK cascade). Byte order (COLLATE "C"), like the CLI's sort.
    * KI-025: with a folder only paths inside folder/ are deleted.
+   * M1: a file the user placed in a feature by hand is never deleted this way (its link would be lost for good).
    * Returns the deleted paths in byte order.
    */
   async removeMissing(
@@ -97,6 +143,8 @@ export const codeIndexRepo = {
             : sql`${bytes(files.path)} <= ${range.through} COLLATE "C"`,
           range.folder == null ? undefined : sql`starts_with(${files.path}, ${`${range.folder}/`})`,
           range.keep.length === 0 ? undefined : notInArray(files.path, range.keep),
+          sql`NOT EXISTS (SELECT 1 FROM ${featureFiles} WHERE ${featureFiles.projectId} = ${files.projectId}
+            AND ${featureFiles.fileId} = ${files.id} AND ${featureFiles.placedBy} = 'user')`,
         ),
       )
       .returning({ path: files.path });

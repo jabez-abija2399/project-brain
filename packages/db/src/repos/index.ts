@@ -5,6 +5,8 @@ export {
   codeIndexRepo,
   type IndexedFile,
   type IndexedSymbol,
+  type StorageCaps,
+  type StorageResult,
   type SummaryUpdate,
 } from "./code-index";
 export {

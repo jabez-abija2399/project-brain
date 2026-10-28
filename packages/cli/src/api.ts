@@ -20,6 +20,11 @@ function fromStatus(status: number, code: string | undefined): CliError {
       "The project token was rejected: run `projectbrain login` again.",
     );
   }
+  if (status === 413 && code === "project_storage_full")
+    return new CliError(
+      EXIT.rejected,
+      "This project is at its storage limit on the server (files or symbols per project), so the upload was not stored.",
+    );
   if (status === 413)
     return new CliError(EXIT.rejected, "The server rejected an upload as too large.");
   if (status === 429) return new CliError(EXIT.server, "Too many requests: try again in a minute.");

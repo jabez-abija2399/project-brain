@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync, statSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { type IncomingMessage, type ServerResponse, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -61,8 +61,8 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", () => {
           res.writeHead(status, { "content-type": "application/json" });
           res.end(JSON.stringify(data));
         };
-        if (req.url === "/redirect/api/token/whoami") {
-          res.writeHead(302, { location: `${evilUrl}/api/token/whoami` });
+        if (req.url?.startsWith("/redirect/")) {
+          res.writeHead(302, { location: `${evilUrl}${req.url.slice("/redirect".length)}` });
           return res.end();
         }
         if (req.headers.authorization !== `Bearer ${TOKEN}`) return json(401, { ok: false });
@@ -137,5 +137,21 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", () => {
     expect(login.code).not.toBe(0);
     expect(evilSeen).toEqual([]);
     expect(`${login.stdout}${login.stderr}`).not.toContain(TOKEN);
+  });
+  it("AC-008-11 attack: index never follows a redirect either, so the token stays with the saved server", async () => {
+    const home = mkdtempSync(join(tmpdir(), "pb-home-"));
+    const repo = mkdtempSync(join(tmpdir(), "pb-repo-"));
+    cpSync(fixture, repo, { recursive: true });
+    const env = { HOME: home, XDG_CONFIG_HOME: join(home, ".config") };
+    mkdirSync(join(home, ".config/projectbrain"), { recursive: true });
+    writeFileSync(
+      join(home, ".config/projectbrain/config.json"),
+      JSON.stringify({ apiUrl: `${apiUrl}/redirect`, projectId: "proj-1", token: TOKEN }),
+      { mode: 0o600 },
+    );
+    const index = await run(bin, ["index", repo], env);
+    expect(index.code).not.toBe(0);
+    expect(evilSeen).toEqual([]);
+    expect(`${index.stdout}${index.stderr}`).not.toContain(TOKEN);
   });
 });

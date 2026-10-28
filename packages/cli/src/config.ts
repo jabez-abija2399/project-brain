@@ -1,5 +1,5 @@
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 
 export type CliConfig = { apiUrl: string; projectId: string; token: string };
 
@@ -15,8 +15,14 @@ export function configPath(
       ? (env.APPDATA ?? join(homedir, "AppData", "Roaming"))
       : platform === "darwin"
         ? join(homedir, "Library", "Application Support")
-        : (env.XDG_CONFIG_HOME ?? join(homedir, ".config"));
+        : (xdgConfigHome(env) ?? join(homedir, ".config"));
   return join(base, "projectbrain", "config.json");
+}
+
+// The XDG spec: a relative (or empty) XDG_CONFIG_HOME is invalid and ignored, so the token never lands in the cwd.
+function xdgConfigHome(env: Record<string, string | undefined>): string | undefined {
+  const dir = env.XDG_CONFIG_HOME;
+  return dir && isAbsolute(dir) ? dir : undefined;
 }
 
 export function readConfig(path: string): CliConfig | null {

@@ -105,6 +105,8 @@ One helper, requireProjectAccess(projectId, actor), in apps/web/src/server/auth.
 | GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY / GITHUB_WEBHOOK_SECRET | GitHub App | no / yes / yes |
 | ANTHROPIC_API_KEY | Claude API | yes |
 | AI_CALLS_PER_PROJECT_PER_DAY | daily AI-call budget per project (UTC day; default 2000) | no |
+| INDEX_MAX_FILES_PER_PROJECT | stored files per project; an upload past it gets 413 (default 10000) | no |
+| INDEX_MAX_SYMBOLS_PER_PROJECT | stored symbols per project; an upload past it gets 413 (default 100000) | no |
 | INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY | jobs (not needed with the local dev server) | yes |
 
 ## Local development

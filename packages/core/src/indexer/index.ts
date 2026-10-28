@@ -15,11 +15,12 @@ import { readNoFollow, walkRepo } from "./walker";
 export async function indexRepo(root: string, options: IndexOptions = {}): Promise<IndexResult> {
   const absRoot = resolve(root);
   const cfg = loadTsconfigPaths(absRoot);
-  const { files, skipped } = walkRepo(absRoot, options.maxFileBytes);
+  const walked = walkRepo(absRoot, options.maxFileBytes);
+  const { files, skipped } = walked;
   const fileEntries: FileIndex[] = [];
   const components: ComponentIndex[] = [];
   const routes: RouteIndex[] = [];
-  const errors: IndexError[] = [];
+  const errors: IndexError[] = [...walked.errors];
   for (const entry of files) {
     let source: string;
     try {

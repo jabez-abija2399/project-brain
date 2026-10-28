@@ -1,7 +1,7 @@
 import { constants, closeSync, lstatSync, openSync, readFileSync, readdirSync } from "node:fs";
 import { join, posix, relative, sep } from "node:path";
 import ignore, { type Ignore } from "ignore";
-import type { SkippedFile } from "./types";
+import type { IndexError, SkippedFile } from "./types";
 
 const SUPPORTED_EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]);
 const EXCLUDED_DIRS = new Set([
@@ -26,11 +26,15 @@ export type WalkEntry = {
 export type WalkResult = {
   files: WalkEntry[];
   skipped: SkippedFile[];
+  // Folders that could not be listed ("folder read failed") and entries that could not be checked ("read failed"):
+  // their files are missing from `files`, so a caller must not treat them as deleted.
+  errors: IndexError[];
 };
 
 export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): WalkResult {
   const files: WalkEntry[] = [];
   const skipped: SkippedFile[] = [];
+  const errors: IndexError[] = [];
   const stack: { dir: string; rules: IgnoreRules[] }[] = [{ dir: root, rules: [] }];
   while (stack.length > 0) {
     const { dir, rules: inherited } = stack.pop() as { dir: string; rules: IgnoreRules[] };
@@ -39,7 +43,12 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
     let entries: string[];
     try {
       entries = readdirSync(dir);
-    } catch {
+    } catch (err) {
+      errors.push({
+        path: toPosix(relative(root, dir)) || ".",
+        line: 1,
+        message: `folder read failed: ${(err as NodeJS.ErrnoException).code ?? "unknown"}`,
+      });
       continue;
     }
     for (const name of entries) {
@@ -49,7 +58,12 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
       try {
         // lstat: a symlink is never followed, so nothing outside the repo root is read.
         st = lstatSync(abs);
-      } catch {
+      } catch (err) {
+        errors.push({
+          path: rel,
+          line: 1,
+          message: `read failed: ${(err as NodeJS.ErrnoException).code ?? "unknown"}`,
+        });
         continue;
       }
       if (st.isSymbolicLink()) {
@@ -91,7 +105,8 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
   }
   files.sort((a, b) => a.relPath.localeCompare(b.relPath));
   skipped.sort((a, b) => a.path.localeCompare(b.path));
-  return { files, skipped };
+  errors.sort((a, b) => a.path.localeCompare(b.path));
+  return { files, skipped, errors };
 }
 
 // One .gitignore file; its patterns are relative to the directory it lives in (base, "" for the root).

@@ -24,6 +24,7 @@ export type { FeatureGroup, FeatureMap, SharedFile } from "./features";
 
 export {
   DEFAULT_SIMILAR_LIMIT,
+  MAX_ATTEMPTS,
   MAX_SUMMARY,
   SIMILARITY_THRESHOLD,
   componentHash,
