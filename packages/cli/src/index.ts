@@ -25,6 +25,8 @@ export type CliDeps = {
   stdout: (line: string) => void;
   stderr: (line: string) => void;
   readStdin: () => Promise<string>;
+  // Waits between 429 retries; tests inject one that does not really wait.
+  sleep?: (ms: number) => Promise<void>;
 };
 
 function flag(args: string[], name: string): string | undefined {
@@ -91,6 +93,7 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         resolve(deps.cwd, args[0] ?? "."),
         deps.stdout,
         deps.homedir ?? osHomedir(),
+        deps.sleep,
       );
     } else {
       deps.stderr(helpText());

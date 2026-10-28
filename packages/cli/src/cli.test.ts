@@ -270,3 +270,87 @@ describe("FEAT-008 projectbrain index review fixes", () => {
     );
   });
 });
+
+describe("KI-028 projectbrain index waits and retries on 429", () => {
+  // The fake API answers 429 for the first `limited` requests to `route`, then like the real routes.
+  function limitedApi(sent: Sent[], route: string, limited: number, retryAfter?: string) {
+    const api = indexApi(sent);
+    let hits = 0;
+    return async (url: string, init?: RequestInit) => {
+      if (String(url).endsWith(route) && hits++ < limited) {
+        sent.push({ url: String(url).replace("https://brain.test", ""), body: null });
+        return Response.json(
+          { ok: false, code: "rate_limited" },
+          { status: 429, headers: retryAfter === undefined ? {} : { "retry-after": retryAfter } },
+        );
+      }
+      return api(url, init);
+    };
+  }
+
+  // No real waiting: the injected sleep records the waits, so the test never depends on timing.
+  function withSleep(t: ReturnType<typeof setup>) {
+    const waits: number[] = [];
+    t.deps.sleep = async (ms) => {
+      waits.push(ms);
+    };
+    return waits;
+  }
+
+  it("waits the server's Retry-After, says so, and retries until it succeeds", async () => {
+    const sent: Sent[] = [];
+    const t = setup(limitedApi(sent, "/diff", 2, "7"));
+    const waits = withSleep(t);
+    writeFileSync(join(t.repo, "a.ts"), "export const a = 1;\n");
+    expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(0);
+    expect(await main(["index"], t.deps)).toBe(0);
+    expect(waits).toEqual([7000, 7000]);
+    expect(t.out.filter((l) => l === "Rate limit reached, waiting 7 s")).toHaveLength(2);
+    expect(sent.filter((r) => r.url.endsWith("/diff"))).toHaveLength(3);
+    expect(uploaded(sent).map((f) => f.path)).toEqual(["a.ts"]);
+  });
+
+  it("attack: a huge, negative, garbage or missing Retry-After waits at most 60 s and at least 1 s", async () => {
+    for (const [header, expected] of [
+      ["3600", 60_000],
+      ["99999999999999999999", 60_000],
+      ["-5", 60_000],
+      ["0", 1000],
+      ["soon", 60_000],
+      [undefined, 60_000],
+    ] as const) {
+      const sent: Sent[] = [];
+      const t = setup(limitedApi(sent, "/summarize", 1, header));
+      const waits = withSleep(t);
+      writeFileSync(join(t.repo, "a.ts"), "export const a = 1;\n");
+      expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(0);
+      expect(await main(["index"], t.deps)).toBe(0);
+      expect(waits).toEqual([expected]);
+      expect(t.out).toContain(`Rate limit reached, waiting ${expected / 1000} s`);
+    }
+  });
+
+  it("an HTTP-date Retry-After is turned into seconds from now, capped at 60", async () => {
+    const sent: Sent[] = [];
+    const at = new Date(Date.now() + 3_600_000).toUTCString();
+    const t = setup(limitedApi(sent, "/api/index/proj-1", 1, at));
+    const waits = withSleep(t);
+    writeFileSync(join(t.repo, "a.ts"), "export const a = 1;\n");
+    expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(0);
+    expect(await main(["index"], t.deps)).toBe(0);
+    expect(waits).toEqual([60_000]);
+  });
+
+  it("gives up after 5 retries with the rate-limit error and exit 5", async () => {
+    const sent: Sent[] = [];
+    const t = setup(limitedApi(sent, "/diff", 1000, "2"));
+    const waits = withSleep(t);
+    writeFileSync(join(t.repo, "a.ts"), "export const a = 1;\n");
+    expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(0);
+    expect(await main(["index"], t.deps)).toBe(5);
+    expect(waits).toEqual([2000, 2000, 2000, 2000, 2000]);
+    expect(sent.filter((r) => r.url.endsWith("/diff"))).toHaveLength(6);
+    expect(uploaded(sent)).toEqual([]);
+    expect(t.err.at(-1)).toBe("Too many requests: try again in a minute.");
+  });
+});

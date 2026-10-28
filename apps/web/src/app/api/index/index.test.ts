@@ -231,6 +231,14 @@ describe("FEAT-008 /api/index", () => {
     expect((await call(diff, a.id, a.token, body)).status).toBe(429);
     expect((await call(diff, b.id, b.token, body)).status).toBe(200);
   });
+  it("KI-028 a 429 says in Retry-After how many seconds until the minute window ends", async () => {
+    freezeMidMinute();
+    const body = { files: [{ path: "src/A.tsx", hash: sha("x") }] };
+    for (let i = 0; i < 60; i++) await call(diff, a.id, a.token, body);
+    const res = await call(diff, a.id, a.token, body);
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe("30");
+  });
   it("AC-008-08 KI-023 the per-token rate limit is shared by every server instance (Postgres counter, D-010)", async () => {
     freezeMidMinute();
     const body = { files: [{ path: "src/A.tsx", hash: sha("x") }] };

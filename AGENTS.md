@@ -14,6 +14,7 @@ Project rules (max 10; only what the code can't tell you):
 - Webhooks verify signatures before doing any work; anything slower than 2 s runs as an Inngest job.
 - Trial stack only (docs/decisions.md D-001): no separate backend servers until that decision is revisited.
 - First supported target stack: React/Next.js + Supabase; first agents: Claude Code and Cursor.
+- Before marking a feature done, check it against docs/build-checklist.md and write an attacker test for each rule that applies.
 <!-- PROJECT:END -->
 
 <!-- KIT:BEGIN v4.1.0  (replaced by `kit.py upgrade`; keep it short: every line here costs tokens in every session) -->

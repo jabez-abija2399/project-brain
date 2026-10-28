@@ -289,3 +289,10 @@ Spec deviation: tool errors are isError results with JSON {code, message, data} 
 Verified (ran this session): verify.sh PASS as root and as an unprivileged user (345 tests); measured p95 on PGlite: where_did_we_stop 11 ms, get_context_pack 12 ms, find_similar_component 9 ms, 0 LLM calls; kit.py pass AC-011-01..06; kit.py done FEAT-011.
 NOT VERIFIED: a real Claude Code client against a deployed /mcp (tests send JSON-RPC to the route handler); p95 on Neon; OAuth (not built, v1 is project tokens only); request body size limits (set by Next/Vercel); CI-only steps.
 Next: human review (security-sensitive); FEAT-016 one-command agent setup, then dogfood /mcp on this project (directive 2026-10-23).
+
+## 2026-10-28 | build checklist + KI-028 CLI retry on 429 + code-index.ts split | status: done
+Changed: docs/build-checklist.md (8 rules, each with an example from past reviews) and a project rule in AGENTS.md. KI-028: the rate limiter's 429 carries Retry-After (seconds to the end of the minute window, via AppError.retryAfter); the CLI's request() retries a 429 up to 5 times, waiting Retry-After clamped to 1-60 s (60 when missing, negative or unreadable; HTTP dates supported), printing "Rate limit reached, waiting N s"; sleep is injected through CliDeps. The bin tests that spawn node get a 30 s timeout (they hit the 5 s default under load). apps/web/src/server/code-index.ts split into code-index-limits.ts, code-index-input.ts, code-index-summarize.ts and code-index.ts (re-exports them; importers unchanged); only change is asPrevious becoming an export.
+Verified (ran this session): 5 new KI-028 tests (1 server, 4 CLI) failed before, pass after; verify.sh PASS (typecheck, lint, tests, kit guard); split checked line by line against the original.
+NOT VERIFIED: build, e2e, audit, scanners (CI only). Login does not retry on 429 (index only).
+Known issues: KI-028 fixed.
+Next: human security review of FEAT-008, then FEAT-009.
