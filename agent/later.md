@@ -76,3 +76,5 @@
 - 2026-10-28 | Project settings "Connect GitHub" button linking to /api/github/install?projectId=… and the linked repo shown on the project (FEAT-009 has the routes and the repo selection screen only) | FEAT-017
 - 2026-10-28 | installation_repositories webhook (repos removed from an installation): unlink the affected projects; only installation.deleted unlinks now | FEAT-009 follow-up
 - 2026-10-28 | Installations with more than 100 repositories: paginate /installation/repositories on the selection screen | FEAT-009 follow-up
+- 2026-10-28 | Correction to the FEAT-009 line above: the push cap is 299 files (GitHub's compare lists at most 300, so 300+ may be truncated); larger pushes and new branches are skipped with RLS marked unknown until a full index runs | FEAT-009 follow-up
+- 2026-10-28 | installation "suspend" events and installation_repositories "removed": unlink or pause the affected projects (now their later jobs fail on the installation token) | FEAT-009 follow-up

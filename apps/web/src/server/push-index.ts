@@ -3,13 +3,15 @@ import { type BrainDb, codeIndexRepo, dbTablesRepo, filesRepo, githubRepo } from
 import { groupProject, saveIndexBatch, uploadSchema } from "./code-index";
 import type { PushEventData } from "./inngest";
 
-// Files fetched and indexed per step (the spec splits big pushes into steps), and the most one push may change.
+// Files fetched and indexed per step (the spec splits big pushes into steps).
 export const PUSH_BATCH_FILES = 100;
-export const MAX_PUSH_FILES = 3000;
+// GitHub's compare lists at most 300 files, so a list of 300 or more may be cut short: such a push is not indexed
+// incrementally (it needs a full index) and fails closed on RLS.
+export const MAX_PUSH_FILES = 299;
 // Parallel content requests to GitHub within one step.
 const FETCH_CONCURRENCY = 8;
 const ZERO_SHA = "0".repeat(40);
-const SUPABASE_MIGRATION = /(^|\/)supabase\/migrations\/[^/]+\.sql$/;
+const SUPABASE_MIGRATION = /(^|\/)supabase\/migrations\/[^/]+\.sql$/i;
 
 // The subset of an installation Octokit the job uses (a real one in production, a fetch-mocked one in tests).
 export type GithubClient = {
@@ -42,13 +44,20 @@ export async function runPushIndex(
     githubRepo.isLinked(db, data.projectId, data.installationId, data.repo),
   );
   if (!linked) return finish(data, { skipped: "not_linked" }, started, clock);
-  // A push that created the branch has no base to compare with; that needs a full index (agent/later.md).
-  if (data.before === ZERO_SHA) return finish(data, { skipped: "new_branch" }, started, clock);
+  // A push that created the branch has no base to compare with; that needs a full index (agent/later.md). Its
+  // changes are unknown, so a migration may have changed: RLS fails closed.
+  if (data.before === ZERO_SHA) {
+    await failClosedOnRls(db, data, step);
+    return finish(data, { skipped: "new_branch" }, started, clock);
+  }
 
   const changes = await step.run("list-changes", async () =>
     listChanges(await github(), owner, repo, data),
   );
-  if (changes === null) return finish(data, { skipped: "too_many_files" }, started, clock);
+  if (changes === null) {
+    await failClosedOnRls(db, data, step);
+    return finish(data, { skipped: "too_many_files" }, started, clock);
+  }
 
   const indexable = changes.changed.filter((p) => pathSkipReason(p) === null);
   let indexed = 0;
@@ -95,6 +104,11 @@ export async function runPushIndex(
   return finish(data, { indexed, skippedFiles, deleted, rlsUnknown, ms: 0 }, started, clock);
 }
 
+// A skipped push may hide a changed migration: every table becomes RLS unknown (build checklist rule 2).
+async function failClosedOnRls(db: BrainDb, data: PushEventData, step: StepRunner): Promise<void> {
+  await step.run("rls-unknown-on-skip", () => dbTablesRepo.markAllRlsUnknown(db, data.projectId));
+}
+
 function finish(
   data: PushEventData,
   result: PushIndexResult,
@@ -119,7 +133,8 @@ async function listChanges(
 ): Promise<Changes | null> {
   const changed = new Set<string>();
   const removed = new Set<string>();
-  for (let page = 1; page <= MAX_PUSH_FILES / 100; page++) {
+  // Pages stop once the cap is passed, so a huge push costs at most a few compare calls.
+  for (let page = 1; page <= Math.floor(MAX_PUSH_FILES / 100) + 1; page++) {
     const res = await gh.request("GET /repos/{owner}/{repo}/compare/{basehead}", {
       owner,
       repo,

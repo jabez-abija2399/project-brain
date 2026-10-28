@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { type BrainDb, githubRepo } from "@brain/db";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -73,9 +74,12 @@ export async function handleWebhook(
     return json({ error: "unsupported_event" }, 400);
   }
   if (!/^[A-Za-z0-9-]{1,100}$/.test(deliveryId)) return json({ error: "bad_delivery_id" }, 400);
-  if (!(await githubRepo.recordDelivery(db, deliveryId, now))) {
-    return json({ ok: true, duplicate: true }, 200);
-  }
+  // The delivery id header is not covered by the signature, so the signed body counts too: a captured body sent
+  // again under a new id is a duplicate. GitHub's own redelivery keeps the id, so it is a duplicate either way.
+  const bodyKey = `sha256-${createHash("sha256").update(raw).digest("hex")}`;
+  const newId = await githubRepo.recordDelivery(db, deliveryId, now);
+  const newBody = await githubRepo.recordDelivery(db, bodyKey, now);
+  if (!newId || !newBody) return json({ ok: true, duplicate: true }, 200);
 
   let body: unknown;
   try {
@@ -123,6 +127,7 @@ export async function handleWebhook(
   } catch {
     // Not enqueued: forget the id so GitHub's redelivery of this push is processed.
     await githubRepo.forgetDelivery(db, deliveryId);
+    await githubRepo.forgetDelivery(db, bodyKey);
     return json({ error: "enqueue_failed" }, 503);
   }
   return json({ ok: true, enqueued: true }, 202);

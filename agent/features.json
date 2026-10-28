@@ -1237,53 +1237,95 @@
           "id": "AC-009-01",
           "kind": "happy",
           "check": "Installing the GitHub App on a repo links it to the user's project (repo selection screen)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 18:31; log contains AC-009-01"
         },
         {
           "id": "AC-009-02",
           "kind": "happy",
           "check": "A push to the default branch triggers an Inngest job that re-indexes only the changed files",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 18:31; log contains AC-009-02"
         },
         {
           "id": "AC-009-03",
           "kind": "attack",
           "check": "A webhook with a missing or wrong signature returns 401 and enqueues nothing",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 18:31; log contains AC-009-03"
         },
         {
           "id": "AC-009-04",
           "kind": "attack",
           "check": "A replayed webhook delivery id is ignored (processed at most once)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 18:31; log contains AC-009-04"
         },
         {
           "id": "AC-009-05",
           "kind": "state",
           "check": "After the job, no source code is stored: the job parses files in memory and saves only metadata",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 18:31; log contains AC-009-05"
         },
         {
           "id": "AC-009-06",
           "kind": "perf",
           "check": "Re-indexing a push that changes 10 files completes in under 10 s (job duration logged)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 18:31; log contains AC-009-06"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        ".env.example",
+        "apps/web/package.json",
+        "apps/web/src/app/api/github/callback/route.ts",
+        "apps/web/src/app/api/github/install/route.ts",
+        "apps/web/src/app/api/github/link/route.ts",
+        "apps/web/src/app/api/github/repos/route.ts",
+        "apps/web/src/app/api/github/webhook/route.ts",
+        "apps/web/src/app/api/inngest/route.ts",
+        "apps/web/src/app/github/select/page.tsx",
+        "apps/web/src/app/github/select/repo-picker.tsx",
+        "apps/web/src/server/github-install.test.ts",
+        "apps/web/src/server/github-install.ts",
+        "apps/web/src/server/github-test-helpers.ts",
+        "apps/web/src/server/github-webhook.test.ts",
+        "apps/web/src/server/github-webhook.ts",
+        "apps/web/src/server/github.security.test.ts",
+        "apps/web/src/server/github.ts",
+        "apps/web/src/server/inngest-functions.ts",
+        "apps/web/src/server/inngest.ts",
+        "apps/web/src/server/push-index.test.ts",
+        "apps/web/src/server/push-index.ts",
+        "packages/cli/src/index-command.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/indexer/index.ts",
+        "packages/core/src/indexer/parser.ts",
+        "packages/core/src/indexer/resolver.ts",
+        "packages/core/src/indexer/sources.test.ts",
+        "packages/core/src/indexer/walker.ts",
+        "packages/core/src/upload.ts",
+        "packages/db/migrations/0014_github.sql",
+        "packages/db/src/migrations.test.ts",
+        "packages/db/src/repos/code-index.ts",
+        "packages/db/src/repos/db-schema.ts",
+        "packages/db/src/repos/features.ts",
+        "packages/db/src/repos/github.test.ts",
+        "packages/db/src/repos/github.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/schema/github.ts",
+        "packages/db/src/schema/index.ts",
+        "packages/db/src/schema/projects.ts"
+      ]
     },
     {
       "id": "FEAT-010",
@@ -2027,6 +2069,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 345
+    "tests_passed": 427
   }
 }
