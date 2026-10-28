@@ -72,11 +72,13 @@ export function byteOrder(a: string, b: string): number {
 
 // With `after` and `through` (KI-024) the batch claims to list every local file in the range (after, through]
 // (null = open end): files sorted in byte order, no duplicates, all inside the range. Without them nothing is deleted.
+// With `folder` (KI-025, a subfolder index) files and range bounds are inside folder/ and only files there are deleted.
 export const diffSchema = z
   .object({
     files: z.array(z.object({ path: repoPath, hash: sha256 }).strict()).max(MAX_BATCH_FILES),
     after: repoPath.nullable().optional(),
     through: repoPath.nullable().optional(),
+    folder: repoPath.optional(),
   })
   .strict()
   .superRefine((input, ctx) => {
@@ -85,6 +87,8 @@ export const diffSchema = z
       return;
     }
     if (input.after === undefined) {
+      if (input.folder !== undefined)
+        ctx.addIssue({ code: "custom", message: "folder needs a range", path: ["folder"] });
       if (input.files.length === 0)
         ctx.addIssue({ code: "custom", message: "at least one file", path: ["files"] });
       return;
@@ -92,16 +96,20 @@ export const diffSchema = z
     const { after, through } = input;
     if (after != null && through != null && byteOrder(after, through) >= 0)
       ctx.addIssue({ code: "custom", message: "after must sort before through", path: ["after"] });
+    const inFolder = (p: string) => input.folder === undefined || p.startsWith(`${input.folder}/`);
+    if ((after != null && !inFolder(after)) || (through != null && !inFolder(through)))
+      ctx.addIssue({ code: "custom", message: "range must be inside folder", path: ["folder"] });
     input.files.forEach((f, i) => {
       const prev = input.files[i - 1];
       const ok =
         (prev ? byteOrder(prev.path, f.path) < 0 : true) &&
         (after == null || byteOrder(after, f.path) < 0) &&
-        (through == null || byteOrder(f.path, through) <= 0);
+        (through == null || byteOrder(f.path, through) <= 0) &&
+        inFolder(f.path);
       if (!ok)
         ctx.addIssue({
           code: "custom",
-          message: "files must be unique, in byte order and inside (after, through]",
+          message: "files must be unique, in byte order and inside (after, through] and folder",
           path: ["files", i, "path"],
         });
     });
@@ -171,6 +179,7 @@ export async function diffFiles(
   const deleted = await codeIndexRepo.removeMissing(db, projectId, {
     after: input.after,
     through: input.through,
+    folder: input.folder ?? null,
     keep: paths,
   });
   return { changed, deleted };

@@ -74,7 +74,7 @@ describe("FEAT-008 projectbrain login", () => {
     expect(t.err.at(-1)).toMatch(/^No files to index in .+: run it in the repo root\.$/);
     expect(calls).toEqual([]);
   });
-  it("attack: login refuses to send the token over plain http to a non-local host", async () => {
+  it("AC-008-11 attack: login refuses to send the token over plain http to a non-local host", async () => {
     const calls: string[] = [];
     const t = setup(async (url, init) => {
       calls.push(String(url));

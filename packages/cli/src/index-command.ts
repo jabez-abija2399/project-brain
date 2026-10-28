@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
 import { type IndexResult, indexRepo, maskSecretsIn } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
@@ -32,6 +34,14 @@ export function toUpload(index: IndexResult): UploadFile[] {
 // Byte order (UTF-8), the server's order for diff ranges (Postgres COLLATE "C").
 function byteOrder(a: string, b: string): number {
   return Buffer.compare(Buffer.from(a), Buffer.from(b));
+}
+
+// KI-025: a subfolder of a git repo is indexed with repo-root paths and its folder, so only files there can be deleted.
+export function repoFolder(dir: string): string | undefined {
+  for (let at = dir; ; at = dirname(at)) {
+    if (existsSync(join(at, ".git"))) return relative(at, dir).split(sep).join("/") || undefined;
+    if (dirname(at) === at) return undefined;
+  }
 }
 
 export function batches<T>(
@@ -70,7 +80,10 @@ export async function runIndex(
   // Nothing found usually means the wrong folder: stop before a diff range would delete the whole stored index.
   if (index.files.length === 0)
     throw new CliError(EXIT.usage, `No files to index in ${root}: run it in the repo root.`);
-  const files = toUpload(index).sort((x, y) => byteOrder(x.path, y.path));
+  const folder = repoFolder(root);
+  const files = toUpload(index)
+    .map((f) => (folder ? { ...f, path: `${folder}/${f.path}` } : f))
+    .sort((x, y) => byteOrder(x.path, y.path));
   const base = `/api/index/${encodeURIComponent(config.projectId)}`;
 
   // KI-024: each diff batch covers the local paths in (after, through]; the server deletes stored files in that range
@@ -83,6 +96,7 @@ export async function runIndex(
     const range = unreadable
       ? {}
       : {
+          ...(folder ? { folder } : {}),
           after: i === 0 ? null : (diffBatches[i - 1]?.at(-1)?.path ?? null),
           through: i === diffBatches.length - 1 ? null : (batch.at(-1)?.path ?? null),
         };

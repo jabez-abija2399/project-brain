@@ -92,7 +92,7 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", () => {
     evil?.close();
   });
 
-  it("prints usage and exits 2 without a command; index before login exits 3", async () => {
+  it("AC-008-13 prints usage and exits 2 without a command; index before login exits 3", async () => {
     const home = mkdtempSync(join(tmpdir(), "pb-home-"));
     const env = { HOME: home, XDG_CONFIG_HOME: join(home, ".config") };
     const usage = await run(bin, [], env);
@@ -103,7 +103,7 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", () => {
     expect(index.stderr).toContain("Not logged in");
   });
 
-  it("login reads the token from stdin and saves it 0600 outside the repo; index uploads metadata", async () => {
+  it("AC-008-13 login reads the token from stdin and saves it 0600 outside the repo; index uploads metadata", async () => {
     const home = mkdtempSync(join(tmpdir(), "pb-home-"));
     const repo = mkdtempSync(join(tmpdir(), "pb-repo-"));
     cpSync(fixture, repo, { recursive: true });
@@ -130,7 +130,7 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", () => {
       "POST /api/index/proj-1/summarize",
     ]);
   });
-  it("attack: the CLI never follows a redirect, so the token cannot be forwarded to another host", async () => {
+  it("AC-008-11 attack: the CLI never follows a redirect, so the token cannot be forwarded to another host", async () => {
     const home = mkdtempSync(join(tmpdir(), "pb-home-"));
     const env = { HOME: home, XDG_CONFIG_HOME: join(home, ".config") };
     const login = await run(bin, ["login", "--api-url", `${apiUrl}/redirect`], env, `${TOKEN}\n`);

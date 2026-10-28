@@ -1,5 +1,12 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-28 | FEAT-008 finish: AC-008-08..13 + KI-025 subfolder index | status: done
+Changed: attacker tests renamed to start with their AC ids (AC-008-08..13). KI-025: the CLI finds the git root (.git upwards), uploads root-relative paths for a subfolder and sends `folder` on each diff; the diff schema requires files and range bounds inside folder/ (else 400) and removeMissing deletes only paths under folder/. Without .git the folder is the root (as before).
+Verified (ran this session): KI-025 server + CLI tests failed before the fix, pass after; verify.sh PASS (typecheck, lint, tests 225, kit guard); kit.py pass AC-008-08..13 from the test log; kit.py done FEAT-008.
+NOT VERIFIED: real Postgres/Neon (PGlite only; starts_with needs PG 11+); build, e2e, audit and scanners run in CI only; not pushed. A hand-edited config with a plain-http non-local apiUrl is not re-checked on `index` (login refuses it).
+Known issues: KI-025 fixed. KI-026 open (LOW).
+Next: human security review of FEAT-008, then FEAT-009.
+
 ## 2026-10-28 | FEAT-008 CLI login + index (+ KI-022, N1, fresh attempt, server clock) | status: done
 Changed: CLI `login` (token from stdin/env, checked via whoami, saved 0600 in the OS config dir) and `index` (local indexRepo -> POST /api/index/:projectId/diff -> upload changed files in batches <= 200 files / 4 MB -> loop .../summarize); routes share indexRoute (token must match the URL project else 404, 60 req/min per token, 413 over 200 files / 5 MB, strict metadata-only schema, safe relative paths). Upload carries summary state over by component hash; summarize reads previous state from listComponents (KI-022), max 40 AI calls/request, server clock (D-016). Core: worker pool refills after every answer (N1/KI-021); after a success, exhausted components get one final attempt; maxCalls. db: codeIndexRepo (hashes, saveFiles, saveSummaries), listComponents({paths}). @anthropic-ai/sdk in apps/web (getLlm, null without key).
 Verified (ran this session): verify.sh PASS (typecheck, lint, tests 205, kit guard); AC-008-01..07 via test log; 500-file CLI index end to end 1.6 s (PGlite, fake AI); KI-022 test fails with carry-over disabled (7 vs 6 calls); new core/db/web tests failed before the code.

@@ -264,7 +264,7 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     expect(await filesRepo.list(world.db, projectId)).toHaveLength(500);
     expect(c.out).toContain("Uploaded 500 changed, 0 unchanged");
   }, 120_000);
-  it("KI-024 a file deleted locally is removed from the index with its symbols on the next index", async () => {
+  it("AC-008-10 KI-024 a file deleted locally is removed from the index with its symbols on the next index", async () => {
     setLlmForTests(countingLlm().llm);
     const repo = copyFixture();
     cpSync(generateRepo(250), repo, { recursive: true });
@@ -293,7 +293,24 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     expect(components.map((c) => c.name)).not.toContain("Comp0");
   });
 
-  it("KI-023 when the project's daily AI budget is used up the CLI says summaries wait for the next day", async () => {
+  it("KI-025 indexing a subfolder uploads repo-root paths and deletes only stored files inside it", async () => {
+    setLlmForTests(countingLlm().llm);
+    const repo = copyFixture();
+    mkdirSync(join(repo, ".git"));
+    const c = cli(repo, serverFetch().fetchImpl);
+    await c.run("login", "--api-url", "https://brain.test");
+    expect(await c.run("index")).toBe(0);
+    const before = (await filesRepo.list(world.db, projectId)).map((f) => f.path).sort();
+    expect(before).toHaveLength(6);
+
+    rmSync(join(repo, "src/components/ui/Button.tsx"));
+    expect(await c.run("index", "src/components/ui")).toBe(0);
+    expect(c.out).toContain("Uploaded 0 changed, 1 unchanged, 1 deleted");
+    const after = (await filesRepo.list(world.db, projectId)).map((f) => f.path).sort();
+    expect(after).toEqual(before.filter((p) => p !== "src/components/ui/Button.tsx"));
+  });
+
+  it("AC-008-09 KI-023 when the project's daily AI budget is used up the CLI says summaries wait for the next day", async () => {
     vi.stubEnv("AI_CALLS_PER_PROJECT_PER_DAY", "2");
     const ai = countingLlm();
     setLlmForTests(ai.llm);
