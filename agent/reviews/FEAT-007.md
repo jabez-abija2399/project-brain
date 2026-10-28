@@ -1,64 +1,75 @@
-# Review FEAT-007: component registry and find_similar_component
+# Review FEAT-007: re-check of M1 and L1-L3 against 61d29dd
 
-Reviewed commit 152583e (the code) and f4d121b (D-015). The review pack's diff covered only f4d121b (docs), so the code
-was read from `git show 152583e`. Focus requested: metadata-only prompts, secret masking in summaries, the name
-pre-filter and its escaping, the project filter, and LLM calls on an unchanged re-index.
+Scope: the fix commit 61d29dd only (`git show 61d29dd -- packages/`), checked against the findings of the previous
+review (commit 152583e, still in git history at `git show 61d29dd:agent/reviews/FEAT-007.md`). Ran this session:
+`pnpm vitest run packages/core/src/components packages/core/src/llm.test.ts packages/db/src/repos/symbols.test.ts
+apps/web/src/server/components.test.ts`: 4 files, 17 tests passed. Plus scratch probes (deleted afterwards; the
+working tree is unchanged).
 
-## MEDIUM
+## Previous findings
 
-### M1. An unchanged re-index calls the LLM again for every component whose summary is null (AC-007-04)
-- `packages/core/src/components/summarize.ts:51,53`: a component is reused only if `prev.summary` is non-null; `todo` is
-  every component with `summary === null`. `cleanSummary` returns null for an empty answer (line 37), and a failed call
-  sets null (line 67). The hash is unchanged, but the component is sent to the LLM again on every index, indefinitely.
-- Evidence (scratch vitest probe, run this session, now deleted): a fake client that answers `""`. After the first
-  index, three re-indexes of the same unchanged component made `1, 1, 1` LLM calls (expected `0, 0, 0` per AC-007-04).
-- Scenario 2: during an API outage or with a bad key, every component fails. Each later unchanged re-index sends all
-  components again. There is no backoff and no stop after repeated errors: 2,000 components x 20 s timeout / 4 workers
-  is up to about 2.8 h per index, and every failed attempt costs a call. Failures also skip `options.log`
-  (`llm.ts:66`), so the cost log never shows them.
-- The AC-007-04 test (`components.test.ts:85`) only covers the case where all summaries succeeded, so it does not
-  catch this.
-- Suggested direction (human decision): store that a summary was attempted for a hash (for example hash plus a
-  failed/empty marker) and retry only on a limited schedule. Stop the batch after N consecutive errors.
+### M1 (unchanged re-index re-sends null summaries): RESOLVED
+- `summarize.ts:67-75` `isDue`: `ok` and `empty` are never re-sent for the same hash. `error` is retried only when
+  `summaryAttempts < 3` and at least 24 h have passed. `null` (never attempted, or a row from before 0008 with no
+  summary) is sent once.
+- `summarize.ts:89`: a changed hash resets the state to not attempted. A legacy row with a summary is treated as `ok`
+  (line 94).
+- `summarize.ts:105`: the batch stops after 5 errors in a row. Counting calls in flight means an outage makes exactly
+  5 calls, not 5 + 3 already in flight. Components that were never started keep `summaryStatus: null` and are tried on
+  the next index, so each index costs at most 5 calls during an outage.
+- `llm.ts:73`: a failed call is logged with model, purpose and error class name only. `errorType` accepts only an
+  identifier-shaped `err.name`, so a message containing the prompt or a key cannot reach the log.
+- Migration 0008 adds only a status (CHECK-constrained), a counter and a timestamp: no code or prompt. The schema and
+  `listComponents` expose the new columns. `insertMany` passes the rows through.
+- Tests have exact expectations and would have failed before the fix: an empty answer followed by 3 re-indexes is 1
+  call in total (`components.test.ts:146`); the retry schedule at 23 h / 24 h / 48 h / 30 days, and a reset on a new
+  hash (`:159`); an outage over 40 components is 5 calls, 5 errors, 35 not attempted, and 5 log entries without the key
+  (`:183`); a success breaks the streak (`:207`).
 
-## LOW
+### L1 (pre-filter used 20 tokens, scoring used all): RESOLVED
+- `similar.ts:58-60` `queryTokens` caps at 20 and is used by both `similarNameFilter` and `findSimilarComponent`.
+  `apps/web/src/server/components.ts:21` passes `similarNameFilter` to the repo, whose own `MAX_NAME_TOKENS = 20` cap is
+  then a no-op. The test at `components.test.ts:250` uses the 25-token case from the previous review.
+- Note: the number 20 is defined twice (`similar.ts` MAX_QUERY_TOKENS and `symbols.ts` MAX_NAME_TOKENS). A comment
+  links them, but there is no shared constant: packages/db cannot import from core.
 
-### L1. The name pre-filter keeps only the first 20 query tokens; scoring uses all of them
-- `packages/db/src/repos/symbols.ts:69` slices to `MAX_NAME_TOKENS = 20`. `similar.ts:94` scores with every token,
-  up to 200 chars. With a query of 25 tokens, a component whose name shares 5 of tokens 21-25 and whose path matches
-  the rest scores `0.8*5/25 + 0.2 = 0.36 >= 0.3`. The pre-filter drops it before scoring. Unlikely for real queries;
-  cap both sides at the same token count (`similarNameFilter` is a good place).
+### L2 (`LlmOptions.maxTokens` ignored): RESOLVED
+- `llm.ts:57,66`: the per-request value is capped by `options.maxTokens`, which is capped at 300. Test
+  `llm.test.ts:56` checks `[50, 50, 20]`.
 
-### L2. `LlmOptions.maxTokens` is accepted but never used
-- `packages/core/src/llm.ts:33` declares it. `llm.ts:60` always caps at `DEFAULT_MAX_TOKENS`. A caller passing
-  `createLlm(client, { maxTokens: 50 })` still gets up to 300 tokens. Either use it or remove it.
+### L3 (no test pins secret masking): RESOLVED
+- `components.test.ts:219` puts secrets in the path (`ghp_`), the signature (`AKIA`) and the answer (`sk-ant-`,
+  `password=`), and asserts the masked prompt and the exact masked summary. Removing either `maskSecretsIn` call fails
+  it.
 
-### L3. No test pins secret masking in the summary path
-- `summarize.ts:32,36` masks the prompt and the answer (verified by probe: path `src/ghp_ABCD...` became `ghp_***`.
-  The answer `sk-ant-ABCD... password=hunter22` became `sk-a*** password=hunt***`). No FEAT-007 test asserts this, so
-  removing either `maskSecretsIn` call would still pass the tests. Add one test with a secret-shaped path and answer.
+## New findings
 
-## Checked, no finding
-- Metadata-only prompts: the prompt is name + path + signature (`summarize.ts:32`). The signature comes from the AST
-  with initializers dropped and string/number/template literal types replaced by keywords
-  (`indexer/components.ts:53,72-120`). No body text. The test asserts body markers are absent (`components.test.ts:62`).
-  The cost log carries only model/tokens/ms/purpose (`llm.test.ts:45`). Errors are swallowed without logging the
-  prompt.
-- Name filter escaping: the value is bound as a parameter through drizzle `ilike`. `likePattern` escapes `\ % _`, which
-  matches Postgres' default LIKE escape (backslash). Tokens are `[a-z0-9]` only anyway. `["%"]` returns `[]`
-  (`symbols.test.ts:290`). An empty token list returns `[]` without a query. Stemming only shortens tokens, so a name
-  that matches in TS also matches the ILIKE substring.
-- Project filter: `listComponents` filters `symbols.project_id`. The join also requires
-  `files.project_id = symbols.project_id` (`symbols.ts:85`), and a composite FK backs it. A cross-project test exists
-  (`apps/web/src/server/components.test.ts:218`). `findSimilarComponents` takes the projectId from its caller. No
-  route or MCP tool is wired yet (FEAT-011), so `requireProjectAccess` at the entry point is still to be checked there.
-- Read path makes no LLM call: `apps/web/src/server/components.ts` is a DB read plus lexical scoring. Indexes
-  `(project_id, kind, name)` and `(project_id)` exist.
-- AC-007-02/03/05 tests have exact expectations (top match, `[]` below the threshold with a non-empty closest
-  candidate, p95 over 40 runs mixing a rare and a common query). `kit.py dupes`: 0 repeated blocks.
+### LOW
+
+#### N1. Workers that stop during a short error streak never restart, so the rest of the batch runs with fewer workers
+- `summarize.ts:105`: a worker leaves its `while` loop when `errorsInARow + inFlight >= 5`. That loop is the only
+  place it runs, so a worker that leaves never comes back, even after a later success resets `errorsInARow` to 0. Only
+  the last worker needs a real 5-error streak to stop, so the batch still finishes; it just runs with fewer workers.
+- Evidence (scratch probe, 40 components, fake 5 ms calls, 4 workers): the highest concurrency after call 10 was
+  4 with no errors, 3 when calls 2 and 3 failed, and 2 when calls 2, 3 and 4 failed. All 40 calls were made in each
+  case.
+- Scenario: a short rate-limit burst at the start of a 2,000-component index (3 errors in a row) leaves 2 workers for
+  the rest of the batch, which roughly doubles the index time. With 4 errors in a row it is 1 worker, about 4x the time.
+- Suggested direction: keep the workers running and test the stop condition as a shared flag. Or `continue` (wait)
+  instead of `break` while `errorsInARow + inFlight >= 5` and calls are still in flight. Then add a test that checks
+  concurrency after a broken streak.
+
+## For the human (by design, no finding)
+- During an outage longer than about 3 days (for example a wrong API key over a weekend), every component that is tried
+  uses up its 3 attempts. After that it stays without a summary until its signature changes. This follows the
+  2026-10-28 directive (max 3 attempts per hash). A way to reset attempts (for example after the key is fixed) may be
+  wanted later.
+- `summaryAttemptedAt` comes from the caller's `now`. Once FEAT-008 runs this in the CLI, it will be the user's clock.
+  A server-side write should set it, or clamp it, before the 24 h schedule relies on it.
 
 ## Not verified
-- No real Claude API call (fake clients only). Nothing persists summaries or hashes from an index yet (FEAT-008), so
-  AC-007-04 holds only at the `summarizeComponents` unit level. p95 was measured on PGlite, not Neon.
+- No real Claude API call. Nothing loads `PreviousSummaries` from the DB or writes the new columns from an index yet
+  (KI-022, FEAT-008), so M1 is fixed at the `summarizeComponents` unit level only. I did not run the full
+  `verify.sh`.
 
-VERDICT: FAIL
+VERDICT: PASS
