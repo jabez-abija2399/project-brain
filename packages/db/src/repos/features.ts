@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type Feature, type NewFeature, featureFiles, features, files } from "../schema";
 
@@ -43,6 +43,16 @@ export const featuresRepo = {
       .returning();
     if (!row) throw new Error("insert features returned no row");
     return row;
+  },
+
+  // Features whose status is 'in_progress', by name (the handoff note lists them).
+  async listInProgress(db: BrainDb, projectId: string, limit: number): Promise<Feature[]> {
+    return db
+      .select()
+      .from(features)
+      .where(and(eq(features.projectId, projectId), eq(features.status, "in_progress")))
+      .orderBy(asc(features.name))
+      .limit(limit);
   },
 
   /**

@@ -31,10 +31,7 @@ export function indexRoute(
       status = res.status;
       return res;
     } finally {
-      console.info(
-        `[api] ${name}`,
-        JSON.stringify({ projectId, status, ms: Date.now() - started }),
-      );
+      console.info("[api]", name, JSON.stringify({ projectId, status, ms: Date.now() - started }));
     }
   };
 }

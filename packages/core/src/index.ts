@@ -50,6 +50,12 @@ export { DEFAULT_MODEL, createLlm } from "./llm";
 export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "./llm";
 
 export { maskSecret, maskSecretsIn } from "./mask";
+export {
+  DIRECTIVE_BUDGET,
+  HANDOFF_LIMIT,
+  buildHandoffNote,
+  type HandoffInput,
+} from "./handoff";
 export { readSupabaseMigrations } from "./supabase";
 export type {
   ColumnDecl,

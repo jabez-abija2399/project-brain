@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type File, type NewFile, files } from "../schema";
 
@@ -36,5 +36,14 @@ export const filesRepo = {
       .where(and(eq(files.projectId, projectId), eq(files.path, path)))
       .limit(1);
     return rows[0] ?? null;
+  },
+
+  // Files of one project by id (a feature's files). Ids of other projects never match.
+  async byIds(db: BrainDb, projectId: string, ids: string[]): Promise<File[]> {
+    if (ids.length === 0) return [];
+    return db
+      .select()
+      .from(files)
+      .where(and(eq(files.projectId, projectId), inArray(files.id, ids)));
   },
 };

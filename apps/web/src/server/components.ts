@@ -1,4 +1,9 @@
-import { type SimilarOptions, findSimilarComponent, similarNameFilter } from "@brain/core";
+import {
+  type SimilarOptions,
+  findSimilarComponent,
+  maskSecretsIn,
+  similarNameFilter,
+} from "@brain/core";
 import { type BrainDb, symbolsRepo } from "@brain/db";
 
 export type SimilarComponent = {
@@ -20,11 +25,13 @@ export async function findSimilarComponents(
   const components = await symbolsRepo.listComponents(db, projectId, {
     nameContainsAny: similarNameFilter(query, options),
   });
+  // Masked before it leaves the server (AGENTS.md): a stored path or summary may carry a secret.
+  const mask = (value: string | null) => (value === null ? null : maskSecretsIn(value));
   return findSimilarComponent(query, components, options).map(({ component, score }) => ({
-    name: component.name,
-    path: component.path,
-    signature: component.signature,
-    summary: component.summary,
+    name: maskSecretsIn(component.name),
+    path: maskSecretsIn(component.path),
+    signature: mask(component.signature),
+    summary: mask(component.summary),
     score,
   }));
 }

@@ -29,6 +29,7 @@ const EXPECTED_TABLES = [
   "requests",
   "checklist_items",
   "receipts",
+  "directives",
   "db_tables",
   "db_policies",
 ];

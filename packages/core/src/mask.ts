@@ -16,14 +16,17 @@ const TOKEN_PATTERNS: RegExp[] = [
   /\bsbp_[0-9a-f]{40}\b/g,
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
 ];
+// The name may carry a prefix (DATABASE_PASSWORD=, BETTER_AUTH_SECRET=); the prefix is kept, only the value is masked.
 const ASSIGNED =
-  /\b(password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|service[_-]?role[_-]?key|jwt[_-]?secret)(["']?\s*[:=]\s*["']?)([^\s"',;)]{4,})/gi;
+  /\b([A-Za-z0-9_]*?(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|service[_-]?role[_-]?key|jwt[_-]?secret))(["']?\s*[:=]\s*["']?)([^\s"',;)]{4,})/gi;
+// Zero-width characters can split a token so the patterns miss it; they are removed first.
+const ZERO_WIDTH = /\u200B|\u200C|\u200D|\u2060|\uFEFF/g;
 const URL_CREDENTIALS = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:)([^\s/@]+)(@)/gi;
 const LONG_RANDOM =
   /\b(?=[A-Za-z0-9+/_-]*[0-9])(?=[A-Za-z0-9+/_-]*[A-Za-z])[A-Za-z0-9+/_-]{32,}={0,2}/g;
 
 export function maskSecretsIn(text: string): string {
-  let out = text;
+  let out = text.replace(ZERO_WIDTH, "");
   for (const rx of TOKEN_PATTERNS) out = out.replace(rx, (m) => maskSecret(m));
   out = out.replace(ASSIGNED, (_m, name: string, sep: string, value: string) =>
     value.endsWith("***") ? `${name}${sep}${value}` : `${name}${sep}${maskSecret(value)}`,

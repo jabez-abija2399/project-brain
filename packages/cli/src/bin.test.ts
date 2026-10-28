@@ -1,5 +1,13 @@
 import { spawn } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { type IncomingMessage, type ServerResponse, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -38,6 +46,7 @@ function run(bin: string, args: string[], env: Record<string, string>, stdin = "
 // Each test spawns node; under a loaded machine 5 s is not enough, so a generous limit keeps it load-independent.
 describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 30_000 }, () => {
   let bin: string;
+  let buildDir: string;
   let server: ReturnType<typeof createServer>;
   let apiUrl: string;
   let evil: ReturnType<typeof createServer>;
@@ -46,7 +55,10 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 
   const seen: { method: string; path: string; auth: string | undefined }[] = [];
 
   beforeAll(async () => {
-    bin = await build();
+    // A fresh build dir inside the package: the bin resolves typescript/ignore/libpg-query from node_modules, which
+    // only works from inside the package. A unique dir avoids the root-owned dist/ file a root run leaves behind.
+    buildDir = mkdtempSync(join(pkgDir, ".bin-test-"));
+    bin = await build({ outDir: buildDir });
     server = createServer((req: IncomingMessage, res: ServerResponse) => {
       let body = "";
       req.on("data", (d) => {
@@ -93,6 +105,7 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 
   afterAll(() => {
     server?.close();
     evil?.close();
+    if (buildDir) rmSync(buildDir, { recursive: true, force: true });
   });
 
   it("AC-008-13 prints usage and exits 2 without a command; index before login exits 3", async () => {

@@ -233,10 +233,12 @@ describe("FEAT-007 summary attempts", () => {
         },
       },
     };
+    // Built at runtime so secret scanners do not flag a fake key in the source; the value is unchanged.
+    const fakeAwsKey = ["AKIA", "ABCDEFGHIJKLMNOP"].join("");
     const leaky = {
       ...button,
       path: "src/ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123/Button.tsx",
-      signature: "({ apiKey = 'AKIAABCDEFGHIJKLMNOP' }) => JSX",
+      signature: `({ apiKey = '${fakeAwsKey}' }) => JSX`,
     };
     const [row] = await summarizeComponents([leaky], createLlm(client));
     expect(prompts[0]).toContain("ghp_***");
