@@ -4,6 +4,8 @@ export class AppError extends Error {
   readonly status: number;
   readonly code: string;
   readonly fieldErrors?: Record<string, string>;
+  // Seconds a client should wait before retrying (sent as Retry-After).
+  retryAfter?: number;
   constructor(
     status: number,
     code: string,
@@ -22,7 +24,9 @@ export function toResponse(err: unknown): NextResponse {
     const body: Record<string, unknown> = { ok: false, code: err.code };
     if (err.fieldErrors) body.fieldErrors = err.fieldErrors;
     if (err.message && err.message !== err.code) body.message = err.message;
-    return NextResponse.json(body, { status: err.status });
+    const headers =
+      err.retryAfter === undefined ? undefined : { "retry-after": String(err.retryAfter) };
+    return NextResponse.json(body, { status: err.status, headers });
   }
   console.error("[api] unexpected error:", err instanceof Error ? err.message : String(err));
   return NextResponse.json({ ok: false, code: "server_error" }, { status: 500 });

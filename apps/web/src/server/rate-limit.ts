@@ -16,7 +16,10 @@ export async function rateLimit(
   // The first hit of a key's window also clears windows older than two days (minute and daily counters).
   if (count === 1) await rateCountersRepo.prune(db, new Date(now.getTime() - 2 * DAY_MS));
   if (count > perMinute) {
-    throw new AppError(429, "rate_limited", "too many requests, try again in a minute");
+    const err = new AppError(429, "rate_limited", "too many requests, try again in a minute");
+    // KI-028: the seconds until this window ends, so the CLI waits no longer than it must.
+    err.retryAfter = Math.max(1, Math.ceil((window.getTime() + MINUTE_MS - now.getTime()) / 1000));
+    throw err;
   }
 }
 
