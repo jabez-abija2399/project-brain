@@ -1,5 +1,5 @@
 import { setLlmForTests } from "@/server/llm";
-import { MCP_CALLS_PER_MINUTE, MCP_ERROR, setMcpClockForTests } from "@/server/mcp-tools";
+import { MCP_CALLS_PER_MINUTE, MCP_ERROR } from "@/server/mcp-tools";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
 import type { Llm } from "@brain/core";
 import {
@@ -74,9 +74,9 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
-  setMcpClockForTests(undefined);
   setLlmForTests(undefined);
   vi.restoreAllMocks();
+  vi.useRealTimers();
   await world.teardown();
 });
 
@@ -234,9 +234,9 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
   }, 120_000);
 
   it("AC-011-05 a token past the per-minute call limit gets rate_limited (-32005) and the write does not happen", async () => {
-    // One frozen minute: the count cannot reset at a minute boundary mid-test.
-    const frozen = new Date("2026-10-28T12:00:30Z");
-    setMcpClockForTests(() => frozen);
+    // All calls must share one fixed calendar-minute window: freeze the clock mid-minute (checklist rule 8, KI-031).
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-28T12:00:30Z"));
     for (let i = 0; i < MCP_CALLS_PER_MINUTE; i++) {
       const ok = await callTool("where_did_we_stop", { projectId }, token);
       expect(ok.isError).toBe(false);

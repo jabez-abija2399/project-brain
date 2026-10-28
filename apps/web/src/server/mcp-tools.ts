@@ -82,13 +82,6 @@ function toProtocolError(err: unknown): ProtocolError {
 // each call. Postgres counters, shared by every server instance (D-010).
 export const MCP_CALLS_PER_MINUTE = 300;
 
-// The rate limit's clock. Tests freeze it, so a run that crosses a minute boundary cannot reset the count (checklist
-// rule 8: no tests that depend on timing).
-let clock: () => Date = () => new Date();
-export function setMcpClockForTests(next: (() => Date) | undefined): void {
-  clock = next ?? (() => new Date());
-}
-
 const text = (value: string) => ({ content: [{ type: "text" as const, text: value }] });
 
 // Runs a tool for the token's project and maps every failure to the route's error shape.
@@ -103,9 +96,8 @@ async function run(
   try {
     const token = tokenOf(authInfo);
     projectId = token.projectId;
-    const now = clock();
-    await rateLimit(getDb(), `mcp:${token.id}`, MCP_CALLS_PER_MINUTE, now);
-    await rateLimit(getDb(), `mcp-project:${token.projectId}`, MCP_CALLS_PER_MINUTE, now);
+    await rateLimit(getDb(), `mcp:${token.id}`, MCP_CALLS_PER_MINUTE);
+    await rateLimit(getDb(), `mcp-project:${token.projectId}`, MCP_CALLS_PER_MINUTE);
     return text(await fn(token));
   } catch (err) {
     // The SDK turns any error thrown by a tool into an isError result whose text is only the message, so the

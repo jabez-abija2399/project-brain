@@ -128,3 +128,4 @@ packages/core/src/handoff.ts
 apps/web/src/server/checklist.security.test.ts
 packages/core/src/llm.test.ts  # gitleaks fix requested by the user: fake keys built at runtime
 .gitleaksignore  # gitleaks fix requested by the user: fingerprints of confirmed fake test values in old commits
+apps/web/src/app/mcp/mcp.test.ts  # KI-031 fix requested by the user: freeze the clock for the per-minute rate-limit test
