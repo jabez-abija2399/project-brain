@@ -16,3 +16,6 @@
 07c1fd084afbcf0222f27ac60324077467f05d36:apps/web/src/server/session-tools.security.test.ts:stripe-access-token:562
 # components.test.ts (FEAT-007) "AC-007-01 secrets in the path, signature and AI answer are masked": fake AKIA key
 61d29dd668252f25ed839978fa7975a3f7ef779a:packages/core/src/components/components.test.ts:aws-access-token:239
+# checklist.security.test.ts (FEAT-012, branch claude/confident-archimedes-rg8ezz) fakeSecret helper: fake sk-ant- key
+# assembled at runtime from pieces; its 24-char made-up tail trips generic-api-key. Not a real credential.
+a502c6be1831ff402221550759199f6340bda5c6:apps/web/src/server/checklist.security.test.ts:generic-api-key:36
