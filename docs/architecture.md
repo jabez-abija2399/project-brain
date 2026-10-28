@@ -75,7 +75,9 @@ decisions(project_id, title, reason, created_at) · agent_sessions(project_id, g
 requests(project_id, feature_id, text, created_at) · checklist_items(project_id, request_id, text, status open|done|partial|missed|dismissed) ·
 receipts(project_id, request_id NULL, commit_sha NULL, summary_json, created_at) ·
 db_tables(project_id, file_id, name, rls_enabled) ·
-db_policies(table_id, command, allows_all boolean, checks_ownership boolean).
+db_policies(table_id, command, allows_all boolean, checks_ownership boolean) ·
+rate_counters(key, window_start, count; PK key+window_start): per-token minute limits and per-project daily AI budgets
+shared by every server instance (D-010, migration 0009; keys hold ids only).
 Flags only, no policy expression text (D-002).
 Project-scoped links use composite FKs on (project_id, parent id), so a row can never reference another project's row (migrations 0002, 0003).
 Indexes: every table on project_id; symbols(project_id, kind, name); receipts(project_id, created_at desc).
@@ -102,6 +104,7 @@ One helper, requireProjectAccess(projectId, actor), in apps/web/src/server/auth.
 | GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET | GitHub sign-in | no / yes |
 | GITHUB_APP_ID / GITHUB_APP_PRIVATE_KEY / GITHUB_WEBHOOK_SECRET | GitHub App | no / yes / yes |
 | ANTHROPIC_API_KEY | Claude API | yes |
+| AI_CALLS_PER_PROJECT_PER_DAY | daily AI-call budget per project (UTC day; default 2000) | no |
 | INNGEST_EVENT_KEY / INNGEST_SIGNING_KEY | jobs (not needed with the local dev server) | yes |
 
 ## Local development

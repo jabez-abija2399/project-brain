@@ -22,3 +22,8 @@ docs/architecture.md
 docs/decisions.md
 docs/specs/FEAT-008.md
 .env.example
+packages/db/src/schema/**
+packages/db/migrations/0009_rate_counters.sql
+packages/db/src/repos/rate-counters.ts
+packages/db/src/repos/rate-counters.test.ts
+packages/db/src/migrations.test.ts

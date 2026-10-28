@@ -36,11 +36,26 @@ function flag(args: string[], name: string): string | undefined {
   return value;
 }
 
+// The token travels in every request: https only, except a local dev server.
+function isSafeApiUrl(raw: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+}
+
 async function login(args: string[], deps: CliDeps, path: string): Promise<void> {
   const apiUrl = flag(args, "--api-url") ?? deps.env.PROJECTBRAIN_API_URL ?? DEFAULT_API_URL;
   if (args.length > 0) throw new CliError(EXIT.usage, `Unknown argument: ${args[0]}`);
-  if (!/^https?:\/\/[^\s]+$/.test(apiUrl))
-    throw new CliError(EXIT.usage, "--api-url must be an http(s) URL.");
+  if (!isSafeApiUrl(apiUrl))
+    throw new CliError(
+      EXIT.usage,
+      "--api-url must be https (plain http only for localhost, 127.0.0.1 or [::1]).",
+    );
   const token = (deps.env.PROJECTBRAIN_TOKEN ?? (await deps.readStdin())).trim();
   if (!token)
     throw new CliError(EXIT.usage, "No token: paste it on stdin or set PROJECTBRAIN_TOKEN.");

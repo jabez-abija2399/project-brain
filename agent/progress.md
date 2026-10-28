@@ -234,3 +234,10 @@ Next: FEAT-006 (feature map).
 Changed: deleted packages/sandbox/src/types.ts (human approved); index.ts and runner.ts import the run types from @brain/core directly.
 Verified (ran this session): verify.sh PASS (140 tests).
 Open questions: agent/features.json (FEAT-005 files) still lists packages/sandbox/src/types.ts; only the human can change it.
+
+## 2026-10-28 | FEAT-008 security pass (KI-023, KI-024, runnable CLI bin) | status: done (new criteria AC-008-08..13 proposed in agent/plan.json)
+Changed: rate_counters table (migration 0009, D-010) + rateCountersRepo; per-token rate limit now in Postgres (shared by instances); per-project daily AI budget (default 2,000/UTC day, AI_CALLS_PER_PROJECT_PER_DAY) reserved atomically before summarize calls, unused given back, CLI prints when it is used up. Diff batches carry a byte-order range (after, through]; server deletes stored files in the range that are not listed (codeIndexRepo.removeMissing, symbols cascade). CLI: refuses an empty folder; esbuild 0.28.2 bundles src/main.ts into dist/projectbrain.mjs (bin.mjs stub removed). Attack fixes: https-only --api-url (except localhost), no redirects, secrets masked in route signature/component name, control characters in paths rejected. D-017.
+Verified (ran this session): verify.sh PASS (typecheck, lint, 223 tests, kit guard); every new test failed before its fix (db repo, cross-instance limit, budget x3, deletions, bin, http/redirect/masking/control-char attacks, empty-folder guard); built bin run by hand from /tmp (usage exit 2, index without login exit 3, http remote refused exit 2).
+NOT VERIFIED: real Postgres/Neon (PGlite only), real Claude API, `next build` (CI), a bin installed globally (npm i -g / pnpm link); default --api-url is still localhost.
+Known issues: KI-023, KI-024 fixed; new KI-025 (subfolder index deletes files outside it), KI-026 (budget per project, no per-user/IP cap).
+Next: human imports agent/plan.json and reviews this security pass; then FEAT-009.

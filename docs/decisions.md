@@ -154,3 +154,18 @@ inside each upload REJECTED (a first index would take minutes per batch). (C) an
 now (Inngest is not wired yet; adds a moving part before FEAT-009 needs it). Trade-offs: summaries finish only while the
 CLI runs (or on the next index); two concurrent summarize calls can both attempt one component. Revisit when: FEAT-009
 adds Inngest (push re-index should summarize in the job).
+
+## D-017 | 2026-10-28 | FEAT-008 deletions via byte-order diff ranges; daily AI budget by reservation; CLI bundled with esbuild
+Context: KI-024 (deleted files stayed indexed), KI-023 (in-memory rate limit, no AI budget), and the CLI bin was a stub.
+Deletions: (A) each diff batch carries (after, through], the range of local paths it covers in UTF-8 byte order; the
+server deletes stored paths in the range it does not list CHOSEN: stateless, works with 200-file batches, Postgres
+COLLATE "C" matches the CLI's Buffer.compare order. (B) a full path list in one request REJECTED (breaks the 200-file /
+5 MB limit). (C) a server-side index "session" REJECTED (state across requests). Budget: reserve min(40, due) calls
+atomically in rate_counters (key ai:<project>, UTC day) before summarizing and give unused ones back, so parallel
+requests never pass the limit together; over the budget the summarize response says budgetExhausted + resumesAt.
+Rate limit: fixed one-minute windows in the same table (D-010), pruned after 2 days. CLI: esbuild 0.28.2 bundles
+src/main.ts + @brain/core into dist/projectbrain.mjs; typescript, ignore and libpg-query stay external dependencies
+of @brain/cli (tsup REJECTED: extra wrapper dep; tsc emit REJECTED: extensionless .ts imports, no bundling).
+Trade-offs: a subfolder index deletes the files outside it (KI-025); the budget is per project, not per user (KI-026).
+Revisit when: FEAT-009 runs indexing in Inngest (reuse the same budget key), or request volume makes the counter slow.
+

@@ -11,6 +11,7 @@ import {
 import { type BrainDb, type ComponentRow, codeIndexRepo, symbolsRepo } from "@brain/db";
 import { z } from "zod";
 import { AppError } from "./errors";
+import { nextUtcDay, releaseDaily, reserveDaily } from "./rate-limit";
 
 export const MAX_BATCH_FILES = 200;
 export const MAX_BODY_BYTES = 5 * 1024 * 1024;
@@ -18,8 +19,17 @@ export const MAX_BODY_BYTES = 5 * 1024 * 1024;
 // calls again while some are left.
 export const SUMMARIZE_MAX_CALLS = 40;
 export const INDEX_REQUESTS_PER_MINUTE = 60;
+// KI-023: AI calls per project per UTC day; AI_CALLS_PER_PROJECT_PER_DAY overrides it (a positive integer).
+export const DEFAULT_AI_CALLS_PER_DAY = 2000;
 
-// Relative POSIX paths inside the repo only: no absolute, drive or backslash paths, no '.', '..' or empty parts.
+export function dailyAiBudget(env: Record<string, string | undefined> = process.env): number {
+  const raw = env.AI_CALLS_PER_PROJECT_PER_DAY;
+  const n = raw && /^\d+$/.test(raw) ? Number(raw) : 0;
+  return n > 0 ? n : DEFAULT_AI_CALLS_PER_DAY;
+}
+
+// Relative POSIX paths inside the repo only: no absolute, drive or backslash paths, no '.', '..' or empty parts, no
+// control characters (paths reach agents' context, so no newlines or terminal escapes).
 const repoPath = z
   .string()
   .min(1)
@@ -27,7 +37,8 @@ const repoPath = z
   .refine(
     (p) =>
       !p.startsWith("/") &&
-      !/[\\\0]/.test(p) &&
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this rejects
+      !/[\\\u0000-\u001f\u007f]/.test(p) &&
       !/^[A-Za-z]:/.test(p) &&
       p.split("/").every((part) => part !== "" && part !== "." && part !== ".."),
     "path must be relative to the repo root",
@@ -54,14 +65,47 @@ export const uploadSchema = z
       .max(MAX_BATCH_FILES),
   })
   .strict();
+// Byte order (UTF-8), the same as Postgres COLLATE "C"; the CLI sorts paths this way for the diff ranges.
+export function byteOrder(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a), Buffer.from(b));
+}
+
+// With `after` and `through` (KI-024) the batch claims to list every local file in the range (after, through]
+// (null = open end): files sorted in byte order, no duplicates, all inside the range. Without them nothing is deleted.
 export const diffSchema = z
   .object({
-    files: z
-      .array(z.object({ path: repoPath, hash: sha256 }).strict())
-      .min(1)
-      .max(MAX_BATCH_FILES),
+    files: z.array(z.object({ path: repoPath, hash: sha256 }).strict()).max(MAX_BATCH_FILES),
+    after: repoPath.nullable().optional(),
+    through: repoPath.nullable().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((input, ctx) => {
+    if ((input.after === undefined) !== (input.through === undefined)) {
+      ctx.addIssue({ code: "custom", message: "after and through come together", path: ["after"] });
+      return;
+    }
+    if (input.after === undefined) {
+      if (input.files.length === 0)
+        ctx.addIssue({ code: "custom", message: "at least one file", path: ["files"] });
+      return;
+    }
+    const { after, through } = input;
+    if (after != null && through != null && byteOrder(after, through) >= 0)
+      ctx.addIssue({ code: "custom", message: "after must sort before through", path: ["after"] });
+    input.files.forEach((f, i) => {
+      const prev = input.files[i - 1];
+      const ok =
+        (prev ? byteOrder(prev.path, f.path) < 0 : true) &&
+        (after == null || byteOrder(after, f.path) < 0) &&
+        (through == null || byteOrder(f.path, through) <= 0);
+      if (!ok)
+        ctx.addIssue({
+          code: "custom",
+          message: "files must be unique, in byte order and inside (after, through]",
+          path: ["files", i, "path"],
+        });
+    });
+  });
 
 async function readLimited(req: Request, max: number): Promise<string> {
   if (Number(req.headers.get("content-length") ?? 0) > max) throw tooLarge();
@@ -111,18 +155,25 @@ export async function parseIndexBody<T>(req: Request, schema: z.ZodType<T>): Pro
   return result.data;
 }
 
-/** Paths whose stored hash differs or that are not stored yet, in request order. */
+/**
+ * changed: paths whose stored hash differs or that are not stored yet, in request order. deleted (KI-024, only with a
+ * range): stored paths in the range that the request does not list; they are removed with their symbols.
+ */
 export async function diffFiles(
   db: BrainDb,
   projectId: string,
   input: z.infer<typeof diffSchema>,
-): Promise<string[]> {
-  const stored = await codeIndexRepo.hashes(
-    db,
-    projectId,
-    input.files.map((f) => f.path),
-  );
-  return input.files.filter((f) => stored.get(f.path) !== f.hash).map((f) => f.path);
+): Promise<{ changed: string[]; deleted: string[] }> {
+  const paths = input.files.map((f) => f.path);
+  const stored = await codeIndexRepo.hashes(db, projectId, paths);
+  const changed = input.files.filter((f) => stored.get(f.path) !== f.hash).map((f) => f.path);
+  if (input.after === undefined || input.through === undefined) return { changed, deleted: [] };
+  const deleted = await codeIndexRepo.removeMissing(db, projectId, {
+    after: input.after,
+    through: input.through,
+    keep: paths,
+  });
+  return { changed, deleted };
 }
 
 function asPrevious(rows: ComponentRow[]): PreviousSummaries {
@@ -143,7 +194,11 @@ export async function saveIndexBatch(
     const components = withPreviousSummaries(
       f.symbols
         .filter((s) => s.kind === "component")
-        .map((s) => ({ path: f.path, name: s.name, signature: maskSecretsIn(s.signature) })),
+        .map((s) => ({
+          path: f.path,
+          name: maskSecretsIn(s.name),
+          signature: maskSecretsIn(s.signature),
+        })),
       previous,
     );
     const routes = f.symbols
@@ -151,7 +206,7 @@ export async function saveIndexBatch(
       .map((s) => ({
         kind: "route",
         name: maskSecretsIn(s.name),
-        signature: s.signature,
+        signature: maskSecretsIn(s.signature),
         summary: null,
         hash: null,
       }));
@@ -176,10 +231,18 @@ export async function saveIndexBatch(
   await codeIndexRepo.saveFiles(db, projectId, files);
 }
 
-export type SummarizeResult = { attempted: number; remaining: number; enabled: boolean };
+export type SummarizeResult = {
+  attempted: number;
+  remaining: number;
+  enabled: boolean;
+  // KI-023: the project's daily AI budget is used up; the rest waits until resumesAt (next UTC midnight).
+  budgetExhausted: boolean;
+  resumesAt: string | null;
+};
 
-// Summarizes the project's due components, at most SUMMARIZE_MAX_CALLS per request. The previous summaries and
-// attempt state come from the database (KI-022) and every attempt is stamped with the server's clock.
+// Summarizes the project's due components, at most SUMMARIZE_MAX_CALLS per request and within the project's daily AI
+// budget (KI-023). The previous summaries and attempt state come from the database (KI-022) and every attempt is
+// stamped with the server's clock.
 export async function summarizeDue(
   db: BrainDb,
   projectId: string,
@@ -193,19 +256,33 @@ export async function summarizeDue(
     name: r.name,
     signature: r.signature ?? "",
   }));
-  if (!llm) {
-    const due = withPreviousSummaries(inputs, asPrevious(rows)).filter((c) => isSummaryDue(c, now));
-    return { attempted: 0, remaining: due.length, enabled: false };
-  }
-  const out = await summarizeComponents(inputs, llm, asPrevious(rows), {
-    now,
-    maxCalls: SUMMARIZE_MAX_CALLS,
+  const due = withPreviousSummaries(inputs, asPrevious(rows)).filter((c) => isSummaryDue(c, now));
+  const result = (attempted: number, remaining: number, exhausted: boolean) => ({
+    attempted,
+    remaining,
+    enabled: llm !== null,
+    budgetExhausted: exhausted,
+    resumesAt: exhausted ? nextUtcDay(now).toISOString() : null,
   });
-  const attempted = out.filter((c) => c.summaryAttemptedAt === now);
-  await codeIndexRepo.saveSummaries(db, projectId, attempted);
-  return {
-    attempted: attempted.length,
-    remaining: out.filter((c) => isSummaryDue(c, now)).length,
-    enabled: true,
-  };
+  if (!llm || due.length === 0) return result(0, due.length, false);
+
+  // Reserve calls before making them; whatever is not used goes back to the budget.
+  const key = `ai:${projectId}`;
+  const want = Math.min(SUMMARIZE_MAX_CALLS, due.length);
+  const granted = await reserveDaily(db, key, dailyAiBudget(), want, now);
+  let used = 0;
+  try {
+    if (granted === 0) return result(0, due.length, true);
+    const out = await summarizeComponents(inputs, llm, asPrevious(rows), {
+      now,
+      maxCalls: granted,
+    });
+    const attempted = out.filter((c) => c.summaryAttemptedAt === now);
+    used = attempted.length;
+    await codeIndexRepo.saveSummaries(db, projectId, attempted);
+    const remaining = out.filter((c) => isSummaryDue(c, now)).length;
+    return result(used, remaining, remaining > 0 && granted < want && used === granted);
+  } finally {
+    await releaseDaily(db, key, want - used, now);
+  }
 }

@@ -25,5 +25,6 @@ export {
   hashToken,
 } from "./project-tokens";
 export { usersRepo } from "./users";
+export { rateCountersRepo } from "./rate-counters";
 export { dbPoliciesRepo, dbTablesRepo } from "./db-schema";
 export { MAX_PAGE_SIZE, type Page, type PageOptions } from "./page";

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fromPglite } from "../db";
 import { createTestDb } from "../testing";
-import { codeIndexRepo, projectsRepo, symbolsRepo, usersRepo } from "./index";
+import { codeIndexRepo, filesRepo, projectsRepo, symbolsRepo, usersRepo } from "./index";
 
 const component = (name: string, hash: string) => ({
   kind: "component",
@@ -90,5 +90,39 @@ describe("FEAT-008 codeIndexRepo", () => {
     expect(await symbolsRepo.listComponents(db, other)).toMatchObject([
       { name: "X", summary: null, summaryStatus: null, summaryAttempts: 0 },
     ]);
+  });
+  it("KI-024 removeMissing deletes this project's files in the range that the client no longer has, with their symbols", async () => {
+    const save = (projectId: string, paths: string[]) =>
+      codeIndexRepo.saveFiles(
+        db,
+        projectId,
+        paths.map((path) => ({ path, hash: "h", symbols: [component(path, `h-${path}`)] })),
+      );
+    await save(mine, ["src/A.tsx", "src/B.tsx", "src/C.tsx", "src/D.tsx", "src/É.tsx"]);
+    await save(other, ["src/B.tsx", "src/C.tsx"]);
+
+    // Range (src/A.tsx, src/C.tsx]: B is gone locally, C is kept; A and D are outside the range.
+    expect(
+      await codeIndexRepo.removeMissing(db, mine, {
+        after: "src/A.tsx",
+        through: "src/C.tsx",
+        keep: ["src/C.tsx"],
+      }),
+    ).toEqual(["src/B.tsx"]);
+    const paths = async (projectId: string) =>
+      (await filesRepo.list(db, projectId)).map((f) => f.path).sort();
+    expect(await paths(mine)).toEqual(["src/A.tsx", "src/C.tsx", "src/D.tsx", "src/É.tsx"]);
+    expect((await symbolsRepo.listComponents(db, mine)).map((c) => c.path).sort()).toEqual([
+      "src/A.tsx",
+      "src/C.tsx",
+      "src/D.tsx",
+      "src/É.tsx",
+    ]);
+    // Open-ended range after src/D.tsx: byte order, so 'src/É.tsx' (UTF-8 0xC3) sorts after 'src/D.tsx'.
+    expect(
+      await codeIndexRepo.removeMissing(db, mine, { after: "src/D.tsx", through: null, keep: [] }),
+    ).toEqual(["src/É.tsx"]);
+    // The other project is untouched.
+    expect(await paths(other)).toEqual(["src/B.tsx", "src/C.tsx"]);
   });
 });

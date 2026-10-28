@@ -1,5 +1,5 @@
 import { type IndexResult, indexRepo, maskSecretsIn } from "@brain/core";
-import { request } from "./api";
+import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 
 export const BATCH_FILES = 200;
@@ -27,6 +27,11 @@ export function toUpload(index: IndexResult): UploadFile[] {
     byPath.get(r.file)?.symbols.push({ kind: "route", name: r.path, signature: r.method });
   }
   return [...byPath.values()];
+}
+
+// Byte order (UTF-8), the server's order for diff ranges (Postgres COLLATE "C").
+function byteOrder(a: string, b: string): number {
+  return Buffer.compare(Buffer.from(a), Buffer.from(b));
 }
 
 export function batches<T>(
@@ -62,34 +67,69 @@ export async function runIndex(
   print(
     `Indexing ${index.files.length} files (${index.skipped.length} skipped, ${index.errors.length} errors)...`,
   );
-  const files = toUpload(index);
+  // Nothing found usually means the wrong folder: stop before a diff range would delete the whole stored index.
+  if (index.files.length === 0)
+    throw new CliError(EXIT.usage, `No files to index in ${root}: run it in the repo root.`);
+  const files = toUpload(index).sort((x, y) => byteOrder(x.path, y.path));
   const base = `/api/index/${encodeURIComponent(config.projectId)}`;
 
+  // KI-024: each diff batch covers the local paths in (after, through]; the server deletes stored files in that range
+  // that are not listed. Skipped when a file could not be read, so it is never deleted by mistake.
+  const unreadable = index.errors.some((e) => e.message.startsWith("read failed"));
   const changed = new Set<string>();
-  for (const batch of batches(files, BATCH_FILES)) {
-    const res = await request<{ changed: string[] }>(fetchImpl, config, "POST", `${base}/diff`, {
-      files: batch.map((f) => ({ path: f.path, hash: f.hash })),
-    });
+  let deleted = 0;
+  const diffBatches = batches(files, BATCH_FILES);
+  for (const [i, batch] of diffBatches.entries()) {
+    const range = unreadable
+      ? {}
+      : {
+          after: i === 0 ? null : (diffBatches[i - 1]?.at(-1)?.path ?? null),
+          through: i === diffBatches.length - 1 ? null : (batch.at(-1)?.path ?? null),
+        };
+    const res = await request<{ changed: string[]; deleted?: string[] }>(
+      fetchImpl,
+      config,
+      "POST",
+      `${base}/diff`,
+      { files: batch.map((f) => ({ path: f.path, hash: f.hash })), ...range },
+    );
     for (const p of res.changed) changed.add(p);
+    deleted += res.deleted?.length ?? 0;
   }
   const toSend = files.filter((f) => changed.has(f.path));
   for (const batch of batches(toSend, BATCH_FILES, BATCH_BYTES)) {
     await request(fetchImpl, config, "POST", base, { files: batch });
   }
-  print(`Uploaded ${toSend.length} changed, ${files.length - toSend.length} unchanged`);
+  print(
+    `Uploaded ${toSend.length} changed, ${files.length - toSend.length} unchanged${deleted > 0 ? `, ${deleted} deleted` : ""}`,
+  );
+  if (unreadable)
+    print("Some files could not be read, so deleted files were not checked this time.");
 
   let summarized = 0;
   for (let round = 0; round < MAX_SUMMARIZE_ROUNDS; round++) {
-    const res = await request<{ attempted: number; remaining: number; enabled: boolean }>(
-      fetchImpl,
-      config,
-      "POST",
-      `${base}/summarize`,
-    );
+    const res = await request<{
+      attempted: number;
+      remaining: number;
+      enabled: boolean;
+      budgetExhausted?: boolean;
+      resumesAt?: string | null;
+    }>(fetchImpl, config, "POST", `${base}/summarize`);
     summarized += res.attempted;
     if (!res.enabled) {
       print(
         `AI summaries are off on the server; ${res.remaining} components wait for a later index.`,
+      );
+      break;
+    }
+    if (res.budgetExhausted) {
+      const at = res.resumesAt ? new Date(res.resumesAt) : null;
+      const when =
+        at && !Number.isNaN(at.getTime())
+          ? `${at.toISOString().slice(0, 16).replace("T", " ")} UTC`
+          : "tomorrow";
+      print(
+        `Daily AI budget for this project is used up: ${res.remaining} components wait until ${when}. Run index again then.`,
       );
       break;
     }

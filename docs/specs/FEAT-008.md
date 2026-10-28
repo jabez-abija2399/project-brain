@@ -33,6 +33,16 @@ Abuse cases -> each becomes an `attack` or `permission` criterion with an execut
 - Oversized/expensive uploads: 413 above limits (AC-008-05); rate limit 60 uploads/min per token.
 - Path traversal in uploaded paths ('../', absolute paths): rejected by the schema.
 - Token at rest: config file permissions 0600; token never printed after login.
+- Security pass 2026-10-28 (tests in apps/web/src/app/api/index/*.test.ts, packages/cli/src/{cli,bin}.test.ts):
+  - Rate limit bypass across serverless instances: the per-token limit counts in Postgres (rate_counters, D-010, KI-023).
+  - AI cost abuse with a leaked token: per-project daily AI budget (default 2,000 calls/UTC day), reserved atomically
+    before calls, unused reservations returned; over it summaries wait for the next UTC day and the CLI says so.
+  - Stale data: the diff deletes stored files that are gone locally, only inside the byte-order range (after, through]
+    the batch claims; unsorted, duplicate or out-of-range lists are 400 (KI-024). An empty folder is refused by the CLI.
+  - Token sent in cleartext: `login --api-url` must be https (plain http only for localhost/127.0.0.1/[::1]).
+  - Token forwarded by a redirect: the CLI never follows redirects (fetch redirect: "error").
+  - Secrets in any symbol field (component name/signature, route name/signature) are masked before storage.
+  - Paths with control characters (newlines, terminal escapes) are rejected: paths reach agents' context.
 Security pass (generate -> critique -> revise): after the first implementation, list "what would an attacker try next?", write
 attacker tests, show them failing if vulnerable, fix, repeat once.
 
@@ -40,7 +50,7 @@ attacker tests, show them failing if vulnerable, fix, repeat once.
 See the perf criteria above (if any) and docs/architecture.md Performance budget.
 
 ## 7. CLI stdout and exit codes
-stdout: one line per phase ("Logged in as project <id>", "Indexing <N> files...", "Uploaded <N> changed, <M> unchanged", "Done in <s>s"). Errors go to stderr with a single clear message (no stack traces). Exit codes: 0 success; 1 generic failure; 2 bad arguments; 3 auth failure (login missing/revoked); 4 upload rejected (413); 5 server error. No colors when `NO_COLOR` is set.
+stdout: one line per phase ("Logged in as project <id>", "Indexing <N> files...", "Uploaded <N> changed, <M> unchanged[, <K> deleted]", "Daily AI budget for this project is used up: <N> components wait until <YYYY-MM-DD HH:MM> UTC. Run index again then." when the budget is spent, "Done in <s>s"). Errors go to stderr with a single clear message (no stack traces). Exit codes: 0 success; 1 generic failure; 2 bad arguments; 3 auth failure (login missing/revoked); 4 upload rejected (413); 5 server error. No colors when `NO_COLOR` is set.
 
 ## 8. Observability and errors
 Log: route/tool name, project id, duration, result. Never log tokens, secrets, OAuth tokens or source code.

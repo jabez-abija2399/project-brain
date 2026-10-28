@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -15,12 +16,11 @@ import { POST as upload } from "@/app/api/index/[projectId]/route";
 import { POST as summarize } from "@/app/api/index/[projectId]/summarize/route";
 import { GET as whoami } from "@/app/api/token/whoami/route";
 import { setLlmForTests } from "@/server/llm";
-import { resetRateLimitsForTests } from "@/server/rate-limit";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
 import { type CliDeps, main } from "@brain/cli";
 import type { Llm } from "@brain/core";
 import { filesRepo, projectTokensRepo, projectsRepo, symbolsRepo } from "@brain/db";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fixtureRoot = join(
   fileURLToPath(new URL(".", import.meta.url)),
@@ -77,12 +77,12 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
 
   beforeEach(async () => {
     world = await createTestWorld();
-    resetRateLimitsForTests();
     const user = await world.createUser();
     projectId = (await projectsRepo.create(world.db, user.id, { name: "demo" })).id;
     token = (await projectTokensRepo.create(world.db, projectId)).token;
   });
   afterEach(async () => {
+    vi.unstubAllEnvs();
     setLlmForTests(null);
     await world.teardown();
   });
@@ -133,7 +133,7 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     cpSync(generateRepo(450), repo, { recursive: true });
     const server = serverFetch();
     const c = cli(repo, server.fetchImpl);
-    expect(await c.run("login", "--api-url", "http://brain.test")).toBe(0);
+    expect(await c.run("login", "--api-url", "https://brain.test")).toBe(0);
     expect(await c.run("index")).toBe(0);
 
     const uploads = server.requests.filter((r) => /^\/api\/index\/[^/]+$/.test(r.path));
@@ -154,7 +154,7 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     const repo = copyFixture();
     const server = serverFetch();
     const c = cli(repo, server.fetchImpl);
-    await c.run("login", "--api-url", "http://brain.test");
+    await c.run("login", "--api-url", "https://brain.test");
     expect(await c.run("index")).toBe(0);
     const bodies = server.requests
       .filter((r) => r.path.startsWith("/api/index/"))
@@ -175,11 +175,16 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
           collect(x);
         }
     };
+    const ranges: unknown[] = [];
     for (const body of bodies) {
       for (const line of sourceLines) expect(body).not.toContain(line);
-      if (body) collect(JSON.parse(body));
+      if (!body) continue;
+      const parsed = JSON.parse(body);
+      collect(parsed);
+      if ("after" in parsed) ranges.push(parsed.after, parsed.through);
     }
     expect([...keys].sort()).toEqual([
+      "after",
       "files",
       "hash",
       "kind",
@@ -187,7 +192,11 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
       "path",
       "signature",
       "symbols",
+      "through",
     ]);
+    // The diff range bounds (KI-024) are only repo paths or null.
+    const paths = new Set(listFiles(repo).map((f) => f.slice(repo.length + 1)));
+    for (const r of ranges) expect(r === null || paths.has(r as string)).toBe(true);
   });
 
   it("AC-008-06 a re-run uploads only files whose hash changed and prints 'N changed, M unchanged'", async () => {
@@ -195,7 +204,7 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     const repo = copyFixture();
     const server = serverFetch();
     const c = cli(repo, server.fetchImpl);
-    await c.run("login", "--api-url", "http://brain.test");
+    await c.run("login", "--api-url", "https://brain.test");
     await c.run("index");
     expect(c.out).toContain("Uploaded 6 changed, 0 unchanged");
 
@@ -220,7 +229,7 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     setLlmForTests(ai.llm);
     const repo = copyFixture();
     const c = cli(repo, serverFetch().fetchImpl);
-    await c.run("login", "--api-url", "http://brain.test");
+    await c.run("login", "--api-url", "https://brain.test");
     expect(await c.run("index")).toBe(0);
     const first = ai.calls();
     const components = (await symbolsRepo.listComponents(world.db, projectId)).length;
@@ -246,7 +255,7 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     setLlmForTests(countingLlm().llm);
     const repo = generateRepo(500);
     const c = cli(repo, serverFetch().fetchImpl);
-    await c.run("login", "--api-url", "http://brain.test");
+    await c.run("login", "--api-url", "https://brain.test");
     const started = performance.now();
     expect(await c.run("index")).toBe(0);
     const seconds = (performance.now() - started) / 1000;
@@ -255,4 +264,46 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     expect(await filesRepo.list(world.db, projectId)).toHaveLength(500);
     expect(c.out).toContain("Uploaded 500 changed, 0 unchanged");
   }, 120_000);
+  it("KI-024 a file deleted locally is removed from the index with its symbols on the next index", async () => {
+    setLlmForTests(countingLlm().llm);
+    const repo = copyFixture();
+    cpSync(generateRepo(250), repo, { recursive: true });
+    const c = cli(repo, serverFetch().fetchImpl);
+    await c.run("login", "--api-url", "https://brain.test");
+    expect(await c.run("index")).toBe(0);
+    expect(await filesRepo.list(world.db, projectId)).toHaveLength(256);
+
+    // One file in the first diff batch, one in the last, one whole fixture file.
+    rmSync(join(repo, "src/components/gen/Comp0.tsx"));
+    rmSync(join(repo, "src/components/gen/Comp99.tsx"));
+    rmSync(join(repo, "src/components/ui/Button.tsx"));
+    expect(await c.run("index")).toBe(0);
+    expect(c.out).toContain("Uploaded 0 changed, 253 unchanged, 3 deleted");
+    const stored = (await filesRepo.list(world.db, projectId)).map((f) => f.path);
+    expect(stored).toHaveLength(253);
+    for (const gone of [
+      "src/components/gen/Comp0.tsx",
+      "src/components/gen/Comp99.tsx",
+      "src/components/ui/Button.tsx",
+    ]) {
+      expect(stored).not.toContain(gone);
+    }
+    const components = await symbolsRepo.listComponents(world.db, projectId);
+    expect(components.map((c) => c.name)).not.toContain("Button");
+    expect(components.map((c) => c.name)).not.toContain("Comp0");
+  });
+
+  it("KI-023 when the project's daily AI budget is used up the CLI says summaries wait for the next day", async () => {
+    vi.stubEnv("AI_CALLS_PER_PROJECT_PER_DAY", "2");
+    const ai = countingLlm();
+    setLlmForTests(ai.llm);
+    const repo = copyFixture();
+    const c = cli(repo, serverFetch().fetchImpl);
+    await c.run("login", "--api-url", "https://brain.test");
+    expect(await c.run("index")).toBe(0);
+    expect(ai.calls()).toBe(2);
+    expect(c.out.join("\n")).toMatch(
+      /Daily AI budget for this project is used up: \d+ components wait until \d{4}-\d\d-\d\d \d\d:\d\d UTC\./,
+    );
+  });
 });

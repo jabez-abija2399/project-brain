@@ -9,7 +9,8 @@ import { requireTokenProject } from "./tokens";
 type Ctx = { params: Promise<{ projectId: string }> };
 
 // Shared shell of the /api/index/:projectId routes: the token must belong to the URL's project (else 404), one rate
-// limit per token, one log line (route, project, duration, outcome; never the body or the token), one error shape.
+// limit per token (Postgres counter shared by all instances), one log line (route, project, duration, outcome; never
+// the body or the token), one error shape.
 export function indexRoute(
   name: string,
   handle: (db: BrainDb, projectId: string, req: Request) => Promise<Record<string, unknown>>,
@@ -21,7 +22,7 @@ export function indexRoute(
     try {
       const db = getDb();
       const token = await requireTokenProject(db, req, projectId);
-      rateLimit(`index:${token.id}`, INDEX_REQUESTS_PER_MINUTE);
+      await rateLimit(db, `index:${token.id}`, INDEX_REQUESTS_PER_MINUTE);
       return NextResponse.json({ ok: true, ...(await handle(db, projectId, req)) });
     } catch (err) {
       const res = toResponse(err);

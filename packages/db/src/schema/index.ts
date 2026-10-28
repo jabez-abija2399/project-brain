@@ -5,3 +5,4 @@ export * from "./features";
 export * from "./sessions";
 export * from "./receipts";
 export * from "./supabase";
+export * from "./rate-counters";

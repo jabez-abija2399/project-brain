@@ -43,6 +43,8 @@ export async function request<T>(
   try {
     res = await fetchImpl(`${config.apiUrl.replace(/\/+$/, "")}${path}`, {
       method,
+      // The API never redirects; following one could hand the token to another host.
+      redirect: "error",
       headers: {
         authorization: `Bearer ${config.token}`,
         ...(body === undefined ? {} : { "content-type": "application/json" }),

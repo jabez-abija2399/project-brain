@@ -55,5 +55,5 @@
 - 2026-10-27 | Dashboard UI to view the feature map and rename/move files (API exists: PATCH /api/projects/:id/features/:fid) plus a paginated GET list | extends FEAT-006, FEAT-017
 - 2026-10-27 | Wire featuresRepo.saveMap into the index upload so grouping runs on every index; renamed features keep their files on re-index, but a re-index may re-create a feature under its old route name | extends FEAT-006, FEAT-008
 - 2026-10-28 | featuresRepo.update: report a concurrent move hitting feature_files_one_primary_uniq as its own 409 (not feature_name_taken) by checking the constraint name or locking the file rows | FEAT-006 review L1 (KI-017)
-- 2026-10-28 | Package the CLI as a runnable bin (bundle src/index.ts + @brain/core, e.g. tsup/esbuild; dep-check first) and decide the default --api-url (production URL) | FEAT-008 (bin.mjs is a stub)
+- 2026-10-28 | Package the CLI as a runnable bin (bundle src/index.ts + @brain/core, e.g. tsup/esbuild; dep-check first) and decide the default --api-url (production URL) | FEAT-008 (bin built 2026-10-28 with esbuild -> dist/projectbrain.mjs; default --api-url still open)
 - 2026-10-28 | Remove deleted files from the stored index on re-index (KI-024) | FEAT-008

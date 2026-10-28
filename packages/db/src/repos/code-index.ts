@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type NewSymbol, files, symbols } from "../schema";
 
@@ -73,5 +73,32 @@ export const codeIndexRepo = {
           summary_attempted_at = v.attempted_at
       FROM (VALUES ${values}) AS v(id, summary, status, attempts, attempted_at)
       WHERE s.project_id = ${projectId} AND s.id = v.id`);
+  },
+  /**
+   * KI-024: deletes this project's files whose path is in the range (after, through] (null = open end) and not in
+   * keep, with their symbols and feature links (FK cascade). Byte order (COLLATE "C"), like the CLI's sort.
+   * Returns the deleted paths in byte order.
+   */
+  async removeMissing(
+    db: BrainDb,
+    projectId: string,
+    range: { after: string | null; through: string | null; keep: string[] },
+  ): Promise<string[]> {
+    const bytes = (column: typeof files.path) => sql`${column} COLLATE "C"`;
+    const rows = await db
+      .delete(files)
+      .where(
+        and(
+          eq(files.projectId, projectId),
+          range.after === null ? undefined : sql`${bytes(files.path)} > ${range.after} COLLATE "C"`,
+          range.through === null
+            ? undefined
+            : sql`${bytes(files.path)} <= ${range.through} COLLATE "C"`,
+          range.keep.length === 0 ? undefined : notInArray(files.path, range.keep),
+        ),
+      )
+      .returning({ path: files.path });
+    const paths = rows.map((r) => r.path);
+    return paths.sort((x, y) => Buffer.compare(Buffer.from(x), Buffer.from(y)));
   },
 };
