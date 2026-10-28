@@ -57,3 +57,5 @@ packages/cli/src/api.ts # KI-028 retry on 429
 packages/cli/src/index.ts # KI-028 injected sleep
 packages/cli/src/cli.test.ts # KI-028 tests
 packages/cli/src/bin.test.ts # spawn tests get a 30 s timeout (load-independent)
+apps/web/src/server/index-route.ts  # semgrep fix requested by the user (pre-existing on main)
+packages/core/src/components/components.test.ts  # semgrep fix requested by the user: fake AWS key built at runtime
