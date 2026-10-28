@@ -1,4 +1,4 @@
-import { maskSecretsIn } from "@brain/core";
+import { maskSecretsIn, oneLineText } from "@brain/core";
 import {
   type BrainDb,
   checklistItemsRepo,
@@ -88,9 +88,7 @@ const HEADING_WORDS = /\b(CONTEXT PACK|FILES|COMPONENTS|DECISIONS|RULES|CHECKLIS
 
 // One line, masked, with heading words lowercased.
 function clean(value: string): string {
-  return maskSecretsIn(value.replace(/\s+/g, " ").trim()).replace(HEADING_WORDS, (w) =>
-    w.toLowerCase(),
-  );
+  return maskSecretsIn(oneLineText(value)).replace(HEADING_WORDS, (w) => w.toLowerCase());
 }
 
 // Writes whole lines until the next one would pass the limit, then says how much was left out.

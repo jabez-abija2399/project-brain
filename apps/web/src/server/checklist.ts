@@ -4,6 +4,7 @@ import {
   MAX_REQUEST_CHARS,
   errorType,
   maskSecretsIn,
+  oneLineText,
   splitRequest,
 } from "@brain/core";
 import { type BrainDb, checklistItemsRepo, featuresRepo, requestsRepo } from "@brain/db";
@@ -140,7 +141,9 @@ export async function proposeChecklistChange(
   const input = parse(proposeSchema, raw);
   bindToken(token, input.projectId);
   const change =
-    input.text !== undefined ? { text: maskSecretsIn(input.text) } : { dismiss: true as const };
+    input.text !== undefined
+      ? { text: maskSecretsIn(oneLineText(input.text)) }
+      : { dismiss: true as const };
   const row = await checklistItemsRepo.propose(db, token.projectId, input.itemId, change, now);
   if (!row) throw new AppError(404, "not_found");
   return { ok: true, id: row.id, status: "proposal" };

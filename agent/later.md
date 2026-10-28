@@ -78,3 +78,6 @@
 - 2026-10-28 | Installations with more than 100 repositories: paginate /installation/repositories on the selection screen | FEAT-009 follow-up
 - 2026-10-28 | Correction to the FEAT-009 line above: the push cap is 299 files (GitHub's compare lists at most 300, so 300+ may be truncated); larger pushes and new branches are skipped with RLS marked unknown until a full index runs | FEAT-009 follow-up
 - 2026-10-28 | installation "suspend" events and installation_repositories "removed": unlink or pause the affected projects (now their later jobs fail on the installation token) | FEAT-009 follow-up
+- 2026-10-28 | Dashboard view of pending checklist proposals with confirm and reject (FEAT-012 has the confirm API only; a reject/discard endpoint is not built) | FEAT-017
+- 2026-10-28 | Measure the checklist splitter on the real model (AC-012-02 and AC-012-04 are tested with scripted model answers; the prompt was never run against Claude here) | FEAT-012 follow-up
+- 2026-10-28 | Checklist proposals: the dashboard confirm should send the proposed_at (or a version) it showed, so an agent cannot swap a pending proposal between the owner viewing and confirming it (FEAT-012 security pass note) | FEAT-017

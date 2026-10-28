@@ -2,6 +2,8 @@
 // Saved text is user-visible data, so every value is labelled and nothing is framed as an instruction except the
 // standing instructions the project owner confirmed.
 
+import { oneLineText } from "./text";
+
 // The note stays under this many characters (AC-010-02).
 export const HANDOFF_LIMIT = 1500;
 // Total characters of all active directives. They are never cut, so the server keeps them under this budget.
@@ -62,10 +64,7 @@ const SECTION_WORDS =
 
 // Saved text is flattened to one line so a value cannot start a new section.
 function oneLine(value: string): string {
-  return value
-    .replace(/\s+/g, " ")
-    .replace(SECTION_WORDS, (word) => word.toLowerCase())
-    .trim();
+  return oneLineText(value).replace(SECTION_WORDS, (word) => word.toLowerCase());
 }
 
 function pieces(input: HandoffInput): Piece[] {

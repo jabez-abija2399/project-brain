@@ -122,3 +122,7 @@ apps/web/src/app/api/projects/[id]/checklist-items/**
 packages/core/package.json
 apps/web/src/app/api/projects/[id]/checklist-items/[itemId]/route.ts
 apps/web/src/app/api/projects/[[]id]/checklist-items/[[]itemId]/route.ts  # FEAT-012 owner confirm route (brackets escaped for fnmatch)
+packages/core/src/text.ts
+packages/core/src/text.test.ts
+packages/core/src/handoff.ts
+apps/web/src/server/checklist.security.test.ts

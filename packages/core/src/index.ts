@@ -64,6 +64,7 @@ export { DEFAULT_MODEL, createLlm, errorType } from "./llm";
 export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "./llm";
 
 export { maskSecret, maskSecretsIn } from "./mask";
+export { oneLineText } from "./text";
 export {
   DIRECTIVE_BUDGET,
   HANDOFF_LIMIT,

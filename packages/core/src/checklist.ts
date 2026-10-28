@@ -2,6 +2,7 @@
 import { z } from "zod";
 import type { Llm } from "./llm";
 import { maskSecretsIn } from "./mask";
+import { oneLineText } from "./text";
 
 export const MAX_REQUEST_CHARS = 4000;
 export const MAX_CHECKLIST_ITEMS = 10;
@@ -39,7 +40,7 @@ export function parseChecklist(answer: string): ChecklistDraftItem[] {
     const m = line.match(/^\s*([-?])\s+(.+)$/);
     if (!m) continue;
     const parsed = itemSchema.safeParse({
-      text: maskSecretsIn((m[2] as string).replace(/\s+/g, " ")),
+      text: maskSecretsIn(oneLineText(m[2] as string)),
       needs_clarification: m[1] === "?",
     });
     if (!parsed.success) continue;
@@ -65,6 +66,6 @@ export async function splitRequest(llm: Llm, request: string): Promise<Checklist
   });
   const items = parseChecklist(answer);
   if (items.length > 0) return items;
-  const first = maskSecretsIn(request.replace(/\s+/g, " ").trim()).slice(0, MAX_ITEM_CHARS - 20);
+  const first = maskSecretsIn(oneLineText(request)).slice(0, MAX_ITEM_CHARS - 20);
   return [{ text: `Clarify: ${first}`, needs_clarification: true }];
 }
