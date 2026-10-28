@@ -29,11 +29,15 @@ export {
   componentHash,
   componentKey,
   findSimilarComponent,
+  isSummaryDue,
   similarNameFilter,
   summarizeComponents,
+  withPreviousSummaries,
 } from "./components";
 export type {
   PreviousSummaries,
+  Summarized,
+  SummaryInput,
   SimilarCandidate,
   SimilarMatch,
   SimilarOptions,

@@ -22,11 +22,15 @@ export type SummaryState = {
   summaryAttemptedAt: Date | null;
 };
 
-export type SummarizedComponent = ComponentIndex &
+/** What a summary is built from (metadata only); the CLI upload has no line or props. */
+export type SummaryInput = Pick<ComponentIndex, "path" | "name" | "signature">;
+
+export type Summarized<T extends SummaryInput> = T &
   SummaryState & {
     /** Hash of everything the summary is built from; a summary is regenerated only when it changes. */
     hash: string;
   };
+export type SummarizedComponent = Summarized<ComponentIndex>;
 
 /** What the previous index stored, keyed by componentKey(path, name). Rows from before 0008 have no status. */
 export type PreviousSummaries = Map<
@@ -47,7 +51,7 @@ const SYSTEM =
   "You describe React components for a project map. Answer with one plain sentence under 200 characters: " +
   "what the component is for. No markdown, no code.";
 
-function promptFor(c: ComponentIndex): string {
+function promptFor(c: SummaryInput): string {
   return maskSecretsIn(`Component: ${c.name}\nFile: ${c.path}\nSignature: ${c.signature}`);
 }
 
@@ -64,7 +68,8 @@ const NOT_ATTEMPTED: SummaryState = {
   summaryAttemptedAt: null,
 };
 
-function isDue(s: SummaryState, now: Date): boolean {
+/** Not attempted yet for this hash, or a failed attempt whose retry is due. */
+export function isSummaryDue(s: SummaryState, now: Date): boolean {
   if (s.summary !== null || s.summaryStatus === "ok" || s.summaryStatus === "empty") return false;
   if (s.summaryStatus === null) return true;
   return (
@@ -74,16 +79,20 @@ function isDue(s: SummaryState, now: Date): boolean {
   );
 }
 
+function isExhausted(s: SummaryState): boolean {
+  return s.summaryStatus === "error" && s.summaryAttempts === MAX_ATTEMPTS;
+}
+
 // Each hash is summarized once: a summary, an empty answer or an error is recorded with the attempt, and an
-// unchanged component is not sent again. Only errors are retried, on the RETRY_AFTER_MS / MAX_ATTEMPTS schedule.
-export async function summarizeComponents(
-  components: ComponentIndex[],
-  llm: Llm,
-  previous: PreviousSummaries = new Map(),
-  options: { now?: Date } = {},
-): Promise<SummarizedComponent[]> {
-  const now = options.now ?? new Date();
-  const out: SummarizedComponent[] = components.map((c) => {
+// unchanged component is not sent again. Only errors are retried, on the RETRY_AFTER_MS / MAX_ATTEMPTS schedule;
+// once a call in this run succeeds (the API works again), components that used up their attempts get one final
+// attempt. maxCalls bounds one run (a request); the rest stay due for the next run.
+// Carries the previous summary and attempt state over to components whose hash did not change (no LLM call).
+export function withPreviousSummaries<T extends SummaryInput>(
+  components: T[],
+  previous: PreviousSummaries,
+): Summarized<T>[] {
+  return components.map((c) => {
     const hash = componentHash(c);
     const prev = previous.get(componentKey(c.path, c.name));
     if (!prev || prev.hash !== hash) return { ...c, hash, ...NOT_ATTEMPTED };
@@ -96,36 +105,72 @@ export async function summarizeComponents(
       summaryAttemptedAt: prev.summaryAttemptedAt ?? null,
     };
   });
-  const todo = out.filter((c) => isDue(c, now));
+}
+
+export async function summarizeComponents<T extends SummaryInput>(
+  components: T[],
+  llm: Llm,
+  previous: PreviousSummaries = new Map(),
+  options: { now?: Date; maxCalls?: number } = {},
+): Promise<Summarized<T>[]> {
+  const now = options.now ?? new Date();
+  const out = withPreviousSummaries(components, previous);
+  const queue = out.filter((c) => isSummaryDue(c, now));
+  const exhausted = out.filter(isExhausted);
   let next = 0;
+  let budget = options.maxCalls ?? Number.POSITIVE_INFINITY;
   let errorsInARow = 0;
   let inFlight = 0;
-  const worker = async () => {
-    // Counting calls in flight as possible errors keeps an outage at exactly MAX_ERRORS_IN_A_ROW calls.
-    while (next < todo.length && errorsInARow + inFlight < MAX_ERRORS_IN_A_ROW) {
-      const c = todo[next++] as SummarizedComponent;
-      c.summaryAttempts++;
-      c.summaryAttemptedAt = now;
-      inFlight++;
-      try {
-        const text = await llm.complete({
-          system: SYSTEM,
-          prompt: promptFor(c),
-          maxTokens: 100,
-          purpose: "component-summary",
-        });
-        c.summary = cleanSummary(text);
-        c.summaryStatus = c.summary === null ? "empty" : "ok";
-        errorsInARow = 0;
-      } catch {
-        c.summary = null;
-        c.summaryStatus = "error";
-        errorsInARow++;
-      } finally {
-        inFlight--;
-      }
+  let succeeded = false;
+
+  const attempt = async (c: Summarized<T>): Promise<boolean> => {
+    c.summaryAttempts++;
+    c.summaryAttemptedAt = now;
+    try {
+      const text = await llm.complete({
+        system: SYSTEM,
+        prompt: promptFor(c),
+        maxTokens: 100,
+        purpose: "component-summary",
+      });
+      c.summary = cleanSummary(text);
+      c.summaryStatus = c.summary === null ? "empty" : "ok";
+      return true;
+    } catch {
+      c.summary = null;
+      c.summaryStatus = "error";
+      return false;
     }
   };
-  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, todo.length) }, worker));
+
+  // A pool of up to CONCURRENCY calls, refilled after every answer, so a success lets it grow back to full size.
+  await new Promise<void>((done) => {
+    const pump = () => {
+      // Counting calls in flight as possible errors keeps an outage at exactly MAX_ERRORS_IN_A_ROW calls.
+      while (
+        inFlight < CONCURRENCY &&
+        next < queue.length &&
+        budget > 0 &&
+        errorsInARow + inFlight < MAX_ERRORS_IN_A_ROW
+      ) {
+        const c = queue[next++] as Summarized<T>;
+        budget--;
+        inFlight++;
+        void attempt(c).then((ok) => {
+          inFlight--;
+          if (ok) {
+            errorsInARow = 0;
+            if (!succeeded) queue.push(...exhausted);
+            succeeded = true;
+          } else {
+            errorsInARow++;
+          }
+          pump();
+        });
+      }
+      if (inFlight === 0) done();
+    };
+    pump();
+  });
   return out;
 }

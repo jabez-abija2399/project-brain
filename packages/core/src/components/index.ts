@@ -1,13 +1,18 @@
 export {
+  MAX_ATTEMPTS,
   MAX_SUMMARY,
   cleanSummary,
   componentHash,
   componentKey,
+  isSummaryDue,
   summarizeComponents,
+  withPreviousSummaries,
 } from "./summarize";
 export type {
   PreviousSummaries,
+  Summarized,
   SummarizedComponent,
+  SummaryInput,
   SummaryState,
   SummaryStatus,
 } from "./summarize";

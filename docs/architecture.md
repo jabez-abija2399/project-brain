@@ -48,7 +48,8 @@ Import rules that the gate enforces: docs/boundaries.txt.
 | Block | Where | Use it for |
 |---|---|---|
 | requireUser / requireProjectAccess | apps/web/src/server/auth.ts | authorization in every route, MCP tool and job |
-| requireProjectToken | apps/web/src/server/tokens.ts | CLI and MCP token auth (hashed tokens, scoped to one project) |
+| requireProjectToken / requireTokenProject | apps/web/src/server/tokens.ts | CLI and MCP token auth (hashed tokens, scoped to one project; the URL's project must match, else 404) |
+| rateLimit | apps/web/src/server/rate-limit.ts | per-key requests/minute (in memory per instance, KI-023) |
 | parseInput(schema) | apps/web/src/server/validate.ts | zod validation at every entry point |
 | repositories | packages/db/src/repos/* | all data access, always filtered by projectId |
 | llm.complete | packages/core/src/llm.ts | the only LLM entry: model, timeout, max tokens, cost log |
@@ -58,7 +59,7 @@ Import rules that the gate enforces: docs/boundaries.txt.
 
 ## Runtime picture
 ```
-CLI (user machine) --index upload (token)--> /api/index ----------\
+CLI (user machine) --index upload (token)--> /api/index/:projectId (diff, upload, summarize; D-016) \
 Agent (Claude Code/Cursor) --MCP (OAuth/token)--> /mcp ------------+--> server services --> core + db --> Neon
 GitHub push --webhook (signed)--> /api/github/webhook --> Inngest job (fetch changed files via App, re-index, receipt)
 Browser --session--> dashboard pages --------------------------------/

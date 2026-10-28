@@ -2,6 +2,12 @@ export { projectsRepo } from "./projects";
 export { filesRepo } from "./files";
 export { symbolsRepo, type ComponentRow } from "./symbols";
 export {
+  codeIndexRepo,
+  type IndexedFile,
+  type IndexedSymbol,
+  type SummaryUpdate,
+} from "./code-index";
+export {
   featuresRepo,
   FeatureNameTakenError,
   type FeatureMapInput,

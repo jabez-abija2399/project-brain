@@ -1,4 +1,4 @@
-import { and, eq, ilike, or } from "drizzle-orm";
+import { and, eq, ilike, inArray, or } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type NewSymbol, type Symbol as SymbolRow, files, symbols } from "../schema";
 
@@ -62,13 +62,18 @@ export const symbolsRepo = {
 
   // Components of one project with their file path: the candidate set for findSimilarComponent and the previous
   // hashes/summaries for a re-index. Bounded by the project's size (v1 budget: 2,000 files). nameContainsAny keeps
-  // only names containing one of the tokens (case-insensitive), so the lookup reads candidates, not the whole set.
+  // only names containing one of the tokens (case-insensitive), so the lookup reads candidates, not the whole set;
+  // paths keeps only the components of those files (an index upload batch).
   async listComponents(
     db: BrainDb,
     projectId: string,
-    filter: { nameContainsAny?: string[] } = {},
+    filter: { nameContainsAny?: string[]; paths?: string[] } = {},
   ): Promise<ComponentRow[]> {
     const conditions = [eq(symbols.projectId, projectId), eq(symbols.kind, "component")];
+    if (filter.paths) {
+      if (filter.paths.length === 0) return [];
+      conditions.push(inArray(files.path, filter.paths));
+    }
     const tokens = filter.nameContainsAny?.slice(0, MAX_NAME_TOKENS);
     if (tokens) {
       if (tokens.length === 0) return [];

@@ -143,3 +143,14 @@ and weighting are simple to test in pure core, and a match needs a shared name w
 in SQL (pg_trgm or token arrays) REJECTED for now (camelCase tokenizing in SQL is awkward; PGlite extension support
 unchecked). Trade-offs: a threshold of 0.2 or lower skips the pre-filter and reads every component. Revisit when: a
 project has well over 2,000 components or production p95 approaches the budget.
+
+## D-016 | 2026-10-28 | FEAT-008 index upload: diff, upload, then a bounded summarize step the CLI calls; no Inngest yet
+Context: the CLI uploads metadata to /api/index/:projectId (token auth); component summaries need AI calls (seconds each)
+and must not slow the 500-file < 60 s budget or a request. Options: (A) three routes: POST .../diff (which paths changed),
+POST ... (one batch <= 200 files / 5 MB, carries summary state over by component hash), POST .../summarize (at most 40
+AI calls per request, server clock, previous state read from the DB); the CLI loops summarize while components remain
+CHOSEN: every request is bounded, no job runner needed in the trial stack, tests drive it end to end. (B) summarize
+inside each upload REJECTED (a first index would take minutes per batch). (C) an Inngest job per upload REJECTED for
+now (Inngest is not wired yet; adds a moving part before FEAT-009 needs it). Trade-offs: summaries finish only while the
+CLI runs (or on the next index); two concurrent summarize calls can both attempt one component. Revisit when: FEAT-009
+adds Inngest (push re-index should summarize in the job).

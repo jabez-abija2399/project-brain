@@ -23,7 +23,7 @@ New versions are only installed once they are 7 days old (dependency cooldown: `
 | @vscode/tree-sitter-wasm | packages/core | prebuilt TS/TSX/JS grammars | tree-sitter-wasms (last release 1 year ago), build grammars ourselves | MIT | 2026-10-23 |
 | ts-morph | packages/core (not used yet; FEAT-004 uses the TypeScript Compiler API directly — D-011) | TS exports, props, types | typescript compiler API directly (verbose), @swc/core (no type info) | MIT | 2026-10-23 |
 | libpg-query | packages/core (FEAT-005 Supabase reader — D-012 update 2026-10-24) | parse Supabase SQL migrations + RLS policies with the real Postgres parser; pinned to 18.1.5: newest version past the 7-day cooldown (D-013) on 2026-10-24; prebuilt WASM, no install script, no native build | pgsql-ast-parser, node-sql-parser (incomplete Postgres dialect) | MIT | 2026-10-24 |
-| @anthropic-ai/sdk | packages/core | Claude API (checklists, receipts, summaries) | ai (extra abstraction), openai (different provider) | Apache-2.0 | 2026-10-23 |
+| @anthropic-ai/sdk | apps/web (client passed to packages/core llm) | Claude API (checklists, receipts, summaries) | ai (extra abstraction), openai (different provider) | Apache-2.0 | 2026-10-23 |
 | @octokit/app | apps/web | GitHub App auth + API | octokit (all-in-one, larger), probot (framework + own server) | MIT | 2026-10-23 |
 | @octokit/webhooks | apps/web | webhook signature verification + types | probot, hand-written HMAC check (risky) | MIT | 2026-10-23 |
 | better-auth | apps/web | GitHub sign-in + OAuth provider for MCP | next-auth v4 (no MCP OAuth), @clerk/nextjs (paid at scale, lock-in) | MIT | 2026-10-23 |
@@ -36,8 +36,9 @@ New versions are only installed once they are 7 days old (dependency cooldown: `
 | typescript | all (dev) | typecheck | (no real alternative) | Apache-2.0 | 2026-10-23 |
 | commander | packages/cli | CLI commands/args | citty (pre-1.0), yargs (heavier API) | MIT | 2026-10-23 |
 | @clack/prompts | packages/cli | interactive setup prompts | inquirer (heavier), prompts (unmaintained: last release 2021) | MIT | 2026-10-23 |
-| @brain/core | apps/web, packages/sandbox | workspace package (pure logic); packages/sandbox imports only the sandbox run types (type-only; core has @brain/sandbox as a dev dependency for its tests) | n/a — internal workspace package | internal | 2026-10-23 |
+| @brain/core | apps/web, packages/sandbox, packages/cli | workspace package (pure logic; the CLI indexes locally with it); packages/sandbox imports only the sandbox run types (type-only; core has @brain/sandbox as a dev dependency for its tests) | n/a — internal workspace package | internal | 2026-10-23 |
 | @brain/db | apps/web | workspace package (data access) | n/a — internal workspace package | internal | 2026-10-23 |
+| @brain/cli | apps/web (dev) | workspace package; apps/web tests drive `projectbrain index` end to end against the real /api/index handlers | n/a — internal workspace package | internal | 2026-10-28 |
 | @types/node | all (dev) | Node type definitions | required by typescript when targeting Node runtimes | MIT | 2026-10-23 |
 | @types/react | apps/web (dev) | React type definitions | required by react typecheck | MIT | 2026-10-23 |
 | @types/react-dom | apps/web (dev) | ReactDOM type definitions | required by react-dom typecheck | MIT | 2026-10-23 |

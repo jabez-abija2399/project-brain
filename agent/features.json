@@ -1078,61 +1078,90 @@
           "id": "AC-008-01",
           "kind": "happy",
           "check": "`projectbrain login` stores a project token in the user's config dir (not in the repo)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 13:03; log contains AC-008-01"
         },
         {
           "id": "AC-008-02",
           "kind": "happy",
           "check": "`projectbrain index` parses the repo locally with @brain/core and uploads files, symbols and routes in batches of at most 200 files",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 13:03; log contains AC-008-02"
         },
         {
           "id": "AC-008-03",
           "kind": "attack",
           "check": "A test inspects every upload request body: it contains no source text from the fixture files (only paths, hashes, names, signatures)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 13:03; log contains AC-008-03"
         },
         {
           "id": "AC-008-04",
           "kind": "attack",
           "check": "POST /api/index with another project's token, or a token for project A posting to project B, returns 404 and stores nothing",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 13:03; log contains AC-008-04"
         },
         {
           "id": "AC-008-05",
           "kind": "boundary",
           "check": "An upload over 5 MB or with more than 200 files in one batch is rejected with 413",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 13:03; log contains AC-008-05"
         },
         {
           "id": "AC-008-06",
           "kind": "happy",
           "check": "Re-running index uploads only files whose hash changed and prints 'N changed, M unchanged'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 13:03; log contains AC-008-06"
         },
         {
           "id": "AC-008-07",
           "kind": "perf",
           "check": "Indexing and uploading a 500-file repo takes under 60 s end to end",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 13:03; log contains AC-008-07"
         }
       ],
-      "status": "todo",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        ".env.example",
+        "apps/web/package.json",
+        "apps/web/src/app/api/index/[projectId]/diff/route.ts",
+        "apps/web/src/app/api/index/[projectId]/route.ts",
+        "apps/web/src/app/api/index/[projectId]/summarize/route.ts",
+        "apps/web/src/app/api/index/cli.test.ts",
+        "apps/web/src/app/api/index/index.test.ts",
+        "apps/web/src/server/code-index.ts",
+        "apps/web/src/server/index-route.ts",
+        "apps/web/src/server/llm.ts",
+        "apps/web/src/server/rate-limit.ts",
+        "apps/web/src/server/tokens.ts",
+        "packages/cli/package.json",
+        "packages/cli/src/api.ts",
+        "packages/cli/src/bin.mjs",
+        "packages/cli/src/cli.test.ts",
+        "packages/cli/src/config.ts",
+        "packages/cli/src/index-command.ts",
+        "packages/cli/src/index.ts",
+        "packages/core/src/components/index.ts",
+        "packages/core/src/components/summarize-schedule.test.ts",
+        "packages/core/src/components/summarize.ts",
+        "packages/core/src/index.ts",
+        "packages/db/src/repos/code-index.test.ts",
+        "packages/db/src/repos/code-index.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/symbols.ts"
+      ]
     },
     {
       "id": "FEAT-009",
@@ -1906,6 +1935,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 173
+    "tests_passed": 205
   }
 }
