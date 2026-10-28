@@ -1,5 +1,4 @@
 import {
-  chmodSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -9,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { configPath } from "./config";
 import { type CliDeps, main } from "./index";
 
@@ -155,6 +154,21 @@ function indexApi(sent: Sent[]): CliDeps["fetch"] {
 const uploaded = (sent: Sent[]) =>
   sent.filter((r) => r.url === "/api/index/proj-1").flatMap((r) => r.body?.files ?? []);
 
+// M1 needs a folder the OS refuses to read. chmod 000 does not work when the tests run as root (root reads anything),
+// so readdirSync fails with EACCES for that one folder instead. Everything else passes through to the real fs.
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    readdirSync: ((path: Parameters<typeof actual.readdirSync>[0], options?: unknown) => {
+      if (String(path).endsWith("/src/locked")) {
+        throw Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" });
+      }
+      return actual.readdirSync(path, options as Parameters<typeof actual.readdirSync>[1]);
+    }) as typeof actual.readdirSync,
+  };
+});
+
 describe("FEAT-008 projectbrain index review fixes", () => {
   it("M1 an unreadable folder stops the index with an error naming it, before anything is sent or deleted", async () => {
     const sent: Sent[] = [];
@@ -163,12 +177,7 @@ describe("FEAT-008 projectbrain index review fixes", () => {
     mkdirSync(join(t.repo, "src", "locked"), { recursive: true });
     writeFileSync(join(t.repo, "src", "locked", "b.ts"), "export const b = 1;\n");
     expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(0);
-    chmodSync(join(t.repo, "src", "locked"), 0o000);
-    try {
-      expect(await main(["index"], t.deps)).toBe(1);
-    } finally {
-      chmodSync(join(t.repo, "src", "locked"), 0o755);
-    }
+    expect(await main(["index"], t.deps)).toBe(1);
     expect(sent).toEqual([]);
     expect(t.err.at(-1)).toBe(
       "Cannot read folder src/locked: fix its permissions and run index again. Nothing was uploaded or deleted.",

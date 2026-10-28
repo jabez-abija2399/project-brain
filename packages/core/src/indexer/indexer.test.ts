@@ -1,14 +1,18 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { indexRepo } from "./index";
 
-const fixtureRoot = join(
+const sourceFixture = join(
   fileURLToPath(new URL(".", import.meta.url)),
   "../../../..",
   "tests/fixtures/next-app",
 );
+// The test writes runtime files (big, binary, ignored, node_modules, .next) into a temp copy, so it never writes
+// into the tracked source tree and works for any user that can use the temp dir.
+const fixtureRoot = mkdtempSync(join(tmpdir(), "next-app-"));
 
 const bigFilePath = join(fixtureRoot, "big.ts");
 const binaryFilePath = join(fixtureRoot, "src", "binary.ts");
@@ -18,6 +22,7 @@ const nodeModulesDir = join(fixtureRoot, "node_modules");
 const nextDir = join(fixtureRoot, ".next");
 
 beforeAll(() => {
+  cpSync(sourceFixture, fixtureRoot, { recursive: true });
   mkdirSync(join(fixtureRoot, "src"), { recursive: true });
   writeFileSync(ignoredFilePath, "ignored by the fixture .gitignore\n");
   mkdirSync(join(nodeModulesDir, "evil"), { recursive: true });
@@ -33,13 +38,7 @@ beforeAll(() => {
 });
 
 afterAll(() => {
-  for (const p of [bigFilePath, binaryFilePath, ignoredFilePath, nodeModulesDir, nextDir]) {
-    try {
-      rmSync(p, { recursive: true });
-    } catch {
-      /* ignore */
-    }
-  }
+  rmSync(fixtureRoot, { recursive: true, force: true });
 });
 
 describe("indexRepo on the next-app fixture", () => {
