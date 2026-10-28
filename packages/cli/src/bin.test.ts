@@ -35,7 +35,8 @@ function run(bin: string, args: string[], env: Record<string, string>, stdin = "
   });
 }
 
-describe("FEAT-008 the built projectbrain bin runs from a terminal", () => {
+// Each test spawns node; under a loaded machine 5 s is not enough, so a generous limit keeps it load-independent.
+describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 30_000 }, () => {
   let bin: string;
   let server: ReturnType<typeof createServer>;
   let apiUrl: string;
