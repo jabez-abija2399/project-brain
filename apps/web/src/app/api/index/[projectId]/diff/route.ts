@@ -5,7 +5,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 // CLI index step 1: which of these paths are new or have a different hash than the stored index, and (with a range,
-// KI-024) which stored files in the range are gone locally; those are removed with their symbols.
+// KI-024) which stored files in the range are gone locally; those are removed with their symbols (hand-placed ones are
+// held until the CLI repeats the diff with final, KI-027).
 export const POST = indexRoute("index.diff", async (db, projectId, req) =>
   diffFiles(db, projectId, await parseIndexBody(req, diffSchema)),
 );

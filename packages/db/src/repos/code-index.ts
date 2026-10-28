@@ -1,6 +1,6 @@
 import { and, count, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { type NewSymbol, featureFiles, files, projects, symbols } from "../schema";
+import { type NewSymbol, featureFiles, files, symbols } from "../schema";
 
 export type IndexedSymbol = Omit<NewSymbol, "id" | "projectId" | "fileId" | "createdAt">;
 export type IndexedFile = { path: string; hash: string; symbols: IndexedSymbol[] };
@@ -32,7 +32,7 @@ export const codeIndexRepo = {
 
   /**
    * Upserts the files and replaces all their symbols, in one transaction. With caps (M2) the project's totals after
-   * the batch are checked first, under a lock on the project row so parallel uploads cannot pass the caps together.
+   * the batch are checked first, under a per-project advisory lock so parallel uploads cannot pass the caps together.
    */
   async saveFiles(
     db: BrainDb,
@@ -44,11 +44,10 @@ export const codeIndexRepo = {
     return db.transaction(async (tx) => {
       let totals = { files: 0, symbols: 0 };
       if (caps) {
-        await tx
-          .select({ id: projects.id })
-          .from(projects)
-          .where(eq(projects.id, projectId))
-          .for("update");
+        // A per-project advisory lock (not the project row, so dashboard file moves are not blocked by uploads).
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${`storage:${projectId}`}, 0))`,
+        );
         const paths = input.map((f) => f.path);
         const [stored] = await tx
           .select({ n: count() })
@@ -123,32 +122,105 @@ export const codeIndexRepo = {
    * KI-024: deletes this project's files whose path is in the range (after, through] (null = open end) and not in
    * keep, with their symbols and feature links (FK cascade). Byte order (COLLATE "C"), like the CLI's sort.
    * KI-025: with a folder only paths inside folder/ are deleted.
-   * M1: a file the user placed in a feature by hand is never deleted this way (its link would be lost for good).
-   * Returns the deleted paths in byte order.
+   * KI-027: a file the user placed in a feature by hand is only held (returned, not deleted) unless final; a final call
+   * (after the run's uploads) deletes it and first moves its user links to a stored file with the same hash that is
+   * not being deleted and has no user link (a rename), so the placement is not lost.
+   * Returns the deleted and held paths in byte order.
    */
   async removeMissing(
     db: BrainDb,
     projectId: string,
-    range: { after: string | null; through: string | null; folder?: string | null; keep: string[] },
-  ): Promise<string[]> {
+    range: {
+      after: string | null;
+      through: string | null;
+      folder?: string | null;
+      keep: string[];
+      final?: boolean;
+    },
+  ): Promise<{ deleted: string[]; held: string[] }> {
     const bytes = (column: typeof files.path) => sql`${column} COLLATE "C"`;
-    const rows = await db
-      .delete(files)
-      .where(
-        and(
-          eq(files.projectId, projectId),
-          range.after === null ? undefined : sql`${bytes(files.path)} > ${range.after} COLLATE "C"`,
-          range.through === null
-            ? undefined
-            : sql`${bytes(files.path)} <= ${range.through} COLLATE "C"`,
-          range.folder == null ? undefined : sql`starts_with(${files.path}, ${`${range.folder}/`})`,
-          range.keep.length === 0 ? undefined : notInArray(files.path, range.keep),
-          sql`NOT EXISTS (SELECT 1 FROM ${featureFiles} WHERE ${featureFiles.projectId} = ${files.projectId}
-            AND ${featureFiles.fileId} = ${files.id} AND ${featureFiles.placedBy} = 'user')`,
-        ),
-      )
-      .returning({ path: files.path });
-    const paths = rows.map((r) => r.path);
-    return paths.sort((x, y) => Buffer.compare(Buffer.from(x), Buffer.from(y)));
+    const placedByUser = (fileId: typeof files.id) =>
+      sql`EXISTS (SELECT 1 FROM ${featureFiles} WHERE ${featureFiles.projectId} = ${files.projectId}
+        AND ${featureFiles.fileId} = ${fileId} AND ${featureFiles.placedBy} = 'user')`;
+    const byteSorted = (paths: string[]) =>
+      paths.sort((x, y) => Buffer.compare(Buffer.from(x), Buffer.from(y)));
+    return db.transaction(async (tx) => {
+      const missing = await tx
+        .select({
+          id: files.id,
+          path: files.path,
+          hash: files.hash,
+          placed: placedByUser(files.id),
+        })
+        .from(files)
+        .where(
+          and(
+            eq(files.projectId, projectId),
+            range.after === null
+              ? undefined
+              : sql`${bytes(files.path)} > ${range.after} COLLATE "C"`,
+            range.through === null
+              ? undefined
+              : sql`${bytes(files.path)} <= ${range.through} COLLATE "C"`,
+            range.folder == null
+              ? undefined
+              : sql`starts_with(${files.path}, ${`${range.folder}/`})`,
+            range.keep.length === 0 ? undefined : notInArray(files.path, range.keep),
+          ),
+        )
+        .for("update");
+      const placed = missing.filter((f) => f.placed);
+      const doomed = range.final ? missing : missing.filter((f) => !f.placed);
+      if (range.final && placed.length > 0) {
+        const doomedIds = missing.map((f) => f.id);
+        const candidates = await tx
+          .select({ id: files.id, path: files.path, hash: files.hash })
+          .from(files)
+          .where(
+            and(
+              eq(files.projectId, projectId),
+              inArray(
+                files.hash,
+                placed.map((f) => f.hash),
+              ),
+              notInArray(files.id, doomedIds),
+              sql`NOT ${placedByUser(files.id)}`,
+            ),
+          );
+        candidates.sort((x, y) => Buffer.compare(Buffer.from(x.path), Buffer.from(y.path)));
+        for (const from of placed) {
+          const to = candidates.find((c) => c.hash === from.hash);
+          if (!to) continue;
+          candidates.splice(candidates.indexOf(to), 1);
+          await tx
+            .delete(featureFiles)
+            .where(and(eq(featureFiles.projectId, projectId), eq(featureFiles.fileId, to.id)));
+          await tx
+            .update(featureFiles)
+            .set({ fileId: to.id })
+            .where(
+              and(
+                eq(featureFiles.projectId, projectId),
+                eq(featureFiles.fileId, from.id),
+                eq(featureFiles.placedBy, "user"),
+              ),
+            );
+        }
+      }
+      if (doomed.length > 0)
+        await tx.delete(files).where(
+          and(
+            eq(files.projectId, projectId),
+            inArray(
+              files.id,
+              doomed.map((f) => f.id),
+            ),
+          ),
+        );
+      return {
+        deleted: byteSorted(doomed.map((f) => f.path)),
+        held: range.final ? [] : byteSorted(placed.map((f) => f.path)),
+      };
+    });
   },
 };

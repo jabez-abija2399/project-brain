@@ -4,6 +4,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -15,11 +16,19 @@ import { POST as diff } from "@/app/api/index/[projectId]/diff/route";
 import { POST as upload } from "@/app/api/index/[projectId]/route";
 import { POST as summarize } from "@/app/api/index/[projectId]/summarize/route";
 import { GET as whoami } from "@/app/api/token/whoami/route";
+import { findSimilarComponents } from "@/server/components";
 import { setLlmForTests } from "@/server/llm";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
 import { type CliDeps, main } from "@brain/cli";
 import type { Llm } from "@brain/core";
-import { filesRepo, projectTokensRepo, projectsRepo, symbolsRepo } from "@brain/db";
+import {
+  featureFiles,
+  featuresRepo,
+  filesRepo,
+  projectTokensRepo,
+  projectsRepo,
+  symbolsRepo,
+} from "@brain/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fixtureRoot = join(
@@ -291,6 +300,66 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     const components = await symbolsRepo.listComponents(world.db, projectId);
     expect(components.map((c) => c.name)).not.toContain("Button");
     expect(components.map((c) => c.name)).not.toContain("Comp0");
+  });
+
+  async function placeByHand(path: string) {
+    const feature = await featuresRepo.insert(world.db, projectId, { name: "checkout" });
+    const fileId = (await filesRepo.list(world.db, projectId)).find((f) => f.path === path)?.id;
+    expect(
+      await featuresRepo.update(world.db, projectId, feature.id, {
+        moveFileIds: [fileId as string],
+      }),
+    ).not.toBeNull();
+    return feature.id;
+  }
+
+  it("KI-027 a hand-placed file renamed locally keeps one file, carries its placement to the new path and is found once", async () => {
+    setLlmForTests(countingLlm().llm);
+    const repo = copyFixture();
+    cpSync(generateRepo(250), repo, { recursive: true });
+    const c = cli(repo, serverFetch().fetchImpl);
+    await c.run("login", "--api-url", "https://brain.test");
+    expect(await c.run("index")).toBe(0);
+    const featureId = await placeByHand("src/components/ui/Button.tsx");
+
+    // The new path sorts into the first diff batch, the old one into the second.
+    mkdirSync(join(repo, "src/aaa"));
+    renameSync(join(repo, "src/components/ui/Button.tsx"), join(repo, "src/aaa/Button.tsx"));
+    expect(await c.run("index")).toBe(0);
+    expect(c.out).toContain("Uploaded 1 changed, 255 unchanged, 1 deleted");
+    const stored = await filesRepo.list(world.db, projectId);
+    const paths = stored.map((f) => f.path);
+    expect(paths).toHaveLength(256);
+    expect(paths).toContain("src/aaa/Button.tsx");
+    expect(paths).not.toContain("src/components/ui/Button.tsx");
+    const moved = stored.find((f) => f.path === "src/aaa/Button.tsx")?.id;
+    const links = await world.db.select().from(featureFiles);
+    expect(links.map((l) => [l.featureId, l.fileId, l.placedBy])).toEqual([
+      [featureId, moved, "user"],
+    ]);
+    const found = await findSimilarComponents(world.db, projectId, "Button");
+    expect(found.filter((f) => f.name === "Button").map((f) => f.path)).toEqual([
+      "src/aaa/Button.tsx",
+    ]);
+  });
+
+  it("KI-027 a hand-placed file deleted locally disappears after the next index", async () => {
+    setLlmForTests(countingLlm().llm);
+    const repo = copyFixture();
+    const c = cli(repo, serverFetch().fetchImpl);
+    await c.run("login", "--api-url", "https://brain.test");
+    expect(await c.run("index")).toBe(0);
+    await placeByHand("src/components/ui/Button.tsx");
+
+    rmSync(join(repo, "src/components/ui/Button.tsx"));
+    expect(await c.run("index")).toBe(0);
+    expect(c.out).toContain("Uploaded 0 changed, 5 unchanged, 1 deleted");
+    const paths = (await filesRepo.list(world.db, projectId)).map((f) => f.path);
+    expect(paths).toHaveLength(5);
+    expect(paths).not.toContain("src/components/ui/Button.tsx");
+    const components = await symbolsRepo.listComponents(world.db, projectId);
+    expect(components.map((c) => c.name)).not.toContain("Button");
+    expect(await world.db.select().from(featureFiles)).toEqual([]);
   });
 
   it("KI-025 indexing a subfolder uploads repo-root paths and deletes only stored files inside it", async () => {

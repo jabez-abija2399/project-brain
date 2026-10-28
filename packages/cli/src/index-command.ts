@@ -130,28 +130,40 @@ export async function runIndex(
   const unreadable = index.errors.some((e) => e.message.startsWith("read failed"));
   const changed = new Set<string>();
   let deleted = 0;
-  const diffBatches = batches(files, BATCH_FILES);
-  for (const [i, batch] of diffBatches.entries()) {
-    const range = unreadable
+  const diffBatches = batches(files, BATCH_FILES).map((batch, i, all) => ({
+    files: batch.map((f) => ({ path: f.path, hash: f.hash })),
+    ...(unreadable
       ? {}
       : {
           ...(folder ? { folder } : {}),
-          after: i === 0 ? null : (diffBatches[i - 1]?.at(-1)?.path ?? null),
-          through: i === diffBatches.length - 1 ? null : (batch.at(-1)?.path ?? null),
-        };
-    const res = await request<{ changed: string[]; deleted?: string[] }>(
+          after: i === 0 ? null : (all[i - 1]?.at(-1)?.path ?? null),
+          through: i === all.length - 1 ? null : (batch.at(-1)?.path ?? null),
+        }),
+  }));
+  // KI-027: files the user placed by hand are held until the uploads are in, so a renamed one's placement can move.
+  const held: typeof diffBatches = [];
+  for (const body of diffBatches) {
+    const res = await request<{ changed: string[]; deleted?: string[]; held?: string[] }>(
       fetchImpl,
       config,
       "POST",
       `${base}/diff`,
-      { files: batch.map((f) => ({ path: f.path, hash: f.hash })), ...range },
+      body,
     );
     for (const p of res.changed) changed.add(p);
     deleted += res.deleted?.length ?? 0;
+    if ((res.held?.length ?? 0) > 0) held.push(body);
   }
   const toSend = files.filter((f) => changed.has(f.path));
   for (const batch of batches(toSend, BATCH_FILES, BATCH_BYTES)) {
     await request(fetchImpl, config, "POST", base, { files: batch });
+  }
+  for (const body of held) {
+    const res = await request<{ deleted?: string[] }>(fetchImpl, config, "POST", `${base}/diff`, {
+      ...body,
+      final: true,
+    });
+    deleted += res.deleted?.length ?? 0;
   }
   print(
     `Uploaded ${toSend.length} changed, ${files.length - toSend.length} unchanged${deleted > 0 ? `, ${deleted} deleted` : ""}`,

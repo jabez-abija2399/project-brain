@@ -1,5 +1,12 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-28 | FEAT-008 fix: KI-027 hand-placed files deleted/moved on index + advisory storage lock | status: done
+Changed: removeMissing selects the missing files in the range; hand-placed ones are only held (returned as `held`) unless the diff has `final: true`. The CLI re-sends the held batches with final after its uploads; that deletes them (counted in deleted) and first moves their user links to a stored same-hash file not being deleted and not user-placed (a rename). saveFiles' storage-cap check takes pg_advisory_xact_lock(hashtextextended('storage:'||projectId)) instead of locking the project row.
+Verified (ran this session): 4 new KI-027 tests (2 server, 2 CLI end to end: rename across diff batches keeps one file, moves the placement, search finds one Button; local delete removes it) failed before, pass after; verify.sh PASS (typecheck, lint, tests, kit guard).
+Scope: diff/route.ts added (comment only). NOT VERIFIED: real Postgres/Neon (PGlite only, single connection: that dashboard moves are no longer blocked by uploads is not tested); a same-hash file that already existed (a copy) can also receive the placement.
+Known issues: KI-027 fixed.
+Next: human security review of FEAT-008, then FEAT-009.
+
 ## 2026-10-28 | FEAT-008 finish: AC-008-08..13 + KI-025 subfolder index | status: done
 Changed: attacker tests renamed to start with their AC ids (AC-008-08..13). KI-025: the CLI finds the git root (.git upwards), uploads root-relative paths for a subfolder and sends `folder` on each diff; the diff schema requires files and range bounds inside folder/ (else 400) and removeMissing deletes only paths under folder/. Without .git the folder is the root (as before).
 Verified (ran this session): KI-025 server + CLI tests failed before the fix, pass after; verify.sh PASS (typecheck, lint, tests 225, kit guard); kit.py pass AC-008-08..13 from the test log; kit.py done FEAT-008.
