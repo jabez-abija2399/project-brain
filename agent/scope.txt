@@ -10,3 +10,12 @@ apps/web/src/app/api/index/index.test.ts
 apps/web/src/app/api/index/cli.test.ts
 packages/cli/src/index-command.ts
 docs/architecture.md
+docs/build-checklist.md
+AGENTS.md
+apps/web/src/server/errors.ts # KI-028 Retry-After header
+apps/web/src/server/rate-limit.ts # KI-028 Retry-After seconds
+apps/web/src/server/code-index-*.ts # pure refactor split of code-index.ts
+packages/cli/src/api.ts # KI-028 retry on 429
+packages/cli/src/index.ts # KI-028 injected sleep
+packages/cli/src/cli.test.ts # KI-028 tests
+packages/cli/src/bin.test.ts # spawn tests get a 30 s timeout (load-independent)

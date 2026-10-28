@@ -268,3 +268,10 @@ Verified (ran this session): the new server tests (per-project rate limit, stora
 NOT VERIFIED: the hidden prompt in a real terminal (unit test with a fake TTY only); real Postgres/Neon (PGlite only; SELECT ... FOR UPDATE lock not tested under real concurrency); build, e2e, audit and scanners run in CI only.
 Known issues: new KI-027 (deleted user-placed files stay), KI-028 (per-project rate limit can stop a very large index; no CLI retry).
 Next: human security review of these fixes, then FEAT-009.
+
+## 2026-10-28 | build checklist + KI-028 CLI retry on 429 + code-index.ts split | status: done
+Changed: docs/build-checklist.md (8 rules, each with an example from past reviews) and a project rule in AGENTS.md. KI-028: the rate limiter's 429 carries Retry-After (seconds to the end of the minute window, via AppError.retryAfter); the CLI's request() retries a 429 up to 5 times, waiting Retry-After clamped to 1-60 s (60 when missing, negative or unreadable; HTTP dates supported), printing "Rate limit reached, waiting N s"; sleep is injected through CliDeps. The bin tests that spawn node get a 30 s timeout (they hit the 5 s default under load). apps/web/src/server/code-index.ts split into code-index-limits.ts, code-index-input.ts, code-index-summarize.ts and code-index.ts (re-exports them; importers unchanged); only change is asPrevious becoming an export.
+Verified (ran this session): 5 new KI-028 tests (1 server, 4 CLI) failed before, pass after; verify.sh PASS (typecheck, lint, tests, kit guard); split checked line by line against the original.
+NOT VERIFIED: build, e2e, audit, scanners (CI only). Login does not retry on 429 (index only).
+Known issues: KI-028 fixed.
+Next: human security review of FEAT-008, then FEAT-009.
