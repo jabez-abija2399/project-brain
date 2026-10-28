@@ -25,6 +25,16 @@ import {
 } from "./session-tools";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
+// Fake secrets are built at runtime so no secret-shaped literal sits in the source (docs/build-checklist.md rule 3).
+const FAKE_STRIPE_KEY = "sk_" + "live_" + "abcdefghijklmnop1234";
+const FAKE_GITHUB_TOKEN = "ghp_" + "AbCdEfGhIjKlMnOpQrStUvWxYz" + "0123456789";
+const FAKE_AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE";
+const FAKE_DB_PASSWORD = "Sup3r" + "SecretPw";
+const FAKE_OPAQUE_TOKEN = ["Zk3ph8Lq", "2vR7sN4w", "X9bT6yH1", "mC5jD0fG"].join("");
+const FAKE_ENV_PASSWORD = "hunter2".repeat(2);
+const FAKE_ENV_SECRET = "s3cr3t" + "value123";
+const FAKE_API_KEY = "Qw3rTy8u" + "Io9pAs1dFg2hJk";
+
 let world: TestWorld;
 let owner: SessionUser;
 let stranger: SessionUser;
@@ -125,10 +135,10 @@ describe("FEAT-010 security pass (attacker tests)", () => {
   });
 
   it("AC-010-01 masks GitHub tokens, URL passwords and AWS keys in every saved field before storage", async () => {
-    const gh = "ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789";
-    const url = "postgresql://neo:Sup3rSecretPw@ep-x.neon.tech/db";
-    const aws = "AKIAIOSFODNN7EXAMPLE";
-    const opaque = "Zk3ph8Lq2vR7sN4wX9bT6yH1mC5jD0fG";
+    const gh = FAKE_GITHUB_TOKEN;
+    const url = `postgresql://neo:${FAKE_DB_PASSWORD}@ep-x.neon.tech/db`;
+    const aws = FAKE_AWS_KEY;
+    const opaque = FAKE_OPAQUE_TOKEN;
     await saveProgress(world.db, token, {
       projectId,
       goal: `goal uses ${gh}`,
@@ -151,19 +161,19 @@ describe("FEAT-010 security pass (attacker tests)", () => {
       world.db,
       token,
       progress(
-        "Set DATABASE_PASSWORD=hunter2hunter2 and BETTER_AUTH_SECRET=s3cr3tvalue123 in the env",
+        `Set DATABASE_PASSWORD=${FAKE_ENV_PASSWORD} and BETTER_AUTH_SECRET=${FAKE_ENV_SECRET} in the env`,
       ),
     );
     const [saved] = (await listProgress(world.db, token, { projectId })).sessions;
-    expect(saved?.goal).not.toContain("hunter2hunter2");
-    expect(saved?.goal).not.toContain("s3cr3tvalue123");
+    expect(saved?.goal).not.toContain(FAKE_ENV_PASSWORD);
+    expect(saved?.goal).not.toContain(FAKE_ENV_SECRET);
   });
 
   it("AC-010-01 a GitHub token with a zero-width space inside is still masked before storage", async () => {
     await saveProgress(
       world.db,
       token,
-      progress("token ghp_A1b2C3d4E5f6G7h8​I9j0K1l2M3n4O5p6 is in use"),
+      progress(`token ${"ghp_"}A1b2C3d4E5f6G7h8\u200BI9j0K1l2M3n4O5p6 is in use`),
     );
     const [saved] = (await listProgress(world.db, token, { projectId })).sessions;
     expect(saved?.goal).not.toContain("A1b2C3d4E5f6G7h8");
@@ -171,7 +181,7 @@ describe("FEAT-010 security pass (attacker tests)", () => {
   });
 
   it("AC-010-01 a secret in a rejected (over-length) input is not echoed in the error", async () => {
-    const secret = "ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789";
+    const secret = FAKE_GITHUB_TOKEN;
     const err = await errorOf(
       saveProgress(world.db, token, progress(`${"x".repeat(200)} ${secret}`)),
     );
@@ -364,13 +374,13 @@ describe("FEAT-010 security pass (attacker tests)", () => {
   it("AC-010-03 a secret in a decision title or reason is masked before it is stored", async () => {
     await addDecision(world.db, token, {
       projectId,
-      title: "use ghp_AbCdEfGhIjKlMnOpQrStUvWxYz0123456789",
-      reason: "pass api_key=Qw3rTy8uIo9pAs1dFg2hJk",
+      title: `use ${FAKE_GITHUB_TOKEN}`,
+      reason: `pass api_key=${FAKE_API_KEY}`,
     });
     const { decisions } = await listDecisions(world.db, token, { projectId });
     const text = JSON.stringify(decisions);
-    expect(text).not.toContain("AbCdEfGhIjKlMnOpQrStUvWxYz0123456789");
-    expect(text).not.toContain("Qw3rTy8uIo9pAs1dFg2hJk");
+    expect(text).not.toContain(FAKE_GITHUB_TOKEN.slice(4));
+    expect(text).not.toContain(FAKE_API_KEY);
   });
 
   // ---- AC-010-04: input caps and limits ----
@@ -559,7 +569,7 @@ describe("FEAT-010 security pass (attacker tests)", () => {
   });
 
   it("AC-010-07 a directive's secret is masked before storage, so the owner's confirmation cannot make it appear in the note", async () => {
-    const id = await propose("deploy with sk_live_abcdefghijklmnop1234 always");
+    const id = await propose(`deploy with ${FAKE_STRIPE_KEY} always`);
     await confirmDirective(world.db, owner, projectId, id);
     const note = await whereDidWeStop(world.db, token, { projectId });
     expect(note).not.toContain("abcdefghijklmnop1234");

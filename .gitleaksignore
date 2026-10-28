@@ -1,3 +1,18 @@
 # Fake Stripe key (not a real secret) quoted in agent/reviews/FEAT-004.md, introduced in commit 955ff20;
 # masked at HEAD in 79d2ee6. Only this one historical finding is ignored; no history rewrite.
 955ff20361d7fde68acdeb6f530e7b2819cf8a16:agent/reviews/FEAT-004.md:stripe-access-token:19
+
+# Fake test secrets in old commits (reviewed 2026-10-28). Each value is a made-up alphabet run used only to prove
+# masking; none is or was a real credential. HEAD builds them at runtime (docs/build-checklist.md rule 3); history kept.
+# context-pack.test.ts "AC-011-04 masks secrets in saved text before returning it": fake sk_live_ key
+42966d297a9c0081317992bb78431288684a3c94:apps/web/src/server/context-pack.test.ts:stripe-access-token:105
+# mcp.security.test.ts AC-011-06 opaque -32603 test and AC-011-04 find_similar_component test: fake sk-live_ key
+494710d9fc5ef5cbf98ce90eefb5309644614bb9:apps/web/src/app/mcp/mcp.security.test.ts:generic-api-key:465
+494710d9fc5ef5cbf98ce90eefb5309644614bb9:apps/web/src/app/mcp/mcp.security.test.ts:generic-api-key:548
+# session-tools.test.ts "AC-010-01 masks secrets in saved text before it is stored": fake sk_live_ key
+586dea5633e285313de057aa14b3ba686e308d10:apps/web/src/server/session-tools.test.ts:stripe-access-token:92
+# session-tools.security.test.ts AC-010-03 decision title/reason test (fake api_key=) and AC-010-07 directive test (fake sk_live_ key)
+07c1fd084afbcf0222f27ac60324077467f05d36:apps/web/src/server/session-tools.security.test.ts:generic-api-key:368
+07c1fd084afbcf0222f27ac60324077467f05d36:apps/web/src/server/session-tools.security.test.ts:stripe-access-token:562
+# components.test.ts (FEAT-007) "AC-007-01 secrets in the path, signature and AI answer are masked": fake AKIA key
+61d29dd668252f25ed839978fa7975a3f7ef779a:packages/core/src/components/components.test.ts:aws-access-token:239

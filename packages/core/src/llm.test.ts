@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_MODEL, type LlmClient, type LlmCostEntry, createLlm } from "./llm";
 
+// Fake secrets are built at runtime so no secret-shaped literal sits in the source (docs/build-checklist.md rule 3).
+const FAKE_ANTHROPIC_KEY = ["sk-", "ant-", "ABCDEFGHIJKLMNOPQRSTUV"].join("");
+
 describe("llm.complete", () => {
   it("sends model, capped max tokens and timeout; logs cost without prompt or answer text", async () => {
     const calls: { params: unknown; options: unknown }[] = [];
@@ -74,7 +77,7 @@ describe("llm.complete options", () => {
     const client: LlmClient = {
       messages: {
         async create() {
-          throw Object.assign(new Error("401 bad key sk-ant-ABCDEFGHIJKLMNOPQRSTUV"), {
+          throw Object.assign(new Error(`401 bad key ${FAKE_ANTHROPIC_KEY}`), {
             name: "AuthenticationError",
           });
         },

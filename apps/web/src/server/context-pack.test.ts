@@ -14,6 +14,9 @@ import { AppError } from "./errors";
 import { type ToolToken, confirmDirective, saveDirective } from "./session-tools";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
+// Fake secrets are built at runtime so no secret-shaped literal sits in the source (docs/build-checklist.md rule 3).
+const FAKE_STRIPE_KEY = "sk_" + "live_" + "abcdefghijklmnop1234";
+
 let world: TestWorld;
 let owner: SessionUser;
 let projectId: string;
@@ -102,7 +105,7 @@ describe("get_context_pack (FEAT-011)", () => {
     await addFile(feature.id, "src/billing/Invoice.tsx");
     await decisionsRepo.insert(world.db, projectId, {
       title: "Billing key",
-      reason: "staging uses sk_live_abcdefghijklmnop1234",
+      reason: `staging uses ${FAKE_STRIPE_KEY}`,
     });
     const pack = await getContextPack(world.db, projectId, "Billing");
     expect(pack).not.toContain("abcdefghijklmnop1234");

@@ -11,6 +11,12 @@ import {
   summarizeComponents,
 } from "./summarize";
 
+// Fake secrets are built at runtime so no secret-shaped literal sits in the source (docs/build-checklist.md rule 3).
+const FAKE_ANTHROPIC_KEY = ["sk-", "ant-", "ABCDEFGHIJKLMNOPQRSTUV"].join("");
+const FAKE_GITHUB_TOKEN = ["ghp_", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "0123"].join("");
+const FAKE_AWS_KEY = ["AKIA", "ABCDEFGHIJKLMNOP"].join("");
+const FAKE_PASSWORD = ["hunter", "22"].join("");
+
 const fixtureRoot = join(
   fileURLToPath(new URL(".", import.meta.url)),
   "../../../..",
@@ -182,7 +188,7 @@ describe("FEAT-007 summary attempts", () => {
 
   it("AC-007-04 an outage stops the batch after 5 errors in a row and logs each failure without the prompt", async () => {
     const fake = scriptedClient(async () => {
-      throw Object.assign(new Error("connect ECONNREFUSED sk-ant-ABCDEFGHIJKLMNOPQRSTUV"), {
+      throw Object.assign(new Error(`connect ECONNREFUSED ${FAKE_ANTHROPIC_KEY}`), {
         name: "APIConnectionError",
       });
     });
@@ -226,19 +232,17 @@ describe("FEAT-007 summary attempts", () => {
             content: [
               {
                 type: "text",
-                text: "Uses sk-ant-ABCDEFGHIJKLMNOPQRSTUV and password=hunter22 to log in.",
+                text: `Uses ${FAKE_ANTHROPIC_KEY} and password=${FAKE_PASSWORD} to log in.`,
               },
             ],
           };
         },
       },
     };
-    // Built at runtime so secret scanners do not flag a fake key in the source; the value is unchanged.
-    const fakeAwsKey = ["AKIA", "ABCDEFGHIJKLMNOP"].join("");
     const leaky = {
       ...button,
-      path: "src/ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123/Button.tsx",
-      signature: `({ apiKey = '${fakeAwsKey}' }) => JSX`,
+      path: `src/${FAKE_GITHUB_TOKEN}/Button.tsx`,
+      signature: `({ apiKey = '${FAKE_AWS_KEY}' }) => JSX`,
     };
     const [row] = await summarizeComponents([leaky], createLlm(client));
     expect(prompts[0]).toContain("ghp_***");

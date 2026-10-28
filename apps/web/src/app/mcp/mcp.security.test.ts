@@ -18,6 +18,11 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST } from "./route";
 
+// Fake secrets are built at runtime so no secret-shaped literal sits in the source (docs/build-checklist.md rule 3).
+const FAKE_STRIPE_KEY = "sk-" + "live_" + "ABCDEFGHIJKLMNOPQRSTUV123456";
+const FAKE_GITHUB_TOKEN = "ghp_" + "abcdefghijklmnopqrstuvwxyz" + "0123456789";
+const FAKE_AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE";
+
 type ToolResult = { content?: { type: string; text: string }[]; isError?: boolean };
 
 let nextId = 1;
@@ -462,7 +467,7 @@ describe("FEAT-011 security pass: input validation and errors", () => {
 
   it("AC-011-06 an unexpected server failure returns an opaque -32603 with no message, stack or secret, and logs no secret", async () => {
     const logs = captureLogs();
-    const secret = "sk-live_ABCDEFGHIJKLMNOPQRSTUV123456";
+    const secret = FAKE_STRIPE_KEY;
     vi.spyOn(featuresRepo, "byName").mockRejectedValue(
       new Error(`connect failed postgres://brain:${secret}@db.internal:5432/brain`),
     );
@@ -515,11 +520,7 @@ describe("FEAT-011 security pass: attacker, round two", () => {
 describe("FEAT-011 security pass: outputs (secrets, injection, size, no source)", () => {
   it("AC-011-04 secrets saved through save_progress / add_decision are masked in every read tool and never logged", async () => {
     const logs = captureLogs();
-    const secrets = [
-      "sk-live_ABCDEFGHIJKLMNOPQRSTUV123456",
-      "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
-      "AKIAIOSFODNN7EXAMPLE",
-    ];
+    const secrets = [FAKE_STRIPE_KEY, FAKE_GITHUB_TOKEN, FAKE_AWS_KEY];
     await callTool(
       "save_progress",
       {
@@ -545,7 +546,7 @@ describe("FEAT-011 security pass: outputs (secrets, injection, size, no source)"
   });
 
   it("AC-011-04 find_similar_component masks a secret that reached a stored summary, signature or path (masked before returned)", async () => {
-    const secret = "sk-live_ABCDEFGHIJKLMNOPQRSTUV123456";
+    const secret = FAKE_STRIPE_KEY;
     // File paths are stored as uploaded (code-index.ts masks name and signature, not path).
     const file = await filesRepo.insert(world.db, projectId, {
       path: `src/keys/${secret}/PayButton.tsx`,
