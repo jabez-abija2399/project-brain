@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -93,6 +93,31 @@ describe("FEAT-008 projectbrain login", () => {
       "http://127.0.0.1:3000",
     ]) {
       expect(await main(["login", "--api-url", url], t.deps)).toBe(0);
+    }
+  });
+  it("AC-008-11 attack: index refuses a config hand-edited to a plain-http non-local apiUrl, before sending the token", async () => {
+    const calls: string[] = [];
+    const t = setup(async (url, init) => {
+      calls.push(String(url));
+      return whoami(url, init);
+    });
+    writeFileSync(join(t.repo, "a.ts"), "export const a = 1;\n");
+    expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(0);
+    const path = join(t.home, ".config", "projectbrain", "config.json");
+    for (const url of [
+      "http://brain.example.com",
+      "http://10.0.0.5:3000",
+      "ftp://brain.test",
+      "nonsense",
+    ]) {
+      writeFileSync(path, JSON.stringify({ apiUrl: url, projectId: "proj-1", token: TOKEN }));
+      calls.length = 0;
+      expect(await main(["index"], t.deps)).toBe(2);
+      expect(calls).toEqual([]);
+      expect(t.err.at(-1)).toBe(
+        "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `projectbrain login` again.",
+      );
+      expect(t.err.join("\n")).not.toContain(TOKEN);
     }
   });
 });

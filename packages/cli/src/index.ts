@@ -80,6 +80,11 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       if (args.length > 1) throw new CliError(EXIT.usage, "Usage: projectbrain index [dir]");
       const config = readConfig(path);
       if (!config) throw new CliError(EXIT.auth, "Not logged in: run `projectbrain login` first.");
+      if (!isSafeApiUrl(config.apiUrl))
+        throw new CliError(
+          EXIT.usage,
+          "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `projectbrain login` again.",
+        );
       await runIndex(deps.fetch, config, resolve(deps.cwd, args[0] ?? "."), deps.stdout);
     } else {
       deps.stderr(helpText());

@@ -248,3 +248,9 @@ Verified (ran this session): verify.sh PASS (typecheck, lint, 223 tests, kit gua
 NOT VERIFIED: real Postgres/Neon (PGlite only), real Claude API, `next build` (CI), a bin installed globally (npm i -g / pnpm link); default --api-url is still localhost.
 Known issues: KI-023, KI-024 fixed; new KI-025 (subfolder index deletes files outside it), KI-026 (budget per project, no per-user/IP cap).
 Next: human imports agent/plan.json and reviews this security pass; then FEAT-009.
+
+## 2026-10-28 | FEAT-008 fix: index re-checks the saved apiUrl | status: done
+Changed: `projectbrain index` applies the login rule (https only; plain http only for localhost, 127.0.0.1, [::1]) to the apiUrl read from the config file, before any request; a hand-edited unsafe address exits 2 with "run `projectbrain login` again" and sends nothing.
+Verified (ran this session): new test failed before the fix (token sent, exit 3), passes after; verify.sh PASS (typecheck, lint, tests, kit guard).
+NOT VERIFIED: build, e2e, audit, scanners (CI only).
+Next: human security review of FEAT-008, then FEAT-009.
