@@ -84,3 +84,4 @@
 - 2026-10-28 | Build a receipt automatically after a GitHub push (architecture's build-receipt job): FEAT-013 ships the generate_receipt MCP tool only | FEAT-013 follow-up
 - 2026-10-28 | Receipts feed and ReceiptCard in the dashboard (receipts are stored in receipts.summary_json) | FEAT-017
 - 2026-10-28 | Measure receipt judging on the real model (FEAT-013 tests use scripted model answers) | FEAT-013 follow-up
+- 2026-10-28 FEAT-013 security pass (design, not bugs): changed paths are self-reported by the agent (check them against git/the index once FEAT-009 push data is linked); any changed test counts for every item (map tests to items); a request with no feature puts every file in scope; no cap on total prompt size (~200 KB worst case); the AI budget is not released when the model call fails.

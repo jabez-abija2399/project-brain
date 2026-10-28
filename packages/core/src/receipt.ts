@@ -40,6 +40,13 @@ const block = (label: string, lines: string[]) =>
 
 // Safe one-line text for agents and logs: no control characters, secrets masked.
 export const safeText = (value: string) => maskSecretsIn(oneLineText(value));
+// Paths are masked one segment at a time: masking a whole path would treat an ordinary long path as one random
+// string (src/***.tsx), and the model could no longer cite it.
+export const safePath = (path: string) =>
+  oneLineText(path)
+    .split("/")
+    .map((segment) => maskSecretsIn(segment))
+    .join("/");
 
 export function receiptPrompt(items: ReceiptItemInput[], files: ReceiptFileInput[]): string {
   return [
@@ -49,7 +56,7 @@ export function receiptPrompt(items: ReceiptItemInput[], files: ReceiptFileInput
     ),
     block(
       "CHANGED FILES (paths)",
-      files.map((f) => `- ${safeText(f.path)}`),
+      files.map((f) => `- ${safePath(f.path)}`),
     ),
   ].join("\n\n");
 }
@@ -62,7 +69,8 @@ export function parseVerdicts(
 ): Map<number, { verdict: ItemVerdict; evidence: string[] }> {
   const out = new Map<number, { verdict: ItemVerdict; evidence: string[] }>();
   for (const line of answer.split(/\r?\n/)) {
-    const m = oneLineText(line).match(/^(\d{1,2})\s*\|\s*(done|partial|missed)\s*\|?\s*(.*)$/i);
+    // The verdict word stands alone: "donez" or "done-not" is not a verdict.
+    const m = oneLineText(line).match(/^(\d{1,2})\s*\|\s*(done|partial|missed)\s*(?:\|\s*(.*))?$/i);
     if (!m) continue;
     const n = Number(m[1]);
     if (n < 1 || n > itemCount || out.has(n)) continue;
@@ -87,8 +95,8 @@ export function groupFiles(
   const outside: string[] = [];
   for (const f of files) {
     const key = f.feature ?? NO_FEATURE;
-    groups.set(key, [...(groups.get(key) ?? []), safeText(f.path)]);
-    if (!f.inScope) outside.push(safeText(f.path));
+    groups.set(key, [...(groups.get(key) ?? []), safePath(f.path)]);
+    if (!f.inScope) outside.push(safePath(f.path));
   }
   return {
     files_by_feature: [...groups].map(([feature, list]) => ({
@@ -125,13 +133,14 @@ export async function buildReceipt(
     maxTokens: 300,
     purpose: "receipt-judge",
   });
-  const verdicts = parseVerdicts(answer, items.length, new Set(files.map((f) => f.path)));
+  // The model cites the paths it was shown (masked per segment), so evidence is matched against those.
+  const verdicts = parseVerdicts(answer, items.length, new Set(files.map((f) => safePath(f.path))));
   const testChanged = files.some((f) => TEST_FILE.test(f.path));
   const out: ReceiptItem[] = [];
   const notVerified: Receipt["not_verified"] = [];
   safeItems.forEach((item, i) => {
     const v = verdicts.get(i + 1) ?? { verdict: "missed" as const, evidence: [] };
-    const evidence = v.evidence.map(safeText);
+    const evidence = v.evidence;
     let reason: string | null = null;
     if (v.verdict !== "missed" && evidence.length === 0) reason = "no file evidence";
     else if (v.verdict === "done" && !testChanged) reason = "no test changed";

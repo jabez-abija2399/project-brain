@@ -145,3 +145,4 @@ apps/web/src/server/code-index-input.ts
 apps/web/src/app/mcp/mcp.test.ts  # AC-011-01 lists every MCP tool; FEAT-013 adds generate_receipt
 packages/db/migrations/0020_checklist_position.sql
 packages/db/src/schema/receipts.ts
+apps/web/src/server/receipt.security.test.ts

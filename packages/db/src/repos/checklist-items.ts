@@ -176,6 +176,6 @@ export const checklistItemsRepo = {
     await db.execute(sql`
       UPDATE checklist_items AS c SET status = v.status
       FROM (VALUES ${values}) AS v(id, status)
-      WHERE c.project_id = ${projectId} AND c.id = v.id AND c.status <> 'dismissed'`);
+      WHERE c.project_id = ${projectId} AND c.id = v.id AND c.status IN ('open', 'partial', 'missed')`);
   },
 };

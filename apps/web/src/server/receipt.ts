@@ -135,13 +135,17 @@ export async function generateReceipt(
     throw new AppError(502, "ai_unavailable", "the receipt could not be judged; try again");
   }
 
-  await checklistItemsRepo.setStatuses(
-    db,
-    pid,
-    receipt.items.flatMap((i) =>
-      i.status === "not_verified" ? [] : [{ id: i.id, status: i.status }],
-    ),
-  );
+  // A receipt with no changed files reports every item missed (AC-013-05) but changes no stored status, so it
+  // cannot downgrade work an earlier receipt judged partial.
+  if (files.length > 0) {
+    await checklistItemsRepo.setStatuses(
+      db,
+      pid,
+      receipt.items.flatMap((i) =>
+        i.status === "not_verified" ? [] : [{ id: i.id, status: i.status }],
+      ),
+    );
+  }
   const row = await receiptsRepo.insert(db, pid, {
     requestId: request.id,
     commitSha: input.commitSha ?? null,
