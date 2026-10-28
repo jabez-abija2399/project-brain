@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-28 | KI-017 fix: grouping handles route groups, Pages Router, Vite/Lovable (review M3/L2/L3) | status: done (AC-006-07 pending approval)
+Changed: core featureFromPath skips Next.js route groups (inner folder names the feature, so (auth)/login -> login; AC-006-01 expectation updated per user), reads pages/ and src/pages/ (Pages Router, Vite) incl. file names, src/main|App.tsx -> home, only root app/ or src/app/; PascalCase names -> kebab-case. Features carry key + name; automatic keys @home/@other never merge with folders; saveMap names new features from the map name (-2 variant). Fixtures route-groups-app, pages-router-app, vite-app. AC-006-07 proposed in agent/plan.json; L1 parked in later.md.
+Verified (ran this session): new tests failed first (9 core, 1 db), pass after (group.test 10/10, db features.test 2/2, web features.test 13/13); verify.sh PASS (typecheck, lint, tests, kit guard) after a lint-only formatting fix.
+NOT VERIFIED: CI-only checks; React Router <Route path> strings are not read (KI-019).
+Next: human approval of AC-006-07, then FEAT-007.
+
 ## 2026-10-28 | KI-016 fix: sandbox test timing flake | status: done
 Changed: packages/sandbox + packages/core vitest maxWorkers 1, testTimeout 150 s; sandbox tests use timeLimitMs 120 s (TEST_TIME_LIMIT_MS) except the time-limit tests (1 ms cap check, 20 s loop). Production limit stays 30 s.
 Verified (ran this session): verify.sh PASS (typecheck, lint, tests, kit guard); before, verify.sh had failed twice before (core 1 failed under load avg 7-10; core alone 76/76).

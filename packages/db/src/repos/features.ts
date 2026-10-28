@@ -19,9 +19,9 @@ function isUniqueViolation(err: unknown): boolean {
   return false;
 }
 
-/** Feature names (path-derived keys) map to file paths; paths must already be stored in `files`. */
+/** Stable path-derived feature keys (with display names) map to file paths; paths must already be stored in `files`. */
 export type FeatureMapInput = {
-  features: { name: string; files: string[] }[];
+  features: { key: string; name: string; files: string[] }[];
   shared: { path: string; usedBy: string[] }[];
 };
 
@@ -120,17 +120,17 @@ export const featuresRepo = {
   },
 
   /**
-   * Stores a grouped feature map (a re-index calls it again). Map feature names are stable path-derived keys:
-   * an existing feature is found by key, so a user rename survives; a new one gets the key as its name (a free
-   * variant when the user already took it). Automatic links of every mapped file are replaced by the new map;
+   * Stores a grouped feature map (a re-index calls it again). An existing feature is found by its key, so a
+   * user rename survives; a new one gets the map's name (a free `-2` variant when that name is taken). Automatic links of every mapped file are replaced by the new map;
    * files the user placed keep their links. Throws when a path is not a stored file of the project.
    */
   async saveMap(db: BrainDb, projectId: string, map: FeatureMapInput): Promise<void> {
     await db.transaction(async (tx) => {
       const keys = new Set([
-        ...map.features.map((f) => f.name),
+        ...map.features.map((f) => f.key),
         ...map.shared.flatMap((s) => s.usedBy),
       ]);
+      const nameOf = new Map(map.features.map((f) => [f.key, f.name]));
       if (keys.size === 0) return;
       const existing = await tx
         .select({ id: features.id, key: features.key, name: features.name })
@@ -139,9 +139,9 @@ export const featuresRepo = {
       const featureId = new Map<string, string>();
       for (const f of existing) if (f.key !== null) featureId.set(f.key, f.id);
       const taken = new Set(existing.map((f) => f.name));
-      const freeName = (key: string) => {
-        let name = key;
-        for (let n = 2; taken.has(name); n++) name = `${key}-${n}`;
+      const freeName = (base: string) => {
+        let name = base;
+        for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
         taken.add(name);
         return name;
       };
@@ -149,7 +149,9 @@ export const featuresRepo = {
       if (missing.length > 0) {
         const created = await tx
           .insert(features)
-          .values(missing.map((key) => ({ projectId, key, name: freeName(key) })))
+          .values(
+            missing.map((key) => ({ projectId, key, name: freeName(nameOf.get(key) ?? key) })),
+          )
           .returning({ id: features.id, key: features.key });
         for (const f of created) featureId.set(f.key as string, f.id);
       }
@@ -173,7 +175,7 @@ export const featuresRepo = {
       );
       const links = [
         ...map.features.flatMap((f) =>
-          f.files.map((path) => ({ role: "primary" as const, key: f.name, path })),
+          f.files.map((path) => ({ role: "primary" as const, key: f.key, path })),
         ),
         ...map.shared.flatMap((s) =>
           s.usedBy.map((key) => ({ role: "shared" as const, key, path: s.path })),

@@ -44,3 +44,51 @@ describe("FEAT-006 feature_files roles", () => {
     expect(roles.sort()).toEqual(["primary", "shared", "shared"]);
   });
 });
+
+describe("FEAT-006 saveMap feature names", () => {
+  let pg: Awaited<ReturnType<typeof createTestDb>>;
+  let db: ReturnType<typeof fromPglite>;
+  let projectId: string;
+  beforeEach(async () => {
+    pg = await createTestDb();
+    db = fromPglite(pg);
+    await usersRepo.upsertById(db, { id: "u1", name: "u1", email: "u1@example.com" });
+    projectId = (await projectsRepo.create(db, "u1", { name: "p" })).id;
+    for (const path of [
+      "src/app/page.tsx",
+      "src/components/home/Hero.tsx",
+      "src/pages/Reviews.tsx",
+    ]) {
+      await filesRepo.insert(db, projectId, { path, hash: "h" });
+    }
+  });
+  afterEach(async () => {
+    await pg.close();
+  });
+
+  const names = async () =>
+    (await featuresRepo.list(db, projectId)).map((f) => [f.key, f.name]).sort();
+
+  it("AC-006-05 a new feature whose name is taken gets the -2 variant, also between automatic and folder features", async () => {
+    await featuresRepo.insert(db, projectId, { name: "reviews" });
+    const map = {
+      features: [
+        { key: "@home", name: "home", files: ["src/app/page.tsx"] },
+        { key: "home", name: "home", files: ["src/components/home/Hero.tsx"] },
+        { key: "reviews", name: "reviews", files: ["src/pages/Reviews.tsx"] },
+      ],
+      shared: [],
+    };
+    await featuresRepo.saveMap(db, projectId, map);
+    expect(await names()).toEqual([
+      [null, "reviews"],
+      ["@home", "home"],
+      ["home", "home-2"],
+      ["reviews", "reviews-2"],
+    ]);
+
+    // A re-index finds all three by key: no new features, no new variants.
+    await featuresRepo.saveMap(db, projectId, map);
+    expect(await names()).toHaveLength(4);
+  });
+});

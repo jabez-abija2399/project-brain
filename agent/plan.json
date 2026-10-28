@@ -5,9 +5,9 @@
       "title": "Feature map: group files into named features and let the user correct them",
       "acceptance": [
         {
-          "id": "AC-006-06",
-          "kind": "state",
-          "check": "After a re-index, features the user renamed and files the user moved keep the user's choice, and no duplicate feature is created."
+          "id": "AC-006-07",
+          "kind": "happy",
+          "check": "Next.js route groups, the Pages Router, and Vite/React apps (Lovable layout) are grouped into features by their routes and feature folders, each proven by its own fixture."
         }
       ]
     }
