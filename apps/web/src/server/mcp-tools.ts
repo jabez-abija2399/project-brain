@@ -5,6 +5,7 @@ import { findSimilarComponents } from "./components";
 import { getContextPack } from "./context-pack";
 import { getDb } from "./db";
 import { AppError } from "./errors";
+import { rateLimit } from "./rate-limit";
 import {
   type ToolToken,
   addDecision,
@@ -58,11 +59,17 @@ function toProtocolError(err: unknown): ProtocolError {
     }
     if (err.status === 401) return new ProtocolError(MCP_ERROR.unauthorized, "unauthorized");
     if (err.status === 404) return new ProtocolError(MCP_ERROR.notFound, "not_found");
-    if (err.status === 429) return new ProtocolError(MCP_ERROR.rateLimited, "rate_limited");
+    if (err.status === 429) {
+      return new ProtocolError(MCP_ERROR.rateLimited, "rate_limited", { retry_after_s: 60 });
+    }
   }
   console.error("[mcp] unexpected error:", err instanceof Error ? err.name : "unknown");
   return new ProtocolError(MCP_ERROR.internal, "internal error");
 }
+
+// Tool calls per minute, per token and per project (so extra tokens do not multiply it). A batch request counts
+// each call. Postgres counters, shared by every server instance (D-010).
+export const MCP_CALLS_PER_MINUTE = 300;
 
 const text = (value: string) => ({ content: [{ type: "text" as const, text: value }] });
 
@@ -78,6 +85,8 @@ async function run(
   try {
     const token = tokenOf(authInfo);
     projectId = token.projectId;
+    await rateLimit(getDb(), `mcp:${token.id}`, MCP_CALLS_PER_MINUTE);
+    await rateLimit(getDb(), `mcp-project:${token.projectId}`, MCP_CALLS_PER_MINUTE);
     return text(await fn(token));
   } catch (err) {
     // The SDK turns any error thrown by a tool into an isError result whose text is only the message, so the

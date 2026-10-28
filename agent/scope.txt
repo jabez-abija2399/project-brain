@@ -46,3 +46,5 @@ packages/db/src/repos/files.test.ts
 apps/web/src/server/session-tools.ts
 packages/db/src/repos/files.test.ts
 docs/dependencies.md
+apps/web/src/server/components.ts
+apps/web/src/app/mcp/mcp.security.test.ts

@@ -1397,53 +1397,66 @@
           "id": "AC-011-01",
           "kind": "happy",
           "check": "An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, save_progress, add_decision",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-01"
         },
         {
           "id": "AC-011-02",
           "kind": "permission",
           "check": "Connecting without credentials, or with a revoked token, fails with 401",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-02"
         },
         {
           "id": "AC-011-03",
           "kind": "attack",
           "check": "A token for project A calling any tool with project B's id returns a not-found error and no data",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-03"
         },
         {
           "id": "AC-011-04",
           "kind": "happy",
           "check": "get_context_pack(feature) returns the feature's files, component summaries, decisions and rules, without source code",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-04"
         },
         {
           "id": "AC-011-05",
           "kind": "perf",
           "check": "where_did_we_stop, get_context_pack and find_similar_component answer in under 500 ms p95 with 0 LLM calls",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-05"
         },
         {
           "id": "AC-011-06",
           "kind": "negative",
           "check": "Tool calls with invalid arguments return a validation error naming the field",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-06"
         }
       ],
-      "status": "in_progress",
-      "notes": "Supports project tokens for v1; OAuth via better-auth for clients that require it."
+      "status": "done",
+      "notes": "Supports project tokens for v1; OAuth via better-auth for clients that require it.",
+      "files": [
+        "apps/web/package.json",
+        "apps/web/src/app/mcp/mcp.security.test.ts",
+        "apps/web/src/app/mcp/mcp.test.ts",
+        "apps/web/src/app/mcp/route.ts",
+        "apps/web/src/server/components.ts",
+        "apps/web/src/server/context-pack.test.ts",
+        "apps/web/src/server/context-pack.ts",
+        "apps/web/src/server/mcp-tools.ts",
+        "apps/web/src/server/session-tools.ts",
+        "packages/db/src/repos/files.test.ts",
+        "packages/db/src/repos/files.ts"
+      ]
     },
     {
       "id": "FEAT-012",
@@ -2014,6 +2027,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 301
+    "tests_passed": 345
   }
 }

@@ -63,3 +63,7 @@
 - 2026-10-28 | Dashboard list of pending directive proposals for the owner to confirm (GET + confirm button) | FEAT-017
 - 2026-10-28 | Nothing sets features.status to 'in_progress' yet; the handoff note lists features with that status only | FEAT-006 / FEAT-017
 - 2026-10-28 | Handoff note: a per-section character budget instead of greedy line fitting, so one long section cannot push others out | FEAT-010 follow-up
+- 2026-10-28 | MCP OAuth via better-auth for clients that cannot send a project token (FEAT-011 notes; v1 ships project tokens only) | FEAT-011 follow-up
+- 2026-10-28 | Expose list_progress, list_decisions and save_directive over /mcp (services exist in session-tools.ts; FEAT-011 criteria list five tools) | FEAT-011 follow-up
+- 2026-10-28 | Per-token rate limit on /mcp tool calls (-32005 rate_limited with data.retry_after_s, spec section 7) using rate_counters (D-010) | FEAT-011 follow-up
+- 2026-10-28 | Spec FEAT-011 section 7 says tool errors are JSON-RPC errors; the MCP SDK returns them as isError results, so tools return isError with JSON {code, message, data}; update the spec text via agent/plan.json | FEAT-011 follow-up

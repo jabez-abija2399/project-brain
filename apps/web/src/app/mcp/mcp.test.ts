@@ -1,5 +1,5 @@
 import { setLlmForTests } from "@/server/llm";
-import { MCP_ERROR } from "@/server/mcp-tools";
+import { MCP_CALLS_PER_MINUTE, MCP_ERROR } from "@/server/mcp-tools";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
 import type { Llm } from "@brain/core";
 import {
@@ -228,6 +228,20 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
       expect(p95(ms), name).toBeLessThan(500);
     }
     expect(llmCalls).toBe(0);
+  }, 120_000);
+
+  it("AC-011-05 a token past the per-minute call limit gets rate_limited (-32005) and the write does not happen", async () => {
+    for (let i = 0; i < MCP_CALLS_PER_MINUTE; i++) {
+      const ok = await callTool("where_did_we_stop", { projectId }, token);
+      expect(ok.isError).toBe(false);
+    }
+    const limited = await callTool("add_decision", { projectId, title: "over the limit" }, token);
+    expect(errorBody(limited.text)).toEqual({
+      code: MCP_ERROR.rateLimited,
+      message: "rate_limited",
+      data: { retry_after_s: 60 },
+    });
+    expect(await decisionsRepo.listNewest(world.db, projectId, 5)).toEqual([]);
   }, 120_000);
 
   it("AC-011-06 invalid arguments return a validation error naming the field", async () => {
