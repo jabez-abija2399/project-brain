@@ -173,8 +173,11 @@ export const codeIndexRepo = {
       folder?: string | null;
       keep: string[];
       final?: boolean;
+      // FEAT-009: only these exact paths (files a push removed); with it, after/through are usually null.
+      only?: string[];
     },
   ): Promise<{ deleted: string[]; held: string[] }> {
+    if (range.only !== undefined && range.only.length === 0) return { deleted: [], held: [] };
     const bytes = (column: typeof files.path) => sql`${column} COLLATE "C"`;
     const placedByUser = (fileId: typeof files.id) =>
       sql`EXISTS (SELECT 1 FROM ${featureFiles} WHERE ${featureFiles.projectId} = ${files.projectId}
@@ -203,6 +206,7 @@ export const codeIndexRepo = {
               ? undefined
               : sql`starts_with(${files.path}, ${`${range.folder}/`})`,
             range.keep.length === 0 ? undefined : notInArray(files.path, range.keep),
+            range.only === undefined ? undefined : inArray(files.path, range.only),
           ),
         )
         .for("update");

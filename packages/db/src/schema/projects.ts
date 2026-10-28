@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { bigint, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { createdAt, id } from "./columns";
 
@@ -11,11 +11,17 @@ export const projects = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     repoFullName: text("repo_full_name"),
+    // FEAT-009: the GitHub App installation the repo was linked through (null = not linked).
+    installationId: bigint("installation_id", { mode: "number" }),
     createdAt: createdAt(),
   },
   (t) => ({
     ownerRepoUniq: uniqueIndex("projects_owner_repo_uniq").on(t.ownerId, t.repoFullName),
     ownerIdx: index("projects_owner_idx").on(t.ownerId),
+    installationRepoIdx: index("projects_installation_repo_idx").on(
+      t.installationId,
+      t.repoFullName,
+    ),
   }),
 );
 

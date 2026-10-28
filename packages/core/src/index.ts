@@ -1,7 +1,11 @@
 export const PACKAGE = "@brain/core";
 export const VERSION = "0.0.0";
 
-export { indexRepo } from "./indexer";
+export { indexRepo, indexSources } from "./indexer";
+export { pathSkipReason } from "./indexer/walker";
+export type { SourceFile } from "./indexer";
+export { toUpload } from "./upload";
+export type { UploadFile, UploadSymbol } from "./upload";
 export type {
   ComponentIndex,
   FileIndex,

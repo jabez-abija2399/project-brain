@@ -1,7 +1,13 @@
 import ts from "typescript";
 import { detectComponent, isJsxNode, lineOf } from "./components";
 import { type DeclaredRoute, detectRouterRoutes } from "./react-router";
-import { type TsconfigPaths, isExternalSpec, loadTsconfigPaths, resolveImport } from "./resolver";
+import {
+  type FileLookup,
+  type TsconfigPaths,
+  isExternalSpec,
+  loadTsconfigPaths,
+  resolveImport,
+} from "./resolver";
 import type { ComponentIndex, ImportIndex, IndexError } from "./types";
 
 export type ParsedFile = {
@@ -18,6 +24,7 @@ export function parseSource(
   relPath: string,
   repoRoot: string,
   cfg: TsconfigPaths,
+  lookup?: FileLookup,
 ): ParsedFile {
   const scriptKind = kindFor(relPath);
   const sf = ts.createSourceFile(relPath, source, ts.ScriptTarget.Latest, true, scriptKind);
@@ -28,7 +35,7 @@ export function parseSource(
   const visit = (node: ts.Node) => {
     const spec = moduleSpecifierOf(node);
     if (spec !== null) {
-      const { resolved, outside } = resolveImport(spec, relPath, repoRoot, cfg);
+      const { resolved, outside } = resolveImport(spec, relPath, repoRoot, cfg, lookup);
       const line = lineOf(sf, node.getStart(sf));
       imports.push({
         from: relPath,
@@ -50,7 +57,7 @@ export function parseSource(
     ? detectRouterRoutes(
         sf,
         relPath,
-        (spec) => resolveImport(spec, relPath, repoRoot, cfg).resolved,
+        (spec) => resolveImport(spec, relPath, repoRoot, cfg, lookup).resolved,
       )
     : [];
   return { components, imports, errors, hasJsx, routes };

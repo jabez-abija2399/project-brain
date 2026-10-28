@@ -72,3 +72,7 @@
 - 2026-10-28 | A new folder whose name matches a feature the user renamed gets a `-2` name (rename reviews -> customer reviews, then add components/customer-reviews/ -> 'customer reviews-2'); consider matching user names as well as keys | FEAT-006 re-review L3
 - 2026-10-28 | Features left empty by a re-index (e.g. the old 'dashboard' after the M2 container rule, or a deleted route) are kept with no files; hide or prune automatic features with no files | FEAT-006 wire-in
 - 2026-10-28 | Router routes held in a separate routes file (const routes: RouteObject[] = [...] passed to createBrowserRouter by name, or routes.tsx imported by App) are not read; only literal arrays passed to createBrowserRouter/useRoutes and <Route> JSX are | FEAT-006 re-review M1
+- 2026-10-28 | GitHub push that creates the default branch (before = 000…) or changes more than 3,000 files: run a full index from the job instead of skipping (now logged as new_branch / too_many_files) | FEAT-009 follow-up
+- 2026-10-28 | Project settings "Connect GitHub" button linking to /api/github/install?projectId=… and the linked repo shown on the project (FEAT-009 has the routes and the repo selection screen only) | FEAT-017
+- 2026-10-28 | installation_repositories webhook (repos removed from an installation): unlink the affected projects; only installation.deleted unlinks now | FEAT-009 follow-up
+- 2026-10-28 | Installations with more than 100 repositories: paginate /installation/repositories on the selection screen | FEAT-009 follow-up

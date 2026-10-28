@@ -30,6 +30,8 @@ const EXPECTED_TABLES = [
   "checklist_items",
   "receipts",
   "directives",
+  "webhook_deliveries",
+  "github_install_states",
   "db_tables",
   "db_policies",
 ];
