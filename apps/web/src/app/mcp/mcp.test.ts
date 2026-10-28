@@ -131,6 +131,7 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
         "add_decision",
         "create_checklist",
         "find_similar_component",
+        "generate_receipt",
         "get_context_pack",
         "propose_checklist_change",
         "save_progress",

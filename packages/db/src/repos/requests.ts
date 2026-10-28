@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type ChecklistItem,
@@ -49,9 +49,20 @@ export const requestsRepo = {
           ? []
           : await tx
               .insert(checklistItems)
-              .values(items.map((i) => ({ ...i, projectId, requestId: request.id })))
+              .values(
+                items.map((i, position) => ({ ...i, position, projectId, requestId: request.id })),
+              )
               .returning();
-      return { request, items: rows };
+      return { request, items: rows.sort((a, b) => a.position - b.position) };
     });
+  },
+
+  async byId(db: BrainDb, projectId: string, requestId: string): Promise<RequestRow | null> {
+    const [row] = await db
+      .select()
+      .from(requests)
+      .where(and(eq(requests.projectId, projectId), eq(requests.id, requestId)))
+      .limit(1);
+    return row ?? null;
   },
 };

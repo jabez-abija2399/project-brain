@@ -4,7 +4,7 @@ import { AppError } from "./errors";
 
 // Relative POSIX paths inside the repo only: no absolute, drive or backslash paths, no '.', '..' or empty parts, no
 // control characters (paths reach agents' context, so no newlines or terminal escapes).
-const repoPath = z
+export const repoPath = z
   .string()
   .min(1)
   .max(1024)

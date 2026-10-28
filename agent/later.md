@@ -81,3 +81,6 @@
 - 2026-10-28 | Dashboard view of pending checklist proposals with confirm and reject (FEAT-012 has the confirm API only; a reject/discard endpoint is not built) | FEAT-017
 - 2026-10-28 | Measure the checklist splitter on the real model (AC-012-02 and AC-012-04 are tested with scripted model answers; the prompt was never run against Claude here) | FEAT-012 follow-up
 - 2026-10-28 | Checklist proposals: the dashboard confirm should send the proposed_at (or a version) it showed, so an agent cannot swap a pending proposal between the owner viewing and confirming it (FEAT-012 security pass note) | FEAT-017
+- 2026-10-28 | Build a receipt automatically after a GitHub push (architecture's build-receipt job): FEAT-013 ships the generate_receipt MCP tool only | FEAT-013 follow-up
+- 2026-10-28 | Receipts feed and ReceiptCard in the dashboard (receipts are stored in receipts.summary_json) | FEAT-017
+- 2026-10-28 | Measure receipt judging on the real model (FEAT-013 tests use scripted model answers) | FEAT-013 follow-up

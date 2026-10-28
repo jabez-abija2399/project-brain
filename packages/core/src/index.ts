@@ -66,6 +66,17 @@ export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "
 export { maskSecret, maskSecretsIn } from "./mask";
 export { oneLineText } from "./text";
 export {
+  RECEIPT_SYSTEM,
+  buildReceipt,
+  groupFiles,
+  parseVerdicts,
+  receiptPrompt,
+  type Receipt,
+  type ReceiptFileInput,
+  type ReceiptItem,
+  type ReceiptItemInput,
+} from "./receipt";
+export {
   DIRECTIVE_BUDGET,
   HANDOFF_LIMIT,
   buildHandoffNote,
