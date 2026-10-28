@@ -134,3 +134,12 @@ catalog DML that Supabase refuses (measured); a non-superuser session is not pos
 triggers that refuse catalog DML with 42501 (they need a dump and reopen to load on nailed catalogs) and treats any
 change to them as tampering (all unknown). Cost: 6-10 s per scan instead of < 3 s (KI-015). Node's permission model
 cannot be used (PGlite calls process.binding).
+
+## D-015 | 2026-10-28 | find_similar_component scores in TypeScript; Postgres only pre-filters by name (refines D-005)
+Context: FEAT-007 needs p95 < 200 ms for 2,000 components. Options: (A) Postgres keeps components whose name contains a
+query word (ILIKE, parameterized), then @brain/core scores name/path/props tokens in TypeScript CHOSEN: camelCase splitting
+and weighting are simple to test in pure core, and a match needs a shared name word anyway (path and props alone max at
+0.2 < threshold 0.3). Measured p95 57-67 ms on PGlite (2,001 components); without the pre-filter 245 ms. (B) all scoring
+in SQL (pg_trgm or token arrays) REJECTED for now (camelCase tokenizing in SQL is awkward; PGlite extension support
+unchecked). Trade-offs: a threshold of 0.2 or lower skips the pre-filter and reads every component. Revisit when: a
+project has well over 2,000 components or production p95 approaches the budget.

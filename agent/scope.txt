@@ -13,3 +13,4 @@ apps/web/src/server/components.ts
 apps/web/src/server/components.test.ts
 tests/fixtures/component-app/**
 docs/architecture.md
+docs/decisions.md
