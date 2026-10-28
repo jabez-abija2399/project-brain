@@ -533,7 +533,7 @@ describe("FEAT-008 /api/index", () => {
     expect(new Set(fake.prompts).size).toBe(50);
   });
 
-  it("M1 a diff never deletes a file the user placed in a feature by hand, even when it is missing from the range", async () => {
+  it("KI-027 a diff holds a hand-placed missing file; the final diff deletes it and moves its placement to the same hash", async () => {
     await call(upload, a.id, a.token, {
       files: [file("src/A.tsx"), file("src/B.tsx"), file("src/C.tsx")],
     });
@@ -544,17 +544,57 @@ describe("FEAT-008 /api/index", () => {
       { projectId: a.id, featureId: feature.id, fileId: idOf("src/B.tsx"), placedBy: "user" },
       { projectId: a.id, featureId: feature.id, fileId: idOf("src/C.tsx"), placedBy: "auto" },
     ]);
+    // B.tsx was renamed to src/new/B.tsx (same content): the first pass only reports it as held.
+    const batch = {
+      files: [
+        { path: "src/A.tsx", hash: sha("src/A.tsx") },
+        { path: "src/new/B.tsx", hash: sha("src/B.tsx") },
+      ],
+      after: null,
+      through: null,
+    };
+    const first = await call(diff, a.id, a.token, batch);
+    expect(await first.json()).toEqual({
+      ok: true,
+      changed: ["src/new/B.tsx"],
+      deleted: ["src/C.tsx"],
+      held: ["src/B.tsx"],
+    });
+    await call(upload, a.id, a.token, {
+      files: [{ ...file("src/new/B.tsx"), hash: sha("src/B.tsx") }],
+    });
+    const final = await call(diff, a.id, a.token, { ...batch, final: true });
+    expect(await final.json()).toEqual({ ok: true, changed: [], deleted: ["src/B.tsx"] });
+    const after = await filesRepo.list(world.db, a.id);
+    expect(after.map((f) => f.path).sort()).toEqual(["src/A.tsx", "src/new/B.tsx"]);
+    const links = await world.db.select().from(featureFiles);
+    const moved = after.find((f) => f.path === "src/new/B.tsx")?.id;
+    expect(links.map((l) => [l.featureId, l.fileId, l.placedBy])).toEqual([
+      [feature.id, moved, "user"],
+    ]);
+  });
+
+  it("KI-027 a final diff deletes a hand-placed missing file with no same-hash file, with its symbols", async () => {
+    await call(upload, a.id, a.token, { files: [file("src/A.tsx"), file("src/B.tsx", ["Bee"])] });
+    const feature = await featuresRepo.insert(world.db, a.id, { name: "billing" });
+    const idOfB = (await filesRepo.list(world.db, a.id)).find((f) => f.path === "src/B.tsx")?.id;
+    await world.db.insert(featureFiles).values({
+      projectId: a.id,
+      featureId: feature.id,
+      fileId: idOfB as string,
+      placedBy: "user",
+    });
     const res = await call(diff, a.id, a.token, {
       files: [{ path: "src/A.tsx", hash: sha("src/A.tsx") }],
       after: null,
       through: null,
+      final: true,
     });
-    expect(await res.json()).toEqual({ ok: true, changed: [], deleted: ["src/C.tsx"] });
-    expect((await filesRepo.list(world.db, a.id)).map((f) => f.path).sort()).toEqual([
-      "src/A.tsx",
-      "src/B.tsx",
+    expect(await res.json()).toEqual({ ok: true, changed: [], deleted: ["src/B.tsx"] });
+    expect((await filesRepo.list(world.db, a.id)).map((f) => f.path)).toEqual(["src/A.tsx"]);
+    expect((await symbolsRepo.listComponents(world.db, a.id)).map((c) => c.name)).toEqual([
+      "Widget",
     ]);
-    const links = await world.db.select().from(featureFiles);
-    expect(links.map((l) => [l.fileId, l.placedBy])).toEqual([[idOf("src/B.tsx"), "user"]]);
+    expect(await world.db.select().from(featureFiles)).toEqual([]);
   });
 });

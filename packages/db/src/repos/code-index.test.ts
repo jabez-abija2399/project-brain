@@ -108,7 +108,7 @@ describe("FEAT-008 codeIndexRepo", () => {
         through: "src/C.tsx",
         keep: ["src/C.tsx"],
       }),
-    ).toEqual(["src/B.tsx"]);
+    ).toEqual({ deleted: ["src/B.tsx"], held: [] });
     const paths = async (projectId: string) =>
       (await filesRepo.list(db, projectId)).map((f) => f.path).sort();
     expect(await paths(mine)).toEqual(["src/A.tsx", "src/C.tsx", "src/D.tsx", "src/É.tsx"]);
@@ -121,7 +121,7 @@ describe("FEAT-008 codeIndexRepo", () => {
     // Open-ended range after src/D.tsx: byte order, so 'src/É.tsx' (UTF-8 0xC3) sorts after 'src/D.tsx'.
     expect(
       await codeIndexRepo.removeMissing(db, mine, { after: "src/D.tsx", through: null, keep: [] }),
-    ).toEqual(["src/É.tsx"]);
+    ).toEqual({ deleted: ["src/É.tsx"], held: [] });
     // The other project is untouched.
     expect(await paths(other)).toEqual(["src/B.tsx", "src/C.tsx"]);
   });
