@@ -1,7 +1,19 @@
-import { foreignKey, index, jsonb, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  foreignKey,
+  index,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { createdAt, id } from "./columns";
 import { features } from "./features";
 import { projects } from "./projects";
+
+// A proposed change to a checklist item: new wording, or dismissing it (never applied without the owner).
+export type ChecklistChange = { text: string } | { dismiss: true };
 
 export const requests = pgTable(
   "requests",
@@ -35,7 +47,13 @@ export const checklistItems = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     requestId: text("request_id").notNull(),
     text: text("text").notNull(),
-    status: text("status").notNull().default("open"),
+    status: text("status", { enum: ["open", "done", "partial", "missed", "dismissed"] })
+      .notNull()
+      .default("open"),
+    // FEAT-012: flagged instead of guessed; an agent's change waits here until the owner confirms it.
+    needsClarification: boolean("needs_clarification").notNull().default(false),
+    proposedChange: jsonb("proposed_change").$type<ChecklistChange>(),
+    proposedAt: timestamp("proposed_at", { withTimezone: true, mode: "date" }),
   },
   (t) => ({
     requestIdx: index("checklist_items_request_idx").on(t.requestId),

@@ -5,6 +5,16 @@ export { indexRepo, indexSources } from "./indexer";
 export { pathSkipReason } from "./indexer/walker";
 export type { SourceFile } from "./indexer";
 export { toUpload } from "./upload";
+export {
+  CHECKLIST_SYSTEM,
+  MAX_CHECKLIST_ITEMS,
+  MAX_ITEM_CHARS,
+  MAX_REQUEST_CHARS,
+  checklistPrompt,
+  parseChecklist,
+  splitRequest,
+  type ChecklistDraftItem,
+} from "./checklist";
 export type { UploadFile, UploadSymbol } from "./upload";
 export type {
   ComponentIndex,
@@ -50,7 +60,7 @@ export type {
   SummaryState,
   SummaryStatus,
 } from "./components";
-export { DEFAULT_MODEL, createLlm } from "./llm";
+export { DEFAULT_MODEL, createLlm, errorType } from "./llm";
 export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "./llm";
 
 export { maskSecret, maskSecretsIn } from "./mask";
