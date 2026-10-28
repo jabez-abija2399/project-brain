@@ -100,7 +100,7 @@ async function run(
     };
     return { ...text(JSON.stringify(body)), isError: true };
   } finally {
-    console.info(`[mcp] ${name}`, JSON.stringify({ projectId, ms: Date.now() - started, outcome }));
+    console.info("[mcp]", name, JSON.stringify({ projectId, ms: Date.now() - started, outcome }));
   }
 }
 

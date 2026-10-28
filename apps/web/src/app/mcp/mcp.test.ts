@@ -224,7 +224,7 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
         ms.push(performance.now() - started);
         expect(res.isError, name).toBe(false);
       }
-      console.log(`[perf] ${name} p95=${p95(ms).toFixed(1)}ms`);
+      console.log("[perf]", name, `p95=${p95(ms).toFixed(1)}ms`);
       expect(p95(ms), name).toBeLessThan(500);
     }
     expect(llmCalls).toBe(0);

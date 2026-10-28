@@ -96,7 +96,8 @@ async function run<T>(tool: string, token: ToolToken, fn: () => Promise<T>): Pro
     throw err;
   } finally {
     console.info(
-      `[mcp] ${tool}`,
+      "[mcp]",
+      tool,
       JSON.stringify({ projectId: token.projectId, ms: Date.now() - started, outcome }),
     );
   }
