@@ -13,6 +13,7 @@ New versions are only installed once they are 7 days old (dependency cooldown: `
 | react, react-dom | apps/web | UI runtime (installed with next) | (required by next) | MIT | 2026-10-23 |
 | @modelcontextprotocol/sdk | apps/web | MCP protocol types/server | fastmcp (separate server process; release 0 days old) | MIT | 2026-10-23 |
 | mcp-handler | apps/web | MCP over HTTP inside a Next.js route | fastmcp (own server), hand-written transport (risky) | Apache-2.0 | 2026-10-23 |
+| @modelcontextprotocol/server | apps/web | MCP v2 server types and errors (McpServer, AuthInfo, ProtocolError) used by mcp-handler 2.x; pinned to the copy mcp-handler resolves, so there is one SDK | @modelcontextprotocol/sdk v1 (mcp-handler 2.x no longer uses it; two SDKs in one app), fastmcp (own server process, 1 maintainer, release 1 day old) | Apache-2.0 | 2026-10-28 |
 | drizzle-orm | packages/db | typed queries | prisma (heavy engine; latest is an rc), kysely (no migrations) | Apache-2.0 | 2026-10-23 |
 | drizzle-kit | packages/db (dev) | migrations | prisma migrate, raw SQL files | MIT | 2026-10-23 |
 | postgres | packages/db | Postgres driver (postgres.js; works with Neon over TCP) | pg (more boilerplate), @neondatabase/serverless (HTTP driver; consider if Vercel cold-start latency matters) | Unlicense | 2026-10-23 |

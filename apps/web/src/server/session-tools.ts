@@ -81,7 +81,7 @@ function parseArgs<T extends z.ZodTypeAny>(schema: T, raw: unknown): z.infer<T> 
 }
 
 // The tool's project argument must be the token's own project. Anything else is 404, like a missing project.
-function bindToken(token: ToolToken, projectId: string): void {
+export function bindToken(token: ToolToken, projectId: string): void {
   if (projectId !== token.projectId) throw new AppError(404, "not_found");
 }
 

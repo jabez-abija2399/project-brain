@@ -33,3 +33,16 @@ packages/core/src/mask.ts
 packages/core/src/mask.test.ts
 apps/web/src/server/session-tools.security.test.ts
 packages/core/src/indexer/indexer.test.ts  # rewritten: writes its runtime files into a temp copy of the fixture (see progress.md 2026-10-28 gate fix)
+apps/web/package.json
+pnpm-lock.yaml
+apps/web/src/app/mcp/route.ts
+apps/web/src/app/mcp/mcp.test.ts
+apps/web/src/server/mcp-tools.ts
+apps/web/src/server/mcp-tools.test.ts
+apps/web/src/server/context-pack.ts
+apps/web/src/server/context-pack.test.ts
+packages/db/src/repos/files.ts
+packages/db/src/repos/files.test.ts
+apps/web/src/server/session-tools.ts
+packages/db/src/repos/files.test.ts
+docs/dependencies.md
