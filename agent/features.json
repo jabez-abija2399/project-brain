@@ -891,20 +891,20 @@
           "id": "AC-006-06",
           "kind": "state",
           "check": "After a re-index, features the user renamed and files the user moved keep the user's choice, and no duplicate feature is created.",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 03:54; log contains AC-006-06"
         },
         {
           "id": "AC-006-07",
           "kind": "happy",
           "check": "Next.js route groups, the Pages Router, and Vite/React apps (Lovable layout) are grouped into features by their routes and feature folders, each proven by its own fixture.",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 03:54; log contains AC-006-07"
         }
       ],
-      "status": "in_progress",
+      "status": "done",
       "notes": "",
       "files": [
         "apps/web/src/app/api/projects/[id]/features/[fid]/route.ts",
@@ -915,6 +915,7 @@
         "packages/core/src/features/index.ts",
         "packages/core/src/index.ts",
         "packages/db/migrations/0005_feature_file_role.sql",
+        "packages/db/migrations/0006_feature_key_placed_by.sql",
         "packages/db/src/repos/feature-files.ts",
         "packages/db/src/repos/features.test.ts",
         "packages/db/src/repos/features.ts",
@@ -937,7 +938,47 @@
         "tests/fixtures/feature-app/src/lib/format.ts",
         "tests/fixtures/feature-app/src/lib/session.ts",
         "tests/fixtures/feature-app/src/lib/stripe.ts",
-        "tests/fixtures/feature-app/tsconfig.json"
+        "tests/fixtures/feature-app/tsconfig.json",
+        "tests/fixtures/pages-router-app/components/billing/PlanPicker.tsx",
+        "tests/fixtures/pages-router-app/lib/stripe.ts",
+        "tests/fixtures/pages-router-app/pages/_app.tsx",
+        "tests/fixtures/pages-router-app/pages/api/billing/webhook.ts",
+        "tests/fixtures/pages-router-app/pages/api/reviews.ts",
+        "tests/fixtures/pages-router-app/pages/billing.tsx",
+        "tests/fixtures/pages-router-app/pages/index.tsx",
+        "tests/fixtures/pages-router-app/pages/reviews/[id].tsx",
+        "tests/fixtures/pages-router-app/pages/reviews/index.tsx",
+        "tests/fixtures/pages-router-app/tsconfig.json",
+        "tests/fixtures/route-groups-app/src/app/(auth)/login/page.tsx",
+        "tests/fixtures/route-groups-app/src/app/(dashboard)/billing/page.tsx",
+        "tests/fixtures/route-groups-app/src/app/(dashboard)/layout.tsx",
+        "tests/fixtures/route-groups-app/src/app/(dashboard)/reviews/[id]/page.tsx",
+        "tests/fixtures/route-groups-app/src/app/(dashboard)/reviews/page.tsx",
+        "tests/fixtures/route-groups-app/src/app/(dashboard)/settings/page.tsx",
+        "tests/fixtures/route-groups-app/src/app/(marketing)/page.tsx",
+        "tests/fixtures/route-groups-app/src/app/(protected)/projects/page.tsx",
+        "tests/fixtures/route-groups-app/src/app/layout.tsx",
+        "tests/fixtures/route-groups-app/src/components/app/Header.tsx",
+        "tests/fixtures/route-groups-app/src/components/home/Hero.tsx",
+        "tests/fixtures/route-groups-app/src/components/reviews/ReviewList.tsx",
+        "tests/fixtures/route-groups-app/src/lib/supabase.ts",
+        "tests/fixtures/route-groups-app/tsconfig.json",
+        "tests/fixtures/vite-app/src/App.tsx",
+        "tests/fixtures/vite-app/src/components/Navbar.tsx",
+        "tests/fixtures/vite-app/src/components/PricingTable.tsx",
+        "tests/fixtures/vite-app/src/components/reviews/ReviewCard.tsx",
+        "tests/fixtures/vite-app/src/components/ui/button.tsx",
+        "tests/fixtures/vite-app/src/features/settings/SettingsForm.tsx",
+        "tests/fixtures/vite-app/src/hooks/use-toast.ts",
+        "tests/fixtures/vite-app/src/integrations/supabase/client.ts",
+        "tests/fixtures/vite-app/src/lib/utils.ts",
+        "tests/fixtures/vite-app/src/main.tsx",
+        "tests/fixtures/vite-app/src/pages/Billing.tsx",
+        "tests/fixtures/vite-app/src/pages/Index.tsx",
+        "tests/fixtures/vite-app/src/pages/NotFound.tsx",
+        "tests/fixtures/vite-app/src/pages/Reviews.tsx",
+        "tests/fixtures/vite-app/src/pages/Settings.tsx",
+        "tests/fixtures/vite-app/tsconfig.json"
       ]
     },
     {
@@ -1842,6 +1883,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 155
+    "tests_passed": 165
   }
 }
