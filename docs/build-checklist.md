@@ -18,6 +18,8 @@ applies (test names carry the criterion id and the word "attack"). Each rule nam
    Example: the FEAT-007 review found secret masking tested only in signatures, not in paths, error messages or the
    AI's answer; FEAT-005 T10 cuts sandbox error messages to 200 characters and masks secrets in them. The CLI never
    prints the token or a response body (AC-008-11).
+   Fake secrets in tests are built at runtime (for example `"sk_" + "live_" + "x".repeat(24)`), never written as
+   literals: secret scanners (gitleaks in CI) flag a secret-shaped literal even in a test file.
 
 4. **Every input, list, loop and AI call has a cap.**
    Example: FEAT-008 M2 and KI-023, where nothing limited stored files or symbols per project or AI calls per day.

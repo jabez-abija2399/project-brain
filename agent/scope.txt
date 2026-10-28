@@ -126,3 +126,5 @@ packages/core/src/text.ts
 packages/core/src/text.test.ts
 packages/core/src/handoff.ts
 apps/web/src/server/checklist.security.test.ts
+packages/core/src/llm.test.ts  # gitleaks fix requested by the user: fake keys built at runtime
+.gitleaksignore  # gitleaks fix requested by the user: fingerprints of confirmed fake test values in old commits

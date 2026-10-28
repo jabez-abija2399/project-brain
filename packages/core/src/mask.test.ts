@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { maskSecret, maskSecretsIn } from "./mask";
 
+// Fake secrets are built at runtime so no secret-shaped literal sits in the source (docs/build-checklist.md rule 3).
+const FAKE_API_KEY = "abcd1234" + "zz";
+const FAKE_DB_PASSWORD = "s3cret" + "pass";
+const FAKE_RANDOM = "Q2hhbmdlTWUxMjM0NTY3ODkw" + "YWJjZGVmZ2hpams";
+
 describe("@brain/core mask", () => {
   it("AC-005-14 maskSecret keeps the first 4 characters", () => {
     expect(maskSecret("abcdefgh")).toBe("abcd***");
@@ -9,14 +14,13 @@ describe("@brain/core mask", () => {
   it("AC-005-14 maskSecretsIn masks token formats, assigned secrets, URL passwords and long random strings", () => {
     const github = `ghp_${"a1B2".repeat(9)}`;
     expect(maskSecretsIn(`token ${github} leaked`)).toBe("token ghp_*** leaked");
-    expect(maskSecretsIn('relation "api_key=abcd1234zz" does not exist')).toBe(
+    expect(maskSecretsIn(`relation "api_key=${FAKE_API_KEY}" does not exist`)).toBe(
       'relation "api_key=abcd***" does not exist',
     );
-    expect(maskSecretsIn("postgres://app:s3cretpass@db.example.com/x")).toBe(
+    expect(maskSecretsIn(`postgres://app:${FAKE_DB_PASSWORD}@db.example.com/x`)).toBe(
       "postgres://app:s3cr***@db.example.com/x",
     );
-    const random = "Q2hhbmdlTWUxMjM0NTY3ODkwYWJjZGVmZ2hpams";
-    expect(maskSecretsIn(`value ${random}`)).toBe("value Q2hh***");
+    expect(maskSecretsIn(`value ${FAKE_RANDOM}`)).toBe("value Q2hh***");
   });
 
   it("AC-005-14 maskSecretsIn leaves ordinary Postgres messages unchanged", () => {

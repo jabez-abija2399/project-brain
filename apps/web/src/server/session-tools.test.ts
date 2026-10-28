@@ -22,6 +22,9 @@ import {
 } from "./session-tools";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
+// Fake secrets are built at runtime so no secret-shaped literal sits in the source (docs/build-checklist.md rule 3).
+const FAKE_STRIPE_KEY = "sk_" + "live_" + "abcdefghijklmnop1234";
+
 let world: TestWorld;
 let owner: SessionUser;
 let projectId: string;
@@ -86,11 +89,7 @@ describe("session continuity tools (FEAT-010)", () => {
   });
 
   it("AC-010-01 masks secrets in saved text before it is stored", async () => {
-    await saveProgress(
-      world.db,
-      token,
-      progress("Billing uses sk_live_abcdefghijklmnop1234 for tests"),
-    );
+    await saveProgress(world.db, token, progress(`Billing uses ${FAKE_STRIPE_KEY} for tests`));
     const [saved] = (await listProgress(world.db, token, { projectId })).sessions;
     expect(saved?.goal).not.toContain("abcdefghijklmnop1234");
     expect(saved?.goal).toContain("sk_l***");
