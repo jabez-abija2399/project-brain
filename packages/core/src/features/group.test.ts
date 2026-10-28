@@ -136,7 +136,7 @@ describe("FEAT-006 groupFeatures", () => {
 describe("FEAT-006 groupFeatures on other layouts", () => {
   async function groupFixture(name: string) {
     const index = await indexRepo(join(fixtures, name));
-    const map = groupFeatures(index.files);
+    const map = groupFeatures(index.files, index.routes);
     const placed = [...map.features.flatMap((f) => f.files), ...map.shared.map((s) => s.path)];
     expect(placed.sort()).toEqual(index.files.map((f) => f.path).sort());
     return map;
@@ -222,7 +222,12 @@ describe("FEAT-006 groupFeatures on other layouts", () => {
         {
           key: "reviews",
           name: "reviews",
-          files: ["src/components/reviews/ReviewCard.tsx", "src/pages/Reviews.tsx"],
+          // KI-019: ReviewDetail is named by its <Route path="/reviews/:id">, not by its file name.
+          files: [
+            "src/components/reviews/ReviewCard.tsx",
+            "src/pages/ReviewDetail.tsx",
+            "src/pages/Reviews.tsx",
+          ],
         },
         {
           key: "settings",
@@ -246,5 +251,138 @@ describe("FEAT-006 groupFeatures on other layouts", () => {
     expect(featureFromPath("src/pages/UserProfile.tsx")).toBe("user-profile");
     expect(featureFromPath("src/features/user-profile/Card.tsx")).toBe("user-profile");
     expect(featureFromPath("src/pages/NotFound.tsx")).toBe("@home");
+  });
+});
+
+function bare(path: string, imports: string[] = []) {
+  return { path, imports: imports.map(imp) };
+}
+const namesOf = (map: FeatureMap) => map.features.map((f) => [f.name, f.files]);
+
+describe("FEAT-006 review M2: a segment with two or more child routes is a container", () => {
+  it("M2 Next.js /dashboard/{reviews,billing,settings} become reviews, billing and settings; /dashboard stays dashboard", () => {
+    const map = groupFeatures([
+      bare("src/app/dashboard/page.tsx"),
+      bare("src/app/dashboard/layout.tsx"),
+      bare("src/app/dashboard/reviews/page.tsx"),
+      bare("src/app/dashboard/reviews/[id]/page.tsx"),
+      bare("src/app/dashboard/billing/page.tsx"),
+      bare("src/app/dashboard/settings/page.tsx"),
+      bare("src/app/api/dashboard/billing/webhook/route.ts"),
+    ]);
+    expect(namesOf(map)).toEqual([
+      [
+        "billing",
+        ["src/app/api/dashboard/billing/webhook/route.ts", "src/app/dashboard/billing/page.tsx"],
+      ],
+      ["dashboard", ["src/app/dashboard/layout.tsx", "src/app/dashboard/page.tsx"]],
+      [
+        "reviews",
+        ["src/app/dashboard/reviews/[id]/page.tsx", "src/app/dashboard/reviews/page.tsx"],
+      ],
+      ["settings", ["src/app/dashboard/settings/page.tsx"]],
+    ]);
+  });
+
+  it("M2 a lone /dashboard page, or one with a single child route, stays dashboard", () => {
+    expect(
+      namesOf(groupFeatures([bare("app/dashboard/page.tsx"), bare("app/reviews/page.tsx")])),
+    ).toEqual([
+      ["dashboard", ["app/dashboard/page.tsx"]],
+      ["reviews", ["app/reviews/page.tsx"]],
+    ]);
+    expect(
+      namesOf(
+        groupFeatures([bare("app/dashboard/page.tsx"), bare("app/dashboard/reviews/page.tsx")]),
+      ),
+    ).toEqual([["dashboard", ["app/dashboard/page.tsx", "app/dashboard/reviews/page.tsx"]]]);
+  });
+
+  it("M2 Lovable nested pages src/pages/dashboard/* are split by page", () => {
+    const map = groupFeatures([
+      bare("src/pages/dashboard/Index.tsx"),
+      bare("src/pages/dashboard/Reviews.tsx", ["src/components/reviews/ReviewCard.tsx"]),
+      bare("src/pages/dashboard/Billing.tsx"),
+      bare("src/pages/dashboard/Settings.tsx"),
+      bare("src/components/reviews/ReviewCard.tsx"),
+      bare("src/pages/Auth.tsx"),
+    ]);
+    expect(namesOf(map)).toEqual([
+      ["auth", ["src/pages/Auth.tsx"]],
+      ["billing", ["src/pages/dashboard/Billing.tsx"]],
+      ["dashboard", ["src/pages/dashboard/Index.tsx"]],
+      ["reviews", ["src/components/reviews/ReviewCard.tsx", "src/pages/dashboard/Reviews.tsx"]],
+      ["settings", ["src/pages/dashboard/Settings.tsx"]],
+    ]);
+  });
+});
+
+describe("FEAT-006 review M1: routes declared in code, and apps without a router", () => {
+  async function groupFixture(name: string) {
+    const index = await indexRepo(join(fixtures, name));
+    return { index, map: groupFeatures(index.files, index.routes) };
+  }
+
+  it("M1 the indexer reads <Route path element> routes from App.tsx (KI-019)", async () => {
+    const { index } = await groupFixture("vite-app");
+    const declared = index.routes.map((r) => [r.path, r.file, r.method]);
+    expect(declared).toEqual(
+      expect.arrayContaining([
+        ["/reviews", "src/pages/Reviews.tsx", "page"],
+        ["/reviews/:id", "src/pages/ReviewDetail.tsx", "page"],
+        ["*", "src/pages/NotFound.tsx", "page"],
+      ]),
+    );
+    expect(index.routes.find((r) => r.path === "/reviews/:id")?.declaredIn).toBe("src/App.tsx");
+  });
+
+  it("M1 the indexer reads nested createBrowserRouter routes (element, Component, lazy import)", async () => {
+    const { index } = await groupFixture("data-router-app");
+    expect(index.routes.map((r) => [r.path, r.file]).sort()).toEqual([
+      ["/", "src/components/Layout.tsx"],
+      ["/", "src/screens/Home.tsx"],
+      ["/dashboard", "src/screens/Overview.tsx"],
+      ["/dashboard/billing", "src/screens/Billing.tsx"],
+      ["/dashboard/reviews", "src/screens/Reviews.tsx"],
+      ["/dashboard/settings", "src/screens/Settings.tsx"],
+    ]);
+  });
+
+  it("M1 + M2 createBrowserRouter /dashboard/* routes are split into features", async () => {
+    const { map } = await groupFixture("data-router-app");
+    expect(namesOf(map)).toEqual([
+      ["billing", ["src/screens/Billing.tsx"]],
+      ["dashboard", ["src/screens/Overview.tsx"]],
+      ["home", ["src/components/Layout.tsx", "src/main.tsx", "src/screens/Home.tsx"]],
+      ["reviews", ["src/screens/Reviews.tsx"]],
+      ["settings", ["src/screens/Settings.tsx"]],
+    ]);
+  });
+
+  it("M1 an app with no router (Bolt): each screen imported by App is a feature and files only it imports join it", async () => {
+    const { map } = await groupFixture("bolt-app");
+    expect(map).toEqual({
+      features: [
+        { key: "auth", name: "auth", files: ["src/components/Auth.tsx", "src/lib/supabase.ts"] },
+        {
+          key: "dashboard",
+          name: "dashboard",
+          files: [
+            "src/components/BillingPanel.tsx",
+            "src/components/Dashboard.tsx",
+            "src/components/Header.tsx",
+            "src/components/ReviewCard.tsx",
+            "src/components/ReviewList.tsx",
+            "src/types/index.ts",
+          ],
+        },
+        {
+          key: "@home",
+          name: "home",
+          files: ["src/App.tsx", "src/contexts/AuthContext.tsx", "src/main.tsx"],
+        },
+      ],
+      shared: [],
+    });
   });
 });

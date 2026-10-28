@@ -11,6 +11,8 @@ export type RouteIndex = {
   file: string;
   line: number;
   method: "page" | "route";
+  /** Set for a React Router route: the file that declares it (App.tsx); `file` is the page component's file. */
+  declaredIn?: string;
 };
 
 export type ImportIndex = {

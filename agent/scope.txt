@@ -2,12 +2,29 @@ agent/*
 agent/directives.md
 agent/progress.md
 agent/known-issues.md
+agent/later.md
+packages/core/src/indexer/react-router.ts # M1 React Router routes
+packages/core/src/indexer/parser.ts
+packages/core/src/indexer/index.ts
+packages/core/src/indexer/types.ts
+packages/core/src/features/group.ts # M1 + M2 grouping
+packages/core/src/features/group.test.ts
+packages/core/src/features/index.ts
+packages/core/src/index.ts
+packages/db/migrations/0010_file_imports.sql # additive column files.imports
+packages/db/src/schema/code-index.ts
 packages/db/src/repos/code-index.ts
-packages/db/src/repos/code-index.test.ts
+packages/db/src/repos/features.ts # create + chunked links
+packages/db/src/repos/index.ts
 apps/web/src/server/code-index.ts
-apps/web/src/app/api/index/*/diff/route.ts # KI-027: route comment mentions held/final
+apps/web/src/server/code-index-input.ts
+apps/web/src/server/code-index-limits.ts
+apps/web/src/server/code-index-features.ts
+apps/web/src/app/api/index/*/features/route.ts # wire-in step
 apps/web/src/app/api/index/index.test.ts
 apps/web/src/app/api/index/cli.test.ts
+apps/web/src/app/api/projects/*/features/route.ts # POST create feature
+apps/web/src/app/api/projects/*/features/features.test.ts
 packages/cli/src/index-command.ts
 docs/architecture.md
 packages/core/src/index.ts
@@ -59,3 +76,7 @@ packages/cli/src/cli.test.ts # KI-028 tests
 packages/cli/src/bin.test.ts # spawn tests get a 30 s timeout (load-independent)
 apps/web/src/server/index-route.ts  # semgrep fix requested by the user (pre-existing on main)
 packages/core/src/components/components.test.ts  # semgrep fix requested by the user: fake AWS key built at runtime
+tests/fixtures/vite-app/*
+tests/fixtures/bolt-app/*
+tests/fixtures/data-router-app/*
+packages/cli/src/bin.test.ts # fake server answers the new features step

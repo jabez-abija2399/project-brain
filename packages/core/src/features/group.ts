@@ -66,69 +66,182 @@ function cleanName(segment: string): string | null {
   return name && !GENERIC_NAMES.has(name) ? name : null;
 }
 
-function isRouteGroup(seg: string): boolean {
-  return seg.startsWith("(") && seg.endsWith(")");
-}
+/** A route declared for a file (FileIndex routes): its URL; only "page" routes name features. */
+export type RouteInput = { file: string; path: string; method?: string };
 
-// App Router: folders are the URL. Route groups such as (dashboard) are skipped like in the URL, so the
-// folder inside the group names the feature.
-function featureFromAppPath(afterApp: string[]): string {
-  for (const seg of afterApp.slice(0, -1)) {
-    if (seg.startsWith("[") || seg.startsWith("@") || seg.startsWith("_") || isRouteGroup(seg))
-      continue;
-    const name = cleanName(seg);
-    if (name) return name;
-  }
-  return ROOT_KEY;
-}
+// Where a file sits by its own path or URL: route segments (named through the route tree), a direct key, or nothing.
+type Placement = { segs: string[]; page: boolean } | { key: string } | null;
 
-// Pages Router and Vite src/pages: the file name is part of the URL too (pages/billing.tsx is /billing).
-function featureFromPagesPath(afterPages: string[]): string {
-  const segments = [...afterPages];
-  segments[segments.length - 1] = (segments.at(-1) ?? "").replace(/\.[^.]+$/, "");
+// Named segments of a route: dynamic ([id], :id, *), route groups, parallel (@x) and private (_x) segments and
+// generic names are skipped, like in the URL.
+function routeSegments(segments: string[]): string[] {
+  const out: string[] = [];
   for (const seg of segments) {
-    if (seg.startsWith("[") || seg.startsWith("_") || isRouteGroup(seg)) continue;
+    if (/^[[:*@_(]/.test(seg)) continue;
     const name = cleanName(seg);
-    if (name && !ROOT_PAGES.has(name)) return name;
+    if (name && !ROOT_PAGES.has(name)) out.push(name);
   }
-  return ROOT_KEY;
+  return out;
 }
 
-/** The feature key of a file by its route or folder alone, or null when only its importers can tell. */
-export function featureFromPath(path: string): string | null {
+function placementOf(path: string, url: string | undefined): Placement {
   const posix = path.replace(/\\/g, "/");
-  if (VITE_ROOT_FILE.test(posix)) return ROOT_KEY;
+  if (VITE_ROOT_FILE.test(posix)) return { key: ROOT_KEY };
+  if (url !== undefined) return { segs: routeSegments(url.split("/")), page: true };
   const segments = posix.split("/");
   // Only app/ or pages/ at the project root (or under src/) holds routes.
   const routeAt = segments[0] === "src" ? 1 : 0;
   if (segments.length > routeAt + 1) {
     const afterRoot = segments.slice(routeAt + 1);
-    if (segments[routeAt] === "app") return featureFromAppPath(afterRoot);
-    if (segments[routeAt] === "pages") return featureFromPagesPath(afterRoot);
+    const base = afterRoot.at(-1) ?? "";
+    // App Router: folders are the URL; page.tsx is a page.
+    if (segments[routeAt] === "app")
+      return {
+        segs: routeSegments(afterRoot.slice(0, -1)),
+        page: /^page\.[jt]sx?$/.test(base),
+      };
+    // Pages Router and Vite src/pages: the file name is part of the URL too (pages/billing.tsx is /billing).
+    if (segments[routeAt] === "pages")
+      return {
+        segs: routeSegments([...afterRoot.slice(0, -1), base.replace(/\.[^.]+$/, "")]),
+        page: afterRoot[0] !== "api" && !base.startsWith("_"),
+      };
   }
   for (let i = 0; i < segments.length - 2; i++) {
     const seg = segments[i];
     if (seg && CONTAINER_DIRS.has(seg)) {
       const name = cleanName(segments[i + 1] ?? "");
-      if (name) return name;
+      if (name) return { key: name };
     }
   }
   return null;
 }
 
+// Child segment names per route prefix, built from page routes only (an API route never makes a container).
+type RouteTree = Map<string, Set<string>>;
+
+function addRoute(tree: RouteTree, segs: string[]): void {
+  for (let i = 0; i < segs.length; i++) {
+    const prefix = segs.slice(0, i).join("/");
+    const children = tree.get(prefix) ?? new Set<string>();
+    children.add(segs[i] as string);
+    tree.set(prefix, children);
+  }
+}
+
+// M2: a segment with two or more child routes is a container (dashboard/{reviews,billing}); the child names the
+// feature. A segment with one child route or none (a lone /dashboard page) names it itself.
+function keyOf(placement: Placement, tree: RouteTree): string | null {
+  if (!placement) return null;
+  if ("key" in placement) return placement.key;
+  const { segs } = placement;
+  if (segs.length === 0) return ROOT_KEY;
+  let i = 0;
+  while (i + 1 < segs.length && (tree.get(segs.slice(0, i + 1).join("/"))?.size ?? 0) >= 2) i++;
+  return segs[i] as string;
+}
+
+/** The feature key of a file by its route or folder alone, or null when only its importers can tell. */
+export function featureFromPath(path: string): string | null {
+  return keyOf(placementOf(path, undefined), new Map());
+}
+
+// Apps with no router (Bolt): App switches screens itself. Folders and names that hold app chrome or plumbing, not a
+// screen, when App imports them directly.
+const NOT_SCREEN_DIRS = new Set([
+  "contexts",
+  "context",
+  "providers",
+  "hooks",
+  "lib",
+  "utils",
+  "types",
+  "styles",
+  "store",
+  "stores",
+  "services",
+  "api",
+  "config",
+  "constants",
+  "ui",
+  "layout",
+  "layouts",
+  "icons",
+]);
+const NOT_SCREEN_NAMES = new Set([
+  "header",
+  "footer",
+  "navbar",
+  "nav",
+  "navigation",
+  "sidebar",
+  "layout",
+  "provider",
+  "providers",
+  "error-boundary",
+  "toaster",
+  "loading",
+  "spinner",
+]);
+const APP_ROOT_FILE = /^src\/App\.[jt]sx?$/;
+
+function screenKey(path: string): string | null {
+  const parts = path.split("/");
+  const base = (parts.pop() ?? "").replace(/\.[jt]sx$/, "");
+  if (!/\.[jt]sx$/.test(path)) return null;
+  if (parts.some((p) => NOT_SCREEN_DIRS.has(p))) return null;
+  const name = cleanName(base);
+  return name && !NOT_SCREEN_NAMES.has(name) && !ROOT_PAGES.has(name) ? name : null;
+}
+
+// The URL that names a file: of its page routes, the one with the fewest segments (ties: alphabetical).
+function pageUrls(routes: RouteInput[]): Map<string, string> {
+  const urls = new Map<string, string>();
+  const rank = (u: string) => u.split("/").filter(Boolean).length;
+  for (const r of routes) {
+    if (r.method !== undefined && r.method !== "page") continue;
+    const prev = urls.get(r.file);
+    if (
+      prev === undefined ||
+      rank(r.path) < rank(prev) ||
+      (rank(r.path) === rank(prev) && r.path < prev)
+    )
+      urls.set(r.file, r.path);
+  }
+  return urls;
+}
+
 /**
- * Groups indexed files into named features. Route files and feature folders name the features; every
+ * Groups indexed files into named features. Routes (by path, or by the React Router routes passed in), feature
+ * folders and, in an app without routes, the screens its root imports name the features; every
  * other file joins the feature(s) whose files import it (directly or through other unnamed files).
  * A file used by SHARED_MIN_FEATURES or more features is shared; with fewer, the feature with the most
  * importing files wins (ties: alphabetical), so each remaining file has exactly one primary feature.
  */
-export function groupFeatures(files: Pick<FileIndex, "path" | "imports">[]): FeatureMap {
+export function groupFeatures(
+  files: { path: string; imports: Pick<FileIndex["imports"][number], "resolved">[] }[],
+  routes: RouteInput[] = [],
+): FeatureMap {
   const known = new Set(files.map((f) => f.path));
+  const urls = pageUrls(routes);
+  const placements = new Map(files.map((f) => [f.path, placementOf(f.path, urls.get(f.path))]));
+  const tree: RouteTree = new Map();
+  for (const p of placements.values()) if (p && "segs" in p && p.page) addRoute(tree, p.segs);
+  const hasPages = [...placements.values()].some((p) => p && "segs" in p && p.page);
   const direct = new Map<string, string>();
   const importers = new Map<string, string[]>();
   for (const file of files) {
-    const feature = featureFromPath(file.path);
+    const feature = keyOf(placements.get(file.path) ?? null, tree);
     if (feature) direct.set(file.path, feature);
+  }
+  // M1: no route at all; each screen the app root imports directly names a feature.
+  const root = hasPages ? undefined : files.find((f) => APP_ROOT_FILE.test(f.path));
+  for (const imp of root?.imports ?? []) {
+    if (!imp.resolved || !known.has(imp.resolved) || direct.has(imp.resolved)) continue;
+    const key = screenKey(imp.resolved);
+    if (key) direct.set(imp.resolved, key);
+  }
+  for (const file of files) {
     for (const imp of file.imports) {
       if (!imp.resolved || !known.has(imp.resolved) || imp.resolved === file.path) continue;
       const list = importers.get(imp.resolved) ?? [];

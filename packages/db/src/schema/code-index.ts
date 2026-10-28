@@ -19,6 +19,8 @@ export const files = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     path: text("path").notNull(),
     hash: text("hash").notNull(),
+    // Repo paths this file imports (0010); NULL = indexed before imports were recorded.
+    imports: text("imports").array(),
     createdAt: createdAt(),
   },
   (t) => ({

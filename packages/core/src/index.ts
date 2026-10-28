@@ -20,7 +20,7 @@ export {
   featureFromPath,
   groupFeatures,
 } from "./features";
-export type { FeatureGroup, FeatureMap, SharedFile } from "./features";
+export type { FeatureGroup, FeatureMap, RouteInput, SharedFile } from "./features";
 
 export {
   DEFAULT_SIMILAR_LIMIT,

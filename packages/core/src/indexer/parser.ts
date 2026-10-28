@@ -1,5 +1,6 @@
 import ts from "typescript";
 import { detectComponent, isJsxNode, lineOf } from "./components";
+import { type DeclaredRoute, detectRouterRoutes } from "./react-router";
 import { type TsconfigPaths, isExternalSpec, loadTsconfigPaths, resolveImport } from "./resolver";
 import type { ComponentIndex, ImportIndex, IndexError } from "./types";
 
@@ -8,6 +9,8 @@ export type ParsedFile = {
   imports: ImportIndex[];
   errors: IndexError[];
   hasJsx: boolean;
+  /** React Router routes declared in this file (FEAT-006 M1). */
+  routes: DeclaredRoute[];
 };
 
 export function parseSource(
@@ -43,7 +46,14 @@ export function parseSource(
     ts.forEachChild(node, visit);
   };
   visit(sf);
-  return { components, imports, errors, hasJsx };
+  const routes = source.includes("Route")
+    ? detectRouterRoutes(
+        sf,
+        relPath,
+        (spec) => resolveImport(spec, relPath, repoRoot, cfg).resolved,
+      )
+    : [];
+  return { components, imports, errors, hasJsx, routes };
 }
 
 // The literal module specifier of import/export ... from, require("x") or import("x"); null otherwise.

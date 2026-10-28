@@ -3,6 +3,7 @@ export { filesRepo } from "./files";
 export { symbolsRepo, type ComponentRow } from "./symbols";
 export {
   codeIndexRepo,
+  type GroupingInput,
   type IndexedFile,
   type IndexedSymbol,
   type StorageCaps,
@@ -12,6 +13,7 @@ export {
 export {
   featuresRepo,
   FeatureNameTakenError,
+  MAX_FEATURES_PER_PROJECT,
   type FeatureMapInput,
   type FeatureUpdate,
 } from "./features";

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type Feature, type NewFeature, featureFiles, features, files } from "../schema";
 
@@ -10,6 +10,10 @@ export class FeatureNameTakenError extends Error {
 }
 
 class FileNotInProject extends Error {}
+
+/** Features a project can hold before creating one by hand is refused (checklist rule 4). */
+export const MAX_FEATURES_PER_PROJECT = 500;
+const LINK_BATCH = 5000;
 
 function isUniqueViolation(err: unknown): boolean {
   // drizzle wraps the driver error; walk the cause chain for Postgres code 23505.
@@ -49,6 +53,31 @@ export const featuresRepo = {
       .where(and(eq(features.projectId, projectId), eq(features.status, "in_progress")))
       .orderBy(asc(features.name))
       .limit(limit);
+  },
+
+  /**
+   * A feature the user creates by hand (key NULL, so a re-index never matches or renames it). Returns null when the
+   * project already has MAX_FEATURES_PER_PROJECT features (counted under a per-project advisory lock, so parallel
+   * requests cannot pass it). Throws FeatureNameTakenError on a duplicate name.
+   */
+  async create(db: BrainDb, projectId: string, name: string): Promise<Feature | null> {
+    try {
+      return await db.transaction(async (tx) => {
+        await tx.execute(
+          sql`SELECT pg_advisory_xact_lock(hashtextextended(${`features:${projectId}`}, 0))`,
+        );
+        const [n] = await tx
+          .select({ n: count() })
+          .from(features)
+          .where(eq(features.projectId, projectId));
+        if ((n?.n ?? 0) >= MAX_FEATURES_PER_PROJECT) return null;
+        const [row] = await tx.insert(features).values({ projectId, name }).returning();
+        return row ?? null;
+      });
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new FeatureNameTakenError();
+      throw err;
+    }
   },
 
   async list(db: BrainDb, projectId: string): Promise<Feature[]> {
@@ -209,7 +238,8 @@ export const featuresRepo = {
             inArray(featureFiles.fileId, autoFiles),
           ),
         );
-      await tx.insert(featureFiles).values(links);
+      for (let i = 0; i < links.length; i += LINK_BATCH)
+        await tx.insert(featureFiles).values(links.slice(i, i + LINK_BATCH));
     });
   },
 };

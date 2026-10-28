@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { POST as diff } from "@/app/api/index/[projectId]/diff/route";
+import { POST as group } from "@/app/api/index/[projectId]/features/route";
 import { POST as upload } from "@/app/api/index/[projectId]/route";
 import { POST as summarize } from "@/app/api/index/[projectId]/summarize/route";
 import { setLlmForTests } from "@/server/llm";
@@ -34,6 +35,7 @@ const file = (path: string, names: string[] = ["Widget"]) => ({
   path,
   hash: sha(path),
   symbols: names.map((name) => ({ kind: "component", name, signature: "({ a }) => JSX" })),
+  imports: [] as string[],
 });
 
 function fakeLlm(answer: () => Promise<string> = async () => "Renders a widget.") {
@@ -424,6 +426,7 @@ describe("FEAT-008 /api/index", () => {
             { kind: "component", name: "Page", signature: `({ k = "${secret}" }) => JSX` },
             { kind: "route", name: `/x/${secret}`, signature: `GET ${secret}` },
           ],
+          imports: [],
         },
       ],
     });
@@ -604,5 +607,88 @@ describe("FEAT-008 /api/index", () => {
       "Widget",
     ]);
     expect(await world.db.select().from(featureFiles)).toEqual([]);
+  });
+
+  const withImports = (path: string, imports: string[], routes: string[] = []) => ({
+    path,
+    hash: sha(path),
+    symbols: routes.map((name) => ({ kind: "route", name, signature: "page" })),
+    imports,
+  });
+
+  it("FEAT-006 wire-in: the features step groups the stored files by their uploaded imports and routes", async () => {
+    const batch = {
+      files: [
+        withImports("src/App.tsx", ["src/pages/Reviews.tsx", "src/pages/ReviewDetail.tsx"]),
+        withImports("src/pages/Reviews.tsx", ["src/components/ReviewCard.tsx"], ["/reviews"]),
+        withImports("src/pages/ReviewDetail.tsx", [], ["/reviews/:id"]),
+        withImports("src/components/ReviewCard.tsx", []),
+      ],
+    };
+    expect((await call(upload, a.id, a.token, batch)).status).toBe(200);
+    const res = await call(group, a.id, a.token, {});
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true, features: 2, shared: 0 });
+    const features = await featuresRepo.list(world.db, a.id);
+    expect(features.map((f) => f.name).sort()).toEqual(["home", "reviews"]);
+    const reviews = features.find((f) => f.name === "reviews");
+    const links = await world.db.select().from(featureFiles);
+    const stored = new Map((await filesRepo.list(world.db, a.id)).map((f) => [f.id, f.path]));
+    expect(
+      links
+        .filter((l) => l.featureId === reviews?.id)
+        .map((l) => stored.get(l.fileId))
+        .sort(),
+    ).toEqual([
+      "src/components/ReviewCard.tsx",
+      "src/pages/ReviewDetail.tsx",
+      "src/pages/Reviews.tsx",
+    ]);
+  });
+
+  it("FEAT-006 wire-in attack: a token for project B cannot group project A, and A's imports never reach B's map", async () => {
+    await call(upload, a.id, a.token, { files: [withImports("app/reviews/page.tsx", [])] });
+    await call(upload, b.id, b.token, {
+      files: [withImports("app/billing/page.tsx", ["app/reviews/page.tsx"])],
+    });
+    expect((await call(group, a.id, b.token, {})).status).toBe(404);
+    expect(await featuresRepo.list(world.db, a.id)).toEqual([]);
+    expect((await call(group, b.id, b.token, {})).status).toBe(200);
+    expect((await featuresRepo.list(world.db, b.id)).map((f) => f.name)).toEqual(["billing"]);
+    expect((await call(group, a.id, a.token, { projectId: b.id })).status).toBe(400);
+  });
+
+  it("FEAT-006 wire-in attack: uploaded imports must be repo paths and are capped", async () => {
+    const bad = [
+      { files: [withImports("src/A.tsx", ["../outside.ts"])] },
+      { files: [withImports("src/A.tsx", ["/etc/passwd"])] },
+      { files: [withImports("src/A.tsx", ["src/x\nInjected.ts"])] },
+      {
+        files: [
+          withImports(
+            "src/A.tsx",
+            Array.from({ length: 501 }, (_, i) => `src/m${i}.ts`),
+          ),
+        ],
+      },
+      { files: [{ ...withImports("src/A.tsx", []), imports: "src/B.tsx" }] },
+    ];
+    for (const body of bad) expect((await call(upload, a.id, a.token, body)).status).toBe(400);
+    expect(await filesRepo.list(world.db, a.id)).toEqual([]);
+  });
+
+  it("FEAT-006 wire-in: a file stored without imports (before they were recorded) counts as changed in the diff", async () => {
+    // Rows indexed before 0010 have no imports recorded (NULL).
+    await filesRepo.insert(world.db, a.id, { path: "src/Old.tsx", hash: sha("src/Old.tsx") });
+    expect(
+      (await call(upload, a.id, a.token, { files: [withImports("src/New.tsx", [])] })).status,
+    ).toBe(200);
+    const res = await call(diff, a.id, a.token, {
+      files: [
+        { path: "src/New.tsx", hash: sha("src/New.tsx") },
+        { path: "src/Old.tsx", hash: sha("src/Old.tsx") },
+      ],
+    });
+    expect((await res.json()).changed).toEqual(["src/Old.tsx"]);
   });
 });

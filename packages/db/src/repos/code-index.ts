@@ -1,9 +1,20 @@
-import { and, count, eq, inArray, notInArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type NewSymbol, featureFiles, files, symbols } from "../schema";
 
 export type IndexedSymbol = Omit<NewSymbol, "id" | "projectId" | "fileId" | "createdAt">;
-export type IndexedFile = { path: string; hash: string; symbols: IndexedSymbol[] };
+export type IndexedFile = {
+  path: string;
+  hash: string;
+  symbols: IndexedSymbol[];
+  /** Repo paths the file imports (FEAT-006 grouping). */
+  imports?: string[];
+};
+/** What feature grouping reads: every stored file's imports and its route symbols (URL + method). */
+export type GroupingInput = {
+  files: { path: string; imports: string[] }[];
+  routes: { file: string; path: string; method: string }[];
+};
 export type SummaryUpdate = {
   id: string;
   summary: string | null;
@@ -20,13 +31,18 @@ const INSERT_BATCH = 500;
 
 // The CLI index upload (FEAT-008): metadata only (paths, hashes, symbol names/signatures/summaries), never source.
 export const codeIndexRepo = {
-  /** Stored hash per path for the given paths of one project (paths not stored are absent). */
+  /**
+   * Stored hash per path for the given paths of one project (paths not stored are absent). A row without recorded
+   * imports (indexed before 0010) is absent too, so the CLI uploads it again.
+   */
   async hashes(db: BrainDb, projectId: string, paths: string[]): Promise<Map<string, string>> {
     if (paths.length === 0) return new Map();
     const rows = await db
       .select({ path: files.path, hash: files.hash })
       .from(files)
-      .where(and(eq(files.projectId, projectId), inArray(files.path, paths)));
+      .where(
+        and(eq(files.projectId, projectId), inArray(files.path, paths), isNotNull(files.imports)),
+      );
     return new Map(rows.map((r) => [r.path, r.hash]));
   },
 
@@ -75,10 +91,12 @@ export const codeIndexRepo = {
       }
       const saved = await tx
         .insert(files)
-        .values(input.map((f) => ({ projectId, path: f.path, hash: f.hash })))
+        .values(
+          input.map((f) => ({ projectId, path: f.path, hash: f.hash, imports: f.imports ?? [] })),
+        )
         .onConflictDoUpdate({
           target: [files.projectId, files.path],
-          set: { hash: sql`excluded.hash` },
+          set: { hash: sql`excluded.hash`, imports: sql`excluded.imports` },
         })
         .returning({ id: files.id, path: files.path });
       const idByPath = new Map(saved.map((r) => [r.path, r.id]));
@@ -99,6 +117,25 @@ export const codeIndexRepo = {
       }
       return { saved: true, ...totals };
     });
+  },
+
+  /** Paths with imports and route symbols of all the project's files (FEAT-006 grouping), in path order. */
+  async groupingInput(db: BrainDb, projectId: string): Promise<GroupingInput> {
+    const rows = await db
+      .select({ path: files.path, imports: files.imports })
+      .from(files)
+      .where(eq(files.projectId, projectId))
+      .orderBy(files.path);
+    const routes = await db
+      .select({ file: files.path, path: symbols.name, method: symbols.signature })
+      .from(symbols)
+      .innerJoin(files, and(eq(files.projectId, symbols.projectId), eq(files.id, symbols.fileId)))
+      .where(and(eq(symbols.projectId, projectId), eq(symbols.kind, "route")))
+      .orderBy(files.path, symbols.name);
+    return {
+      files: rows.map((r) => ({ path: r.path, imports: r.imports ?? [] })),
+      routes: routes.map((r) => ({ ...r, method: r.method ?? "page" })),
+    };
   },
 
   /** Writes summary results in one statement; ids outside the project are ignored. */
