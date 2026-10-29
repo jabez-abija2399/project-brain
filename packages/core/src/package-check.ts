@@ -152,13 +152,14 @@ const ageDays = (at: Date, now: Date) => Math.floor((now.getTime() - at.getTime(
 
 /** The verdict for one package (and optionally one version) from the registry's answer. */
 export function assessPackage(
-  name: string,
+  rawName: string,
   answer: RegistryAnswer,
   version: string | null,
   now: Date,
 ): PackageCheck {
-  const hallucinated = KNOWN_HALLUCINATED.has(name.toLowerCase());
-  name = maskSecretsIn(name);
+  const hallucinated = KNOWN_HALLUCINATED.has(rawName.toLowerCase());
+  // The name is echoed back to the agent, so a secret-shaped one is masked.
+  const name = maskSecretsIn(rawName);
   const known = "the name is on the known list of AI-invented package names";
   if (answer === "unreachable") {
     return {
