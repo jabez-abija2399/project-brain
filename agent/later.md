@@ -94,3 +94,4 @@
 - 2026-10-29 FEAT-018: fail closed when the passing count was known at session start but the report is missing at the end (now: no drop shown).
 - 2026-10-29 FEAT-018: "Send fix to agent" prompt could also list the receipt's test checks; dashboard could show the omitted-flags count.
 - 2026-10-29 FEAT-018: generate_receipt MCP schema could list the 5 kinds instead of a plain string (the server's zod check already does).
+- 2026-10-29 FEAT-018: raw U+FEFF (BOM) still sits in check-package.security.test.ts:286 and secrets.security.test.ts:37; write it as \\ufeff (semgrep does not block it today).

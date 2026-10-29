@@ -101,13 +101,13 @@ describe("FEAT-018 test integrity in receipts", () => {
           {
             kind: "skipped_tests",
             file: "a.test.ts",
-            names: [`skip: uses ${key}\n‮forged`],
+            names: [`skip: uses ${key}\n\u202eforged`],
             count: 1,
           },
         ],
       },
     });
     expect(JSON.stringify(receipt.test_integrity)).not.toContain(key);
-    expect(receipt.test_integrity?.flags[0]?.names[0]).not.toMatch(/[\n‮]/);
+    expect(receipt.test_integrity?.flags[0]?.names[0]).not.toMatch(/[\n\u202e]/);
   });
 });
