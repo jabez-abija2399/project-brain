@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type DbPolicy,
@@ -65,6 +65,101 @@ export const dbTablesRepo = {
       )
       .limit(1);
     return rows[0] ?? null;
+  },
+};
+
+export type TableFlagsRow = {
+  schema: string;
+  name: string;
+  path: string;
+  rlsEnabled: boolean;
+  rlsUnknown: boolean;
+};
+export type PolicyFlagsRow = {
+  schema: string;
+  table: string;
+  command: string;
+  permissive: boolean;
+  allowsAll: boolean;
+  checksOwnership: boolean;
+};
+const CHUNK = 1000;
+
+export const dbSchemaRepo = {
+  /**
+   * FEAT-015: replaces the project's tables and policies with the flags of the latest index, in one transaction under
+   * a per-project lock (two uploads at once cannot leave duplicates). A policy whose table is not in the upload is
+   * dropped. Returns the stored counts.
+   */
+  async replaceForProject(
+    db: BrainDb,
+    projectId: string,
+    tables: TableFlagsRow[],
+    policies: PolicyFlagsRow[],
+  ): Promise<{ tables: number; policies: number }> {
+    return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`supabase:${projectId}`}, 0))`,
+      );
+      await tx.delete(dbTables).where(eq(dbTables.projectId, projectId));
+      const ids = new Map<string, string>();
+      for (let i = 0; i < tables.length; i += CHUNK) {
+        const rows = await tx
+          .insert(dbTables)
+          .values(tables.slice(i, i + CHUNK).map((t) => ({ ...t, projectId, fileId: null })))
+          .returning({ id: dbTables.id, schema: dbTables.schema, name: dbTables.name });
+        for (const r of rows) ids.set(`${r.schema}.${r.name}`, r.id);
+      }
+      const values = policies.flatMap((p) => {
+        const tableId = ids.get(`${p.schema}.${p.table}`);
+        return tableId
+          ? [
+              {
+                tableId,
+                command: p.command,
+                permissive: p.permissive,
+                allowsAll: p.allowsAll,
+                checksOwnership: p.checksOwnership,
+              },
+            ]
+          : [];
+      });
+      for (let i = 0; i < values.length; i += CHUNK) {
+        await tx.insert(dbPolicies).values(values.slice(i, i + CHUNK));
+      }
+      return { tables: ids.size, policies: values.length };
+    });
+  },
+
+  /** Every table of the project with its policies' flags (two queries). */
+  async listWithPolicies(
+    db: BrainDb,
+    projectId: string,
+  ): Promise<(DbTable & { policies: DbPolicy[] })[]> {
+    const tables = await db
+      .select()
+      .from(dbTables)
+      .where(eq(dbTables.projectId, projectId))
+      .orderBy(dbTables.schema, dbTables.name, dbTables.id);
+    if (tables.length === 0) return [];
+    const policies = await db
+      .select({ policy: dbPolicies })
+      .from(dbPolicies)
+      .innerJoin(dbTables, eq(dbPolicies.tableId, dbTables.id))
+      .where(
+        and(
+          eq(dbTables.projectId, projectId),
+          inArray(
+            dbPolicies.tableId,
+            tables.map((t) => t.id),
+          ),
+        ),
+      );
+    const byTable = new Map<string, DbPolicy[]>();
+    for (const { policy } of policies) {
+      byTable.set(policy.tableId, [...(byTable.get(policy.tableId) ?? []), policy]);
+    }
+    return tables.map((t) => ({ ...t, policies: byTable.get(t.id) ?? [] }));
   },
 };
 

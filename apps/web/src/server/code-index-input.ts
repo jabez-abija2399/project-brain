@@ -1,3 +1,4 @@
+import { maskSecretsIn } from "@brain/core";
 import { z } from "zod";
 import { MAX_BATCH_FILES, MAX_BODY_BYTES, MAX_IMPORTS_PER_FILE } from "./code-index-limits";
 import { AppError } from "./errors";
@@ -139,8 +140,9 @@ export async function parseIndexBody<T>(req: Request, schema: z.ZodType<T>): Pro
   const result = schema.safeParse(raw);
   if (!result.success) {
     const fieldErrors: Record<string, string> = {};
+    // zod quotes unknown key names in its message: masked, so a secret sent as a key is not echoed back.
     for (const issue of result.error.issues)
-      fieldErrors[issue.path.join(".") || "_"] = issue.message;
+      fieldErrors[maskSecretsIn(issue.path.join(".")) || "_"] = maskSecretsIn(issue.message);
     throw new AppError(400, "invalid_input", "input validation failed", fieldErrors);
   }
   return result.data;

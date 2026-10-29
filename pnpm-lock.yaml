@@ -106,6 +106,12 @@ importers:
       '@brain/core':
         specifier: workspace:*
         version: link:../core
+      '@brain/sandbox':
+        specifier: workspace:*
+        version: link:../sandbox
+      '@electric-sql/pglite':
+        specifier: 0.5.10
+        version: 0.5.10
       ignore:
         specifier: 7.0.12
         version: 7.0.12

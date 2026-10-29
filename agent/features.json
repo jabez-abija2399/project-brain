@@ -1783,61 +1783,96 @@
           "id": "AC-015-01",
           "kind": "happy",
           "check": "A Supabase service-role key or a secret API key in a client-side file is flagged with file and line",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 07:51; log contains AC-015-01"
         },
         {
           "id": "AC-015-02",
           "kind": "negative",
           "check": "The Supabase anon key in client code is not flagged",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 07:51; log contains AC-015-02"
         },
         {
           "id": "AC-015-03",
           "kind": "attack",
           "check": "Detected secret values are masked (first 4 characters + ***) in receipts, API responses, the database and logs (test greps all four)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 07:51; log contains AC-015-03"
         },
         {
           "id": "AC-015-04",
           "kind": "happy",
           "check": "Tables with RLS disabled, or with a policy that allows everyone to write (USING (true) on UPDATE/DELETE, or WITH CHECK (true) on INSERT/UPDATE), are flagged in the receipt",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 07:51; log contains AC-015-04"
         },
         {
           "id": "AC-015-05",
           "kind": "boundary",
           "check": "A secret in .env.example with an empty value or a placeholder like 'your-key-here' is not flagged",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 07:51; log contains AC-015-05"
         },
         {
           "id": "AC-015-06",
           "kind": "negative",
           "check": "A table whose RLS state is unknown is reported as 'RLS cannot be confirmed', never as safe and never silently skipped.",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 07:51; log contains AC-015-06"
         },
         {
           "id": "AC-015-07",
           "kind": "boundary",
           "check": "A restrictive policy is never counted as allowing everyone, even with USING (true) or WITH CHECK (true).",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 07:51; log contains AC-015-07"
         }
       ],
-      "status": "todo",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/api/index/[projectId]/supabase/route.ts",
+        "apps/web/src/server/code-index-input.ts",
+        "apps/web/src/server/findings.security.test.ts",
+        "apps/web/src/server/mcp-tools.ts",
+        "apps/web/src/server/receipt-findings.ts",
+        "apps/web/src/server/receipt.ts",
+        "apps/web/src/server/supabase-index.test.ts",
+        "apps/web/src/server/supabase-index.ts",
+        "packages/cli/build.mjs",
+        "packages/cli/package.json",
+        "packages/cli/src/index-command.ts",
+        "packages/cli/src/index.ts",
+        "packages/cli/src/scan-secrets.security.test.ts",
+        "packages/cli/src/scan-secrets.test.ts",
+        "packages/cli/src/scan-secrets.ts",
+        "packages/cli/src/supabase-upload.test.ts",
+        "packages/cli/src/supabase-upload.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/mask.ts",
+        "packages/core/src/receipt-findings.test.ts",
+        "packages/core/src/receipt-findings.ts",
+        "packages/core/src/secrets.security.test.ts",
+        "packages/core/src/secrets.test.ts",
+        "packages/core/src/secrets.ts",
+        "packages/core/src/supabase/flags.test.ts",
+        "packages/core/src/supabase/flags.ts",
+        "packages/core/src/supabase/index.ts",
+        "packages/db/migrations/0023_db_tables_path.sql",
+        "packages/db/src/repos/db-schema.test.ts",
+        "packages/db/src/repos/db-schema.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/schema/supabase.ts",
+        "packages/sandbox/src/runner.ts"
+      ]
     },
     {
       "id": "FEAT-016",
@@ -2119,6 +2154,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 556
+    "tests_passed": 604
   }
 }

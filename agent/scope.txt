@@ -1,17 +1,46 @@
 agent/*
+docs/dependencies.md
 docs/decisions.md
+packages/core/src/secrets.ts
+packages/core/src/secrets.test.ts
+packages/core/src/supabase/flags.ts
+packages/core/src/supabase/flags.test.ts
+packages/core/src/supabase/index.ts
+packages/core/src/receipt-findings.ts
+packages/core/src/receipt-findings.test.ts
+packages/core/src/index.ts
+packages/db/migrations/0023_db_tables_path.sql
+packages/db/src/schema/supabase.ts
+packages/db/src/repos/db-schema.ts
+packages/db/src/repos/db-schema.test.ts
+packages/db/src/migrations.test.ts
+apps/web/src/app/api/index/[[]projectId]/supabase/route.ts
+apps/web/src/server/supabase-index.ts
+apps/web/src/server/supabase-index.test.ts
+apps/web/src/server/receipt.ts
+apps/web/src/server/receipt-findings.ts
+apps/web/src/server/receipt.test.ts
+apps/web/src/server/findings.security.test.ts
+apps/web/src/server/mcp-tools.ts
+packages/cli/src/*
+packages/cli/package.json
+packages/cli/build.mjs
+pnpm-lock.yaml
+packages/db/src/repos/index.ts  # exports dbSchemaRepo (replace/list RLS flags)
+packages/core/src/secrets.security.test.ts
+packages/cli/src/scan-secrets.security.test.ts
+packages/core/src/mask.ts  # FEAT-015 security pass: mask sb_secret_ keys
+packages/core/src/mask.test.ts
+apps/web/src/server/code-index-input.ts  # FEAT-015 security pass: 400 messages never echo a secret-shaped key name
+packages/sandbox/src/runner.ts  # type-only cast of the empty child env, so apps/web (which compiles the CLI) typechecks
 packages/core/src/package-check.ts
 packages/core/src/package-check.test.ts
-packages/core/src/index.ts
 apps/web/src/server/npm-registry.ts
 apps/web/src/server/check-package.ts
 apps/web/src/server/check-package.test.ts
 apps/web/src/server/check-package.security.test.ts
-apps/web/src/server/mcp-tools.ts
 apps/web/src/server/rate-limit.ts
-apps/web/src/server/receipt.ts
 apps/web/src/server/receipt-dependencies.ts
-apps/web/src/server/receipt.test.ts
 apps/web/src/app/mcp/mcp.test.ts
 apps/web/src/server/session-tools.ts
 apps/web/src/server/checklist.ts
@@ -34,18 +63,15 @@ apps/web/src/app/api/projects/[id]/directives/[did]/route.ts
 apps/web/src/app/api/projects/[id]/directives/directives.test.ts
 packages/db/src/repos/checklist-items.ts
 packages/core/src/mask.ts
-packages/core/src/mask.test.ts
 apps/web/src/server/session-tools.security.test.ts
 packages/core/src/indexer/indexer.test.ts  # rewritten: writes its runtime files into a temp copy of the fixture (see progress.md 2026-10-28 gate fix)
 apps/web/package.json
-pnpm-lock.yaml
 apps/web/src/app/mcp/route.ts
 apps/web/src/server/mcp-tools.test.ts
 apps/web/src/server/context-pack.ts
 apps/web/src/server/context-pack.test.ts
 packages/db/src/repos/files.ts
 packages/db/src/repos/files.test.ts
-docs/dependencies.md
 apps/web/src/server/components.ts
 docs/build-checklist.md
 AGENTS.md
@@ -73,9 +99,7 @@ packages/db/src/schema/index.ts
 packages/db/src/repos/github.ts
 packages/db/src/repos/github.test.ts
 packages/db/src/repos/code-index.ts
-packages/db/src/repos/db-schema.ts
 packages/db/src/repos/index.ts
-packages/db/src/migrations.test.ts
 .env.example
 apps/web/src/server/github*.ts
 apps/web/src/server/push-index*.ts

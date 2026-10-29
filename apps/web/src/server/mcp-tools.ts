@@ -253,7 +253,8 @@ export function registerBrainTools(server: McpServer): void {
     {
       description:
         "Check a change against the request's open checklist items: per item done/partial/missed with file " +
-        "evidence, changed files by feature, files outside the request's feature, and items that are not verified.",
+        "evidence, changed files by feature, files outside the request's feature, items that are not verified, " +
+        "new dependencies, and security findings (secrets, RLS off or open to everyone).",
       inputSchema: z.object({
         projectId,
         requestId: z
@@ -279,6 +280,24 @@ export function registerBrainTools(server: McpServer): void {
           .describe(
             "Changed package.json files; every newly added dependency is checked on npm (max 10 files)",
           ),
+        secretFindings: z
+          .array(
+            z.object({
+              file: z.string(),
+              line: z.number(),
+              type: z.string(),
+              masked_value: z.string(),
+            }),
+          )
+          .max(200)
+          .optional()
+          .describe(
+            "Masked secret findings from `projectbrain scan-secrets` on the changed files (never raw values)",
+          ),
+        secretFindingsOmitted: z
+          .number()
+          .optional()
+          .describe("The `omitted` count from `projectbrain scan-secrets`, if any"),
       }),
     },
     async (args, ctx) =>
