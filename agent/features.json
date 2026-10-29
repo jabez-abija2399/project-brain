@@ -1697,61 +1697,74 @@
           "id": "AC-014-01",
           "kind": "happy",
           "check": "check_package('zod') reports exists, age, last release and repository link from the npm registry",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 06:33; log contains AC-014-01"
         },
         {
           "id": "AC-014-02",
           "kind": "negative",
           "check": "check_package for a name that does not exist reports NOT FOUND and recommends not installing",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 06:33; log contains AC-014-02"
         },
         {
           "id": "AC-014-03",
           "kind": "boundary",
           "check": "A package first published fewer than 30 days ago, or with no repository link, is reported as risky",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 06:33; log contains AC-014-03"
         },
         {
           "id": "AC-014-04",
           "kind": "attack",
           "check": "Names on the known-hallucinated list are flagged even if someone registered them",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 06:33; log contains AC-014-04"
         },
         {
           "id": "AC-014-05",
           "kind": "state",
           "check": "Receipts list every newly added dependency (diff of package.json) with its check_package result",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 06:33; log contains AC-014-05"
         },
         {
           "id": "AC-014-06",
           "kind": "boundary",
           "check": "A package version published fewer than 3 days ago is flagged (release cooldown) and an older version is suggested",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 06:33; log contains AC-014-06"
         },
         {
           "id": "AC-014-07",
           "kind": "attack",
           "check": "A malformed or oversized registry response is handled as UNREACHABLE and never crashes the tool",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 06:33; log contains AC-014-07"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/mcp/mcp.test.ts",
+        "apps/web/src/server/check-package.security.test.ts",
+        "apps/web/src/server/check-package.test.ts",
+        "apps/web/src/server/check-package.ts",
+        "apps/web/src/server/mcp-tools.ts",
+        "apps/web/src/server/npm-registry.ts",
+        "apps/web/src/server/rate-limit.ts",
+        "apps/web/src/server/receipt.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/package-check.test.ts",
+        "packages/core/src/package-check.ts"
+      ]
     },
     {
       "id": "FEAT-015",
@@ -2106,6 +2119,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 502
+    "tests_passed": 556
   }
 }
