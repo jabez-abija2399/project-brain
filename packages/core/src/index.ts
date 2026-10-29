@@ -63,8 +63,10 @@ export type {
 export { DEFAULT_MODEL, createLlm, errorType } from "./llm";
 export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "./llm";
 
-export { maskSecret, maskSecretsIn } from "./mask";
+export { maskPath, maskSecret, maskSecretsIn } from "./mask";
 export { oneLineText } from "./text";
+export { checkTestIntegrity, isTestConfig, isTestFile } from "./test-integrity";
+export type { FileChange, IntegrityFlag, IntegrityKind } from "./test-integrity";
 export { fixPrompt, receiptView, safeDisplay } from "./fix-prompt";
 export type { ReceiptItemStatus, ReceiptView } from "./fix-prompt";
 export { isLocalEnvFile, MAX_SCAN_BYTES, scanSecrets, SECRET_TYPES } from "./secrets";

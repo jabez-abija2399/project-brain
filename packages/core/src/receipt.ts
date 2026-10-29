@@ -36,7 +36,7 @@ const ITEM_LEFT_OUT = "item left out of the AI check (prompt size cap)";
 const FILE_LEFT_OUT = "file left out of the AI check (prompt size cap)";
 const NO_FEATURE = "(no feature)";
 // Test files count as proof that an item was checked (AC-013-07).
-const TEST_FILE = /(^|\/)(__tests__|tests?)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
+export const TEST_FILE = /(^|\/)(__tests__|tests?)\/|\.(test|spec)\.[cm]?[jt]sx?$/;
 
 export const RECEIPT_SYSTEM =
   "You check a code change against the user's checklist. For every numbered item answer one line: " +

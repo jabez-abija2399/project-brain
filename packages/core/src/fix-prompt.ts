@@ -16,7 +16,21 @@ export type ReceiptView = {
     maskedValue?: string;
   }[];
   findingsOmitted: number;
+  // FEAT-018: tests deleted, skipped or weakened, and the passing-test count before and after (null when unknown).
+  testChecks: { label: string; file: string; names: string[]; count: number }[];
+  passing: { before: number | null; after: number | null };
 };
+
+const CHECK_LABELS: Record<string, string> = {
+  deleted_test_file: "Test file deleted",
+  deleted_tests: "Tests removed",
+  skipped_tests: "Tests skipped or focused",
+  removed_assertions: "Assertions removed",
+  test_config_changed: "Test config changed",
+  passing_tests_dropped: "Fewer tests pass",
+};
+const countOrNull = (v: unknown) =>
+  typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
 
 const MAX_LIST = 200;
 const MAX_TEXT = 300;
@@ -71,6 +85,26 @@ export function receiptView(summary: unknown): ReceiptView {
       typeof s.findings_omitted === "number" && s.findings_omitted > 0
         ? Math.floor(s.findings_omitted)
         : 0,
+    testChecks: list(obj(s.test_integrity).flags).flatMap((raw) => {
+      const f = obj(raw);
+      const label = typeof f.kind === "string" ? CHECK_LABELS[f.kind] : undefined;
+      if (!label) return [];
+      return [
+        {
+          label,
+          file: safePath(f.file),
+          names: list(f.names)
+            .map((n) => safeDisplay(n, 200))
+            .filter(Boolean)
+            .slice(0, 20),
+          count: countOrNull(f.count) ?? 0,
+        },
+      ];
+    }),
+    passing: {
+      before: countOrNull(obj(s.test_integrity).passing_before),
+      after: countOrNull(obj(s.test_integrity).passing_after),
+    },
   };
 }
 

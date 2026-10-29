@@ -148,6 +148,7 @@ async function runHook(
     cwd: deps.cwd,
     config,
     readStdin: deps.readStdin,
+    env: deps.env,
     stdout: deps.stdout,
     stderr: deps.stderr,
   };

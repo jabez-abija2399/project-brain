@@ -2136,7 +2136,7 @@
           "evidence": ""
         }
       ],
-      "status": "todo",
+      "status": "in_progress",
       "notes": "Idea adopted from the AI Build Kit's test-gaming guards; detection runs on the diff only (no source stored)."
     },
     {

@@ -16,6 +16,7 @@ import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 import { callTool } from "./mcp-client";
 import { type Git, changedFiles, repoRoot, scanFiles } from "./scan-secrets";
+import { localIntegrity, passingTests } from "./test-integrity-local";
 
 // FEAT-016 agent hooks. They fail safe: whatever goes wrong (not logged in, server unreachable, git missing), the
 // agent session goes on and the hook prints one short warning. Changed files always come from git, never from the
@@ -28,6 +29,7 @@ export type HookDeps = {
   cwd: string;
   config: CliConfig | null;
   readStdin: () => Promise<string>;
+  env?: Record<string, string | undefined>;
   stdout: (line: string) => void;
   stderr: (line: string) => void;
   now?: () => Date;
@@ -124,15 +126,23 @@ function writeState(file: string, text: string) {
   }
 }
 
-function readState(file: string): string | null {
+// The session's starting commit and, when a test report is configured, its passing-test count then (FEAT-018).
+function readState(file: string): { start: string | null; passing: number | null } {
   try {
-    if (lstatSync(file).isSymbolicLink()) return null;
-    const saved = JSON.parse(readFileSync(file, "utf8")) as { start?: unknown };
-    return typeof saved.start === "string" && /^[0-9a-f]{40,64}$/.test(saved.start)
-      ? saved.start
-      : null;
+    if (lstatSync(file).isSymbolicLink()) return { start: null, passing: null };
+    const saved = JSON.parse(readFileSync(file, "utf8")) as { start?: unknown; passing?: unknown };
+    return {
+      start:
+        typeof saved.start === "string" && /^[0-9a-f]{40,64}$/.test(saved.start)
+          ? saved.start
+          : null,
+      passing:
+        typeof saved.passing === "number" && Number.isInteger(saved.passing) && saved.passing >= 0
+          ? saved.passing
+          : null,
+    };
   } catch {
-    return null;
+    return { start: null, passing: null };
   }
 }
 
@@ -148,7 +158,8 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
   try {
     const root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
-    writeState(file, JSON.stringify({ start: await head(deps.git, root) }));
+    const passing = await passingTests(root, deps.env?.PROJECTBRAIN_TEST_REPORT);
+    writeState(file, JSON.stringify({ start: await head(deps.git, root), passing }));
   } catch {
     // Not a git repo: session end then compares with HEAD.
   }
@@ -213,10 +224,11 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
   let files: string[] = [];
   let start: string | null = null;
   let commit: string | null = null;
+  let passingBefore: number | null = null;
   try {
     root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
-    start = readState(file);
+    ({ start, passing: passingBefore } = readState(file));
     rmSync(file, { force: true });
     commit = await head(deps.git, root);
     // A start that is not an ancestor of HEAD (history rewritten, state file edited) cannot bound the session.
@@ -232,6 +244,14 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     // Not a git repo: no changed files can be known, so none are claimed.
   }
   const scan = await scanFiles(deps.git, root, files).catch(() => null);
+  // FEAT-018: tests deleted, skipped or weakened, compared on this machine; only names and counts are sent.
+  const integrity = await localIntegrity(
+    deps.git,
+    root,
+    start ?? (commit ? "HEAD" : null),
+    files,
+  ).catch(() => null);
+  const passingAfter = await passingTests(root, deps.env?.PROJECTBRAIN_TEST_REPORT);
   const base = `/api/hooks/${encodeURIComponent(config.projectId)}/open-items`;
   try {
     const open = await request<OpenItems>(
@@ -256,6 +276,11 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
             changedFiles: files.slice(0, MAX_RECEIPT_FILES),
             ...(commit && commit !== start ? { commitSha: commit } : {}),
             ...(scan ? { secretFindings: scan.findings, secretFindingsOmitted: scan.omitted } : {}),
+            // Sent only when there is something to report: flags or test counts.
+            ...(integrity &&
+            (integrity.length > 0 || passingBefore !== null || passingAfter !== null)
+              ? { testIntegrity: { flags: integrity, passingBefore, passingAfter } }
+              : {}),
           }),
         ) as { receipt_id?: unknown };
         if (typeof receipt.receipt_id === "string" && /^[\w-]{1,64}$/.test(receipt.receipt_id)) {
@@ -298,6 +323,14 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
         warnings.push(`  - [${i.status}] ${i.text}`);
       if (loose.length > MAX_WARNED_ITEMS)
         warnings.push(`  ... and ${loose.length - MAX_WARNED_ITEMS} more`);
+    }
+    const testWarnings =
+      (integrity?.length ?? 0) +
+      (passingBefore !== null && passingAfter !== null && passingAfter < passingBefore ? 1 : 0);
+    if (testWarnings > 0) {
+      warnings.push(
+        `${WARN} ${testWarnings} sign(s) that tests were removed or weakened; see the receipt.`,
+      );
     }
     if (scan && scan.findings.length + scan.omitted > 0) {
       warnings.push(

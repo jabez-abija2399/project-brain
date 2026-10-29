@@ -1,49 +1,17 @@
 agent/*
-docs/DESIGN.md
+packages/core/src/test-integrity.ts
+packages/core/src/test-integrity.test.ts
+packages/core/src/receipt.ts
+packages/core/src/index.ts
 packages/core/src/fix-prompt.ts
 packages/core/src/fix-prompt.test.ts
-packages/core/src/index.ts
-packages/db/src/repos/dashboard.ts
-packages/db/src/repos/dashboard.test.ts
-packages/db/src/repos/index.ts
-packages/db/src/repos/checklist-items.ts
-packages/db/src/repos/receipts.ts
-apps/web/src/server/dashboard.ts
-apps/web/src/server/dashboard.test.ts
-apps/web/src/server/dashboard.security.test.ts
-apps/web/src/server/checklist.ts
-apps/web/src/app/api/projects/[[]id]/checklist-items/[[]itemId]/route.ts
-apps/web/src/app/globals.css
-apps/web/src/app/not-found.tsx
-apps/web/src/app/projects/[[]id]/*
-apps/web/src/app/projects/[[]id]/**/*
-apps/web/src/components/*
-apps/web/src/components/**/*
-apps/web/src/server/dashboard-page.ts
-apps/web/vitest.config.ts  # FEAT-017: transform JSX (tsconfig keeps jsx: preserve for Next) so component tests can render server-side
-apps/web/src/server/auth.ts  # FEAT-017 security pass: malformed project ids (NUL, empty, >100 chars) are 404, not a server error
-packages/core/src/mask.ts  # FEAT-017 security pass: maskPath (secrets with '/' in paths)
-packages/db/src/repos/receipt.test.ts
-apps/web/src/server/receipt*.test.ts
-apps/web/src/server/code-index-input.ts
-apps/web/src/app/mcp/mcp.test.ts  # AC-011-01 lists every MCP tool; FEAT-013 adds generate_receipt
-packages/db/migrations/0020_checklist_position.sql
-apps/web/src/server/receipt.security.test.ts
-packages/core/src/features/group.ts  # bugfix: monorepo grouping + dynamic segments (dogfood)
-packages/core/src/features/group.test.ts
-tests/fixtures/monorepo-app/*
-packages/core/src/features/placement.ts  # pure refactor split of group.ts
-packages/core/src/features/screens.ts  # pure refactor split of group.ts
-packages/db/migrations/0022_feature_name_set_by_user.sql  # KI-037
-packages/db/src/schema/features.ts  # KI-037
-tests/fixtures/monorepo-app/**  # KI-036 nested tsconfig + @/ alias
-apps/web/src/app/api/projects/[[]id]/features/features.test.ts  # KI-037: an emptied automatic feature is now deleted
-packages/core/src/receipt-findings.test.ts  # semgrep fix requested by the user: raw U+202E -> \u202E escape
-apps/web/src/app/mcp/mcp.security.test.ts  # requested by the user: raw U+200B -> \u200B escape
-docs/build-checklist.md  # rule 3: invisible/bidi characters in tests as \u escapes
-apps/web/src/server/check-package.security.test.ts  # requested by the user: lookalike letters as \u escapes
-apps/web/src/server/open-items.security.test.ts  # rule 3: raw U+202E from FEAT-016 as \u escape
-apps/web/src/server/open-items.test.ts  # rule 3: raw U+202E from FEAT-016 as \u escape
-apps/web/src/server/checklist.test.ts  # owner decision 2026-10-29: confirm/reject must name the shown proposal
-apps/web/src/server/checklist.security.test.ts  # same: default request body now carries the shown proposal
-apps/web/src/server/test-helpers.ts  # shownProposal helper for the confirm/reject tests
+packages/cli/src/hooks.ts
+packages/cli/src/test-integrity-local.ts
+packages/cli/src/test-integrity.test.ts
+packages/cli/src/test-integrity.security.test.ts
+apps/web/src/server/receipt.ts
+apps/web/src/server/receipt-integrity.ts
+apps/web/src/server/receipt-integrity.test.ts
+apps/web/src/server/receipt-integrity.security.test.ts
+apps/web/src/server/mcp-tools.ts
+apps/web/src/components/receipt-card.tsx

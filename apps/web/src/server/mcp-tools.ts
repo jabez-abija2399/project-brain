@@ -298,6 +298,25 @@ export function registerBrainTools(server: McpServer): void {
           .number()
           .optional()
           .describe("The `omitted` count from `projectbrain scan-secrets`, if any"),
+        testIntegrity: z
+          .object({
+            flags: z
+              .array(
+                z.object({
+                  kind: z.string(),
+                  file: z.string(),
+                  names: z.array(z.string()),
+                  count: z.number(),
+                }),
+              )
+              .max(50),
+            passingBefore: z.number().nullable().optional(),
+            passingAfter: z.number().nullable().optional(),
+          })
+          .optional()
+          .describe(
+            "Tests deleted, skipped or weakened, as found by the session-end hook (names and counts only)",
+          ),
       }),
     },
     async (args, ctx) =>

@@ -16,6 +16,7 @@ import { AppError } from "./errors";
 import { getLlm } from "./llm";
 import { reserveDaily } from "./rate-limit";
 import { receiptFindings, secretFindingsInput } from "./receipt-findings";
+import { testIntegrity, testIntegrityInput } from "./receipt-integrity";
 import { type ToolToken, bindToken } from "./session-tools";
 
 // Changed files one receipt looks at (a push or an agent's session; larger changes need several receipts).
@@ -36,6 +37,7 @@ const receiptSchema = z
       .optional(),
     packageJson: packageJsonChanges.optional(),
     secretFindings: secretFindingsInput.optional(),
+    testIntegrity: testIntegrityInput.optional(),
     // The CLI's count of findings past its own cap (scan-secrets "omitted").
     secretFindingsOmitted: z.number().int().min(0).max(1_000_000).optional(),
   })
@@ -147,6 +149,8 @@ export async function generateReceipt(
   const newDependencies = await lookupNewDependencies(dependencies, now);
   const omitted = dependencies.omitted;
   // Secrets (masked by the CLI) and RLS problems from the last index (FEAT-015).
+  // FEAT-018: tests deleted, skipped or weakened, as found by the session-end hook on the user's machine.
+  const integrity = testIntegrity(input.testIntegrity);
   const security = await receiptFindings(
     db,
     pid,
@@ -173,6 +177,7 @@ export async function generateReceipt(
       new_dependencies: newDependencies,
       new_dependencies_omitted: omitted,
       ...security,
+      test_integrity: integrity,
     },
   });
   console.info(
@@ -186,6 +191,7 @@ export async function generateReceipt(
       llmCalls: receipt.llm_calls,
       newDependencies: newDependencies.length,
       findings: security.findings.length + security.findings_omitted,
+      integrityFlags: integrity?.flags.length ?? 0,
       ms: Date.now() - started,
       pathsHash: createHash("sha256").update(paths.join("\n")).digest("hex").slice(0, 16),
     }),
@@ -198,5 +204,6 @@ export async function generateReceipt(
     new_dependencies: newDependencies,
     new_dependencies_omitted: omitted,
     ...security,
+    test_integrity: integrity,
   };
 }

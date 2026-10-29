@@ -64,6 +64,9 @@ export function ReceiptCard({
                   label={`${view.findings.length + view.findingsOmitted} findings`}
                 />
               )}
+              {view.testChecks.length > 0 && (
+                <StatusBadge status="missed" label={`${view.testChecks.length} test checks`} />
+              )}
               {view.notVerified.length > 0 && (
                 <StatusBadge
                   status="not_verified"
@@ -113,6 +116,29 @@ export function ReceiptCard({
               {view.findingsOmitted > 0 && (
                 <p className="muted">…and {view.findingsOmitted} more.</p>
               )}
+            </Section>
+          )}
+          {(view.testChecks.length > 0 || view.passing.before !== null) && (
+            <Section title="Test checks">
+              {view.passing.before !== null && view.passing.after !== null && (
+                <p className="muted" style={{ margin: 0 }}>
+                  Passing tests: {view.passing.before} before, {view.passing.after} after
+                </p>
+              )}
+              <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {view.testChecks.map((c, n) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: checks have no stable id in a stored receipt
+                  <li key={n} className="stack" style={{ gap: 2 }}>
+                    <span className="row">
+                      <StatusBadge status="missed" label={`${c.label} (${c.count})`} />
+                      {c.file && <CodeRef path={c.file} />}
+                    </span>
+                    {c.names.length > 0 && (
+                      <span className="muted wrap">{c.names.join(" · ")}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
             </Section>
           )}
           {view.notVerified.length > 0 && (
