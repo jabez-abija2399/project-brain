@@ -1996,53 +1996,92 @@
           "id": "AC-017-01",
           "kind": "happy",
           "check": "The feature board lists features with status, file count, open items and last receipt date",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 13:41; log contains AC-017-01"
         },
         {
           "id": "AC-017-02",
           "kind": "happy",
           "check": "The receipts feed shows ReceiptCards newest first with asked, done, missed, outside scope and checks",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 13:41; log contains AC-017-02"
         },
         {
           "id": "AC-017-03",
           "kind": "state",
           "check": "Every list has loading, empty (with one action), error and success states",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 13:41; log contains AC-017-03"
         },
         {
           "id": "AC-017-04",
           "kind": "permission",
           "check": "Visiting another user's project dashboard URL returns the 404 page",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 13:41; log contains AC-017-04"
         },
         {
           "id": "AC-017-05",
           "kind": "perf",
           "check": "The receipts feed loads 50 receipts in under 800 ms p95 and paginates beyond 50",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 13:41; log contains AC-017-05"
         },
         {
           "id": "AC-017-06",
           "kind": "happy",
           "check": "'Send fix to agent' copies a prompt listing the missed items of a receipt",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 13:41; log contains AC-017-06"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/api/projects/[id]/checklist-items/[itemId]/route.ts",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/not-found.tsx",
+        "apps/web/src/app/projects/[id]/connect/page.tsx",
+        "apps/web/src/app/projects/[id]/error.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/loading.tsx",
+        "apps/web/src/app/projects/[id]/page.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/app/projects/[id]/proposals/page.tsx",
+        "apps/web/src/app/projects/[id]/proposals/proposal-actions.tsx",
+        "apps/web/src/app/projects/[id]/receipts/page.tsx",
+        "apps/web/src/components/checklist-item.tsx",
+        "apps/web/src/components/code-ref.tsx",
+        "apps/web/src/components/copy-command.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/components/ui/button.tsx",
+        "apps/web/src/components/ui/card.tsx",
+        "apps/web/src/components/ui/copy-button.tsx",
+        "apps/web/src/components/ui/data-table.tsx",
+        "apps/web/src/components/ui/empty-state.tsx",
+        "apps/web/src/components/ui/pagination.tsx",
+        "apps/web/src/components/ui/status-badge.tsx",
+        "apps/web/src/server/auth.ts",
+        "apps/web/src/server/checklist.ts",
+        "apps/web/src/server/dashboard-page.ts",
+        "apps/web/src/server/dashboard.security.test.ts",
+        "apps/web/src/server/dashboard.test.ts",
+        "apps/web/src/server/dashboard.ts",
+        "apps/web/vitest.config.ts",
+        "packages/core/src/fix-prompt.test.ts",
+        "packages/core/src/fix-prompt.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/mask.ts",
+        "packages/db/src/repos/checklist-items.ts",
+        "packages/db/src/repos/dashboard.ts",
+        "packages/db/src/repos/index.ts"
+      ]
     },
     {
       "id": "FEAT-018",
@@ -2184,6 +2223,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 657
+    "tests_passed": 701
   }
 }
