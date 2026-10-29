@@ -36,6 +36,8 @@ const receiptSchema = z
       .optional(),
     packageJson: packageJsonChanges.optional(),
     secretFindings: secretFindingsInput.optional(),
+    // The CLI's count of findings past its own cap (scan-secrets "omitted").
+    secretFindingsOmitted: z.number().int().min(0).max(1_000_000).optional(),
   })
   .strict();
 
@@ -145,7 +147,12 @@ export async function generateReceipt(
   const newDependencies = await lookupNewDependencies(dependencies, now);
   const omitted = dependencies.omitted;
   // Secrets (masked by the CLI) and RLS problems from the last index (FEAT-015).
-  const security = await receiptFindings(db, pid, input.secretFindings ?? []);
+  const security = await receiptFindings(
+    db,
+    pid,
+    input.secretFindings ?? [],
+    input.secretFindingsOmitted ?? 0,
+  );
 
   // A receipt with no changed files reports every item missed (AC-013-05) but changes no stored status, so it
   // cannot downgrade work an earlier receipt judged partial.

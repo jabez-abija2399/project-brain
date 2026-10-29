@@ -26,18 +26,25 @@ export const secretFindingsInput = z
 
 /**
  * Security findings for a receipt: the secrets the CLI found in the changed files, then RLS problems from the stored
- * flags of the last index (AC-015-04/06/07). Capped at MAX_FINDINGS; the rest are counted, never dropped silently.
+ * flags of the last index (AC-015-04/06/07). Capped at MAX_FINDINGS, with half the room kept for each kind so many
+ * secrets cannot push every RLS finding out; the rest are counted (with the CLI's own omitted count), never dropped
+ * silently.
  */
 export async function receiptFindings(
   db: BrainDb,
   projectId: string,
   secrets: z.infer<typeof secretFindingsInput>,
+  secretsOmitted = 0,
 ): Promise<{ findings: Finding[]; findings_omitted: number; rls_tables_checked: number }> {
   const tables = await dbSchemaRepo.listWithPolicies(db, projectId);
-  const all = [...secrets.map(secretFinding), ...rlsFindings(tables)];
+  const rls = rlsFindings(tables);
+  const secretRoom = Math.max(MAX_FINDINGS / 2, MAX_FINDINGS - rls.length);
+  const shownSecrets = secrets.slice(0, secretRoom).map(secretFinding);
+  const shownRls = rls.slice(0, MAX_FINDINGS - shownSecrets.length);
   return {
-    findings: all.slice(0, MAX_FINDINGS),
-    findings_omitted: Math.max(0, all.length - MAX_FINDINGS),
+    findings: [...shownSecrets, ...shownRls],
+    findings_omitted:
+      secretsOmitted + secrets.length - shownSecrets.length + rls.length - shownRls.length,
     rls_tables_checked: tables.length,
   };
 }

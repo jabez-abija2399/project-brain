@@ -22,7 +22,7 @@ describe("secret detector (FEAT-015)", () => {
       'import { createClient } from "@supabase/supabase-js";',
       `const admin = createClient(url, "${role}");`,
       `const stripe = "${stripeLive()}"; const ai = '${anthropic()}';`,
-      `const key = \`${pem()}\nMIIE...\`;`,
+      `const key = \`${pem()}\nMIIEvQIBADANBg${chunk}${chunk}\`;`,
     ].join("\n");
     const findings = scanSecrets("src/components/Admin.tsx", text);
     expect(findings).toEqual([

@@ -41,7 +41,31 @@ const RULES: { type: SecretType; rx: RegExp }[] = [
     rx: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |ENCRYPTED |PGP )?PRIVATE KEY(?: BLOCK)?-----/g,
   },
 ];
-const JWT = /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g;
+// JWT candidates are found in linear time: runs of base64url characters and dots, then split at the dots. (A single
+// regex for three dotted parts backtracks from every "eyJ" and stalled on a crafted 1 MB line.)
+const TOKEN_RUN = /[A-Za-z0-9_.-]{30,}/g;
+function jwtsIn(line: string): { value: string; at: number }[] {
+  const out: { value: string; at: number }[] = [];
+  for (const run of line.matchAll(TOKEN_RUN)) {
+    const parts = run[0].split(".");
+    let offset = run.index ?? 0;
+    for (let i = 0; i + 2 < parts.length; i++) {
+      const [a, b, c] = [parts[i] ?? "", parts[i + 1] ?? "", parts[i + 2] ?? ""];
+      const start = a.lastIndexOf("eyJ");
+      if (
+        start !== -1 &&
+        a.length - start >= 10 &&
+        b.startsWith("eyJ") &&
+        b.length >= 10 &&
+        c.length >= 10
+      ) {
+        out.push({ value: `${a.slice(start)}.${b}.${c}`, at: offset + start });
+      }
+      offset += a.length + 1;
+    }
+  }
+  return out;
+}
 
 // Placeholder words in a value ("sk_live_your-key-here", "<your key>", "xxxx"): documentation, not a secret.
 const PLACEHOLDER =
@@ -67,9 +91,16 @@ function isServiceRoleJwt(token: string): boolean {
   }
 }
 
-/** Secrets in one file's text, masked. The text itself and the lines never leave this function. */
-export function scanSecrets(path: string, text: string): SecretFinding[] {
-  if (isLocalEnvFile(path) || text.length > MAX_SCAN_BYTES) return [];
+/**
+ * Secrets in one file's text, masked. The text itself and the lines never leave this function. Local .env files are
+ * skipped unless scanLocalEnv is set (the CLI sets it when git tracks the file, so it is committed).
+ */
+export function scanSecrets(
+  path: string,
+  text: string,
+  options: { scanLocalEnv?: boolean } = {},
+): SecretFinding[] {
+  if ((isLocalEnvFile(path) && !options.scanLocalEnv) || text.length > MAX_SCAN_BYTES) return [];
   const found: SecretFinding[] = [];
   const lines = text.split(/\r\n|\r|\n/);
   lines.forEach((line, i) => {
@@ -77,14 +108,19 @@ export function scanSecrets(path: string, text: string): SecretFinding[] {
     for (const { type, rx } of RULES) {
       for (const m of line.matchAll(rx)) hits.push({ type, value: m[0], at: m.index ?? 0 });
     }
-    for (const m of line.matchAll(JWT)) {
-      if (isServiceRoleJwt(m[0])) {
-        hits.push({ type: "supabase_service_role_key", value: m[0], at: m.index ?? 0 });
-      }
+    for (const jwt of jwtsIn(line)) {
+      if (isServiceRoleJwt(jwt.value)) hits.push({ type: "supabase_service_role_key", ...jwt });
     }
     for (const hit of hits.sort((a, b) => a.at - b.at)) {
       if (found.length >= MAX_FINDINGS_PER_FILE) return;
       if (PLACEHOLDER.test(hit.value)) continue;
+      // A private key header is only a placeholder when its body is one ("...\nyour-key-here\n...").
+      if (
+        hit.type === "private_key" &&
+        PLACEHOLDER.test(`${line.slice(hit.at + hit.value.length)} ${lines[i + 1] ?? ""}`)
+      ) {
+        continue;
+      }
       found.push({ file: path, line: i + 1, type: hit.type, masked_value: maskSecret(hit.value) });
     }
   });

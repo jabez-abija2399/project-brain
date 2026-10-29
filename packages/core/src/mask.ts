@@ -14,6 +14,7 @@ const TOKEN_PATTERNS: RegExp[] = [
   /\bxox[abprs]-[A-Za-z0-9-]{10,}/g,
   /\bAIza[0-9A-Za-z_-]{35}/g,
   /\bsbp_[0-9a-f]{40}\b/g,
+  /\bsb_secret_[A-Za-z0-9_-]{10,}/g,
   /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
 ];
 // The name may carry a prefix (DATABASE_PASSWORD=, BETTER_AUTH_SECRET=); the prefix is kept, only the value is masked.

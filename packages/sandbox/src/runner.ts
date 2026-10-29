@@ -28,7 +28,9 @@ export function createPgliteSandbox(options: PgliteSandboxOptions = {}) {
     run(statements: SandboxStatement[]): Promise<PgliteSandboxRun> {
       return new Promise((resolve) => {
         const child = fork(CHILD, [], {
-          env: {},
+          // Empty on purpose (AC-005-12). The cast is for type-checking only: apps that declare required env keys
+          // (Next.js: NODE_ENV) would reject {} when they compile the CLI, which bundles this runner.
+          env: {} as NodeJS.ProcessEnv,
           execArgv: [
             `--wasm-max-mem-pages=${SANDBOX_WASM_MAX_PAGES}`,
             `--max-old-space-size=${SANDBOX_HEAP_MB}`,

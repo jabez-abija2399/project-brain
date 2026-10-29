@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
-import { lstat, readFile } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import { MAX_SCAN_BYTES, type SecretFinding, scanSecrets } from "@brain/core";
+import { MAX_SCAN_BYTES, type SecretFinding, isLocalEnvFile, scanSecrets } from "@brain/core";
 import { CliError, EXIT } from "./api";
 
 // FEAT-015: scans changed files for secrets on this machine. Prints masked findings only (file, line, type, first 4
@@ -17,31 +17,51 @@ export const runGit: Git = (args, cwd) =>
     );
   });
 
-const lines = (out: string) => out.split("\n").filter((l) => l.length > 0);
+// git -z output: NUL-separated, never quoted or escaped (names with spaces, quotes or non-ASCII stay as they are).
+const names = (out: string) => out.split("\0").filter((l) => l.length > 0);
 
-// The repo root, and the changed files there (tracked changes against HEAD plus new untracked files), root-relative.
-async function changedFiles(git: Git, cwd: string): Promise<{ root: string; files: string[] }> {
-  let root: string;
+async function repoRoot(git: Git, cwd: string): Promise<string> {
   try {
-    root = (await git(["rev-parse", "--show-toplevel"], cwd)).trim();
+    return (await git(["rev-parse", "--show-toplevel"], cwd)).trim();
   } catch {
     throw new CliError(
       EXIT.usage,
       "Not a git repository: pass the files to scan, or run it in the repo.",
     );
   }
-  const tracked = await git(["diff", "--name-only", "--no-renames", "HEAD"], root).catch(() =>
-    git(["diff", "--name-only", "--no-renames", "--cached"], root),
+}
+
+// The changed files, root-relative: tracked changes against HEAD (or against --since, for changes already committed)
+// plus new untracked files that are not ignored.
+async function changedFiles(git: Git, root: string, since: string | undefined): Promise<string[]> {
+  const base = since ?? "HEAD";
+  const tracked = await git(["diff", "--name-only", "-z", "--no-renames", base, "--"], root).catch(
+    () => {
+      if (since) throw new CliError(EXIT.usage, "--since must name a commit of this repository.");
+      // A repo without commits has no HEAD yet: compare the staged files instead.
+      return git(["diff", "--name-only", "-z", "--no-renames", "--cached", "--"], root);
+    },
   );
-  const untracked = await git(["ls-files", "--others", "--exclude-standard"], root);
-  return { root, files: [...new Set([...lines(tracked), ...lines(untracked)])] };
+  const untracked = await git(["ls-files", "-z", "--others", "--exclude-standard"], root);
+  return [...new Set([...names(tracked), ...names(untracked)])];
+}
+
+// A local .env is normally git-ignored and is where secrets belong; one that git tracks is committed, so it is scanned.
+async function isTracked(git: Git, root: string, file: string): Promise<boolean> {
+  return git(["ls-files", "--error-unmatch", "--", file], root).then(
+    () => true,
+    () => false,
+  );
 }
 
 export type ScanReport = {
   findings: SecretFinding[];
+  // Findings beyond MAX_REPORTED_FINDINGS (what generate_receipt accepts); pass it as secretFindingsOmitted.
+  omitted: number;
   scanned: number;
   skipped: { file: string; reason: string }[];
 };
+export const MAX_REPORTED_FINDINGS = 200;
 
 export async function runScanSecrets(
   args: string[],
@@ -49,38 +69,66 @@ export async function runScanSecrets(
   print: (line: string) => void,
   git: Git = runGit,
 ): Promise<number> {
-  let root = cwd;
+  const at = args.indexOf("--since");
+  let since: string | undefined;
+  if (at !== -1) {
+    since = args[at + 1];
+    // A value starting with "-" would be read by git as an option.
+    if (!since || since.startsWith("-")) {
+      throw new CliError(EXIT.usage, "--since needs a commit, e.g. --since HEAD~1");
+    }
+    args.splice(at, 2);
+  }
+  let root: string;
   let files: string[];
   if (args.length > 0) {
+    if (since) throw new CliError(EXIT.usage, "Use --since or name files, not both.");
     // Named files: paths relative to the repo root (as receipts use them), or to this folder outside git.
-    root = (await git(["rev-parse", "--show-toplevel"], cwd).catch(() => cwd)).trim();
+    root = await repoRoot(git, cwd).catch(() => cwd);
     files = args.map((a) => relative(root, resolve(cwd, a)).split(sep).join("/"));
   } else {
-    ({ root, files } = await changedFiles(git, cwd));
+    root = await repoRoot(git, cwd);
+    files = await changedFiles(git, root, since);
   }
-  const report: ScanReport = { findings: [], scanned: 0, skipped: [] };
+  const realRoot = await realpath(root);
+  const report: ScanReport = { findings: [], omitted: 0, scanned: 0, skipped: [] };
+  const all: SecretFinding[] = [];
   for (const [i, file] of files.entries()) {
     if (i >= MAX_SCAN_FILES) {
       report.skipped.push({ file, reason: `more than ${MAX_SCAN_FILES} files` });
       continue;
     }
-    if (file.startsWith("../") || isAbsolute(file)) {
+    const abs = join(root, file);
+    // The real path must stay inside the repo: no ../, absolute paths or symlinked folders that lead outside.
+    const real = await realpath(abs).catch(() => null);
+    if (file.startsWith("../") || isAbsolute(file) || (real && !real.startsWith(realRoot + sep))) {
       report.skipped.push({ file, reason: "outside this folder" });
       continue;
     }
-    const abs = join(root, file);
     const st = await lstat(abs).catch(() => null);
-    // Deleted files, folders and symlinks (which could point outside the repo) are not read.
-    if (!st?.isFile()) continue;
+    // A file deleted by the change has nothing to scan.
+    if (!st) continue;
+    // Folders and symlinks (which could point outside the repo) are not read.
+    if (!st.isFile()) {
+      report.skipped.push({ file, reason: st.isSymbolicLink() ? "symlink" : "not a file" });
+      continue;
+    }
     if (st.size > MAX_SCAN_BYTES) {
       report.skipped.push({ file, reason: "larger than 1 MB" });
       continue;
     }
     const text = await readFile(abs, "utf8").catch(() => null);
-    if (text === null || text.includes("\0")) continue;
+    if (text === null) {
+      report.skipped.push({ file, reason: "cannot be read" });
+      continue;
+    }
+    if (text.includes("\0")) continue;
     report.scanned++;
-    report.findings.push(...scanSecrets(file, text));
+    const scanLocalEnv = isLocalEnvFile(file) && (await isTracked(git, root, file));
+    all.push(...scanSecrets(file, text, { scanLocalEnv }));
   }
+  report.findings = all.slice(0, MAX_REPORTED_FINDINGS);
+  report.omitted = Math.max(0, all.length - MAX_REPORTED_FINDINGS);
   print(JSON.stringify(report));
   return EXIT.ok;
 }

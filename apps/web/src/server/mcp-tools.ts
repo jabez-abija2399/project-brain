@@ -289,10 +289,15 @@ export function registerBrainTools(server: McpServer): void {
               masked_value: z.string(),
             }),
           )
+          .max(200)
           .optional()
           .describe(
             "Masked secret findings from `projectbrain scan-secrets` on the changed files (never raw values)",
           ),
+        secretFindingsOmitted: z
+          .number()
+          .optional()
+          .describe("The `omitted` count from `projectbrain scan-secrets`, if any"),
       }),
     },
     async (args, ctx) =>

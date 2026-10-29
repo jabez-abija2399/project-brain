@@ -95,4 +95,25 @@ describe("FEAT-015 projectbrain scan-secrets", () => {
       { file: expect.stringMatching(/^\.\.\//), reason: "outside this folder" },
     ]);
   });
+
+  it("AC-015-01 --since scans changes already committed, and refuses a value git would read as an option", async () => {
+    const repo = gitRepo();
+    writeFileSync(join(repo, "src/pay.ts"), `const key = "${openai}";\n`);
+    execFileSync("git", ["add", "src/pay.ts"], { cwd: repo });
+    execFileSync(
+      "git",
+      ["-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "pay"],
+      {
+        cwd: repo,
+      },
+    );
+    expect(JSON.parse((await run(repo)).out[0] ?? "{}").findings).toEqual([]);
+    const since = await run(repo, ["--since", "HEAD~1"]);
+    expect(JSON.parse(since.out[0] ?? "{}").findings).toEqual([
+      { file: "src/pay.ts", line: 1, type: "openai_api_key", masked_value: "sk-p***" },
+    ]);
+    const injected = await run(repo, ["--since", "--output=/tmp/x"]);
+    expect(injected.code).toBe(2);
+    expect(injected.out).toEqual([]);
+  });
 });

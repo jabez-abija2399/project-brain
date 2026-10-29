@@ -22,12 +22,17 @@ export type PolicyFlags = {
 // Roles that mean anyone: PUBLIC, the anonymous key, or any signed-in user (anyone can sign up).
 const EVERYONE = new Set(["public", "anon", "authenticated"]);
 
-// USING (true), WITH CHECK ((true)), 1 = 1: an expression that lets every row through.
+// USING (true), WITH CHECK ((true)), 1 = 1, true -- TODO: an expression that lets every row through. The written
+// text can still hold SQL comments, so they are removed first.
 function isTrue(expr: string | null): boolean {
   if (expr === null) return false;
-  let e = expr.toLowerCase().replace(/\s+/g, "");
+  let e = expr
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/--[^\n]*/g, " ")
+    .toLowerCase()
+    .replace(/\s+/g, "");
   while (e.startsWith("(") && e.endsWith(")")) e = e.slice(1, -1);
-  return e === "true" || e === "1=1" || e === "true::boolean";
+  return ["true", "1=1", "true::boolean", "true::bool", "'t'::boolean", "'t'::bool"].includes(e);
 }
 
 /**

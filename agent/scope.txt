@@ -27,3 +27,9 @@ packages/cli/package.json
 packages/cli/build.mjs
 pnpm-lock.yaml
 packages/db/src/repos/index.ts  # exports dbSchemaRepo (replace/list RLS flags)
+packages/core/src/secrets.security.test.ts
+packages/cli/src/scan-secrets.security.test.ts
+packages/core/src/mask.ts  # FEAT-015 security pass: mask sb_secret_ keys
+packages/core/src/mask.test.ts
+apps/web/src/server/code-index-input.ts  # FEAT-015 security pass: 400 messages never echo a secret-shaped key name
+packages/sandbox/src/runner.ts  # type-only cast of the empty child env, so apps/web (which compiles the CLI) typechecks
