@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type ChecklistItem,
@@ -64,5 +64,47 @@ export const requestsRepo = {
       .where(and(eq(requests.projectId, projectId), eq(requests.id, requestId)))
       .limit(1);
     return row ?? null;
+  },
+
+  /**
+   * FEAT-016: the newest requests that still have unresolved checklist items (open, partial or missed), each with
+   * those items in request order. Two bounded queries.
+   */
+  async listWithOpenItems(
+    db: BrainDb,
+    projectId: string,
+    limit: number,
+  ): Promise<(RequestRow & { items: ChecklistItem[] })[]> {
+    const open = db
+      .selectDistinct({ id: checklistItems.requestId })
+      .from(checklistItems)
+      .where(
+        and(
+          eq(checklistItems.projectId, projectId),
+          inArray(checklistItems.status, ["open", "partial", "missed"]),
+        ),
+      );
+    const rows = await db
+      .select()
+      .from(requests)
+      .where(and(eq(requests.projectId, projectId), inArray(requests.id, open)))
+      .orderBy(desc(requests.createdAt), desc(requests.id))
+      .limit(limit);
+    if (rows.length === 0) return [];
+    const items = await db
+      .select()
+      .from(checklistItems)
+      .where(
+        and(
+          eq(checklistItems.projectId, projectId),
+          inArray(
+            checklistItems.requestId,
+            rows.map((r) => r.id),
+          ),
+          inArray(checklistItems.status, ["open", "partial", "missed"]),
+        ),
+      )
+      .orderBy(asc(checklistItems.position), asc(checklistItems.id));
+    return rows.map((r) => ({ ...r, items: items.filter((i) => i.requestId === r.id) }));
   },
 };
