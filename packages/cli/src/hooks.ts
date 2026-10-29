@@ -53,7 +53,7 @@ const timed =
 
 // Server text is printed to the agent's context or the user's terminal: no control, C1 or direction characters
 // (terminal escapes, forged lines), and a fixed length.
-// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this removes
+// Built from a string so the escapes stay escapes (no literal control or line-separator characters in the source).
 const UNSAFE =
   /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]/g;
 const clean = (text: string, max: number) => text.replace(UNSAFE, "").slice(0, max);
