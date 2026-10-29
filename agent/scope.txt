@@ -44,3 +44,6 @@ docs/build-checklist.md  # rule 3: invisible/bidi characters in tests as \u esca
 apps/web/src/server/check-package.security.test.ts  # requested by the user: lookalike letters as \u escapes
 apps/web/src/server/open-items.security.test.ts  # rule 3: raw U+202E from FEAT-016 as \u escape
 apps/web/src/server/open-items.test.ts  # rule 3: raw U+202E from FEAT-016 as \u escape
+apps/web/src/server/checklist.test.ts  # owner decision 2026-10-29: confirm/reject must name the shown proposal
+apps/web/src/server/checklist.security.test.ts  # same: default request body now carries the shown proposal
+apps/web/src/server/test-helpers.ts  # shownProposal helper for the confirm/reject tests

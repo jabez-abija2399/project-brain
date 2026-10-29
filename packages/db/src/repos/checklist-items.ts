@@ -124,8 +124,9 @@ export const checklistItemsRepo = {
     return row ?? null;
   },
 
-  // The owner confirmed: apply the proposal once (row lock), then clear it. Null when the item does not exist. With
-  // `expected` (the proposal the owner saw), a proposal that changed since then is not applied ("changed", FEAT-017).
+  // The owner confirmed: apply the proposal once (row lock), then clear it. Null when the item does not exist. A
+  // proposal that is no longer the one the owner saw (`expected`) is not applied ("changed", FEAT-017). The API always
+  // passes `expected` (owner decision 2026-10-29); only internal callers apply the current proposal without it.
   async applyProposal(
     db: BrainDb,
     projectId: string,

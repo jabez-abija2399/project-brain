@@ -287,4 +287,22 @@ describe("FEAT-017 checklist proposals", () => {
     world.signInAs(other);
     expect((await patch(item.id, { reject: true, proposal: shown })).status).toBe(404);
   });
+
+  it("AC-017-04 attack: a confirm or reject that does not name the shown proposal is rejected (400) and nothing changes", async () => {
+    const { items } = await seedReceipts(0);
+    const item = items[0] as { id: string };
+    await checklistItemsRepo.propose(
+      world.db,
+      projectId,
+      item.id,
+      { dismiss: true },
+      new Date("2026-10-29T10:00:00Z"),
+    );
+    for (const body of [{ confirm: true }, { reject: true }, { confirm: true, proposal: null }]) {
+      const res = await patch(item.id, body);
+      expect(res.status).toBe(400);
+    }
+    const row = await checklistItemsRepo.byId(world.db, projectId, item.id);
+    expect([row?.status, row?.proposedChange]).toEqual(["open", { dismiss: true }]);
+  });
 });

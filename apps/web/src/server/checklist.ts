@@ -15,7 +15,7 @@ import {
   requestsRepo,
 } from "@brain/db";
 import { z } from "zod";
-import { type SessionUser, requireProjectAccess } from "./auth";
+import { type SessionUser, isPlausibleId, requireProjectAccess } from "./auth";
 import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
 import { getLlm } from "./llm";
@@ -156,6 +156,22 @@ export async function proposeChecklistChange(
 }
 
 /**
+ * Dashboard: the project is the user's and the item is in it, else 404. Checked before the request body, so a stranger
+ * or a wrong item id always gets the same answer.
+ */
+export async function requireChecklistItem(
+  db: BrainDb,
+  user: SessionUser,
+  projectId: string,
+  itemId: string,
+) {
+  await requireProjectAccess(db, projectId, user);
+  if (!isPlausibleId(itemId) || !(await checklistItemsRepo.byId(db, projectId, itemId))) {
+    throw new AppError(404, "not_found");
+  }
+}
+
+/**
  * Dashboard (the owner's session, never an MCP token): applies or rejects the item's proposed change. `shown` is the
  * proposal the owner saw (FEAT-017); when it no longer matches (the agent replaced it meanwhile), nothing changes and
  * the answer is 409 proposal_changed, so the owner looks again.
@@ -165,7 +181,7 @@ export async function confirmChecklistChange(
   user: SessionUser,
   projectId: string,
   itemId: string,
-  shown?: ShownProposal,
+  shown: ShownProposal,
 ) {
   await requireProjectAccess(db, projectId, user);
   const result = await checklistItemsRepo.applyProposal(db, projectId, itemId, shown);

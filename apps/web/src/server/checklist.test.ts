@@ -14,7 +14,7 @@ import { createChecklist } from "./checklist";
 import { getContextPack } from "./context-pack";
 import { AppError } from "./errors";
 import { setLlmForTests } from "./llm";
-import { type TestWorld, createTestWorld } from "./test-helpers";
+import { type TestWorld, createTestWorld, shownProposal } from "./test-helpers";
 
 let world: TestWorld;
 let owner: SessionUser;
@@ -96,18 +96,20 @@ async function errorOf(p: Promise<unknown>): Promise<AppError> {
   return err as AppError;
 }
 
-function confirm(
+async function confirm(
   user: SessionUser | null,
   pid: string,
   itemId: string,
   headers: Record<string, string> = {},
 ) {
   world.signInAs(user);
+  // The owner confirms the exact proposal shown on the dashboard (required since FEAT-017).
+  const proposal = await shownProposal(world.db, itemId);
   return confirmRoute(
     new Request(`http://localhost/api/projects/${pid}/checklist-items/${itemId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json", ...headers },
-      body: JSON.stringify({ confirm: true }),
+      body: JSON.stringify({ confirm: true, proposal }),
     }),
     { params: Promise.resolve({ id: pid, itemId }) },
   );
