@@ -66,6 +66,16 @@ export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "
 export { maskSecret, maskSecretsIn } from "./mask";
 export { oneLineText } from "./text";
 export {
+  addedDependencies,
+  assessPackage,
+  isValidPackageName,
+  isValidVersion,
+  KNOWN_HALLUCINATED,
+  RELEASE_COOLDOWN_DAYS,
+  summarizePackument,
+} from "./package-check";
+export type { AddedDependency, PackageCheck, RegistryAnswer } from "./package-check";
+export {
   RECEIPT_SYSTEM,
   buildReceipt,
   groupFiles,

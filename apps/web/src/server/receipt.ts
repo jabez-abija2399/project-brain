@@ -9,6 +9,7 @@ import {
   requestsRepo,
 } from "@brain/db";
 import { z } from "zod";
+import { lookupNewDependencies, packageJsonChanges, prepareNewDependencies } from "./check-package";
 import { repoPath } from "./code-index-input";
 import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
@@ -32,6 +33,7 @@ const receiptSchema = z
       .string()
       .regex(/^[0-9a-f]{7,40}$/, "commitSha must be a hex commit id")
       .optional(),
+    packageJson: packageJsonChanges.optional(),
   })
   .strict();
 
@@ -103,6 +105,8 @@ export async function generateReceipt(
   const pid = token.projectId;
   const request = await requestsRepo.byId(db, pid, input.requestId);
   if (!request) throw new AppError(404, "not_found");
+  // Bad package.json text or a full per-minute limit fails here, before any AI budget is spent.
+  const dependencies = await prepareNewDependencies(db, token, input.packageJson ?? [], now);
   const items = await checklistItemsRepo.listUnresolvedForRequest(db, pid, request.id);
   const paths = [...new Set(input.changedFiles)];
   const files = await filesWithFeatures(db, pid, paths, request.featureId);
@@ -135,6 +139,10 @@ export async function generateReceipt(
     throw new AppError(502, "ai_unavailable", "the receipt could not be judged; try again");
   }
 
+  // Newly added dependencies with their check_package result (AC-014-05); the package.json text is not kept.
+  const newDependencies = await lookupNewDependencies(dependencies, now);
+  const omitted = dependencies.omitted;
+
   // A receipt with no changed files reports every item missed (AC-013-05) but changes no stored status, so it
   // cannot downgrade work an earlier receipt judged partial.
   if (files.length > 0) {
@@ -149,7 +157,11 @@ export async function generateReceipt(
   const row = await receiptsRepo.insert(db, pid, {
     requestId: request.id,
     commitSha: input.commitSha ?? null,
-    summaryJson: receipt,
+    summaryJson: {
+      ...receipt,
+      new_dependencies: newDependencies,
+      new_dependencies_omitted: omitted,
+    },
   });
   console.info(
     "[mcp]",
@@ -160,9 +172,17 @@ export async function generateReceipt(
       files: files.length,
       items: items.length,
       llmCalls: receipt.llm_calls,
+      newDependencies: newDependencies.length,
       ms: Date.now() - started,
       pathsHash: createHash("sha256").update(paths.join("\n")).digest("hex").slice(0, 16),
     }),
   );
-  return { receipt_id: row.id, request_id: request.id, data_notice: DATA_NOTICE, ...receipt };
+  return {
+    receipt_id: row.id,
+    request_id: request.id,
+    data_notice: DATA_NOTICE,
+    ...receipt,
+    new_dependencies: newDependencies,
+    new_dependencies_omitted: omitted,
+  };
 }
