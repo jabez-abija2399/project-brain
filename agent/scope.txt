@@ -129,3 +129,20 @@ apps/web/src/server/checklist.security.test.ts
 packages/core/src/llm.test.ts  # gitleaks fix requested by the user: fake keys built at runtime
 .gitleaksignore  # gitleaks fix requested by the user: fingerprints of confirmed fake test values in old commits
 apps/web/src/app/mcp/mcp.test.ts  # KI-031 fix requested by the user: freeze the clock for the per-minute rate-limit test
+packages/core/src/receipt.ts
+packages/core/src/receipt.test.ts
+packages/core/src/index.ts
+packages/db/src/repos/feature-files.ts
+packages/db/src/repos/checklist-items.ts
+packages/db/src/repos/requests.ts
+packages/db/src/repos/receipts.ts
+packages/db/src/repos/features.ts
+packages/db/src/repos/receipt.test.ts
+apps/web/src/server/receipt.ts
+apps/web/src/server/receipt*.test.ts
+apps/web/src/server/mcp-tools.ts
+apps/web/src/server/code-index-input.ts
+apps/web/src/app/mcp/mcp.test.ts  # AC-011-01 lists every MCP tool; FEAT-013 adds generate_receipt
+packages/db/migrations/0020_checklist_position.sql
+packages/db/src/schema/receipts.ts
+apps/web/src/server/receipt.security.test.ts

@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { type FeatureFile, type NewFeatureFile, featureFiles } from "../schema";
+import { type FeatureFile, type NewFeatureFile, featureFiles, features, files } from "../schema";
 
 export const featureFilesRepo = {
   // Composite FKs reject a feature or file of another project (0003_link_tables_project_id.sql).
@@ -29,5 +29,36 @@ export const featureFilesRepo = {
       .select()
       .from(featureFiles)
       .where(and(eq(featureFiles.projectId, projectId), eq(featureFiles.fileId, fileId)));
+  },
+
+  // FEAT-013: the features each of these stored paths is linked to (primary or shared), in one query.
+  async featuresForPaths(
+    db: BrainDb,
+    projectId: string,
+    paths: string[],
+  ): Promise<
+    { path: string; featureId: string; featureName: string; role: "primary" | "shared" }[]
+  > {
+    if (paths.length === 0) return [];
+    return db
+      .select({
+        path: files.path,
+        featureId: features.id,
+        featureName: features.name,
+        role: featureFiles.role,
+      })
+      .from(featureFiles)
+      .innerJoin(
+        files,
+        and(eq(files.projectId, featureFiles.projectId), eq(files.id, featureFiles.fileId)),
+      )
+      .innerJoin(
+        features,
+        and(
+          eq(features.projectId, featureFiles.projectId),
+          eq(features.id, featureFiles.featureId),
+        ),
+      )
+      .where(and(eq(featureFiles.projectId, projectId), inArray(files.path, paths)));
   },
 };

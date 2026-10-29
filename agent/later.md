@@ -81,3 +81,8 @@
 - 2026-10-28 | Dashboard view of pending checklist proposals with confirm and reject (FEAT-012 has the confirm API only; a reject/discard endpoint is not built) | FEAT-017
 - 2026-10-28 | Measure the checklist splitter on the real model (AC-012-02 and AC-012-04 are tested with scripted model answers; the prompt was never run against Claude here) | FEAT-012 follow-up
 - 2026-10-28 | Checklist proposals: the dashboard confirm should send the proposed_at (or a version) it showed, so an agent cannot swap a pending proposal between the owner viewing and confirming it (FEAT-012 security pass note) | FEAT-017
+- 2026-10-28 | Build a receipt automatically after a GitHub push (architecture's build-receipt job): FEAT-013 ships the generate_receipt MCP tool only | FEAT-013 follow-up
+- 2026-10-28 | Receipts feed and ReceiptCard in the dashboard (receipts are stored in receipts.summary_json) | FEAT-017
+- 2026-10-28 | Measure receipt judging on the real model (FEAT-013 tests use scripted model answers) | FEAT-013 follow-up
+- 2026-10-28 FEAT-013 security pass (design, not bugs): changed paths are self-reported by the agent (check them against git/the index once FEAT-009 push data is linked); any changed test counts for every item (map tests to items); a request with no feature puts every file in scope; no cap on total prompt size (~200 KB worst case); the AI budget is not released when the model call fails.
+- 2026-10-29 FEAT-013: the receipt prompt-size note above is resolved (items 300 chars, paths 200, items <=4,000, prompt <=8,000; cuts listed as not verified).

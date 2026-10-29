@@ -2,6 +2,7 @@ import {
   boolean,
   foreignKey,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -52,6 +53,8 @@ export const checklistItems = pgTable(
       .default("open"),
     // FEAT-012: flagged instead of guessed; an agent's change waits here until the owner confirms it.
     needsClarification: boolean("needs_clarification").notNull().default(false),
+    // FEAT-013: order within the request (the user's order); 0 for items made before 0020.
+    position: integer("position").notNull().default(0),
     proposedChange: jsonb("proposed_change").$type<ChecklistChange>(),
     proposedAt: timestamp("proposed_at", { withTimezone: true, mode: "date" }),
   },

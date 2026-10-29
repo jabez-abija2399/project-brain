@@ -1,4 +1,4 @@
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type ChecklistChange,
@@ -7,6 +7,9 @@ import {
   checklistItems,
   requests,
 } from "../schema";
+
+// Items not done and not dismissed: open, partly done or missed by a receipt (FEAT-013 AC-013-04).
+const UNRESOLVED: ChecklistItem["status"][] = ["open", "partial", "missed"];
 
 export const checklistItemsRepo = {
   // Composite FK rejects a request of another project (0003_link_tables_project_id.sql).
@@ -31,7 +34,8 @@ export const checklistItemsRepo = {
     return db
       .select()
       .from(checklistItems)
-      .where(and(eq(checklistItems.projectId, projectId), eq(checklistItems.requestId, requestId)));
+      .where(and(eq(checklistItems.projectId, projectId), eq(checklistItems.requestId, requestId)))
+      .orderBy(asc(checklistItems.position), asc(checklistItems.id));
   },
 
   // Open items of every request in the project (the handoff note shows them as unfinished work).
@@ -43,8 +47,10 @@ export const checklistItemsRepo = {
     return db
       .select()
       .from(checklistItems)
-      .where(and(eq(checklistItems.projectId, projectId), eq(checklistItems.status, "open")))
-      .orderBy(asc(checklistItems.id))
+      .where(
+        and(eq(checklistItems.projectId, projectId), inArray(checklistItems.status, UNRESOLVED)),
+      )
+      .orderBy(asc(checklistItems.requestId), asc(checklistItems.position), asc(checklistItems.id))
       .limit(limit);
   },
 
@@ -81,7 +87,7 @@ export const checklistItemsRepo = {
           ne(checklistItems.status, "dismissed"),
         ),
       )
-      .orderBy(asc(requests.createdAt), asc(checklistItems.id))
+      .orderBy(asc(requests.createdAt), asc(checklistItems.position), asc(checklistItems.id))
       .limit(limit)
       .then((rows) => rows.map((r) => r.item));
   },
@@ -135,5 +141,41 @@ export const checklistItemsRepo = {
       if (!updated) throw new Error("update checklist_items returned no row");
       return { kind: "applied" as const, item: updated };
     });
+  },
+
+  // The request's items a receipt still judges (not done, not dismissed), in creation order.
+  async listUnresolvedForRequest(
+    db: BrainDb,
+    projectId: string,
+    requestId: string,
+  ): Promise<ChecklistItem[]> {
+    return db
+      .select()
+      .from(checklistItems)
+      .where(
+        and(
+          eq(checklistItems.projectId, projectId),
+          eq(checklistItems.requestId, requestId),
+          inArray(checklistItems.status, UNRESOLVED),
+        ),
+      )
+      .orderBy(asc(checklistItems.position), asc(checklistItems.id));
+  },
+
+  // One statement for every item of a receipt; items of another project are never touched.
+  async setStatuses(
+    db: BrainDb,
+    projectId: string,
+    updates: { id: string; status: "done" | "partial" | "missed" }[],
+  ): Promise<void> {
+    if (updates.length === 0) return;
+    const values = sql.join(
+      updates.map((u) => sql`(${u.id}, ${u.status})`),
+      sql`, `,
+    );
+    await db.execute(sql`
+      UPDATE checklist_items AS c SET status = v.status
+      FROM (VALUES ${values}) AS v(id, status)
+      WHERE c.project_id = ${projectId} AND c.id = v.id AND c.status IN ('open', 'partial', 'missed')`);
   },
 };
