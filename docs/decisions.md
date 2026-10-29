@@ -169,3 +169,10 @@ of @brain/cli (tsup REJECTED: extra wrapper dep; tsc emit REJECTED: extensionles
 Trade-offs: a subfolder index deletes the files outside it (KI-025); the budget is per project, not per user (KI-026).
 Revisit when: FEAT-009 runs indexing in Inngest (reuse the same budget key), or request volume makes the counter slow.
 
+
+## D-018 | 2026-10-29 | check_package uses the 7-day release cooldown
+Context: D-013 kept the product's check_package cooldown (AC-014-06, 3 days) separate from our own 7-day install policy.
+Decision (owner): check_package flags versions younger than 7 days, matching D-013. This covers AC-014-06's
+"fewer than 3 days" case and also flags 3-6 day old versions. Suggested versions are the newest stable version at
+least 7 days old.
+Revisit when: users report the 7-day window blocks needed security fixes (they can still install after review).

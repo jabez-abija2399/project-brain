@@ -1,12 +1,13 @@
 import { projectTokensRepo } from "@brain/db";
 import { type AuthInfo, type McpServer, ProtocolError } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { checkPackage } from "./check-package";
 import { createChecklist, proposeChecklistChange } from "./checklist";
 import { findSimilarComponents } from "./components";
 import { getContextPack } from "./context-pack";
 import { getDb } from "./db";
 import { AppError } from "./errors";
-import { rateLimit } from "./rate-limit";
+import { MCP_CALLS_PER_MINUTE, rateLimit } from "./rate-limit";
 import { generateReceipt } from "./receipt";
 import {
   type ToolToken,
@@ -80,9 +81,8 @@ function toProtocolError(err: unknown): ProtocolError {
   return new ProtocolError(MCP_ERROR.internal, "internal error");
 }
 
-// Tool calls per minute, per token and per project (so extra tokens do not multiply it). A batch request counts
-// each call. Postgres counters, shared by every server instance (D-010).
-export const MCP_CALLS_PER_MINUTE = 300;
+// Postgres counters, shared by every server instance (D-010).
+export { MCP_CALLS_PER_MINUTE };
 
 const text = (value: string) => ({ content: [{ type: "text" as const, text: value }] });
 
@@ -263,11 +263,48 @@ export function registerBrainTools(server: McpServer): void {
           .array(z.string())
           .describe("Repo-relative paths of the changed files (max 200)"),
         commitSha: z.string().optional().describe("Commit id of the change, if committed"),
+        packageJson: z
+          .array(
+            z.object({
+              path: z.string().describe("Repo-relative path of the package.json"),
+              before: z
+                .string()
+                .nullable()
+                .optional()
+                .describe("Its text before the change (null if new)"),
+              after: z.string().describe("Its text after the change"),
+            }),
+          )
+          .optional()
+          .describe(
+            "Changed package.json files; every newly added dependency is checked on npm (max 10 files)",
+          ),
       }),
     },
     async (args, ctx) =>
       run("generate_receipt", ctx.http?.authInfo, async (token) =>
         JSON.stringify(await generateReceipt(getDb(), token, args)),
+      ),
+  );
+
+  server.registerTool(
+    "check_package",
+    {
+      description:
+        "Check an npm package before installing it: exists, risky, not found or unreachable, with its age, last " +
+        "release, repository link, and the 7-day release cooldown for the latest (or given) version.",
+      inputSchema: z.object({
+        projectId,
+        name: z.string().describe("npm package name, e.g. zod or @scope/name"),
+        version: z
+          .string()
+          .optional()
+          .describe("Exact version to check, e.g. 3.23.8 (default: latest)"),
+      }),
+    },
+    async (args, ctx) =>
+      run("check_package", ctx.http?.authInfo, async (token) =>
+        JSON.stringify(await checkPackage(token, args)),
       ),
   );
 }

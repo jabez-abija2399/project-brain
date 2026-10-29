@@ -1,9 +1,21 @@
 agent/*
+docs/decisions.md
+packages/core/src/package-check.ts
+packages/core/src/package-check.test.ts
+packages/core/src/index.ts
+apps/web/src/server/npm-registry.ts
+apps/web/src/server/check-package.ts
+apps/web/src/server/check-package.test.ts
+apps/web/src/server/check-package.security.test.ts
 apps/web/src/server/mcp-tools.ts
+apps/web/src/server/rate-limit.ts
+apps/web/src/server/receipt.ts
+apps/web/src/server/receipt-dependencies.ts
+apps/web/src/server/receipt.test.ts
+apps/web/src/app/mcp/mcp.test.ts
 apps/web/src/server/session-tools.ts
 apps/web/src/server/checklist.ts
 apps/web/src/server/features-tool.ts
-apps/web/src/app/mcp/mcp.test.ts
 apps/web/src/app/mcp/mcp.security.test.ts
 packages/db/src/repos/features.ts
 packages/db/src/repos/features.test.ts
@@ -17,13 +29,10 @@ packages/core/src/components/components.test.ts
 docs/specs/FEAT-011.md
 packages/core/src/indexer/types.ts
 apps/web/src/server/session-tools.test.ts # where_did_we_stop now names all features; 'Billing' stays out of FEATURES IN PROGRESS
-packages/core/src/index.ts
-apps/web/src/server/session-tools.ts
 apps/web/src/server/session-tools.test.ts
 apps/web/src/app/api/projects/[id]/directives/[did]/route.ts
 apps/web/src/app/api/projects/[id]/directives/directives.test.ts
 packages/db/src/repos/checklist-items.ts
-packages/db/src/repos/features.ts
 packages/core/src/mask.ts
 packages/core/src/mask.test.ts
 apps/web/src/server/session-tools.security.test.ts
@@ -31,18 +40,13 @@ packages/core/src/indexer/indexer.test.ts  # rewritten: writes its runtime files
 apps/web/package.json
 pnpm-lock.yaml
 apps/web/src/app/mcp/route.ts
-apps/web/src/app/mcp/mcp.test.ts
-apps/web/src/server/mcp-tools.ts
 apps/web/src/server/mcp-tools.test.ts
 apps/web/src/server/context-pack.ts
 apps/web/src/server/context-pack.test.ts
 packages/db/src/repos/files.ts
 packages/db/src/repos/files.test.ts
-apps/web/src/server/session-tools.ts
-packages/db/src/repos/files.test.ts
 docs/dependencies.md
 apps/web/src/server/components.ts
-apps/web/src/app/mcp/mcp.security.test.ts
 docs/build-checklist.md
 AGENTS.md
 apps/web/src/server/errors.ts # KI-028 Retry-After header
@@ -59,7 +63,6 @@ tests/fixtures/bolt-app/*
 tests/fixtures/data-router-app/*
 packages/cli/src/bin.test.ts # fake server answers the new features step
 packages/core/src/indexer/*.ts
-packages/core/src/index.ts
 packages/core/src/upload.ts
 packages/core/src/upload.test.ts
 packages/cli/src/index-command.ts
@@ -73,8 +76,6 @@ packages/db/src/repos/code-index.ts
 packages/db/src/repos/db-schema.ts
 packages/db/src/repos/index.ts
 packages/db/src/migrations.test.ts
-apps/web/package.json
-pnpm-lock.yaml
 .env.example
 apps/web/src/server/github*.ts
 apps/web/src/server/push-index*.ts
@@ -82,19 +83,13 @@ apps/web/src/server/inngest*.ts
 apps/web/src/app/api/github/**
 apps/web/src/app/api/inngest/**
 apps/web/src/app/github/**
-docs/dependencies.md
 packages/db/migrations/0017_checklist.sql
 packages/db/src/schema/receipts.ts
 packages/db/src/repos/requests.ts
-packages/db/src/repos/checklist-items.ts
 packages/db/src/repos/checklist.test.ts
 packages/core/src/checklist.ts
 packages/core/src/checklist.test.ts
-apps/web/src/server/checklist.ts
 apps/web/src/server/checklist*.test.ts
-apps/web/src/server/mcp-tools.ts
-apps/web/src/server/context-pack.ts
-apps/web/src/server/context-pack.test.ts
 apps/web/src/app/mcp/mcp.test.ts  # AC-011-01 lists the tools; FEAT-012 adds create_checklist and propose_checklist_change
 apps/web/src/app/api/projects/[id]/checklist-items/**
 packages/core/package.json
@@ -102,25 +97,17 @@ apps/web/src/app/api/projects/[id]/checklist-items/[itemId]/route.ts
 apps/web/src/app/api/projects/[[]id]/checklist-items/[[]itemId]/route.ts  # FEAT-012 owner confirm route (brackets escaped for fnmatch)
 packages/core/src/text.ts
 packages/core/src/text.test.ts
-packages/core/src/handoff.ts
 apps/web/src/server/checklist.security.test.ts
 packages/core/src/llm.test.ts  # gitleaks fix requested by the user: fake keys built at runtime
 .gitleaksignore  # gitleaks fix requested by the user: fingerprints of confirmed fake test values in old commits
 apps/web/src/app/mcp/mcp.test.ts  # KI-031 fix requested by the user: freeze the clock for the per-minute rate-limit test
 packages/core/src/receipt.ts
 packages/core/src/receipt.test.ts
-packages/core/src/index.ts
 packages/db/src/repos/feature-files.ts
-packages/db/src/repos/checklist-items.ts
-packages/db/src/repos/requests.ts
 packages/db/src/repos/receipts.ts
-packages/db/src/repos/features.ts
 packages/db/src/repos/receipt.test.ts
-apps/web/src/server/receipt.ts
 apps/web/src/server/receipt*.test.ts
-apps/web/src/server/mcp-tools.ts
 apps/web/src/server/code-index-input.ts
 apps/web/src/app/mcp/mcp.test.ts  # AC-011-01 lists every MCP tool; FEAT-013 adds generate_receipt
 packages/db/migrations/0020_checklist_position.sql
-packages/db/src/schema/receipts.ts
 apps/web/src/server/receipt.security.test.ts
