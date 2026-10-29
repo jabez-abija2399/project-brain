@@ -120,12 +120,13 @@ async function patch(
   headers: Record<string, string> = {},
 ) {
   world.signInAs(user);
-  body ??= JSON.stringify({ confirm: true, proposal: await shownProposal(world.db, itemId) });
+  const sent =
+    body ?? JSON.stringify({ confirm: true, proposal: await shownProposal(world.db, itemId) });
   return confirmRoute(
     new Request(`http://localhost/api/projects/${pid}/checklist-items/${itemId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json", ...headers },
-      body,
+      body: sent,
     }),
     { params: Promise.resolve({ id: pid, itemId }) },
   );
