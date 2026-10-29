@@ -197,9 +197,8 @@ export const featuresRepo = {
   },
 
   /**
-   * Stores a grouped feature map (a re-index calls it again). An existing feature is found by its key, so a
-   * user rename survives; a new one gets the map's name (a free `-2` variant when that name is taken). Automatic links of every mapped file are replaced by the new map;
-   * files the user placed keep their links. Throws when a path is not a stored file of the project.
+   * Stores a grouped feature map (a re-index calls it again): features found by key (renames survive), new ones named
+   * from the map (`-2` when taken), automatic links replaced, user-placed links kept. Throws on a path not stored.
    */
   async saveMap(db: BrainDb, projectId: string, map: FeatureMapInput): Promise<void> {
     await db.transaction(async (tx) => {
