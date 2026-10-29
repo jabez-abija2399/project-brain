@@ -196,8 +196,8 @@ describe("FEAT-014 check_package security pass", () => {
 
   it("AC-014-07 attack: unicode look-alikes, full-width and invisible characters in names are rejected before any request", async () => {
     for (const name of [
-      "zоd", // Cyrillic o
-      "ｚｏｄ",
+      "z\u043Ed", // Cyrillic o
+      "\uFF5A\uFF4F\uFF44",
       `zod${String.fromCharCode(0x200b)}`,
       `zod${String.fromCharCode(0x202e)}`,
       `@acme${String.fromCharCode(0x2215)}ui`,

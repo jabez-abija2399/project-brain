@@ -272,7 +272,7 @@ describe("FEAT-011 security pass: cross-project access", () => {
       ` ${otherProjectId} `,
       `${otherProjectId}\n`,
       `${otherProjectId}\u200B`,
-      otherProjectId.replace(/a/g, "а").replace(/e/g, "е"),
+      otherProjectId.replace(/a/g, "\u0430").replace(/e/g, "\u0435"),
       `${otherProjectId}\u0000`,
       `${projectId}\u0000${otherProjectId}`,
     ];
