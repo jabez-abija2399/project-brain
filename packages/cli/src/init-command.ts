@@ -78,9 +78,10 @@ class Writer {
     this.result.added.push(rel);
   }
 
-  // A JSON config: `change` adds what is missing and returns the names of what it added. A file that is not a JSON
-  // object is left as it is.
-  json(rel: string, change: (doc: Json) => string[]) {
+  // A JSON config: `change` adds what is missing and names what it added, plus anything it could not set up (an
+  // unexpected shape, a foreign server). Such parts are left as they are and reported, never called "set up". A file
+  // that is not a JSON object is left as it is.
+  json(rel: string, change: (doc: Json) => Change) {
     const abs = this.safe(rel);
     if (!abs) return void this.result.skipped.push(`${rel} (a symlink or outside the repo)`);
     let doc: Json = {};
@@ -95,8 +96,12 @@ class Writer {
         return void this.result.skipped.push(`${rel} (not valid JSON; left unchanged)`);
       doc = parsed;
     }
-    const added = change(doc);
-    if (added.length === 0) return void this.result.kept.push(rel);
+    const { added, problems } = change(doc);
+    for (const p of problems) this.result.skipped.push(`${rel}: ${p}`);
+    if (added.length === 0) {
+      if (problems.length === 0) this.result.kept.push(rel);
+      return;
+    }
     this.write(abs, `${JSON.stringify(doc, null, 2)}\n`);
     for (const what of added) this.result.added.push(`${rel}: ${what}`);
   }
@@ -112,59 +117,108 @@ class Writer {
   }
 }
 
-function addServer(server: Json) {
-  return (doc: Json): string[] => {
-    if (doc.mcpServers !== undefined && !isObject(doc.mcpServers)) return [];
+type Change = { added: string[]; problems: string[] };
+
+const originOf = (url: unknown) => {
+  try {
+    return typeof url === "string" ? new URL(url).origin : null;
+  } catch {
+    return null;
+  }
+};
+
+function addServer(server: Json & { url: string }) {
+  return (doc: Json): Change => {
+    if (doc.mcpServers !== undefined && !isObject(doc.mcpServers)) {
+      return { added: [], problems: ["mcpServers is not an object; left unchanged"] };
+    }
     doc.mcpServers ??= {};
     const servers = doc.mcpServers as Json;
-    if (servers.projectbrain !== undefined) return [];
-    servers.projectbrain = server;
-    return ["MCP server projectbrain"];
+    const existing = servers.projectbrain;
+    if (existing === undefined) {
+      servers.projectbrain = server;
+      return { added: ["MCP server projectbrain"], problems: [] };
+    }
+    // An entry named projectbrain for another address is not ours: init does not vouch for it.
+    if (!isObject(existing) || originOf(existing.url) !== originOf(server.url)) {
+      return {
+        added: [],
+        problems: [
+          "its projectbrain server points at another address; check it before trusting this folder",
+        ],
+      };
+    }
+    return { added: [], problems: [] };
   };
 }
 
-// Adds our hook to an event's list unless one of ours is already there; the user's hooks are never touched.
+// Adds our hook to an event's list unless ours is already there; the user's hooks are never touched.
 function addHook(
   hooks: Json,
   event: string,
   entry: Json,
   ours: (item: unknown) => boolean,
-): string[] {
+): Change {
   const list = hooks[event];
-  if (list !== undefined && !Array.isArray(list)) return [];
-  if ((list ?? []).some(ours)) return [];
+  if (list !== undefined && !Array.isArray(list)) {
+    return { added: [], problems: [`${event} is not a list; left unchanged`] };
+  }
+  if ((list ?? []).some(ours)) return { added: [], problems: [] };
   hooks[event] = [...(list ?? []), entry];
-  return [`${event} hook`];
+  return { added: [`${event} hook`], problems: [] };
 }
 
-const claudeHooks = (doc: Json): string[] => {
-  if (doc.hooks !== undefined && !isObject(doc.hooks)) return [];
+const merge = (...changes: Change[]): Change => ({
+  added: changes.flatMap((c) => c.added),
+  problems: changes.flatMap((c) => c.problems),
+});
+
+const claudeHooks = (doc: Json): Change => {
+  if (doc.hooks !== undefined && !isObject(doc.hooks)) {
+    return { added: [], problems: ["hooks is not an object; left unchanged"] };
+  }
   doc.hooks ??= {};
   const hooks = doc.hooks as Json;
-  const ours = (group: unknown) =>
+  const ours = (command: string) => (group: unknown) =>
     isObject(group) &&
     Array.isArray(group.hooks) &&
-    group.hooks.some((h) => isObject(h) && isOurHook(h.command));
+    group.hooks.some((h) => isObject(h) && isOurHook(h.command, command));
   const entry = (command: string, timeout: number) => ({
     hooks: [{ type: "command", command, timeout }],
   });
-  return [
-    ...addHook(hooks, "SessionStart", entry(START_HOOK("claude"), 30), ours),
+  return merge(
+    addHook(hooks, "SessionStart", entry(START_HOOK("claude"), 30), ours(START_HOOK("claude"))),
     // SessionEnd hooks get 1.5 s unless they set a timeout; the receipt needs more (Claude Code allows up to 60 s).
-    ...addHook(hooks, "SessionEnd", entry(END_HOOK("claude"), 60), ours),
-  ];
+    addHook(hooks, "SessionEnd", entry(END_HOOK("claude"), 60), ours(END_HOOK("claude"))),
+  );
 };
 
-const cursorHooks = (doc: Json): string[] => {
-  if (doc.hooks !== undefined && !isObject(doc.hooks)) return [];
-  doc.version ??= 1;
-  doc.hooks ??= {};
-  const hooks = doc.hooks as Json;
-  const ours = (item: unknown) => isObject(item) && isOurHook(item.command);
-  return [
-    ...addHook(hooks, "sessionStart", { command: START_HOOK("cursor"), timeout: 30 }, ours),
-    ...addHook(hooks, "sessionEnd", { command: END_HOOK("cursor"), timeout: 60 }, ours),
-  ];
+const cursorHooks = (doc: Json): Change => {
+  if (doc.hooks !== undefined && !isObject(doc.hooks)) {
+    return { added: [], problems: ["hooks is not an object; left unchanged"] };
+  }
+  const hooks = (isObject(doc.hooks) ? doc.hooks : {}) as Json;
+  const ours = (command: string) => (item: unknown) =>
+    isObject(item) && isOurHook(item.command, command);
+  const change = merge(
+    addHook(
+      hooks,
+      "sessionStart",
+      { command: START_HOOK("cursor"), timeout: 30 },
+      ours(START_HOOK("cursor")),
+    ),
+    addHook(
+      hooks,
+      "sessionEnd",
+      { command: END_HOOK("cursor"), timeout: 60 },
+      ours(END_HOOK("cursor")),
+    ),
+  );
+  if (change.added.length > 0) {
+    doc.version ??= 1;
+    doc.hooks = hooks;
+  }
+  return change;
 };
 
 export function runInit(root: string, home: string, config: CliConfig, args: string[]): InitResult {

@@ -153,7 +153,7 @@ async function runHook(
   };
   try {
     if (command === "mcp-headers") {
-      mcpHeaders(hookDeps);
+      mcpHeaders({ ...hookDeps, env: deps.env });
       return EXIT.ok;
     }
     const [event, flag, agentArg] = args;

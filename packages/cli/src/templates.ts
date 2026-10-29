@@ -8,8 +8,10 @@ const HOOK = "projectbrain hook";
 
 export const START_HOOK = (agent: "claude" | "cursor") => `${HOOK} session-start --agent ${agent}`;
 export const END_HOOK = (agent: "claude" | "cursor") => `${HOOK} session-end --agent ${agent}`;
-export const isOurHook = (command: unknown) =>
-  typeof command === "string" && command.includes(HOOK);
+// Our hook is the exact command for its event, optionally with a path to the binary; a foreign command that merely
+// mentions "projectbrain hook" is not ours.
+export const isOurHook = (command: unknown, expected: string) =>
+  typeof command === "string" && command.trim().replace(/^\S*\/(?=projectbrain )/, "") === expected;
 
 const WORKFLOW = [
   "1. At the start of a session call `where_did_we_stop` and follow its handoff note and the owner's instructions.",

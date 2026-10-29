@@ -8,3 +8,4 @@ apps/web/src/server/hooks.security.test.ts
 packages/db/src/repos/requests.ts
 packages/db/src/repos/checklist-items.ts
 docs/decisions.md
+apps/web/src/server/open-items.security.test.ts

@@ -104,7 +104,9 @@ export const requestsRepo = {
           inArray(checklistItems.status, ["open", "partial", "missed"]),
         ),
       )
-      .orderBy(asc(checklistItems.position), asc(checklistItems.id));
+      .orderBy(asc(checklistItems.position), asc(checklistItems.id))
+      // A request has at most 10 items (FEAT-012); this bounds the read even if that ever changes.
+      .limit(limit * 100);
     return rows.map((r) => ({ ...r, items: items.filter((i) => i.requestId === r.id) }));
   },
 };

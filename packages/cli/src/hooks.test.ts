@@ -205,7 +205,13 @@ describe("FEAT-016 agent hooks", () => {
     expect(out).toEqual(["{}"]);
     out.length = 0;
     expect(
-      await main(["mcp-headers"], { ...deps, env: { XDG_CONFIG_HOME: join(t.home, ".config") } }),
+      await main(["mcp-headers"], {
+        ...deps,
+        env: {
+          XDG_CONFIG_HOME: join(t.home, ".config"),
+          CLAUDE_CODE_MCP_SERVER_URL: "https://brain.test/mcp",
+        },
+      }),
     ).toBe(0);
     expect(JSON.parse(out[0] ?? "{}")).toEqual({ Authorization: `Bearer ${TOKEN}` });
   });

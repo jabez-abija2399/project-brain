@@ -53,6 +53,31 @@ function fromStatus(status: number, code: string | undefined): CliError {
   );
 }
 
+// Answers larger than this are not read into memory (the API's answers are a few KB).
+export const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+
+/** The body as text, or null when it is larger than max bytes (the stream is cancelled, not drained). */
+export async function readCapped(res: Response, max: number): Promise<string | null> {
+  if (Number(res.headers.get("content-length") ?? "0") > max || !res.body) {
+    await res.body?.cancel().catch(() => {});
+    return res.body ? null : "";
+  }
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  return new TextDecoder().decode(Buffer.concat(chunks));
+}
+
 // The token goes only in the Authorization header; error messages never include it or a response body.
 export async function request<T>(
   fetchImpl: Fetch,
@@ -70,7 +95,10 @@ export async function request<T>(
     retry.print(`Rate limit reached, waiting ${seconds} s`);
     await retry.sleep(seconds * 1000);
   }
-  const json = (await res.json().catch(() => null)) as ({ code?: string } & T) | null;
+  let json: ({ code?: string } & T) | null = null;
+  try {
+    json = JSON.parse((await readCapped(res, MAX_RESPONSE_BYTES)) ?? "null");
+  } catch {}
   if (!res.ok || json === null) throw fromStatus(res.status, json?.code);
   return json;
 }

@@ -1,4 +1,4 @@
-import { CliError, EXIT } from "./api";
+import { CliError, EXIT, readCapped } from "./api";
 import type { CliConfig } from "./config";
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
@@ -43,8 +43,8 @@ export async function callTool(
       "The project token was rejected: run `projectbrain login` again.",
     );
   }
-  const body = await res.text().catch(() => "");
-  if (!res.ok || body.length > MAX_ANSWER_BYTES) {
+  const body = await readCapped(res, MAX_ANSWER_BYTES).catch(() => null);
+  if (!res.ok || body === null) {
     throw new CliError(EXIT.server, `The server failed (${res.status}).`);
   }
   // Streamable HTTP answers as JSON or as one server-sent event ("data: {...}").
