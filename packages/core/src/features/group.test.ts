@@ -386,3 +386,80 @@ describe("FEAT-006 review M1: routes declared in code, and apps without a router
     });
   });
 });
+
+describe("FEAT-006 dogfood: monorepos and dynamic segments", () => {
+  it("a dynamic segment ([id], [fid], [...slug], :id) never names a feature", () => {
+    expect(featureFromPath("src/features/[fid]/Card.tsx")).toBeNull();
+    expect(featureFromPath("src/components/[...slug]/Card.tsx")).toBeNull();
+    expect(featureFromPath("src/lib/[id]/x.ts")).toBeNull();
+    expect(featureFromPath("apps/web/src/app/api/projects/[id]/features/[fid]/route.ts")).toBe(
+      "projects",
+    );
+  });
+
+  it("packages/<name>/src/<module>/ is named by the module; files directly in the package by the package", () => {
+    expect(featureFromPath("packages/core/src/indexer/walker.ts")).toBe("indexer");
+    expect(featureFromPath("packages/core/src/supabase/sandbox/run.ts")).toBe("supabase");
+    expect(featureFromPath("packages/core/src/components/similar.ts")).toBe("components");
+    expect(featureFromPath("packages/core/src/features/group.ts")).toBe("features");
+    expect(featureFromPath("packages/core/src/llm.ts")).toBe("core");
+    expect(featureFromPath("packages/core/vitest.config.ts")).toBe("core");
+    // a generic module falls back to the package name
+    expect(featureFromPath("packages/agent-kit/src/utils/x.ts")).toBe("agent-kit");
+  });
+
+  it("apps/<name>/ keeps the app route rules", () => {
+    expect(featureFromPath("apps/web/src/app/layout.tsx")).toBe("@home");
+    expect(featureFromPath("apps/web/src/app/reviews/page.tsx")).toBe("reviews");
+    expect(featureFromPath("apps/web/app/(dashboard)/billing/page.tsx")).toBe("billing");
+    expect(featureFromPath("apps/web/src/components/billing/PlanPicker.tsx")).toBe("billing");
+  });
+
+  it("a repo shaped like this one (apps/web + packages/*) groups by routes and modules; other holds at most 10%", async () => {
+    const index = await indexRepo(join(fixtures, "monorepo-app"));
+    const map = groupFeatures(index.files, index.routes);
+    expect(namesOf(map)).toEqual([
+      ["cli", ["packages/cli/src/main.ts"]],
+      ["components", ["packages/core/src/components/similar.ts"]],
+      [
+        "core",
+        [
+          "packages/core/src/index.ts",
+          "packages/core/src/llm.ts",
+          "packages/core/vitest.config.ts",
+        ],
+      ],
+      ["db", ["packages/db/src/db.ts", "packages/db/src/index.ts"]],
+      ["features", ["packages/core/src/features/group.ts"]],
+      ["home", ["apps/web/src/app/layout.tsx", "apps/web/src/app/page.tsx"]],
+      [
+        "indexer",
+        [
+          "packages/core/src/indexer/parser.ts",
+          "packages/core/src/indexer/walker.test.ts",
+          "packages/core/src/indexer/walker.ts",
+        ],
+      ],
+      ["mcp", ["apps/web/src/app/mcp/route.ts"]],
+      ["other", ["apps/web/next.config.ts", "scripts/seed.ts"]],
+      [
+        "projects",
+        [
+          "apps/web/src/app/api/projects/[id]/features/[fid]/route.ts",
+          "apps/web/src/app/api/projects/route.ts",
+          "apps/web/src/app/projects/[id]/features/[fid]/page.tsx",
+          "apps/web/src/app/projects/[id]/page.tsx",
+          "apps/web/src/app/projects/page.tsx",
+          "apps/web/src/server/auth.ts",
+          "apps/web/src/server/features.ts",
+          "apps/web/src/server/projects.ts",
+        ],
+      ],
+      ["repos", ["packages/db/src/repos/features.ts", "packages/db/src/repos/projects.ts"]],
+      ["schema", ["packages/db/src/schema/projects.ts"]],
+      ["supabase", ["packages/core/src/supabase/reader.ts"]],
+    ]);
+    const other = map.features.find((f) => f.key === "@other")?.files.length ?? 0;
+    expect(other / index.files.length).toBeLessThanOrEqual(0.1);
+  });
+});

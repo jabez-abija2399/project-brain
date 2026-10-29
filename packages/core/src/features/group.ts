@@ -58,6 +58,8 @@ const GENERIC_NAMES = new Set([
 ]);
 
 function cleanName(segment: string): string | null {
+  // Dynamic segments ([id], [...slug], :id, *) are URL parameters, never a feature name.
+  if (/^[[:*]/.test(segment)) return null;
   const name = segment
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .toLowerCase()
@@ -84,8 +86,22 @@ function routeSegments(segments: string[]): string[] {
   return out;
 }
 
+// Library code of a monorepo: packages/<name>/src/<module>/* is named by the module, any other file of the package
+// (src/index.ts, vitest.config.ts) by the package.
+function packageKey(segments: string[]): string | null {
+  const module = segments[2] === "src" && segments.length > 4 ? cleanName(segments[3] ?? "") : null;
+  return module ?? cleanName(segments[1] ?? "");
+}
+
 function placementOf(path: string, url: string | undefined): Placement {
   const posix = path.replace(/\\/g, "/");
+  const parts = posix.split("/");
+  // Monorepo apps/<name>/ is an app root: the app rules apply inside it.
+  if (parts[0] === "apps" && parts.length > 2) return placementOf(parts.slice(2).join("/"), url);
+  if (parts[0] === "packages" && parts.length > 2) {
+    const key = packageKey(parts);
+    return key ? { key } : null;
+  }
   if (VITE_ROOT_FILE.test(posix)) return { key: ROOT_KEY };
   if (url !== undefined) return { segs: routeSegments(url.split("/")), page: true };
   const segments = posix.split("/");
