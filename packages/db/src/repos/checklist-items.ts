@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type ChecklistChange,
@@ -10,6 +10,16 @@ import {
 
 // Items not done and not dismissed: open, partly done or missed by a receipt (FEAT-013 AC-013-04).
 const UNRESOLVED: ChecklistItem["status"][] = ["open", "partial", "missed"];
+
+// The proposal the owner saw: when it was made and what it changes. Confirming or rejecting checks both, so a proposal
+// replaced between viewing and clicking is never applied by mistake.
+export type ShownProposal = { proposedAt: Date; change: ChecklistChange };
+function sameProposal(row: ChecklistItem, shown: ShownProposal): boolean {
+  return (
+    row.proposedAt?.getTime() === shown.proposedAt.getTime() &&
+    JSON.stringify(row.proposedChange) === JSON.stringify(shown.change)
+  );
+}
 
 export const checklistItemsRepo = {
   // Composite FK rejects a request of another project (0003_link_tables_project_id.sql).
@@ -114,12 +124,16 @@ export const checklistItemsRepo = {
     return row ?? null;
   },
 
-  // The owner confirmed: apply the proposal once (row lock), then clear it. Null when the item does not exist.
+  // The owner confirmed: apply the proposal once (row lock), then clear it. Null when the item does not exist. With
+  // `expected` (the proposal the owner saw), a proposal that changed since then is not applied ("changed", FEAT-017).
   async applyProposal(
     db: BrainDb,
     projectId: string,
     itemId: string,
-  ): Promise<{ kind: "applied"; item: ChecklistItem } | { kind: "no_proposal" } | null> {
+    expected?: ShownProposal,
+  ): Promise<
+    { kind: "applied"; item: ChecklistItem } | { kind: "no_proposal" } | { kind: "changed" } | null
+  > {
     return db.transaction(async (tx) => {
       const [row] = await tx
         .select()
@@ -129,6 +143,7 @@ export const checklistItemsRepo = {
       if (!row) return null;
       const change = row.proposedChange;
       if (!change) return { kind: "no_proposal" as const };
+      if (expected && !sameProposal(row, expected)) return { kind: "changed" as const };
       const [updated] = await tx
         .update(checklistItems)
         .set({
@@ -141,6 +156,61 @@ export const checklistItemsRepo = {
       if (!updated) throw new Error("update checklist_items returned no row");
       return { kind: "applied" as const, item: updated };
     });
+  },
+
+  // FEAT-017: the owner rejects the proposal they saw; the item stays as it was. Same results as applyProposal.
+  async discardProposal(
+    db: BrainDb,
+    projectId: string,
+    itemId: string,
+    expected: ShownProposal,
+  ): Promise<
+    | { kind: "discarded"; item: ChecklistItem }
+    | { kind: "no_proposal" }
+    | { kind: "changed" }
+    | null
+  > {
+    return db.transaction(async (tx) => {
+      const [row] = await tx
+        .select()
+        .from(checklistItems)
+        .where(and(eq(checklistItems.projectId, projectId), eq(checklistItems.id, itemId)))
+        .for("update");
+      if (!row) return null;
+      if (!row.proposedChange) return { kind: "no_proposal" as const };
+      if (!sameProposal(row, expected)) return { kind: "changed" as const };
+      const [updated] = await tx
+        .update(checklistItems)
+        .set({ proposedChange: null, proposedAt: null })
+        .where(and(eq(checklistItems.projectId, projectId), eq(checklistItems.id, itemId)))
+        .returning();
+      if (!updated) throw new Error("update checklist_items returned no row");
+      return { kind: "discarded" as const, item: updated };
+    });
+  },
+
+  // FEAT-017: items with a pending proposal, newest proposal first.
+  async listProposals(
+    db: BrainDb,
+    projectId: string,
+    limit: number,
+    offset: number,
+  ): Promise<{ rows: ChecklistItem[]; total: number }> {
+    const pending = and(
+      eq(checklistItems.projectId, projectId),
+      isNotNull(checklistItems.proposedChange),
+    );
+    const [rows, [n]] = await Promise.all([
+      db
+        .select()
+        .from(checklistItems)
+        .where(pending)
+        .orderBy(desc(checklistItems.proposedAt), desc(checklistItems.id))
+        .limit(limit)
+        .offset(offset),
+      db.select({ n: count() }).from(checklistItems).where(pending),
+    ]);
+    return { rows, total: n?.n ?? 0 };
   },
 
   // The request's items a receipt still judges (not done, not dismissed), in creation order.
