@@ -1903,61 +1903,80 @@
           "id": "AC-016-01",
           "kind": "happy",
           "check": "`npx projectbrain init` detects Claude Code and Cursor, writes the MCP config for each and installs the Skill and an AGENTS.md section",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 10:39; log contains AC-016-01"
         },
         {
           "id": "AC-016-02",
           "kind": "happy",
           "check": "At the start of a session in both Claude Code (via session-start hook) and Cursor (via installed rules/hook), the agent calls where_did_we_stop and surfaces the handoff note",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 10:39; log contains AC-016-02"
         },
         {
           "id": "AC-016-03",
           "kind": "happy",
           "check": "The installed session-end hook calls save_progress and generate_receipt for the session's changed files",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 10:39; log contains AC-016-03"
         },
         {
           "id": "AC-016-04",
           "kind": "negative",
           "check": "Running init twice does not duplicate config entries or AGENTS.md sections",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 10:39; log contains AC-016-04"
         },
         {
           "id": "AC-016-05",
           "kind": "state",
           "check": "init never overwrites an existing user section of AGENTS.md or existing hooks; it prints what it added",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 10:39; log contains AC-016-05"
         },
         {
           "id": "AC-016-06",
           "kind": "negative",
           "check": "The session-end hook warns and lists open items when a session ends with checklist items neither done nor parked",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 10:39; log contains AC-016-06"
         },
         {
           "id": "AC-016-07",
           "kind": "happy",
           "check": "In Cursor, the installed rules and hooks make the agent call where_did_we_stop at the start of a session",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 10:39; log contains AC-016-07"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/api/hooks/[projectId]/open-items/route.ts",
+        "apps/web/src/server/open-items.security.test.ts",
+        "apps/web/src/server/open-items.test.ts",
+        "apps/web/src/server/open-items.ts",
+        "packages/cli/src/api.ts",
+        "packages/cli/src/hooks.security.test.ts",
+        "packages/cli/src/hooks.test.ts",
+        "packages/cli/src/hooks.ts",
+        "packages/cli/src/index.ts",
+        "packages/cli/src/init-command.ts",
+        "packages/cli/src/init.security.test.ts",
+        "packages/cli/src/init.test.ts",
+        "packages/cli/src/main.ts",
+        "packages/cli/src/mcp-client.ts",
+        "packages/cli/src/scan-secrets.ts",
+        "packages/cli/src/templates.ts",
+        "packages/db/src/repos/requests.ts"
+      ]
     },
     {
       "id": "FEAT-017",
@@ -2165,6 +2184,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 609
+    "tests_passed": 657
   }
 }
