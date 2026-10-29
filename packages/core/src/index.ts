@@ -60,7 +60,7 @@ export type {
   SummaryState,
   SummaryStatus,
 } from "./components";
-export { DEFAULT_MODEL, createLlm, errorType } from "./llm";
+export { DEFAULT_MODEL, MAX_TOKENS_CEILING, createLlm, errorType } from "./llm";
 export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "./llm";
 
 export { maskPath, maskSecret, maskSecretsIn } from "./mask";
@@ -119,3 +119,14 @@ export type {
   TableFlags,
   TableSchema,
 } from "./supabase";
+export {
+  MAX_ANSWER_CHARS,
+  MAX_IDEA_CHARS,
+  PlanRejectedError,
+  checkDraft,
+  draftHash,
+  parseStage1,
+  planStage1,
+  planStage2,
+} from "./plan";
+export type { PlanDraft, PlanFeature, PlanItem, PlanQuestion, PlanStage1 } from "./plan";

@@ -2239,7 +2239,7 @@
           "evidence": ""
         }
       ],
-      "status": "todo",
+      "status": "in_progress",
       "notes": "Light version of the AI Build Kit's kickoff. Full version (architecture/package comparison, design direction, threat models, re-planning) is in agent/later.md."
     }
   ],

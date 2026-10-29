@@ -34,6 +34,7 @@ const EXPECTED_TABLES = [
   "github_install_states",
   "db_tables",
   "db_policies",
+  "plan_drafts",
 ];
 
 describe("@brain/db migrations", () => {

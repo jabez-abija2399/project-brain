@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNotNull, notExists, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNotNull, ne, notExists, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type Feature, type NewFeature, featureFiles, features, files } from "../schema";
 
@@ -43,6 +43,23 @@ export const featuresRepo = {
       .returning();
     if (!row) throw new Error("insert features returned no row");
     return row;
+  },
+
+  // FEAT-019: the first feature of the approved plan, by build order, that is not done (where_did_we_stop names it).
+  async nextByBuildOrder(db: BrainDb, projectId: string): Promise<Feature | null> {
+    const [row] = await db
+      .select()
+      .from(features)
+      .where(
+        and(
+          eq(features.projectId, projectId),
+          isNotNull(features.buildOrder),
+          ne(features.status, "done"),
+        ),
+      )
+      .orderBy(asc(features.buildOrder), asc(features.createdAt), asc(features.id))
+      .limit(1);
+    return row ?? null;
   },
 
   // Features whose status is 'in_progress', by name (the handoff note lists them).
