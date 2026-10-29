@@ -84,4 +84,21 @@ describe("secret detector (FEAT-015)", () => {
     expect(out).not.toContain(secret.slice(0, 8));
     expect(out).not.toContain("PAYMENTS_SECRET_CONFIG");
   });
+
+  it("AC-015-05 attack: a real key that merely contains xxxx or your is still flagged; only whole placeholder values are skipped", () => {
+    const stripe = ["sk", "_live_", "51Nq8a", "xxxxR2", "bT9mLk", "3vQw7Z"].join("");
+    const openaiKey = ["sk", "-proj-", "Ab3you", "rK9pLm", "2xQw8Z", "dummyR4"].join("");
+    const text = [`STRIPE_SECRET_KEY=${stripe}`, `OPENAI_API_KEY=${openaiKey}`].join("\n");
+    expect(scanSecrets(".env.example", text)).toEqual([
+      { file: ".env.example", line: 1, type: "stripe_secret_key", masked_value: "sk_l***" },
+      { file: ".env.example", line: 2, type: "openai_api_key", masked_value: "sk-p***" },
+    ]);
+    const placeholders = [
+      `STRIPE_SECRET_KEY=${["sk", "_live_"].join("")}${"x".repeat(24)}`,
+      `STRIPE_SECRET_KEY=${["sk", "_live_"].join("")}yourkeyhere00000`,
+      `OPENAI_API_KEY=${["sk", "-proj-"].join("")}your_api_key_here`,
+      `ANTHROPIC_API_KEY=${["sk", "-ant-"].join("")}${"X".repeat(30)}`,
+    ].join("\n");
+    expect(scanSecrets(".env.example", placeholders)).toEqual([]);
+  });
 });

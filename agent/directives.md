@@ -35,3 +35,4 @@
 - 2026-10-29: Receipt AI prompts are capped: each item and path truncated to a fixed length, total prompt capped (~8,000 chars); anything cut is listed under Not verified.
 - 2026-10-29: check_package release cooldown is 7 days (matching D-013), not the 3 days in AC-014-06; versions younger than 7 days are flagged.
 - 2026-10-29: FEAT-015: `projectbrain index` reads supabase/migrations locally with the FEAT-005 sandbox and uploads RLS flags only (db_tables/db_policies); the server never runs the sandbox (KI-014). Secret scanning runs in the CLI and uploads masked findings only.
+- 2026-10-29: Secret placeholder check matches whole values only (empty, your-key-here, xxx..., <...>, example values); a real key that merely contains "your" or "xxxx" is still flagged.

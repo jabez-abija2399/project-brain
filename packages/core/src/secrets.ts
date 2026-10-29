@@ -67,9 +67,43 @@ function jwtsIn(line: string): { value: string; at: number }[] {
   return out;
 }
 
-// Placeholder words in a value ("sk_live_your-key-here", "<your key>", "xxxx"): documentation, not a secret.
-const PLACEHOLDER =
-  /your|example|placeholder|changeme|change_me|dummy|redacted|replace|xxxx|<|>|\.\.\./i;
+// A value is a placeholder only when all of it is one (owner rule 2026-10-29): the part after the key's prefix is
+// empty, one repeated character (xxxx, 0000), only placeholder words (your_key_here, example) with optional digits,
+// <...> or "...". A real key that merely contains "your" or "xxxx" is still a secret.
+const KEY_PREFIX =
+  /^(?:sb_secret_|(?:sk|rk)_live_|sk-ant-(?:api\d+-)?|sk-(?:proj-|svcacct-|admin-)?|gh[pousr]_|github_pat_|AKIA|ASIA)/;
+const PLACEHOLDER_WORDS = new RegExp(
+  "^(?:(?:your|my|the|an?|example|sample|placeholder|dummy|fake|changeme|change|me|redacted|replace|insert|" +
+    "secret|private|key|token|api|access|value|here|live|test|goes|x+)[-_ ]?)+\\d*$",
+  "i",
+);
+// Bodies longer than this are never placeholders (and the word pattern is never run on long text).
+const MAX_PLACEHOLDER_CHARS = 64;
+
+export function isPlaceholderValue(value: string): boolean {
+  const body = value
+    .replace(KEY_PREFIX, "")
+    .replace(/^["'`\s]+|["'`\s,;]+$/g, "")
+    .trim();
+  if (body === "" || /^(.)\1*$/.test(body)) return true;
+  if (body.length > MAX_PLACEHOLDER_CHARS) return false;
+  return /^<[^<>]*>$/.test(body) || /^\.{3,}$/.test(body) || PLACEHOLDER_WORDS.test(body);
+}
+
+// The body of a private key after its header, without quotes, escaped newlines and the END marker: the rest of the
+// line when the key is written on one line ("...\n<body>\n..." in .env files), else the next line (a PEM block).
+// "...", "<your key>" or your-key-here there make the whole key a placeholder.
+function privateKeyBody(rest: string, next: string): string {
+  const clean = (text: string) =>
+    text
+      .replace(/\\n/g, "\n")
+      .replace(/-----END [A-Z ]*-----/g, "")
+      .split("\n")
+      .map((l) => l.trim().replace(/^["'`]+|["'`,;]+$/g, ""))
+      .filter((l) => l !== "")
+      .join("");
+  return clean(rest) || clean(next);
+}
 
 // .env files that are meant to hold secrets and are normally git-ignored. Example files (.env.example, .env.sample,
 // .env.template) are committed, so they are scanned.
@@ -113,14 +147,12 @@ export function scanSecrets(
     }
     for (const hit of hits.sort((a, b) => a.at - b.at)) {
       if (found.length >= MAX_FINDINGS_PER_FILE) return;
-      if (PLACEHOLDER.test(hit.value)) continue;
-      // A private key header is only a placeholder when its body is one ("...\nyour-key-here\n...").
-      if (
-        hit.type === "private_key" &&
-        PLACEHOLDER.test(`${line.slice(hit.at + hit.value.length)} ${lines[i + 1] ?? ""}`)
-      ) {
-        continue;
-      }
+      // A private key header is a placeholder when its body is one ("...\nyour-key-here\n...").
+      const value =
+        hit.type === "private_key"
+          ? privateKeyBody(line.slice(hit.at + hit.value.length), lines[i + 1] ?? "")
+          : hit.value;
+      if (isPlaceholderValue(value)) continue;
       found.push({ file: path, line: i + 1, type: hit.type, masked_value: maskSecret(hit.value) });
     }
   });
