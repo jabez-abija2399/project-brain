@@ -1439,9 +1439,9 @@
           "id": "AC-011-01",
           "kind": "happy",
           "check": "An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, list_features, save_progress, add_decision, create_checklist, propose_checklist_change, generate_receipt",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 08:24; log contains AC-011-01"
         },
         {
           "id": "AC-011-02",
@@ -1484,18 +1484,29 @@
           "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-06"
         }
       ],
-      "status": "in_progress",
+      "status": "done",
       "notes": "Supports project tokens for v1; OAuth via better-auth for clients that require it.",
       "files": [
+        ".projectbrainignore",
         "apps/web/package.json",
         "apps/web/src/app/mcp/mcp.security.test.ts",
         "apps/web/src/app/mcp/mcp.test.ts",
         "apps/web/src/app/mcp/route.ts",
+        "apps/web/src/server/checklist.ts",
         "apps/web/src/server/components.ts",
         "apps/web/src/server/context-pack.test.ts",
         "apps/web/src/server/context-pack.ts",
         "apps/web/src/server/mcp-tools.ts",
+        "apps/web/src/server/session-tools.test.ts",
         "apps/web/src/server/session-tools.ts",
+        "packages/core/src/components/components.test.ts",
+        "packages/core/src/components/similar.ts",
+        "packages/core/src/handoff.test.ts",
+        "packages/core/src/handoff.ts",
+        "packages/core/src/indexer/hardening.test.ts",
+        "packages/core/src/indexer/types.ts",
+        "packages/core/src/indexer/walker.ts",
+        "packages/db/src/repos/features.ts",
         "packages/db/src/repos/files.test.ts",
         "packages/db/src/repos/files.ts"
       ]
@@ -1945,7 +1956,7 @@
           "evidence": ""
         }
       ],
-      "status": "todo",
+      "status": "in_progress",
       "notes": ""
     },
     {
@@ -2154,6 +2165,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 604
+    "tests_passed": 609
   }
 }

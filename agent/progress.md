@@ -344,3 +344,6 @@ Changed: core scanSecrets (service-role JWT, sb_secret_, sk_live_, Anthropic, Op
 Security pass (fresh context, 26 attacker tests): fixed 10 (git-quoted names missed, symlinked folders, tracked .env skipped, JWT regex ReDoS, unreadable migrations uploaded as all-clear, SQL comments in USING/WITH CHECK, private-key placeholders, sb_secret_ unmasked, 400 echoing key names) plus caps/--since.
 Verified (ran this session): verify.sh PASS; kit check 0; semgrep 0 findings; built CLI smoke test against a local fake API (sandbox child bundled, flags-only body).
 NOT verified: sandbox on Windows/macOS user machines; gitleaks/osv/build/e2e in CI only. Outside the plan: packages/sandbox/src/runner.ts (type-only cast), code-index-input.ts and mask.ts (security pass).
+
+## 2026-10-29 | FEAT-011 re-closed | status: done
+AC-011-01 was reworded on main (list_features added) and reopened FEAT-011; its exact-list test (all 10 tools incl. list_features and check_package) passes, so it was re-passed from the test log with the owner's OK. agent/plan.json is left for the owner (its list lacks check_package).

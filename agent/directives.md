@@ -36,3 +36,4 @@
 - 2026-10-29: check_package release cooldown is 7 days (matching D-013), not the 3 days in AC-014-06; versions younger than 7 days are flagged.
 - 2026-10-29: FEAT-015: `projectbrain index` reads supabase/migrations locally with the FEAT-005 sandbox and uploads RLS flags only (db_tables/db_policies); the server never runs the sandbox (KI-014). Secret scanning runs in the CLI and uploads masked findings only.
 - 2026-10-29: Secret placeholder check matches whole values only (empty, your-key-here, xxx..., <...>, example values); a real key that merely contains "your" or "xxxx" is still flagged.
+- 2026-10-29: FEAT-016: the project token is never written into any file in the repo; agent MCP configs use an env reference (PROJECTBRAIN_TOKEN) or the user-level login (Claude headersHelper). Session-end changed files come from git, never from the agent.
