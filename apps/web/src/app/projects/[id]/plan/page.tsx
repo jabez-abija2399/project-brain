@@ -53,8 +53,9 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
             <h2 id="draft-title" style={{ fontSize: 16, margin: 0 }}>
               Draft plan: {draft.features.length} features
             </h2>
-            {draft.restated.map((line) => (
-              <p key={line} className="wrap" style={{ margin: 0 }}>
+            {draft.restated.map((line, n) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: model-written lines may repeat; the order is fixed
+              <p key={n} className="wrap" style={{ margin: 0 }}>
                 {line}
               </p>
             ))}
@@ -65,7 +66,8 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
           </div>
           <ol className="stack" style={{ padding: 0, margin: 0, listStyle: "none" }}>
             {draft.features.map((f, n) => (
-              <li key={f.name} className="card stack">
+              // biome-ignore lint/suspicious/noArrayIndexKey: names may look alike; the build order is the identity
+              <li key={n} className="card stack">
                 <span className="row">
                   <strong className="wrap">
                     {n + 1}. {f.name}
@@ -81,8 +83,9 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
                 )}
                 {f.items.length > 0 && (
                   <ul className="stack" style={{ margin: 0, paddingLeft: 20 }}>
-                    {f.items.map((i) => (
-                      <li key={i.text} className="wrap">
+                    {f.items.map((i, k) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: item texts may repeat; the order is fixed
+                      <li key={k} className="wrap">
                         <span className="muted">[{i.kind}] </span>
                         {i.text}
                       </li>

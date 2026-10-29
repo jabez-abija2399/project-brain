@@ -64,7 +64,7 @@ export { DEFAULT_MODEL, MAX_TOKENS_CEILING, createLlm, errorType } from "./llm";
 export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "./llm";
 
 export { maskPath, maskSecret, maskSecretsIn } from "./mask";
-export { oneLineText } from "./text";
+export { oneLineText, plainText } from "./text";
 export { checkTestIntegrity, isTestConfig, isTestFile } from "./test-integrity";
 export type { FileChange, IntegrityFlag, IntegrityKind } from "./test-integrity";
 export { fixPrompt, receiptView, safeDisplay, safePath } from "./fix-prompt";

@@ -8,13 +8,14 @@ import {
   draftHash,
   errorType,
   maskSecretsIn,
+  plainText,
   planStage1,
   planStage2,
   safeDisplay,
 } from "@brain/core";
 import { type BrainDb, featuresRepo, planDraftsRepo } from "@brain/db";
 import { z } from "zod";
-import { type SessionUser, requireProjectAccess } from "./auth";
+import { type SessionUser, isPlausibleId, requireProjectAccess } from "./auth";
 import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
 import { getPlanningLlm } from "./llm";
@@ -36,7 +37,9 @@ const planSchema = z.union([
         .trim()
         .min(1, "is required")
         .max(MAX_IDEA_CHARS, `must be ${MAX_IDEA_CHARS} characters or fewer`)
-        .refine(noNul, "must not contain NUL bytes"),
+        .refine(noNul, "must not contain NUL bytes")
+        // Only invisible or control characters is empty too, refused before any budget or model call.
+        .refine((v) => plainText(v).length > 0, "is required"),
     })
     .strict(),
   z
@@ -170,7 +173,8 @@ export async function planProject(db: BrainDb, token: ToolToken, raw: unknown, n
     };
   }
 
-  const row = await planDraftsRepo.byId(db, pid, input.planId);
+  // A malformed id (a NUL byte, junk) is simply not found, never a database error.
+  const row = isPlausibleId(input.planId) ? await planDraftsRepo.byId(db, pid, input.planId) : null;
   if (!row) throw new AppError(404, "not_found");
   // An answered, replaced or approved plan cannot be drafted again (AC-019-04: an approved plan is never edited).
   if (row.status !== "questions") {

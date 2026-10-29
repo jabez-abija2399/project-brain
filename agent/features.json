@@ -2178,72 +2178,102 @@
           "id": "AC-019-01",
           "kind": "happy",
           "check": "plan_project(idea) returns stage 1: the idea restated in at most 5 lines and at most 8 questions, each with a recommended default",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 21:15; log contains AC-019-01"
         },
         {
           "id": "AC-019-02",
           "kind": "happy",
           "check": "After the answers (or 'approve defaults'), it returns a draft plan: features in build order with depends_on, each with 3-8 checklist items, saved as a draft that is not yet active",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 21:15; log contains AC-019-02"
         },
         {
           "id": "AC-019-03",
           "kind": "boundary",
           "check": "Every drafted feature has at least one negative, boundary, permission or attack item; a draft without one is regenerated or rejected before it is shown",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 21:15; log contains AC-019-03"
         },
         {
           "id": "AC-019-04",
           "kind": "permission",
           "check": "Only the project owner can approve a draft, in the dashboard; MCP tools cannot approve or edit an approved plan (the agent cannot approve its own plan)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 21:15; log contains AC-019-04"
         },
         {
           "id": "AC-019-05",
           "kind": "state",
           "check": "After approval, the features and their locked checklist items appear in the Brain, and where_did_we_stop names the next feature by build order",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 21:15; log contains AC-019-05"
         },
         {
           "id": "AC-019-06",
           "kind": "happy",
           "check": "For an already indexed project, the draft marks features that already exist in the feature map as existing and plans only the missing ones",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 21:15; log contains AC-019-06"
         },
         {
           "id": "AC-019-07",
           "kind": "negative",
           "check": "An empty idea or one over 8,000 characters returns 400; a second draft for the same project replaces the previous unapproved draft",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 21:15; log contains AC-019-07"
         },
         {
           "id": "AC-019-08",
           "kind": "perf",
           "check": "Each planning stage uses at most 2 LLM calls and returns in under 30 s",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 21:15; log contains AC-019-08"
         }
       ],
-      "status": "in_progress",
-      "notes": "Light version of the AI Build Kit's kickoff. Full version (architecture/package comparison, design direction, threat models, re-planning) is in agent/later.md."
+      "status": "done",
+      "notes": "Light version of the AI Build Kit's kickoff. Full version (architecture/package comparison, design direction, threat models, re-planning) is in agent/later.md.",
+      "files": [
+        "apps/web/src/app/api/projects/[id]/plan/approve/route.ts",
+        "apps/web/src/app/mcp/mcp.test.ts",
+        "apps/web/src/app/projects/[id]/plan/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/plan-actions.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/server/llm.ts",
+        "apps/web/src/server/mcp-tools.ts",
+        "apps/web/src/server/plan-page.test.ts",
+        "apps/web/src/server/plan.security.test.ts",
+        "apps/web/src/server/plan.test.ts",
+        "apps/web/src/server/plan.ts",
+        "apps/web/src/server/session-tools.ts",
+        "packages/core/src/handoff.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/llm.ts",
+        "packages/core/src/plan.security.test.ts",
+        "packages/core/src/plan.test.ts",
+        "packages/core/src/plan.ts",
+        "packages/core/src/text.ts",
+        "packages/db/migrations/0026_plan_drafts.sql",
+        "packages/db/src/migrations.test.ts",
+        "packages/db/src/repos/features.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/plan-drafts.security.test.ts",
+        "packages/db/src/repos/plan-drafts.ts",
+        "packages/db/src/schema/features.ts",
+        "packages/db/src/schema/index.ts",
+        "packages/db/src/schema/plans.ts"
+      ]
     }
   ],
   "meta": {
-    "tests_passed": 753
+    "tests_passed": 808
   }
 }

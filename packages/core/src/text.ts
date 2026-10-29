@@ -9,3 +9,13 @@ const UNSAFE = new RegExp(`[${UNSAFE_TEXT_CHARS}]`, "g");
 export function oneLineText(value: string): string {
   return value.replace(UNSAFE, " ").replace(/\s+/g, " ").trim();
 }
+
+// Zero-width and direction marks (U+200B-U+200F, U+2060, U+FEFF, U+061C) that oneLineText keeps. Text that is
+// matched or compared (feature names, section words) drops them, so a hidden mark cannot split a word or make two
+// names that look identical differ.
+const INVISIBLE = /[\u200b-\u200f\u2060\ufeff\u061c]/g;
+
+/** oneLineText without invisible marks: what a reader sees is exactly what is stored and compared. */
+export function plainText(value: string): string {
+  return oneLineText(value.replace(INVISIBLE, ""));
+}

@@ -26,3 +26,4 @@ apps/web/src/app/projects/[[]id]/project-nav.tsx
 packages/core/src/plan.security.test.ts
 apps/web/src/server/plan.security.test.ts
 packages/db/src/repos/plan-drafts.security.test.ts
+packages/core/src/text.ts # FEAT-019 security: shared plainText (invisible marks removed) for plan names and the handoff note

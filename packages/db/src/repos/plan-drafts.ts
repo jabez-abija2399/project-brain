@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, max, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type PlanDraft,
@@ -26,7 +26,11 @@ export const planDraftsRepo = {
       createdBy: string;
     },
   ): Promise<PlanDraft> {
+    // One plan write per project at a time, so two parallel calls cannot both keep an open question set.
     return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`plan:${projectId}`}, 0))`,
+      );
       await tx
         .update(planDrafts)
         .set({ status: "replaced" })
@@ -66,6 +70,9 @@ export const planDraftsRepo = {
     data: { answers: Record<string, string>; draft: PlanDraftJson; hash: string },
   ): Promise<PlanDraft | null> {
     return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`plan:${projectId}`}, 0))`,
+      );
       const [current] = await tx
         .select()
         .from(planDrafts)
@@ -139,19 +146,21 @@ export const planDraftsRepo = {
       if ((n?.n ?? 0) + planned.length > MAX_FEATURES_PER_PROJECT) {
         return { ok: false, reason: "too_many_features" };
       }
+      // Names compare case-insensitively, as the draft check does: a feature indexed as "accounts" after drafting is
+      // not created again as "Accounts".
       const taken = new Set(
         planned.length === 0
           ? []
           : (
               await tx
-                .select({ name: features.name })
+                .select({ name: sql<string>`lower(${features.name})` })
                 .from(features)
                 .where(
                   and(
                     eq(features.projectId, projectId),
                     inArray(
-                      features.name,
-                      planned.map((f) => f.name),
+                      sql`lower(${features.name})`,
+                      planned.map((f) => f.name.toLowerCase()),
                     ),
                   ),
                 )
@@ -159,13 +168,18 @@ export const planDraftsRepo = {
       );
       const featureIds: string[] = [];
       const existing = row.draftJson.features.filter((f) => f.existing).map((f) => f.name);
-      let order = 0;
+      // A later plan continues after the build order already approved; it never jumps ahead of it.
+      const [last] = await tx
+        .select({ max: max(features.buildOrder) })
+        .from(features)
+        .where(eq(features.projectId, projectId));
+      let order = last?.max ?? 0;
       for (const f of planned) {
-        order += 1;
-        if (taken.has(f.name)) {
+        if (taken.has(f.name.toLowerCase())) {
           existing.push(f.name);
           continue;
         }
+        order += 1;
         const [feature] = await tx
           .insert(features)
           .values({ projectId, name: f.name, status: "todo", buildOrder: order })
