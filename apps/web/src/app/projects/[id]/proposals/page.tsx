@@ -1,25 +1,16 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { pageNumber, pendingProposals } from "@/server/dashboard";
-import { orNotFound, pageUser } from "@/server/dashboard-page";
-import { getDb } from "@/server/db";
+import { pendingProposals } from "@/server/dashboard";
+import { type ListPageProps, loadListPage } from "@/server/dashboard-page";
 import { ProjectNav } from "../project-nav";
 import { ProposalActions } from "./proposal-actions";
 
 export const dynamic = "force-dynamic";
 
 // Checklist proposals from agents (FEAT-012): nothing changes until the owner confirms the proposal shown here.
-export default async function ProposalsPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string | string[] }>;
-}) {
-  const [{ id }, { page }] = await Promise.all([params, searchParams]);
-  const user = await pageUser();
-  const list = await orNotFound(() => pendingProposals(getDb(), user, id, pageNumber(page)));
+export default async function ProposalsPage(props: ListPageProps) {
+  const list = await loadListPage(props, pendingProposals);
   const base = `/projects/${list.project.id}`;
   return (
     <main className="page">

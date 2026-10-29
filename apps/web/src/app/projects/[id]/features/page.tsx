@@ -2,9 +2,8 @@ import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { type Status, StatusBadge } from "@/components/ui/status-badge";
-import { featureBoard, pageNumber } from "@/server/dashboard";
-import { orNotFound, pageUser } from "@/server/dashboard-page";
-import { getDb } from "@/server/db";
+import { featureBoard } from "@/server/dashboard";
+import { type ListPageProps, loadListPage } from "@/server/dashboard-page";
 import { ProjectNav } from "../project-nav";
 
 export const dynamic = "force-dynamic";
@@ -16,16 +15,8 @@ const FEATURE_STATUS: Record<string, { status: Status; label: string }> = {
 };
 
 // Feature board (docs/DESIGN.md screen 2): status, files, open checklist items and the last receipt per feature.
-export default async function FeatureBoardPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string | string[] }>;
-}) {
-  const [{ id }, { page }] = await Promise.all([params, searchParams]);
-  const user = await pageUser();
-  const board = await orNotFound(() => featureBoard(getDb(), user, id, pageNumber(page)));
+export default async function FeatureBoardPage(props: ListPageProps) {
+  const board = await loadListPage(props, featureBoard);
   const base = `/projects/${board.project.id}`;
   return (
     <main className="page">

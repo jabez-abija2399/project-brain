@@ -218,7 +218,8 @@ describe("FEAT-017 checklist proposals", () => {
 
   it("AC-017-03 the proposals screen confirms or rejects exactly the proposal it showed", async () => {
     const { items } = await seedReceipts(0);
-    const [a, b] = items as [{ id: string }, { id: string }];
+    const a = items[0] as { id: string };
+    const b = items[1] as { id: string };
     await checklistItemsRepo.propose(
       world.db,
       projectId,

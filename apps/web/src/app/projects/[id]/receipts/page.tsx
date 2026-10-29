@@ -1,24 +1,15 @@
 import { ReceiptCard } from "@/components/receipt-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
-import { pageNumber, receiptsFeed } from "@/server/dashboard";
-import { orNotFound, pageUser } from "@/server/dashboard-page";
-import { getDb } from "@/server/db";
+import { receiptsFeed } from "@/server/dashboard";
+import { type ListPageProps, loadListPage } from "@/server/dashboard-page";
 import { ProjectNav } from "../project-nav";
 
 export const dynamic = "force-dynamic";
 
 // Receipts feed (docs/DESIGN.md screen 1): newest first, 50 per page; the newest receipt opens expanded.
-export default async function ReceiptsPage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string | string[] }>;
-}) {
-  const [{ id }, { page }] = await Promise.all([params, searchParams]);
-  const user = await pageUser();
-  const feed = await orNotFound(() => receiptsFeed(getDb(), user, id, pageNumber(page)));
+export default async function ReceiptsPage(props: ListPageProps) {
+  const feed = await loadListPage(props, receiptsFeed);
   const base = `/projects/${feed.project.id}`;
   return (
     <main className="page">
