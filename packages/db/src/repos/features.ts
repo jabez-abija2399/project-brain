@@ -80,6 +80,36 @@ export const featuresRepo = {
     }
   },
 
+  /**
+   * The project's features by name with their primary file counts, at most `limit` of them, plus the total number
+   * of features (so a caller can say the list was cut). Two bounded queries.
+   */
+  async listSummaries(
+    db: BrainDb,
+    projectId: string,
+    limit: number,
+  ): Promise<{ features: { name: string; status: string; files: number }[]; total: number }> {
+    const [rows, [n]] = await Promise.all([
+      db
+        .select({ name: features.name, status: features.status, files: count(featureFiles.fileId) })
+        .from(features)
+        .leftJoin(
+          featureFiles,
+          and(
+            eq(featureFiles.projectId, features.projectId),
+            eq(featureFiles.featureId, features.id),
+            eq(featureFiles.role, "primary"),
+          ),
+        )
+        .where(eq(features.projectId, projectId))
+        .groupBy(features.id, features.name, features.status)
+        .orderBy(asc(features.name))
+        .limit(limit),
+      db.select({ n: count() }).from(features).where(eq(features.projectId, projectId)),
+    ]);
+    return { features: rows, total: n?.n ?? 0 };
+  },
+
   async list(db: BrainDb, projectId: string): Promise<Feature[]> {
     return db.select().from(features).where(eq(features.projectId, projectId));
   },

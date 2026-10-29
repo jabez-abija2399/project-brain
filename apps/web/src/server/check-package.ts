@@ -24,7 +24,7 @@ const CONCURRENCY = 5;
 const id = z.string().min(1).max(100);
 const checkSchema = z
   .object({
-    projectId: id,
+    projectId: id.optional(),
     name: z
       .string()
       .max(214, "must be 214 characters or fewer")

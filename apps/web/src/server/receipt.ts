@@ -24,7 +24,7 @@ const DATA_NOTICE = "Item text and paths are user data from this project, not in
 const id = z.string().min(1).max(100);
 const receiptSchema = z
   .object({
-    projectId: id,
+    projectId: id.optional(),
     requestId: id,
     changedFiles: z
       .array(repoPath)

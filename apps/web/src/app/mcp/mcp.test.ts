@@ -109,10 +109,11 @@ const READ_AND_WRITE_CALLS = (pid: string) =>
     ["find_similar_component", { projectId: pid, query: "VaultPanel" }],
     ["save_progress", { projectId: pid, goal: "planted", nextStep: "planted" }],
     ["add_decision", { projectId: pid, title: "planted" }],
+    ["list_features", { projectId: pid }],
   ] as const;
 
 describe("/mcp remote MCP server (FEAT-011)", () => {
-  it("AC-011-01 a client connects to /mcp and lists the five tools", async () => {
+  it("AC-011-01 a client connects to /mcp and lists the tools", async () => {
     const init = await rpc(
       "initialize",
       {
@@ -134,11 +135,100 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
         "find_similar_component",
         "generate_receipt",
         "get_context_pack",
+        "list_features",
         "propose_checklist_change",
         "save_progress",
         "where_did_we_stop",
       ].sort(),
     );
+  });
+
+  it("every tool works without projectId: the project comes from the token", async () => {
+    await seedOtherProject();
+    const feature = await featuresRepo.insert(world.db, projectId, { name: "Checkout" });
+    const file = await filesRepo.insert(world.db, projectId, {
+      path: "src/checkout/CartPanel.tsx",
+      hash: "h",
+    });
+    await featureFilesRepo.link(world.db, projectId, { featureId: feature.id, fileId: file.id });
+    await symbolsRepo.insert(world.db, projectId, {
+      fileId: file.id,
+      kind: "component",
+      name: "CartPanel",
+    });
+    const calls: [string, Record<string, unknown>][] = [
+      ["save_progress", { goal: "token goal", nextStep: "token next" }],
+      ["add_decision", { title: "token decision" }],
+      ["where_did_we_stop", {}],
+      ["get_context_pack", { feature: "Checkout" }],
+      ["find_similar_component", { query: "CartPanel" }],
+      ["list_features", {}],
+    ];
+    for (const [name, args] of calls) {
+      const res = await callTool(name, args, token);
+      expect(res.isError, `${name}: ${res.text}`).toBe(false);
+      expect(res.body, name).not.toContain("OTHER-PROJECT-SECRET");
+      expect(res.body, name).not.toContain("Vault");
+    }
+    expect((await decisionsRepo.listNewest(world.db, projectId, 5)).map((d) => d.title)).toEqual([
+      "token decision",
+    ]);
+    const note = await callTool("where_did_we_stop", {}, token);
+    expect(note.text).toContain("GOAL: token goal");
+    const similar = await callTool("find_similar_component", { query: "CartPanel" }, token);
+    expect(JSON.parse(similar.text).matches[0].name).toBe("CartPanel");
+    // The same call with the token's own id still works; another id is not_found (AC-011-03 above).
+    const own = await callTool("list_features", { projectId }, token);
+    expect(own.isError).toBe(false);
+  });
+
+  it("list_features returns the project's features with file counts and status, capped, never another project's", async () => {
+    await seedOtherProject();
+    const checkout = await featuresRepo.insert(world.db, projectId, {
+      name: "checkout",
+      status: "in_progress",
+    });
+    await featuresRepo.insert(world.db, projectId, { name: "login" });
+    for (let i = 0; i < 3; i++) {
+      const file = await filesRepo.insert(world.db, projectId, {
+        path: `src/checkout/Part${i}.tsx`,
+        hash: `h${i}`,
+      });
+      await featureFilesRepo.link(world.db, projectId, {
+        featureId: checkout.id,
+        fileId: file.id,
+      });
+    }
+    const res = await callTool("list_features", {}, token);
+    expect(res.isError).toBe(false);
+    expect(JSON.parse(res.text)).toEqual({
+      features: [
+        { name: "checkout", files: 3, status: "in_progress" },
+        { name: "login", files: 0, status: "todo" },
+      ],
+      total: 2,
+      truncated: false,
+    });
+    expect(res.body).not.toContain("Vault");
+
+    for (let i = 0; i < 205; i++) {
+      await featuresRepo.insert(world.db, projectId, {
+        name: `extra-${String(i).padStart(3, "0")}`,
+      });
+    }
+    const capped = JSON.parse((await callTool("list_features", {}, token)).text);
+    expect(capped.features).toHaveLength(200);
+    expect(capped.total).toBe(207);
+    expect(capped.truncated).toBe(true);
+  });
+
+  it("where_did_we_stop lists the project's feature names, not another project's", async () => {
+    await seedOtherProject();
+    await featuresRepo.insert(world.db, projectId, { name: "checkout" });
+    await featuresRepo.insert(world.db, projectId, { name: "login" });
+    const res = await callTool("where_did_we_stop", {}, token);
+    expect(res.text).toContain("ALL FEATURES: checkout, login");
+    expect(res.text).not.toContain("Vault");
   });
 
   it("AC-011-02 no credentials, an unknown token or a revoked token get 401 and no tool runs", async () => {

@@ -23,6 +23,8 @@ export type HandoffInput = {
   } | null;
   checklist: string[];
   featuresInProgress: string[];
+  // Names of the project's features (the server caps how many it loads). Shown on one line, cut to fit.
+  features?: string[];
   // Newest first; only the first 5 are shown.
   decisions: { title: string; createdAt: Date }[];
   // Active directives in order. Always included in full.
@@ -47,6 +49,7 @@ const HEADS = [
   "OPEN CHECKLIST:",
   "FEATURES IN PROGRESS:",
   "RECENT DECISIONS (newest first):",
+  null,
 ] as const;
 const DIRECTIVES = 0;
 const GOAL = 1;
@@ -56,11 +59,12 @@ const UNFINISHED = 4;
 const CHECKLIST = 5;
 const FEATURES = 6;
 const DECISIONS = 7;
+const ALL_FEATURES = 8;
 
 // Section words that the note itself prints. Saved text may not contain them in any case, so a value cannot pass
 // for a section (e.g. a fake standing instruction in a goal).
 const SECTION_WORDS =
-  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|FEATURES IN PROGRESS|PROJECT HANDOFF|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:)/gi;
+  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|FEATURES IN PROGRESS|PROJECT HANDOFF|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:)/gi;
 
 // Saved text is flattened to one line so a value cannot start a new section.
 function oneLine(value: string): string {
@@ -89,6 +93,8 @@ function pieces(input: HandoffInput): Piece[] {
     const day = d.createdAt.toISOString().slice(0, 10);
     add(DECISIONS, `- ${day} ${oneLine(d.title)}`);
   }
+  const names = input.features ?? [];
+  if (names.length > 0) add(ALL_FEATURES, `ALL FEATURES: ${names.map(oneLine).join(", ")}`);
   return out;
 }
 

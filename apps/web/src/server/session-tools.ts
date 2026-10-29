@@ -23,11 +23,16 @@ const CAP = {
 } as const;
 const MAX_LIST = 50;
 const DEFAULT_LIST = 20;
+// Feature names in the handoff note; the note cuts the line to fit its limit.
+const HANDOFF_FEATURES = 100;
+// list_features returns at most this many features (by name) and says when the list was cut.
+export const LIST_FEATURES_LIMIT = 200;
 
 // The project a project token belongs to. The MCP transport (FEAT-011) resolves it from the bearer token.
 export type ToolToken = { id: string; projectId: string };
 
-const projectIdField = z.string().min(1).max(100);
+// Optional: the token already names the project. When given it must be the token's own project (bindToken).
+const projectIdField = z.string().min(1).max(100).optional();
 const listLimit = z.number().int().min(1).max(MAX_LIST).optional();
 const noNul = (value: string) => !value.includes("\u0000");
 const required = (max: number) =>
@@ -80,9 +85,11 @@ function parseArgs<T extends z.ZodTypeAny>(schema: T, raw: unknown): z.infer<T> 
   throw new AppError(400, "invalid_input", "input validation failed", fieldErrors);
 }
 
-// The tool's project argument must be the token's own project. Anything else is 404, like a missing project.
-export function bindToken(token: ToolToken, projectId: string): void {
-  if (projectId !== token.projectId) throw new AppError(404, "not_found");
+// The tool's project argument, when given, must be the token's own project. Anything else is 404, like a missing
+// project. Left out, the token's project is used.
+export function bindToken(token: ToolToken, projectId: string | undefined): void {
+  if (projectId !== undefined && projectId !== token.projectId)
+    throw new AppError(404, "not_found");
 }
 
 // One log line per tool call: tool, project, duration, outcome. Never the saved text.
@@ -188,13 +195,14 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
     const input = parseArgs(projectOnlySchema, raw);
     bindToken(token, input.projectId);
     const pid = token.projectId;
-    // DB reads only, no LLM call (AGENTS.md). Five small queries; each one is bounded.
-    const [sessions, checklist, features, decisions, directives] = await Promise.all([
+    // DB reads only, no LLM call (AGENTS.md). Six small queries; each one is bounded.
+    const [sessions, checklist, features, decisions, directives, all] = await Promise.all([
       agentSessionsRepo.listNewest(db, pid, 1),
       checklistItemsRepo.listOpenForProject(db, pid, 20),
       featuresRepo.listInProgress(db, pid, 10),
       decisionsRepo.listNewest(db, pid, 5),
       directivesRepo.listActive(db, pid),
+      featuresRepo.listSummaries(db, pid, HANDOFF_FEATURES),
     ]);
     const last = sessions[0];
     return buildHandoffNote({
@@ -210,7 +218,30 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
       featuresInProgress: features.map((f) => f.name),
       decisions: decisions.map((d) => ({ title: d.title, createdAt: d.createdAt })),
       directives: directives.map((d) => d.text),
+      features: all.features.map((f) => maskSecretsIn(f.name)),
     });
+  });
+}
+
+// MCP list_features: the token's project's features by name, with primary file counts and status. DB read only.
+export async function listFeatures(db: BrainDb, token: ToolToken, raw: unknown) {
+  return run("list_features", token, async () => {
+    const input = parseArgs(projectOnlySchema, raw);
+    bindToken(token, input.projectId);
+    const { features, total } = await featuresRepo.listSummaries(
+      db,
+      token.projectId,
+      LIST_FEATURES_LIMIT,
+    );
+    return {
+      features: features.map((f) => ({
+        name: maskSecretsIn(f.name),
+        files: f.files,
+        status: f.status,
+      })),
+      total,
+      truncated: total > features.length,
+    };
   });
 }
 

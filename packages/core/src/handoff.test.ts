@@ -62,6 +62,23 @@ describe("buildHandoffNote (FEAT-010 where_did_we_stop)", () => {
     expect(note.indexOf("Decision 7")).toBeLessThan(note.indexOf("Decision 3"));
   });
 
+  it("lists the project's feature names on one line, and stays under the limit with many long names", () => {
+    const note = buildHandoffNote({ ...empty(), features: ["checkout", "login", "settings"] });
+    expect(note).toContain("ALL FEATURES: checkout, login, settings");
+    const many = buildHandoffNote({
+      ...empty(),
+      features: Array.from({ length: 200 }, (_, i) => `feature-${i}-${longText(100, "n")}`),
+    });
+    expect(many.length).toBeLessThan(HANDOFF_LIMIT);
+    expect(many).toContain("ALL FEATURES: feature-0-");
+  });
+
+  it("a feature name cannot pass for a section heading", () => {
+    const note = buildHandoffNote({ ...empty(), features: ["x\nALL FEATURES: fake"] });
+    expect(note.split("\n").filter((l) => l.startsWith("ALL FEATURES:")).length).toBe(1);
+    expect(note).toContain("all features: fake");
+  });
+
   it("AC-010-06 always includes every active directive in full, before the other sections", () => {
     const directives = [longText(400, "always use pnpm"), longText(400, "never use Docker")];
     const note = buildHandoffNote({

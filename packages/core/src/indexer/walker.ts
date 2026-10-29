@@ -35,11 +35,17 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
   const files: WalkEntry[] = [];
   const skipped: SkippedFile[] = [];
   const errors: IndexError[] = [];
-  const stack: { dir: string; rules: IgnoreRules[] }[] = [{ dir: root, rules: [] }];
+  const stack: { dir: string; rules: DirRules }[] = [
+    { dir: root, rules: { ".gitignore": [], ".projectbrainignore": [] } },
+  ];
   while (stack.length > 0) {
-    const { dir, rules: inherited } = stack.pop() as { dir: string; rules: IgnoreRules[] };
-    const own = loadGitignore(dir, toPosix(relative(root, dir)));
-    const rules = own ? [...inherited, own] : inherited;
+    const { dir, rules: inherited } = stack.pop() as { dir: string; rules: DirRules };
+    const base = toPosix(relative(root, dir));
+    const rules = { ...inherited };
+    for (const name of [".gitignore", ".projectbrainignore"] as const) {
+      const own = loadIgnoreFile(dir, base, name);
+      if (own) rules[name] = [...inherited[name], own];
+    }
     let entries: string[];
     try {
       entries = readdirSync(dir);
@@ -75,16 +81,18 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
           skipped.push({ path: rel, reason: "excluded_dir" });
           continue;
         }
-        if (isGitignored(rel, true, rules)) {
-          skipped.push({ path: rel, reason: "gitignored" });
+        const ignored = skipReason(rel, true, rules);
+        if (ignored) {
+          skipped.push({ path: rel, reason: ignored });
           continue;
         }
         stack.push({ dir: abs, rules });
         continue;
       }
       if (!st.isFile()) continue;
-      if (isGitignored(rel, false, rules)) {
-        skipped.push({ path: rel, reason: "gitignored" });
+      const ignored = skipReason(rel, false, rules);
+      if (ignored) {
+        skipped.push({ path: rel, reason: ignored });
         continue;
       }
       const ext = extname(name);
@@ -109,11 +117,14 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
   return { files, skipped, errors };
 }
 
-// One .gitignore file; its patterns are relative to the directory it lives in (base, "" for the root).
+// One .gitignore or .projectbrainignore file; its patterns are relative to the directory it lives in (base, "" for
+// the root).
 type IgnoreRules = { base: string; matcher: Ignore };
+type IgnoreFile = ".gitignore" | ".projectbrainignore";
+type DirRules = Record<IgnoreFile, IgnoreRules[]>;
 
-function loadGitignore(dir: string, base: string): IgnoreRules | null {
-  const file = join(dir, ".gitignore");
+function loadIgnoreFile(dir: string, base: string, name: IgnoreFile): IgnoreRules | null {
+  const file = join(dir, name);
   try {
     if (!lstatSync(file).isFile()) return null;
     return { base, matcher: ignore().add(readNoFollow(file).toString("utf8")) };
@@ -122,8 +133,20 @@ function loadGitignore(dir: string, base: string): IgnoreRules | null {
   }
 }
 
-// Git semantics: files are checked from the root down; a deeper .gitignore overrides a higher one.
-function isGitignored(relPath: string, isDir: boolean, rules: IgnoreRules[]): boolean {
+// Each kind of ignore file is applied on its own: a path is skipped when its .gitignore files or its
+// .projectbrainignore files (same gitignore syntax) ignore it, so a negation in one never un-ignores the other.
+function skipReason(
+  relPath: string,
+  isDir: boolean,
+  rules: DirRules,
+): SkippedFile["reason"] | null {
+  if (isIgnored(relPath, isDir, rules[".gitignore"])) return "gitignored";
+  if (isIgnored(relPath, isDir, rules[".projectbrainignore"])) return "projectbrainignored";
+  return null;
+}
+
+// Git semantics: files are checked from the root down; a deeper ignore file overrides a higher one.
+function isIgnored(relPath: string, isDir: boolean, rules: IgnoreRules[]): boolean {
   let ignored = false;
   for (const { base, matcher } of rules) {
     const local = base ? posix.relative(base, relPath) : relPath;

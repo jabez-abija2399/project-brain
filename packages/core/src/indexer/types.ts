@@ -33,7 +33,14 @@ export type FileIndex = {
 
 export type SkippedFile = {
   path: string;
-  reason: "too_large" | "binary" | "gitignored" | "excluded_dir" | "unsupported_ext" | "symlink";
+  reason:
+    | "too_large"
+    | "binary"
+    | "gitignored"
+    | "projectbrainignored"
+    | "excluded_dir"
+    | "unsupported_ext"
+    | "symlink";
 };
 
 export type IndexError = {

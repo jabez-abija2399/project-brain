@@ -141,6 +141,37 @@ describe("indexRepo follows .gitignore semantics", () => {
   });
 });
 
+describe("indexRepo honors .projectbrainignore", () => {
+  it("skips paths matched by .projectbrainignore (gitignore syntax, nested files, negation)", async () => {
+    const repo = tempDir();
+    const comp = "export function C() { return <div/>; }\n";
+    writeTree(repo, {
+      ".projectbrainignore": "tests/fixtures/\n*.stories.tsx\n!src/Keep.stories.tsx\n",
+      "tests/fixtures/app/src/Fake.tsx": comp,
+      "tests/unit/Real.tsx": comp,
+      "src/Button.tsx": comp,
+      "src/Button.stories.tsx": comp,
+      "src/Keep.stories.tsx": comp,
+      "src/legacy/.projectbrainignore": "Old.tsx\n",
+      "src/legacy/Old.tsx": comp,
+      "src/legacy/New.tsx": comp,
+    });
+
+    const result = await indexRepo(repo);
+    const reasons = new Map(result.skipped.map((s) => [s.path, s.reason]));
+
+    expect(result.files.map((f) => f.path)).toEqual([
+      "src/Button.tsx",
+      "src/Keep.stories.tsx",
+      "src/legacy/New.tsx",
+      "tests/unit/Real.tsx",
+    ]);
+    for (const p of ["tests/fixtures", "src/Button.stories.tsx", "src/legacy/Old.tsx"]) {
+      expect(reasons.get(p), p).toBe("projectbrainignored");
+    }
+  });
+});
+
 describe("indexRepo detects common React component shapes", () => {
   it("finds conditional, forwardRef, memo, class and default-exported components, and nothing else", async () => {
     const repo = tempDir();
