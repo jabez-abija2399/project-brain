@@ -1,6 +1,7 @@
-// Bundles the CLI (with @brain/core) into one runnable file, dist/projectbrain.mjs. The packages core loads at
-// runtime (typescript, ignore, libpg-query) stay external and are dependencies of this package.
-import { chmod } from "node:fs/promises";
+// Bundles the CLI (with @brain/core and @brain/sandbox) into one runnable file, dist/projectbrain.mjs. The packages
+// loaded at runtime (typescript, ignore, libpg-query, @electric-sql/pglite) stay external and are dependencies of this
+// package. The sandbox child script is copied next to the bundle, where the bundled runner forks it (FEAT-015).
+import { chmod, copyFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
@@ -16,7 +17,7 @@ export async function build({ outDir = join(pkgDir, "dist") } = {}) {
     platform: "node",
     format: "esm",
     target: "node20",
-    external: ["typescript", "ignore", "libpg-query"],
+    external: ["typescript", "ignore", "libpg-query", "@electric-sql/pglite"],
     banner: {
       js: [
         "#!/usr/bin/env node",
@@ -29,6 +30,7 @@ export async function build({ outDir = join(pkgDir, "dist") } = {}) {
     absWorkingDir: pkgDir,
   });
   await chmod(outfile, 0o755);
+  await copyFile(join(pkgDir, "../sandbox/src/child.mjs"), join(outDir, "child.mjs"));
   return outfile;
 }
 

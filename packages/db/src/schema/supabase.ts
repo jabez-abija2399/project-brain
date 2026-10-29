@@ -11,7 +11,9 @@ export const dbTables = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
-    fileId: text("file_id").notNull(),
+    // Optional since FEAT-015: tables uploaded from supabase/migrations keep their migration path instead.
+    fileId: text("file_id"),
+    path: text("path").notNull().default(""),
     schema: text("schema").notNull().default("public"),
     name: text("name").notNull(),
     rlsEnabled: boolean("rls_enabled").notNull().default(false),

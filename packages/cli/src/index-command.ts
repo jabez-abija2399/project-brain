@@ -1,9 +1,10 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
-import { type IndexResult, indexRepo, toUpload } from "@brain/core";
+import { type IndexResult, type MigrationSandbox, indexRepo, toUpload } from "@brain/core";
 import { CliError, EXIT, type RetryOn429, request } from "./api";
 import type { CliConfig } from "./config";
+import { uploadSupabaseFlags } from "./supabase-upload";
 
 export const BATCH_FILES = 200;
 // Below the server's 5 MB limit, so a batch of long paths and signatures is split before the server says 413.
@@ -72,6 +73,7 @@ export async function runIndex(
   print: (line: string) => void,
   home?: string,
   sleep: RetryOn429["sleep"] = (ms) => new Promise((done) => setTimeout(done, ms)),
+  sandbox?: () => Promise<MigrationSandbox>,
 ): Promise<void> {
   const started = Date.now();
   const retry: RetryOn429 = { sleep, print };
@@ -171,6 +173,8 @@ export async function runIndex(
     retry,
   );
   print(`Grouped into ${grouped.features} features (${grouped.shared} shared files)`);
+  // FEAT-015: RLS flags from supabase/migrations, read in a sandbox on this machine (flags only, no SQL uploaded).
+  await uploadSupabaseFlags(fetchImpl, config, root, folder, print, retry, sandbox);
 
   let summarized = 0;
   for (let round = 0; round < MAX_SUMMARIZE_ROUNDS; round++) {

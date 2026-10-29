@@ -65,6 +65,10 @@ export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "
 
 export { maskSecret, maskSecretsIn } from "./mask";
 export { oneLineText } from "./text";
+export { isLocalEnvFile, MAX_SCAN_BYTES, scanSecrets, SECRET_TYPES } from "./secrets";
+export type { SecretFinding, SecretType } from "./secrets";
+export { rlsFindings, secretFinding } from "./receipt-findings";
+export type { Finding, FindingType, StoredTable } from "./receipt-findings";
 export {
   addedDependencies,
   assessPackage,
@@ -92,7 +96,7 @@ export {
   buildHandoffNote,
   type HandoffInput,
 } from "./handoff";
-export { readSupabaseMigrations } from "./supabase";
+export { policyAllowsAll, readSupabaseMigrations, rlsFlags } from "./supabase";
 export type {
   ColumnDecl,
   MigrationSandbox,
@@ -107,5 +111,7 @@ export type {
   SandboxTable,
   SupabaseReadError,
   SupabaseReadResult,
+  PolicyFlags,
+  TableFlags,
   TableSchema,
 } from "./supabase";

@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { fromPglite } from "../db";
 import { createTestDb } from "../testing";
-import { dbPoliciesRepo, dbTablesRepo, filesRepo, projectsRepo, usersRepo } from "./index";
+import {
+  dbPoliciesRepo,
+  dbSchemaRepo,
+  dbTablesRepo,
+  filesRepo,
+  projectsRepo,
+  usersRepo,
+} from "./index";
 
 type Ctx = {
   pg: Awaited<ReturnType<typeof createTestDb>>;
@@ -59,7 +66,17 @@ describe("@brain/db db_tables / db_policies", () => {
     );
     const tableColumns = cols.rows.map((r) => r.column_name);
     expect(tableColumns.sort()).toEqual(
-      ["file_id", "id", "name", "project_id", "rls_enabled", "rls_unknown", "schema"].sort(),
+      // path (FEAT-015): the migration file a table comes from, never SQL text.
+      [
+        "file_id",
+        "id",
+        "name",
+        "path",
+        "project_id",
+        "rls_enabled",
+        "rls_unknown",
+        "schema",
+      ].sort(),
     );
 
     const polCols = await pg.query<{ column_name: string }>(
@@ -143,5 +160,66 @@ describe("@brain/db db_tables / db_policies", () => {
         allowsAll: true,
       }),
     ).rejects.toThrow();
+  });
+
+  it("AC-015-04 replaceForProject swaps a project's flags in one go, even with two uploads at once, and leaves other projects alone", async () => {
+    const { db } = ctx;
+    await usersRepo.upsertById(db, { id: "u1", name: "U", email: "u@example.com" });
+    const a = await projectsRepo.create(db, "u1", { name: "A" });
+    const b = await projectsRepo.create(db, "u1", { name: "B" });
+    const table = (name: string, rlsEnabled = true) => ({
+      schema: "public",
+      name,
+      path: "supabase/migrations/0001_init.sql",
+      rlsEnabled,
+      rlsUnknown: false,
+    });
+    const policy = (t: string, allowsAll: boolean) => ({
+      schema: "public",
+      table: t,
+      command: "UPDATE",
+      permissive: true,
+      allowsAll,
+      checksOwnership: !allowsAll,
+    });
+    await dbSchemaRepo.replaceForProject(db, b.id, [table("billing")], []);
+    await dbSchemaRepo.replaceForProject(db, a.id, [table("old")], [policy("old", true)]);
+    const uploads = [
+      dbSchemaRepo.replaceForProject(
+        db,
+        a.id,
+        [table("posts"), table("profiles", false)],
+        [policy("posts", true), policy("posts", false), policy("missing", true)],
+      ),
+      dbSchemaRepo.replaceForProject(
+        db,
+        a.id,
+        [table("posts"), table("profiles", false)],
+        [policy("posts", true), policy("posts", false)],
+      ),
+    ];
+    expect(await Promise.all(uploads)).toEqual([
+      { tables: 2, policies: 2 },
+      { tables: 2, policies: 2 },
+    ]);
+    const stored = await dbSchemaRepo.listWithPolicies(db, a.id);
+    expect(stored.map((t) => [t.name, t.rlsEnabled, t.path, t.policies.length])).toEqual([
+      ["posts", true, "supabase/migrations/0001_init.sql", 2],
+      ["profiles", false, "supabase/migrations/0001_init.sql", 0],
+    ]);
+    expect((await dbSchemaRepo.listWithPolicies(db, b.id)).map((t) => t.name)).toEqual(["billing"]);
+    // A restrictive policy can never be stored as allowing everyone (AC-015-07, db_policies check).
+    await expect(
+      dbSchemaRepo.replaceForProject(
+        db,
+        a.id,
+        [table("posts")],
+        [{ ...policy("posts", true), permissive: false }],
+      ),
+    ).rejects.toThrow();
+    expect((await dbSchemaRepo.listWithPolicies(db, a.id)).map((t) => t.name)).toEqual([
+      "posts",
+      "profiles",
+    ]);
   });
 });

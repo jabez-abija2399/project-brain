@@ -1,4 +1,6 @@
 export { readSupabaseMigrations } from "./reader";
+export { policyAllowsAll, rlsFlags } from "./flags";
+export type { PolicyFlags, TableFlags } from "./flags";
 export type {
   MigrationSandbox,
   PolicyKey,

@@ -15,6 +15,7 @@ import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
 import { getLlm } from "./llm";
 import { reserveDaily } from "./rate-limit";
+import { receiptFindings, secretFindingsInput } from "./receipt-findings";
 import { type ToolToken, bindToken } from "./session-tools";
 
 // Changed files one receipt looks at (a push or an agent's session; larger changes need several receipts).
@@ -34,6 +35,7 @@ const receiptSchema = z
       .regex(/^[0-9a-f]{7,40}$/, "commitSha must be a hex commit id")
       .optional(),
     packageJson: packageJsonChanges.optional(),
+    secretFindings: secretFindingsInput.optional(),
   })
   .strict();
 
@@ -142,6 +144,8 @@ export async function generateReceipt(
   // Newly added dependencies with their check_package result (AC-014-05); the package.json text is not kept.
   const newDependencies = await lookupNewDependencies(dependencies, now);
   const omitted = dependencies.omitted;
+  // Secrets (masked by the CLI) and RLS problems from the last index (FEAT-015).
+  const security = await receiptFindings(db, pid, input.secretFindings ?? []);
 
   // A receipt with no changed files reports every item missed (AC-013-05) but changes no stored status, so it
   // cannot downgrade work an earlier receipt judged partial.
@@ -161,6 +165,7 @@ export async function generateReceipt(
       ...receipt,
       new_dependencies: newDependencies,
       new_dependencies_omitted: omitted,
+      ...security,
     },
   });
   console.info(
@@ -173,6 +178,7 @@ export async function generateReceipt(
       items: items.length,
       llmCalls: receipt.llm_calls,
       newDependencies: newDependencies.length,
+      findings: security.findings.length + security.findings_omitted,
       ms: Date.now() - started,
       pathsHash: createHash("sha256").update(paths.join("\n")).digest("hex").slice(0, 16),
     }),
@@ -184,5 +190,6 @@ export async function generateReceipt(
     ...receipt,
     new_dependencies: newDependencies,
     new_dependencies_omitted: omitted,
+    ...security,
   };
 }

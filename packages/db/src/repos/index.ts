@@ -34,5 +34,6 @@ export {
 export { usersRepo } from "./users";
 export { rateCountersRepo } from "./rate-counters";
 export { RepoAlreadyLinkedError, githubRepo } from "./github";
-export { dbPoliciesRepo, dbTablesRepo } from "./db-schema";
+export { dbPoliciesRepo, dbSchemaRepo, dbTablesRepo } from "./db-schema";
+export type { PolicyFlagsRow, TableFlagsRow } from "./db-schema";
 export { MAX_PAGE_SIZE, type Page, type PageOptions } from "./page";

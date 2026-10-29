@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { CliError, EXIT, request } from "./api";
 import { configPath, readConfig, writeConfig } from "./config";
 import { runIndex } from "./index-command";
+import { type Git, runScanSecrets } from "./scan-secrets";
 
 export const PACKAGE = "@brain/cli";
 export const VERSION = "0.0.0";
@@ -13,6 +14,7 @@ export function helpText(): string {
     `projectbrain ${VERSION}`,
     "  projectbrain login [--api-url <url>]   reads the project token from stdin or PROJECTBRAIN_TOKEN",
     "  projectbrain index [dir]               indexes the repo locally and uploads metadata only",
+    "  projectbrain scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
   ].join("\n");
 }
 
@@ -27,6 +29,7 @@ export type CliDeps = {
   readStdin: () => Promise<string>;
   // Waits between 429 retries; tests inject one that does not really wait.
   sleep?: (ms: number) => Promise<void>;
+  git?: Git;
 };
 
 function flag(args: string[], name: string): string | undefined {
@@ -95,6 +98,9 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         deps.homedir ?? osHomedir(),
         deps.sleep,
       );
+    } else if (command === "scan-secrets") {
+      // Runs offline: nothing is uploaded, so no login is needed.
+      return await runScanSecrets(args, deps.cwd, deps.stdout, deps.git);
     } else {
       deps.stderr(helpText());
       return EXIT.usage;
