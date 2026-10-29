@@ -2,8 +2,10 @@ import { homedir as osHomedir } from "node:os";
 import { resolve } from "node:path";
 import { CliError, EXIT, request } from "./api";
 import { configPath, readConfig, writeConfig } from "./config";
+import { mcpHeaders, sessionEnd, sessionStart } from "./hooks";
 import { runIndex } from "./index-command";
-import { type Git, runScanSecrets } from "./scan-secrets";
+import { initReport, runInit } from "./init-command";
+import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 
 export const PACKAGE = "@brain/cli";
 export const VERSION = "0.0.0";
@@ -15,6 +17,7 @@ export function helpText(): string {
     "  projectbrain login [--api-url <url>]   reads the project token from stdin or PROJECTBRAIN_TOKEN",
     "  projectbrain index [dir]               indexes the repo locally and uploads metadata only",
     "  projectbrain scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
+    "  projectbrain init [--claude] [--cursor] sets up Claude Code and Cursor (MCP config, hooks, Skill, AGENTS.md)",
   ].join("\n");
 }
 
@@ -98,6 +101,19 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         deps.homedir ?? osHomedir(),
         deps.sleep,
       );
+    } else if (command === "init") {
+      const config = readConfig(path);
+      if (!config) throw new CliError(EXIT.auth, "Not logged in: run `projectbrain login` first.");
+      if (!isSafeApiUrl(config.apiUrl))
+        throw new CliError(
+          EXIT.usage,
+          "Saved server address must be https: run `projectbrain login` again.",
+        );
+      const root = await repoRoot(deps.git ?? runGit, deps.cwd).catch(() => deps.cwd);
+      const result = runInit(root, deps.homedir ?? osHomedir(), config, args);
+      for (const line of initReport(result, root, deps.cwd)) deps.stdout(line);
+    } else if (command === "hook" || command === "mcp-headers") {
+      return await runHook(command, args, deps, path);
     } else if (command === "scan-secrets") {
       // Runs offline: nothing is uploaded, so no login is needed.
       return await runScanSecrets(args, deps.cwd, deps.stdout, deps.git);
@@ -114,4 +130,41 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
     deps.stderr(`Unexpected error: ${err instanceof Error ? err.name : "unknown"}`);
     return EXIT.failure;
   }
+}
+
+// Hooks and the headers helper never fail the agent's session: any error ends as one warning line and exit 0. A
+// Claude Code session-end hook exits 2 when it has warnings, which is how Claude Code shows them to the user.
+async function runHook(
+  command: string,
+  args: string[],
+  deps: CliDeps,
+  path: string,
+): Promise<number> {
+  const saved = readConfig(path);
+  const config = saved && isSafeApiUrl(saved.apiUrl) ? saved : null;
+  const hookDeps = {
+    fetch: deps.fetch,
+    git: deps.git ?? runGit,
+    cwd: deps.cwd,
+    config,
+    readStdin: deps.readStdin,
+    stdout: deps.stdout,
+    stderr: deps.stderr,
+  };
+  try {
+    if (command === "mcp-headers") {
+      mcpHeaders({ ...hookDeps, env: deps.env });
+      return EXIT.ok;
+    }
+    const [event, flag, agentArg] = args;
+    const agent = flag === "--agent" && agentArg === "cursor" ? "cursor" : "claude";
+    if (event === "session-start") await sessionStart(agent, hookDeps);
+    else if (event === "session-end") {
+      const warned = await sessionEnd(agent, hookDeps);
+      return warned && agent === "claude" ? 2 : EXIT.ok;
+    } else deps.stderr("Project Brain: unknown hook (use session-start or session-end).");
+  } catch {
+    deps.stderr("Project Brain: the hook failed; the session goes on without it.");
+  }
+  return EXIT.ok;
 }

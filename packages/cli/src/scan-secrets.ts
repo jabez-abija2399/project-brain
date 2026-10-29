@@ -20,7 +20,7 @@ export const runGit: Git = (args, cwd) =>
 // git -z output: NUL-separated, never quoted or escaped (names with spaces, quotes or non-ASCII stay as they are).
 const names = (out: string) => out.split("\0").filter((l) => l.length > 0);
 
-async function repoRoot(git: Git, cwd: string): Promise<string> {
+export async function repoRoot(git: Git, cwd: string): Promise<string> {
   try {
     return (await git(["rev-parse", "--show-toplevel"], cwd)).trim();
   } catch {
@@ -33,7 +33,11 @@ async function repoRoot(git: Git, cwd: string): Promise<string> {
 
 // The changed files, root-relative: tracked changes against HEAD (or against --since, for changes already committed)
 // plus new untracked files that are not ignored.
-async function changedFiles(git: Git, root: string, since: string | undefined): Promise<string[]> {
+export async function changedFiles(
+  git: Git,
+  root: string,
+  since: string | undefined,
+): Promise<string[]> {
   const base = since ?? "HEAD";
   const tracked = await git(["diff", "--name-only", "-z", "--no-renames", base, "--"], root).catch(
     () => {
@@ -90,6 +94,12 @@ export async function runScanSecrets(
     root = await repoRoot(git, cwd);
     files = await changedFiles(git, root, since);
   }
+  print(JSON.stringify(await scanFiles(git, root, files)));
+  return EXIT.ok;
+}
+
+/** Scans these root-relative files for secrets (masked findings only); used by scan-secrets and the session-end hook. */
+export async function scanFiles(git: Git, root: string, files: string[]): Promise<ScanReport> {
   const realRoot = await realpath(root);
   const report: ScanReport = { findings: [], omitted: 0, scanned: 0, skipped: [] };
   const all: SecretFinding[] = [];
@@ -129,6 +139,5 @@ export async function runScanSecrets(
   }
   report.findings = all.slice(0, MAX_REPORTED_FINDINGS);
   report.omitted = Math.max(0, all.length - MAX_REPORTED_FINDINGS);
-  print(JSON.stringify(report));
-  return EXIT.ok;
+  return report;
 }
