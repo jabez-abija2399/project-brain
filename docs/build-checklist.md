@@ -20,8 +20,9 @@ applies (test names carry the criterion id and the word "attack"). Each rule nam
    prints the token or a response body (AC-008-11).
    Fake secrets in tests are built at runtime (for example `"sk_" + "live_" + "x".repeat(24)`), never written as
    literals: secret scanners (gitleaks in CI) flag a secret-shaped literal even in a test file.
-   Invisible and bidirectional characters in tests (U+200B-U+200F, U+202A-U+202E, U+2066-U+2069) are written as
-   `\u` escapes (`\u202E`), never raw: semgrep blocks raw ones, and reviewers cannot see them.
+   Invisible and bidirectional characters (U+200B-U+200F, U+202A-U+202E, U+2066-U+2069) and lookalike (confusable)
+   letters (Cyrillic `\u0430` for a, fullwidth `\uFF5A` for z) in tests are written as `\u` escapes, never
+   raw: semgrep blocks raw bidi characters, and reviewers cannot see or tell any of them apart.
 
 4. **Every input, list, loop and AI call has a cap.**
    Example: FEAT-008 M2 and KI-023, where nothing limited stored files or symbols per project or AI calls per day.
