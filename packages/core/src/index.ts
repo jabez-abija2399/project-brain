@@ -65,6 +65,8 @@ export type { CompleteRequest, Llm, LlmClient, LlmCostEntry, LlmOptions } from "
 
 export { maskSecret, maskSecretsIn } from "./mask";
 export { oneLineText } from "./text";
+export { fixPrompt, receiptView, safeDisplay } from "./fix-prompt";
+export type { ReceiptItemStatus, ReceiptView } from "./fix-prompt";
 export { isLocalEnvFile, MAX_SCAN_BYTES, scanSecrets, SECRET_TYPES } from "./secrets";
 export type { SecretFinding, SecretType } from "./secrets";
 export { rlsFindings, secretFinding } from "./receipt-findings";

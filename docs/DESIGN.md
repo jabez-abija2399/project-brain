@@ -28,6 +28,8 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 8 px. Spacing scale
 | ChecklistItem | apps/web/src/components/checklist-item | status, evidence CodeRef | receipts |
 | ReceiptCard | apps/web/src/components/receipt-card | collapsed, expanded | receipts feed, feature page |
 | CopyCommand | apps/web/src/components/copy-command | command text + copy | onboarding |
+| CopyButton | apps/web/src/components/ui/copy-button | label, text; copied / failed feedback | receipts ("Send fix to agent"), CopyCommand |
+| Pagination | apps/web/src/components/ui/pagination | page, pages, basePath (?page=N, 50 per page) | features, receipts, proposals |
 
 ## The screens that matter (max 3; polish these, everything else is plain components)
 1. Receipts feed: newest receipts as ReceiptCards; asked / done / missed / outside scope / checks. Primary action:

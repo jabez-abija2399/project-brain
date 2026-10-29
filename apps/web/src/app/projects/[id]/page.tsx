@@ -1,9 +1,10 @@
 import { getAuth } from "@/server/auth";
 import { getDb } from "@/server/db";
+import { safeDisplay } from "@brain/core";
 import { projectTokensRepo, projectsRepo } from "@brain/db";
 import { headers } from "next/headers";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { ProjectNav } from "./project-nav";
 import ProjectTokensPanel from "./tokens-panel";
 
 export const dynamic = "force-dynamic";
@@ -24,11 +25,8 @@ export default async function ProjectDetailPage({
   const { items: tokens } = await projectTokensRepo.listForProject(db, project.id);
 
   return (
-    <main style={{ padding: "48px 32px", maxWidth: 800, margin: "0 auto" }}>
-      <Link href="/projects" style={{ fontSize: 13 }}>
-        ← Projects
-      </Link>
-      <h1 style={{ fontSize: 24, margin: "16px 0" }}>{project.name}</h1>
+    <main className="page">
+      <ProjectNav projectId={project.id} current="" name={safeDisplay(project.name, 100)} />
       <section style={{ marginTop: 32 }}>
         <h2 style={{ fontSize: 16, marginBottom: 12 }}>Project tokens</h2>
         <ProjectTokensPanel

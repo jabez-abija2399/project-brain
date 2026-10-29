@@ -37,3 +37,54 @@ export function maskSecretsIn(text: string): string {
   );
   return out.replace(LONG_RANDOM, (m) => (m.endsWith("***") ? m : maskSecret(m)));
 }
+
+// A 40-character AWS-style secret can contain "/" and so survive masking one path segment at a time. Such a key is a run
+// of whole segments that adds up to exactly 40 base64 characters and looks random (3+ digits and 3+ capitals); an
+// ordinary run of folder names (features/reviews/components/ReviewStars2) does not.
+const MAX_SEGMENTS = 64;
+const looksRandom = (key: string) =>
+  key.length === 40 &&
+  (key.match(/[0-9]/g) ?? []).length >= 3 &&
+  (key.match(/[A-Z]/g) ?? []).length >= 3;
+
+function maskSlashedKeys(segments: string[]): string[] {
+  const out = [...segments];
+  const n = Math.min(segments.length, MAX_SEGMENTS);
+  for (let i = 0; i < n - 1; i++) {
+    // The key may start after other characters in its first segment ("key-AbC...") ...
+    const head = /[A-Za-z0-9+]*$/.exec(segments[i] ?? "")?.[0] ?? "";
+    if (head === "") continue;
+    let key = head;
+    for (let j = i + 1; j < n && key.length < 40; j++) {
+      const seg = segments[j] ?? "";
+      const whole = /^[A-Za-z0-9+]*$/.test(seg);
+      // ... and end before other characters in its last segment ("...XyZ.env").
+      const tail = whole ? seg : (/^[A-Za-z0-9+]*/.exec(seg)?.[0] ?? "");
+      key = `${key}/${tail}`;
+      if (looksRandom(key)) {
+        const first = segments[i] ?? "";
+        out[i] =
+          `${first.slice(0, first.length - head.length)}${maskSecret(key)}${seg.slice(tail.length)}`;
+        for (let k = i + 1; k <= j; k++) out[k] = "";
+        break;
+      }
+      if (!whole) break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Masks secrets in a path. Credentials in a URL are masked on the whole path first; then slash-containing keys and
+ * each segment on its own, so an ordinary long path is not mistaken for one random string.
+ */
+export function maskPath(path: string): string {
+  const whole = path.replace(URL_CREDENTIALS, (_m, head: string, pass: string, at: string) =>
+    pass.endsWith("***") ? `${head}${pass}${at}` : `${head}${maskSecret(pass)}${at}`,
+  );
+  const segments = maskSlashedKeys(whole.split("/"));
+  return segments
+    .filter((seg, k) => seg !== "" || whole.split("/")[k] === "")
+    .map(maskSecretsIn)
+    .join("/");
+}

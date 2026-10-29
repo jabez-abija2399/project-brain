@@ -108,6 +108,8 @@ export async function requireProjectAccess(
   projectId: string,
   user: SessionUser,
 ): Promise<Project> {
+  // A malformed id (empty, huge, a NUL byte from %00) is simply not found, never a database error.
+  if (!isPlausibleId(projectId)) throw new AppError(404, "not_found");
   const project = await projectsRepo.get(db, projectId, user.id);
   if (!project) throw new AppError(404, "not_found");
   return project;
@@ -122,4 +124,10 @@ export async function createUserForTests(
   const id = randomUUID();
   await db.insert(schema.users).values({ id, email: input.email, name: input.name });
   return { id, email: input.email, name: input.name };
+}
+
+// Ids from URLs are opaque text up to 100 characters with no control characters.
+export function isPlausibleId(id: string): boolean {
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this rejects
+  return id.length > 0 && id.length <= 100 && !/[\u0000-\u001f\u007f]/.test(id);
 }

@@ -1,33 +1,28 @@
 agent/*
-packages/cli/src/*
-packages/cli/package.json
-apps/web/src/app/api/hooks/[[]projectId]/open-items/route.ts
-apps/web/src/server/open-items.ts
-apps/web/src/server/open-items.test.ts
-apps/web/src/server/hooks.security.test.ts
-packages/db/src/repos/requests.ts
+docs/DESIGN.md
+packages/core/src/fix-prompt.ts
+packages/core/src/fix-prompt.test.ts
+packages/core/src/index.ts
+packages/db/src/repos/dashboard.ts
+packages/db/src/repos/dashboard.test.ts
+packages/db/src/repos/index.ts
 packages/db/src/repos/checklist-items.ts
-docs/decisions.md
-apps/web/src/server/open-items.security.test.ts
-packages/db/src/repos/checklist.test.ts
-packages/core/src/checklist.ts
-packages/core/src/checklist.test.ts
-apps/web/src/server/checklist*.test.ts
-apps/web/src/app/mcp/mcp.test.ts  # AC-011-01 lists the tools; FEAT-012 adds create_checklist and propose_checklist_change
-apps/web/src/app/api/projects/[id]/checklist-items/**
-packages/core/package.json
-apps/web/src/app/api/projects/[id]/checklist-items/[itemId]/route.ts
-apps/web/src/app/api/projects/[[]id]/checklist-items/[[]itemId]/route.ts  # FEAT-012 owner confirm route (brackets escaped for fnmatch)
-packages/core/src/text.ts
-packages/core/src/text.test.ts
-apps/web/src/server/checklist.security.test.ts
-packages/core/src/llm.test.ts  # gitleaks fix requested by the user: fake keys built at runtime
-.gitleaksignore  # gitleaks fix requested by the user: fingerprints of confirmed fake test values in old commits
-apps/web/src/app/mcp/mcp.test.ts  # KI-031 fix requested by the user: freeze the clock for the per-minute rate-limit test
-packages/core/src/receipt.ts
-packages/core/src/receipt.test.ts
-packages/db/src/repos/feature-files.ts
 packages/db/src/repos/receipts.ts
+apps/web/src/server/dashboard.ts
+apps/web/src/server/dashboard.test.ts
+apps/web/src/server/dashboard.security.test.ts
+apps/web/src/server/checklist.ts
+apps/web/src/app/api/projects/[[]id]/checklist-items/[[]itemId]/route.ts
+apps/web/src/app/globals.css
+apps/web/src/app/not-found.tsx
+apps/web/src/app/projects/[[]id]/*
+apps/web/src/app/projects/[[]id]/**/*
+apps/web/src/components/*
+apps/web/src/components/**/*
+apps/web/src/server/dashboard-page.ts
+apps/web/vitest.config.ts  # FEAT-017: transform JSX (tsconfig keeps jsx: preserve for Next) so component tests can render server-side
+apps/web/src/server/auth.ts  # FEAT-017 security pass: malformed project ids (NUL, empty, >100 chars) are 404, not a server error
+packages/core/src/mask.ts  # FEAT-017 security pass: maskPath (secrets with '/' in paths)
 packages/db/src/repos/receipt.test.ts
 apps/web/src/server/receipt*.test.ts
 apps/web/src/server/code-index-input.ts
@@ -49,3 +44,6 @@ docs/build-checklist.md  # rule 3: invisible/bidi characters in tests as \u esca
 apps/web/src/server/check-package.security.test.ts  # requested by the user: lookalike letters as \u escapes
 apps/web/src/server/open-items.security.test.ts  # rule 3: raw U+202E from FEAT-016 as \u escape
 apps/web/src/server/open-items.test.ts  # rule 3: raw U+202E from FEAT-016 as \u escape
+apps/web/src/server/checklist.test.ts  # owner decision 2026-10-29: confirm/reject must name the shown proposal
+apps/web/src/server/checklist.security.test.ts  # same: default request body now carries the shown proposal
+apps/web/src/server/test-helpers.ts  # shownProposal helper for the confirm/reject tests

@@ -7,9 +7,15 @@ import {
   oneLineText,
   splitRequest,
 } from "@brain/core";
-import { type BrainDb, checklistItemsRepo, featuresRepo, requestsRepo } from "@brain/db";
+import {
+  type BrainDb,
+  type ShownProposal,
+  checklistItemsRepo,
+  featuresRepo,
+  requestsRepo,
+} from "@brain/db";
 import { z } from "zod";
-import { type SessionUser, requireProjectAccess } from "./auth";
+import { type SessionUser, isPlausibleId, requireProjectAccess } from "./auth";
 import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
 import { getLlm } from "./llm";
@@ -149,17 +155,62 @@ export async function proposeChecklistChange(
   return { ok: true, id: row.id, status: "proposal" };
 }
 
-/** Dashboard (the owner's session, never an MCP token): applies the item's proposed change. */
-export async function confirmChecklistChange(
+/**
+ * Dashboard: the project is the user's and the item is in it, else 404. Checked before the request body, so a stranger
+ * or a wrong item id always gets the same answer.
+ */
+export async function requireChecklistItem(
   db: BrainDb,
   user: SessionUser,
   projectId: string,
   itemId: string,
 ) {
   await requireProjectAccess(db, projectId, user);
-  const result = await checklistItemsRepo.applyProposal(db, projectId, itemId);
+  if (!isPlausibleId(itemId) || !(await checklistItemsRepo.byId(db, projectId, itemId))) {
+    throw new AppError(404, "not_found");
+  }
+}
+
+/**
+ * Dashboard (the owner's session, never an MCP token): applies or rejects the item's proposed change. `shown` is the
+ * proposal the owner saw (FEAT-017); when it no longer matches (the agent replaced it meanwhile), nothing changes and
+ * the answer is 409 proposal_changed, so the owner looks again.
+ */
+export async function confirmChecklistChange(
+  db: BrainDb,
+  user: SessionUser,
+  projectId: string,
+  itemId: string,
+  shown: ShownProposal,
+) {
+  await requireProjectAccess(db, projectId, user);
+  const result = await checklistItemsRepo.applyProposal(db, projectId, itemId, shown);
   if (!result) throw new AppError(404, "not_found");
   if (result.kind === "no_proposal")
     throw new AppError(409, "no_proposal", "this item has no proposed change");
+  if (result.kind === "changed") throw proposalChanged();
   return { id: result.item.id, text: result.item.text, status: result.item.status };
 }
+
+export async function rejectChecklistChange(
+  db: BrainDb,
+  user: SessionUser,
+  projectId: string,
+  itemId: string,
+  shown: ShownProposal,
+) {
+  await requireProjectAccess(db, projectId, user);
+  const result = await checklistItemsRepo.discardProposal(db, projectId, itemId, shown);
+  if (!result) throw new AppError(404, "not_found");
+  if (result.kind === "no_proposal")
+    throw new AppError(409, "no_proposal", "this item has no proposed change");
+  if (result.kind === "changed") throw proposalChanged();
+  return { id: result.item.id, text: result.item.text, status: result.item.status };
+}
+
+const proposalChanged = () =>
+  new AppError(
+    409,
+    "proposal_changed",
+    "the proposal changed since you opened the page; reload and check it again",
+  );

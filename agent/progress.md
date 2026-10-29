@@ -359,3 +359,8 @@ Changed expectation: features.test.ts "a re-index keeps it" no longer expects th
 NOT VERIFIED: GitHub push re-index still uses the root tsconfig only (KI-038); cause of one transient 500 during the re-index (KI-040).
 Known issues: KI-036, KI-037 fixed; KI-038, KI-039, KI-040 new. AC-011-01 text with check_package written to agent/plan.json (human runs kit.py import).
 Next: human imports agent/plan.json; FEAT-015.
+
+## 2026-10-29 | FEAT-017 dashboard: feature board, receipts feed, connect page, checklist proposals | status: done
+Changed: project pages /projects/:id/{features,receipts,proposals,connect} (+ Tokens tab nav), loading/error states for all, app 404 page; shared components from DESIGN.md (Button, StatusBadge icon+label, Card, DataTable that stacks at phone width, EmptyState with one action, Pagination 50/page, CopyButton, CodeRef, CopyCommand, ChecklistItem, ReceiptCard); core receiptView + fixPrompt ("Send fix to agent"); db dashboardRepo (one bounded query per page) and proposal list/confirm/reject that only act on the exact proposal shown (409 proposal_changed otherwise). Web vitest renders JSX (oxc automatic runtime) for server-side page tests.
+Security pass (fresh context, 26 attacker tests): fixed 5 (NUL/malformed ids gave 500 not 404, LRM/RLM in text, slash-containing secrets in paths, raw unknown feature status, stale page links blank) plus fenced fix prompt and a PATCH body cap.
+Verified (ran this session): verify.sh PASS; kit check 0; semgrep 0; receipts feed p95 ~14 ms for 50 receipts (PGlite); pages rendered with seed data and screenshotted at 375 and 1280 px (no horizontal overflow). NOT verified: in the running app with a real session (needs DATABASE_URL); gitleaks/osv/build/e2e in CI only.
