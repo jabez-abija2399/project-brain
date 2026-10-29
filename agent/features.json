@@ -1438,10 +1438,10 @@
         {
           "id": "AC-011-01",
           "kind": "happy",
-          "check": "An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, save_progress, add_decision",
-          "passes": true,
-          "verified_by": "test-log",
-          "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-01"
+          "check": "An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, list_features, save_progress, add_decision, create_checklist, propose_checklist_change, generate_receipt",
+          "passes": false,
+          "verified_by": "",
+          "evidence": ""
         },
         {
           "id": "AC-011-02",
@@ -1484,7 +1484,7 @@
           "evidence": "verify.sh PASS 2026-10-28 16:33; log contains AC-011-06"
         }
       ],
-      "status": "done",
+      "status": "in_progress",
       "notes": "Supports project tokens for v1; OAuth via better-auth for clients that require it.",
       "files": [
         "apps/web/package.json",
