@@ -92,3 +92,69 @@ describe("FEAT-006 saveMap feature names", () => {
     expect(await names()).toHaveLength(4);
   });
 });
+
+describe("KI-037 a re-index deletes features left with no files", () => {
+  let pg: Awaited<ReturnType<typeof createTestDb>>;
+  let db: ReturnType<typeof fromPglite>;
+  let projectId: string;
+  beforeEach(async () => {
+    pg = await createTestDb();
+    db = fromPglite(pg);
+    await usersRepo.upsertById(db, { id: "u1", name: "u1", email: "u1@example.com" });
+    projectId = (await projectsRepo.create(db, "u1", { name: "p" })).id;
+    for (const path of ["src/a.ts", "src/b.ts", "src/c.ts", "src/lib/cn.ts"]) {
+      await filesRepo.insert(db, projectId, { path, hash: "h" });
+    }
+  });
+  afterEach(async () => {
+    await pg.close();
+  });
+
+  const summaries = async () =>
+    (await featuresRepo.listSummaries(db, projectId, 50)).features.map((f) => [f.name, f.files]);
+
+  it("drops automatic features with no files; keeps user-created and user-renamed ones (0 files) and shared-only ones", async () => {
+    await featuresRepo.saveMap(db, projectId, {
+      features: [
+        { key: "old", name: "old", files: ["src/a.ts"] },
+        { key: "renamed", name: "renamed", files: ["src/b.ts"] },
+        { key: "stays", name: "stays", files: ["src/c.ts"] },
+      ],
+      shared: [{ path: "src/lib/cn.ts", usedBy: ["sharedonly", "stays", "old"] }],
+    });
+    const renamed = await featuresRepo.byName(db, projectId, "renamed");
+    if (!renamed) throw new Error("feature not created");
+    await featuresRepo.update(db, projectId, renamed.id, { name: "My billing" });
+    await featuresRepo.create(db, projectId, "Hand made");
+
+    // The re-index puts every file in "stays": old and the renamed feature lose their files.
+    await featuresRepo.saveMap(db, projectId, {
+      features: [{ key: "stays", name: "stays", files: ["src/a.ts", "src/b.ts", "src/c.ts"] }],
+      shared: [{ path: "src/lib/cn.ts", usedBy: ["sharedonly", "stays", "new"] }],
+    });
+
+    expect(await summaries()).toEqual([
+      ["Hand made", 0],
+      ["My billing", 0],
+      ["new", 0],
+      ["sharedonly", 0],
+      ["stays", 3],
+    ]);
+    expect(await featuresRepo.byName(db, projectId, "old")).toBeNull();
+  });
+
+  it("an empty map still drops automatic features whose files are gone, and never touches another project", async () => {
+    await featuresRepo.saveMap(db, projectId, {
+      features: [{ key: "gone", name: "gone", files: ["src/a.ts"] }],
+      shared: [],
+    });
+    const other = (await projectsRepo.create(db, "u1", { name: "q" })).id;
+    await featuresRepo.insert(db, other, { name: "empty", key: "empty" });
+    await pg.query("DELETE FROM files WHERE project_id = $1", [projectId]);
+
+    await featuresRepo.saveMap(db, projectId, { features: [], shared: [] });
+
+    expect(await summaries()).toEqual([]);
+    expect((await featuresRepo.list(db, other)).map((f) => f.name)).toEqual(["empty"]);
+  });
+});

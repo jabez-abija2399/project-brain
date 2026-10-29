@@ -1,46 +1,12 @@
 import { realpathSync, statSync } from "node:fs";
 import { posix as path, dirname, join, sep } from "node:path";
-import { readNoFollow } from "./walker";
+import type { TsconfigPaths } from "./tsconfig";
 
-export type TsconfigPaths = {
-  baseUrl: string;
-  paths: Record<string, string[]>;
-};
+export type { TsconfigPaths } from "./tsconfig";
+export { tsconfigFinder, tsconfigPathsFromText } from "./tsconfig";
 
 const CANDIDATE_EXTS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const INDEX_FILES = CANDIDATE_EXTS.map((e) => `index${e}`);
-
-const NO_PATHS: TsconfigPaths = { baseUrl: ".", paths: {} };
-
-export function loadTsconfigPaths(repoRoot: string): TsconfigPaths {
-  const candidates = ["tsconfig.json", "tsconfig.base.json"];
-  for (const name of candidates) {
-    try {
-      // A symlinked tsconfig is never read (it could point outside the repo root).
-      return tsconfigPathsFrom(readNoFollow(join(repoRoot, name)).toString("utf8"));
-    } catch {
-      /* fall through */
-    }
-  }
-  return NO_PATHS;
-}
-
-// The same paths from tsconfig text that was not read from disk (a file fetched from GitHub). Unreadable text = none.
-export function tsconfigPathsFromText(text: string | null): TsconfigPaths {
-  if (text === null) return NO_PATHS;
-  try {
-    return tsconfigPathsFrom(text);
-  } catch {
-    return NO_PATHS;
-  }
-}
-
-function tsconfigPathsFrom(text: string): TsconfigPaths {
-  const opts = parseJsonc(text)?.compilerOptions ?? {};
-  const baseUrl = typeof opts.baseUrl === "string" ? opts.baseUrl : ".";
-  const paths = (opts.paths ?? {}) as Record<string, string[]>;
-  return { baseUrl, paths };
-}
 
 // Which repo paths exist, for indexing files held in memory (a GitHub push): the resolver asks this instead of the
 // filesystem. Paths are repo-relative POSIX paths.
@@ -145,16 +111,6 @@ function existsAsDir(abs: string, realRoot: string): boolean {
   } catch {
     return false;
   }
-}
-
-type ParsedTsconfig = { compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> } };
-
-function parseJsonc(text: string): ParsedTsconfig {
-  const stripped = text
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/(^|[^:])\/\/.*$/gm, "$1")
-    .replace(/,(\s*[}\]])/g, "$1");
-  return JSON.parse(stripped);
 }
 
 function toPosix(p: string): string {

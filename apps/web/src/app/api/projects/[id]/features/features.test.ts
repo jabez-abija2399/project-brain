@@ -320,8 +320,8 @@ describe("FEAT-006 POST /api/projects/:id/features (split a feature by hand)", (
     });
     const links = await featureFilesRepo.listForFile(world.db, projectId, page.id);
     expect(links.map((l) => l.featureId)).toEqual([feature.id]);
+    // KI-037: the automatic "home" lost its only file to the user's move, so the re-index deletes it.
     expect((await featuresRepo.list(world.db, projectId)).map((f) => f.name).sort()).toEqual([
-      "home",
       "reviews",
     ]);
   });

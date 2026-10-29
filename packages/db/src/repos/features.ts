@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNotNull, notExists, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type Feature, type NewFeature, featureFiles, features, files } from "../schema";
 
@@ -184,7 +184,7 @@ export const featuresRepo = {
         if (change.name === undefined || change.name === feature.name) return feature;
         const [renamed] = await tx
           .update(features)
-          .set({ name: change.name })
+          .set({ name: change.name, nameSetByUser: true })
           .where(and(eq(features.projectId, projectId), eq(features.id, featureId)))
           .returning();
         return renamed ?? null;
@@ -203,81 +203,99 @@ export const featuresRepo = {
    */
   async saveMap(db: BrainDb, projectId: string, map: FeatureMapInput): Promise<void> {
     await db.transaction(async (tx) => {
-      const keys = new Set([
-        ...map.features.map((f) => f.key),
-        ...map.shared.flatMap((s) => s.usedBy),
-      ]);
-      const nameOf = new Map(map.features.map((f) => [f.key, f.name]));
-      if (keys.size === 0) return;
-      const existing = await tx
-        .select({ id: features.id, key: features.key, name: features.name })
-        .from(features)
-        .where(eq(features.projectId, projectId));
-      const featureId = new Map<string, string>();
-      for (const f of existing) if (f.key !== null) featureId.set(f.key, f.id);
-      const taken = new Set(existing.map((f) => f.name));
-      const freeName = (base: string) => {
-        let name = base;
-        for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
-        taken.add(name);
-        return name;
-      };
-      const missing = [...keys].filter((key) => !featureId.has(key));
-      if (missing.length > 0) {
-        const created = await tx
-          .insert(features)
-          .values(
-            missing.map((key) => ({ projectId, key, name: freeName(nameOf.get(key) ?? key) })),
-          )
-          .returning({ id: features.id, key: features.key });
-        for (const f of created) featureId.set(f.key as string, f.id);
-      }
-      const fileRows = await tx
-        .select({ id: files.id, path: files.path })
-        .from(files)
-        .where(eq(files.projectId, projectId));
-      const fileId = new Map(fileRows.map((f) => [f.path, f.id]));
-      const idOf = (path: string) => {
-        const id = fileId.get(path);
-        if (!id) throw new Error(`feature map path is not a stored file: ${path}`);
-        return id;
-      };
-      const userPlaced = new Set(
-        (
-          await tx
-            .select({ fileId: featureFiles.fileId })
-            .from(featureFiles)
-            .where(and(eq(featureFiles.projectId, projectId), eq(featureFiles.placedBy, "user")))
-        ).map((l) => l.fileId),
-      );
-      const links = [
-        ...map.features.flatMap((f) =>
-          f.files.map((path) => ({ role: "primary" as const, key: f.key, path })),
-        ),
-        ...map.shared.flatMap((s) =>
-          s.usedBy.map((key) => ({ role: "shared" as const, key, path: s.path })),
-        ),
-      ]
-        .map((l) => ({
-          projectId,
-          featureId: featureId.get(l.key) as string,
-          fileId: idOf(l.path),
-          role: l.role,
-        }))
-        .filter((l) => !userPlaced.has(l.fileId));
-      const autoFiles = [...new Set(links.map((l) => l.fileId))];
-      if (autoFiles.length === 0) return;
-      await tx
-        .delete(featureFiles)
-        .where(
-          and(
-            eq(featureFiles.projectId, projectId),
-            eq(featureFiles.placedBy, "auto"),
-            inArray(featureFiles.fileId, autoFiles),
+      await saveLinks(tx, projectId, map);
+      // KI-037: path-derived features the map left with no files go; ones the user created or renamed stay.
+      await tx.delete(features).where(
+        and(
+          eq(features.projectId, projectId),
+          isNotNull(features.key),
+          eq(features.nameSetByUser, false),
+          notExists(
+            tx
+              .select({ one: sql`1` })
+              .from(featureFiles)
+              .where(
+                and(eq(featureFiles.projectId, projectId), eq(featureFiles.featureId, features.id)),
+              ),
           ),
-        );
-      for (let i = 0; i < links.length; i += LINK_BATCH)
-        await tx.insert(featureFiles).values(links.slice(i, i + LINK_BATCH));
+        ),
+      );
     });
   },
 };
+
+type Tx = Parameters<Parameters<BrainDb["transaction"]>[0]>[0];
+
+// saveMap's features and links: features found by key (new ones created), automatic links replaced by the map's.
+async function saveLinks(tx: Tx, projectId: string, map: FeatureMapInput): Promise<void> {
+  const keys = new Set([...map.features.map((f) => f.key), ...map.shared.flatMap((s) => s.usedBy)]);
+  const nameOf = new Map(map.features.map((f) => [f.key, f.name]));
+  if (keys.size === 0) return;
+  const existing = await tx
+    .select({ id: features.id, key: features.key, name: features.name })
+    .from(features)
+    .where(eq(features.projectId, projectId));
+  const featureId = new Map<string, string>();
+  for (const f of existing) if (f.key !== null) featureId.set(f.key, f.id);
+  const taken = new Set(existing.map((f) => f.name));
+  const freeName = (base: string) => {
+    let name = base;
+    for (let n = 2; taken.has(name); n++) name = `${base}-${n}`;
+    taken.add(name);
+    return name;
+  };
+  const missing = [...keys].filter((key) => !featureId.has(key));
+  if (missing.length > 0) {
+    const created = await tx
+      .insert(features)
+      .values(missing.map((key) => ({ projectId, key, name: freeName(nameOf.get(key) ?? key) })))
+      .returning({ id: features.id, key: features.key });
+    for (const f of created) featureId.set(f.key as string, f.id);
+  }
+  const fileRows = await tx
+    .select({ id: files.id, path: files.path })
+    .from(files)
+    .where(eq(files.projectId, projectId));
+  const fileId = new Map(fileRows.map((f) => [f.path, f.id]));
+  const idOf = (path: string) => {
+    const id = fileId.get(path);
+    if (!id) throw new Error(`feature map path is not a stored file: ${path}`);
+    return id;
+  };
+  const userPlaced = new Set(
+    (
+      await tx
+        .select({ fileId: featureFiles.fileId })
+        .from(featureFiles)
+        .where(and(eq(featureFiles.projectId, projectId), eq(featureFiles.placedBy, "user")))
+    ).map((l) => l.fileId),
+  );
+  const links = [
+    ...map.features.flatMap((f) =>
+      f.files.map((path) => ({ role: "primary" as const, key: f.key, path })),
+    ),
+    ...map.shared.flatMap((s) =>
+      s.usedBy.map((key) => ({ role: "shared" as const, key, path: s.path })),
+    ),
+  ]
+    .map((l) => ({
+      projectId,
+      featureId: featureId.get(l.key) as string,
+      fileId: idOf(l.path),
+      role: l.role,
+    }))
+    .filter((l) => !userPlaced.has(l.fileId));
+  const autoFiles = [...new Set(links.map((l) => l.fileId))];
+  if (autoFiles.length === 0) return;
+  await tx
+    .delete(featureFiles)
+    .where(
+      and(
+        eq(featureFiles.projectId, projectId),
+        eq(featureFiles.placedBy, "auto"),
+        inArray(featureFiles.fileId, autoFiles),
+      ),
+    );
+  for (let i = 0; i < links.length; i += LINK_BATCH)
+    await tx.insert(featureFiles).values(links.slice(i, i + LINK_BATCH));
+}

@@ -440,7 +440,7 @@ describe("FEAT-006 dogfood: monorepos and dynamic segments", () => {
           "packages/core/src/indexer/walker.ts",
         ],
       ],
-      ["mcp", ["apps/web/src/app/mcp/route.ts"]],
+      ["mcp", ["apps/web/src/app/mcp/route.ts", "apps/web/src/server/tools.ts"]],
       ["other", ["apps/web/next.config.ts", "scripts/seed.ts"]],
       [
         "projects",
@@ -461,5 +461,20 @@ describe("FEAT-006 dogfood: monorepos and dynamic segments", () => {
     ]);
     const other = map.features.find((f) => f.key === "@other")?.files.length ?? 0;
     expect(other / index.files.length).toBeLessThanOrEqual(0.1);
+  });
+
+  it("KI-036 each file's imports resolve through its nearest tsconfig.json, following extends", async () => {
+    const index = await indexRepo(join(fixtures, "monorepo-app"));
+    const resolvedFrom = (path: string) =>
+      index.files.find((f) => f.path === path)?.imports.map((i) => [i.to, i.resolved, i.external]);
+    // apps/web/tsconfig.json declares @/* -> ./src/* relative to its own folder
+    expect(resolvedFrom("apps/web/src/app/mcp/route.ts")).toEqual([
+      ["@/server/tools", "apps/web/src/server/tools.ts", false],
+      ["../../server/auth", "apps/web/src/server/auth.ts", false],
+    ]);
+    // packages/cli/tsconfig.json has no paths: it inherits them from ../../tsconfig.base(.json) via extends
+    expect(resolvedFrom("packages/cli/src/main.ts")).toEqual([
+      ["@brain/core", "packages/core/src/index.ts", false],
+    ]);
   });
 });

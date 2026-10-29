@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": { "@/*": ["./src/*"] }, // the app's own alias
+    "plugins": [{ "name": "next", "docs": "https://nextjs.org/docs" }],
+  },
+  /* globs hold "/**" and "/*" inside strings */
+  "include": ["next-env.d.ts", "src/**/*.ts", "src/**/*.tsx", ".next/types/**/*.ts"]
+}

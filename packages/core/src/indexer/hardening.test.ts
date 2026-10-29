@@ -256,3 +256,55 @@ describe("indexRepo import graph", () => {
     ]);
   });
 });
+
+describe("KI-036 nested tsconfig.json files stay inside the repo root", () => {
+  it("never reads a tsconfig reached through an extends outside the repo, a symlink or a cycle", async () => {
+    const outside = tempDir();
+    writeTree(outside, {
+      "tsconfig.json": JSON.stringify({ compilerOptions: { paths: { "@x/*": ["./*"] } } }),
+      "probe.ts": "export const x = 1;\n",
+    });
+    const repo = tempDir();
+    const up = "../".repeat(14);
+    writeTree(repo, {
+      "tsconfig.json": JSON.stringify({ compilerOptions: { paths: { "@root/*": ["./lib/*"] } } }),
+      "lib/r.ts": "export const r = 1;\n",
+      // a relative extends that climbs out of the repo, and an absolute one
+      "apps/up/tsconfig.json": JSON.stringify({
+        extends: `${up}${outside.replace(/^\//, "")}/tsconfig.json`,
+      }),
+      "apps/up/a.ts": 'import { x } from "@x/probe";\n',
+      "apps/abs/tsconfig.json": JSON.stringify({ extends: join(outside, "tsconfig.json") }),
+      "apps/abs/a.ts": 'import { x } from "@x/probe";\n',
+      // extends cycle: a -> b -> a; a's own paths still apply
+      "apps/cycle/tsconfig.json": JSON.stringify({
+        extends: "./b.json",
+        compilerOptions: { paths: { "@c/*": ["./src/*"] } },
+      }),
+      "apps/cycle/b.json": JSON.stringify({ extends: "./tsconfig.json" }),
+      "apps/cycle/src/c.ts": "export const c = 1;\n",
+      "apps/cycle/a.ts": 'import { c } from "@c/c";\n',
+      "apps/link/a.ts": 'import { x } from "@x/probe";\nimport { r } from "@root/r";\n',
+    });
+    // a symlinked nested tsconfig is skipped; the next one up (the root's) applies
+    symlinkSync(join(outside, "tsconfig.json"), join(repo, "apps", "link", "tsconfig.json"));
+
+    const result = await indexRepo(repo);
+    const importsOf = (p: string) =>
+      (result.files.find((f) => f.path === p)?.imports ?? []).map((i) => [
+        i.to,
+        i.resolved,
+        i.outside,
+        i.external,
+      ]);
+
+    expect(importsOf("apps/up/a.ts")).toEqual([["@x/probe", null, false, true]]);
+    expect(importsOf("apps/abs/a.ts")).toEqual([["@x/probe", null, false, true]]);
+    expect(importsOf("apps/cycle/a.ts")).toEqual([["@c/c", "apps/cycle/src/c.ts", false, false]]);
+    expect(importsOf("apps/link/a.ts")).toEqual([
+      ["@x/probe", null, false, true],
+      ["@root/r", "lib/r.ts", false, false],
+    ]);
+    expect(JSON.stringify(result)).not.toContain("probe.ts");
+  });
+});
