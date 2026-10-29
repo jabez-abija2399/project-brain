@@ -28,12 +28,20 @@ export type ListPageProps = {
   searchParams: Promise<{ page?: string | string[] }>;
 };
 
-/** One paginated list page: the signed-in user, ?page=N and the project's data, or the 404 page. */
-export async function loadListPage<T>(
+/**
+ * One paginated list page: the signed-in user, ?page=N and the project's data, or the 404 page. A page past the end
+ * (a stale link) shows the last page instead of an empty list.
+ */
+export async function loadListPage<T extends { rows: unknown[]; total: number; pages: number }>(
   props: ListPageProps,
   load: (db: BrainDb, user: SessionUser, projectId: string, page: number) => Promise<T>,
 ): Promise<T> {
   const [{ id }, { page }] = await Promise.all([props.params, props.searchParams]);
   const user = await pageUser();
-  return orNotFound(() => load(getDb(), user, id, pageNumber(page)));
+  const n = pageNumber(page);
+  const result = await orNotFound(() => load(getDb(), user, id, n));
+  if (result.rows.length === 0 && result.total > 0 && n > result.pages) {
+    return orNotFound(() => load(getDb(), user, id, result.pages));
+  }
+  return result;
 }

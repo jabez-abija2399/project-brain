@@ -1,7 +1,7 @@
-import { requireUser } from "@/server/auth";
+import { isPlausibleId, requireUser } from "@/server/auth";
 import { confirmChecklistChange, rejectChecklistChange } from "@/server/checklist";
 import { getDb } from "@/server/db";
-import { toResponse } from "@/server/errors";
+import { AppError, toResponse } from "@/server/errors";
 import { parseInput } from "@/server/validate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -10,6 +10,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string; itemId: string }> };
+const MAX_BODY_BYTES = 16 * 1024;
 
 // The proposal the owner saw on the dashboard (FEAT-017): applied or rejected only if it is still the same one.
 const shown = z
@@ -33,6 +34,11 @@ export async function PATCH(req: Request, { params }: Ctx) {
   try {
     const user = await requireUser(req);
     const { id, itemId } = await params;
+    if (!isPlausibleId(itemId)) throw new AppError(404, "not_found");
+    // The body is a few hundred bytes; anything far larger is refused before it is parsed.
+    if (Number(req.headers.get("content-length") ?? "0") > MAX_BODY_BYTES) {
+      throw new AppError(413, "payload_too_large", "request body too large");
+    }
     const body = await parseInput(req, patchSchema);
     const proposal = body.proposal
       ? { proposedAt: new Date(body.proposal.proposedAt), change: body.proposal.change }

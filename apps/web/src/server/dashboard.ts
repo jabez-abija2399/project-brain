@@ -37,7 +37,8 @@ export async function featureBoard(
       rows.map((r) => ({
         id: r.id,
         name: safeDisplay(r.name, 100),
-        status: r.status,
+        // Free text in the database: anything but the known values is shown as "unknown".
+        status: ["todo", "in_progress", "done"].includes(r.status) ? r.status : "unknown",
         files: r.files,
         openItems: r.openItems,
         lastReceiptAt: r.lastReceiptAt?.toISOString() ?? null,

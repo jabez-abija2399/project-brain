@@ -21,3 +21,5 @@ apps/web/src/components/*
 apps/web/src/components/**/*
 apps/web/src/server/dashboard-page.ts
 apps/web/vitest.config.ts  # FEAT-017: transform JSX (tsconfig keeps jsx: preserve for Next) so component tests can render server-side
+apps/web/src/server/auth.ts  # FEAT-017 security pass: malformed project ids (NUL, empty, >100 chars) are 404, not a server error
+packages/core/src/mask.ts  # FEAT-017 security pass: maskPath (secrets with '/' in paths)

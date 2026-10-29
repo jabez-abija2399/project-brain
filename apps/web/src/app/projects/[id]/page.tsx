@@ -1,5 +1,6 @@
 import { getAuth } from "@/server/auth";
 import { getDb } from "@/server/db";
+import { safeDisplay } from "@brain/core";
 import { projectTokensRepo, projectsRepo } from "@brain/db";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -25,7 +26,7 @@ export default async function ProjectDetailPage({
 
   return (
     <main className="page">
-      <ProjectNav projectId={project.id} current="" name={project.name} />
+      <ProjectNav projectId={project.id} current="" name={safeDisplay(project.name, 100)} />
       <section style={{ marginTop: 32 }}>
         <h2 style={{ fontSize: 16, marginBottom: 12 }}>Project tokens</h2>
         <ProjectTokensPanel

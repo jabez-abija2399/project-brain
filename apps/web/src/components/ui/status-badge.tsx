@@ -15,7 +15,7 @@ const LOOK: Record<Status, { icon: string; label: string; tone: string }> = {
   open: { icon: "○", label: "Open", tone: "open" },
   warning: { icon: "!", label: "Check", tone: "warning" },
   not_verified: { icon: "?", label: "Not verified", tone: "warning" },
-  neutral: { icon: "•", label: "", tone: "neutral" },
+  neutral: { icon: "•", label: "Unknown", tone: "neutral" },
 };
 
 export function StatusBadge({ status, label }: { status: Status; label?: string }) {
