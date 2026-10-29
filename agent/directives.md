@@ -42,3 +42,4 @@
 - 2026-10-29: Leave the raw characters in commit 1ec350d's message (no force-push). Escape lookalike (confusable) letters in tests as \u escapes (mcp.security.test.ts line 275, plus check-package.security.test.ts lines 199-200 under the same rule); build-checklist rule 3 names lookalike (confusable) letters. verify.sh, commit on main, push, watch CI.
 - 2026-10-29: The checklist confirm and reject API requires the exact proposal shown (proposedAt + change); a confirm without it is rejected (400).
 - 2026-10-29: Invisible, bidirectional and lookalike characters are always written as \u escapes, never raw, in files and in commit messages.
+- 2026-10-29: Agents may add new checklists (create_checklist) to features from an approved plan; the approved plan's own checklist items stay locked (changes only through owner-confirmed proposals).
