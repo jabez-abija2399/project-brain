@@ -7,6 +7,7 @@ import { getContextPack } from "./context-pack";
 import { getDb } from "./db";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
+import { generateReceipt } from "./receipt";
 import {
   type ToolToken,
   addDecision,
@@ -244,6 +245,29 @@ export function registerBrainTools(server: McpServer): void {
     async (args, ctx) =>
       run("propose_checklist_change", ctx.http?.authInfo, async (token) =>
         JSON.stringify(await proposeChecklistChange(getDb(), token, args)),
+      ),
+  );
+
+  server.registerTool(
+    "generate_receipt",
+    {
+      description:
+        "Check a change against the request's open checklist items: per item done/partial/missed with file " +
+        "evidence, changed files by feature, files outside the request's feature, and items that are not verified.",
+      inputSchema: z.object({
+        projectId,
+        requestId: z
+          .string()
+          .describe("The request the change was made for (from create_checklist)"),
+        changedFiles: z
+          .array(z.string())
+          .describe("Repo-relative paths of the changed files (max 200)"),
+        commitSha: z.string().optional().describe("Commit id of the change, if committed"),
+      }),
+    },
+    async (args, ctx) =>
+      run("generate_receipt", ctx.http?.authInfo, async (token) =>
+        JSON.stringify(await generateReceipt(getDb(), token, args)),
       ),
   );
 }

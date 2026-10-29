@@ -1608,61 +1608,78 @@
           "id": "AC-013-01",
           "kind": "happy",
           "check": "generate_receipt(changed files, checklist) returns per-item status done/partial/missed with file evidence",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 21:50; log contains AC-013-01"
         },
         {
           "id": "AC-013-02",
           "kind": "happy",
           "check": "Changed files are grouped by feature; files outside the request's feature are listed under outside_scope",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 21:50; log contains AC-013-02"
         },
         {
           "id": "AC-013-03",
           "kind": "negative",
           "check": "A change that touches the billing feature for a reviews request lists the billing file under outside_scope",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 21:50; log contains AC-013-03"
         },
         {
           "id": "AC-013-04",
           "kind": "state",
           "check": "Missed items stay open on the feature until marked done or dismissed; a later receipt can close them",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 21:50; log contains AC-013-04"
         },
         {
           "id": "AC-013-05",
           "kind": "boundary",
           "check": "A receipt with 0 changed files reports all items missed and makes no LLM call",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 21:50; log contains AC-013-05"
         },
         {
           "id": "AC-013-06",
           "kind": "perf",
           "check": "A receipt for 20 changed files and 10 items is produced in under 15 s with at most 1 LLM call",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 21:50; log contains AC-013-06"
         },
         {
           "id": "AC-013-07",
           "kind": "state",
           "check": "Every receipt has a 'Not verified' section listing checklist items with no test or evidence, instead of calling them done",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-28 21:50; log contains AC-013-07"
         }
       ],
-      "status": "todo",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/mcp/mcp.test.ts",
+        "apps/web/src/server/code-index-input.ts",
+        "apps/web/src/server/mcp-tools.ts",
+        "apps/web/src/server/receipt.security.test.ts",
+        "apps/web/src/server/receipt.test.ts",
+        "apps/web/src/server/receipt.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/receipt.test.ts",
+        "packages/core/src/receipt.ts",
+        "packages/db/migrations/0020_checklist_position.sql",
+        "packages/db/src/repos/checklist-items.ts",
+        "packages/db/src/repos/feature-files.ts",
+        "packages/db/src/repos/features.ts",
+        "packages/db/src/repos/requests.ts",
+        "packages/db/src/schema/receipts.ts"
+      ]
     },
     {
       "id": "FEAT-014",
@@ -2089,6 +2106,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 465
+    "tests_passed": 502
   }
 }

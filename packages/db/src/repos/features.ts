@@ -123,6 +123,14 @@ export const featuresRepo = {
     return rows[0] ?? null;
   },
 
+  async byKeys(db: BrainDb, projectId: string, keys: string[]): Promise<Feature[]> {
+    if (keys.length === 0) return [];
+    return db
+      .select()
+      .from(features)
+      .where(and(eq(features.projectId, projectId), inArray(features.key, keys)));
+  },
+
   async byName(db: BrainDb, projectId: string, name: string): Promise<Feature | null> {
     const rows = await db
       .select()

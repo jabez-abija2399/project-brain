@@ -13,7 +13,7 @@ Requirement ids: REQ-004, REQ-008   Non-goals for this feature: write tools for 
 ## 3. Acceptance criteria (mirror agent/features.json; every criterion has a kind)
 | ID | Kind | Observable behavior (testable) |
 |----|------|--------------------------------|
-| AC-011-01 | happy | An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, list_features, save_progress, add_decision |
+| AC-011-01 | happy | An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, list_features, save_progress, add_decision, create_checklist, propose_checklist_change, generate_receipt |
 | AC-011-02 | permission | Connecting without credentials, or with a revoked token, fails with 401 |
 | AC-011-03 | attack | A token for project A calling any tool with project B's id returns a not-found error and no data |
 | AC-011-04 | happy | get_context_pack(feature) returns the feature's files, component summaries, decisions and rules, without source code |

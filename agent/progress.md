@@ -322,3 +322,13 @@ Verified (ran this session): new tests failed first (5 core, 10 MCP), then pass;
 NOT VERIFIED: real Postgres/Neon (PGlite only); a live Claude Code session against the updated /mcp (the project-brain MCP server was not reachable from this session); AC-011-01 text in features.json waits for the human's import.
 Known issues: KI-034 (KI-020 follow-up: threshold, irregular plurals), KI-035 (push index ignores .projectbrainignore).
 Next: human approves agent/plan.json (kit.py import); human review of the MCP change (security-sensitive).
+
+## 2026-10-28 | FEAT-013 change receipt | status: done
+Changed: MCP tool generate_receipt (core buildReceipt + web service): per-item done/partial/missed with file evidence, changed files grouped by feature, outside_scope list, Not verified section (no evidence or no test changed). One AI call max under the daily budget; 0 files = all missed, no call, no stored status change. Checklist items get a position column (migration 0020) so order is stable.
+Security pass (fresh context, 23 attacker tests): fixed concurrent receipts reopening done items (setStatuses only touches open/partial/missed), loose verdict parse ("donez"), ordinary long paths masked as secrets (mask per path segment).
+Verified (ran this session): verify.sh PASS (typecheck, lint, tests, kit guard); kit check 0 errors; semgrep (typescript + secrets) 0 findings on the changed files.
+NOT verified: real model quality (fake LLM in tests); gitleaks/osv/build/e2e run in CI only.
+Next: FEAT-017 receipts feed; design notes in agent/later.md.
+## 2026-10-29 | merge origin/main (FEAT-013) into the FEAT-011 dogfooding fix | status: done
+Merged: mcp-tools.ts and mcp.test.ts auto-merged (9 tools incl. list_features and generate_receipt; AC-011-01 test lists all); agent/ files keep both sides. agent/plan.json AC-011-01 now lists all 9 tools (waits for the human's kit.py import); docs/specs/FEAT-011.md updated. Receipt prompt caps (rule 4) were already on main (300-char items, 200-char paths, 8,000-char prompt, cut parts under not_verified; AC-013-06 test): no change.
+Verified (ran this session): pnpm install (lockfile up to date); kit.py check 0 errors; NO_COLOR=1 verify.sh PASS (typecheck, lint, tests, kit guard).
