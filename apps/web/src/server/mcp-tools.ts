@@ -310,6 +310,7 @@ export function registerBrainTools(server: McpServer): void {
                 }),
               )
               .max(50),
+            omitted: z.number().optional(),
             passingBefore: z.number().nullable().optional(),
             passingAfter: z.number().nullable().optional(),
           })

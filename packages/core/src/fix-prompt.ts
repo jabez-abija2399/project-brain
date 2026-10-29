@@ -43,7 +43,7 @@ const plain = (value: string) => oneLineText(value.replace(INVISIBLE, ""));
 
 export const safeDisplay = (value: unknown, max = MAX_TEXT): string =>
   typeof value === "string" ? maskSecretsIn(plain(value)).slice(0, max) : "";
-const safePath = (value: unknown) =>
+export const safePath = (value: unknown) =>
   typeof value === "string" ? maskPath(plain(value)).slice(0, MAX_TEXT) : "";
 const list = (value: unknown): unknown[] => (Array.isArray(value) ? value.slice(0, MAX_LIST) : []);
 const obj = (value: unknown): Record<string, unknown> =>

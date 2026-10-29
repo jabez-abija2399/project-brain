@@ -1,5 +1,12 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-10-29 | FEAT-018 test integrity check in receipts | status: done
+Changed: core test-source.ts (linear tokenizer: comments/strings blanked, bracket pairs in one pass) + test-integrity.ts (deleted test files/tests, skip/only/xit/options/ctx skip, removed expect/assert, test-config selection changes incl. package.json; renames by body fingerprint ignoring whitespace/trailing commas). CLI session-end hook compares git base vs working tree locally and sends only flags (masked names/paths, max 50 by priority + omitted) and passing counts from PROJECTBRAIN_TEST_REPORT (<=1e6). Server validates (zod strict), cleans paths, adds passing_tests_dropped; dashboard shows "Test checks".
+Verified (ran this session): fresh-context security pass added 3 test files (36 attacks); fixed rename false alarm, ReDoS-quadratic brackets, flag/count caps, client-side masking, bidi in file names; verify.sh PASS (typecheck, lint, tests 753, kit guard); kit.py pass AC-018-01..05.
+NOT VERIFIED: real Claude Code/Cursor hook run on a user machine; jest/mocha reports other than numPassedTests; CI-only gates (build, e2e, scanners) until CI runs.
+Known issues: none new; design follow-ups in agent/later.md (fail closed on missing end report, fix prompt listing test checks).
+Next: FEAT-019.
+
 ## 2026-10-28 | FEAT-008 fix: KI-027 hand-placed files deleted/moved on index + advisory storage lock | status: done
 Changed: removeMissing selects the missing files in the range; hand-placed ones are only held (returned as `held`) unless the diff has `final: true`. The CLI re-sends the held batches with final after its uploads; that deletes them (counted in deleted) and first moves their user links to a stored same-hash file not being deleted and not user-placed (a rename). saveFiles' storage-cap check takes pg_advisory_xact_lock(hashtextextended('storage:'||projectId)) instead of locking the project row.
 Verified (ran this session): 4 new KI-027 tests (2 server, 2 CLI end to end: rename across diff batches keeps one file, moves the placement, search finds one Button; local delete removes it) failed before, pass after; verify.sh PASS (typecheck, lint, tests, kit guard).

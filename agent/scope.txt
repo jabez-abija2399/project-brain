@@ -16,3 +16,6 @@ apps/web/src/server/receipt-integrity.security.test.ts
 apps/web/src/server/mcp-tools.ts
 apps/web/src/components/receipt-card.tsx
 packages/cli/src/index.ts  # FEAT-018: passes env (PROJECTBRAIN_TEST_REPORT) to the hooks
+packages/core/src/test-source.ts
+packages/core/src/test-integrity.security.test.ts
+apps/web/src/server/receipt-integrity.security.test.ts

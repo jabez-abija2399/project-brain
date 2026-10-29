@@ -2099,45 +2099,66 @@
           "id": "AC-018-01",
           "kind": "happy",
           "check": "A diff that deletes a test file, or a test case, is flagged in the receipt with file and test name",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 19:36; log contains AC-018-01"
         },
         {
           "id": "AC-018-02",
           "kind": "attack",
           "check": "Adding .skip/.only/xit, or removing expect() assertions from an existing test, is flagged",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 19:36; log contains AC-018-02"
         },
         {
           "id": "AC-018-03",
           "kind": "attack",
           "check": "Changes to test config that exclude test files (e.g. vitest exclude/include) are flagged",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 19:36; log contains AC-018-03"
         },
         {
           "id": "AC-018-04",
           "kind": "negative",
           "check": "Adding new tests or renaming a test without removing assertions is not flagged",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 19:36; log contains AC-018-04"
         },
         {
           "id": "AC-018-05",
           "kind": "boundary",
           "check": "A receipt reports the passing-test count before and after when the CLI or hook supplies test results, and flags any drop",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-10-29 19:36; log contains AC-018-05"
         }
       ],
-      "status": "in_progress",
-      "notes": "Idea adopted from the AI Build Kit's test-gaming guards; detection runs on the diff only (no source stored)."
+      "status": "done",
+      "notes": "Idea adopted from the AI Build Kit's test-gaming guards; detection runs on the diff only (no source stored).",
+      "files": [
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/server/mcp-tools.ts",
+        "apps/web/src/server/receipt-integrity.security.test.ts",
+        "apps/web/src/server/receipt-integrity.test.ts",
+        "apps/web/src/server/receipt-integrity.ts",
+        "apps/web/src/server/receipt.ts",
+        "packages/cli/src/hooks.ts",
+        "packages/cli/src/index.ts",
+        "packages/cli/src/test-integrity-local.ts",
+        "packages/cli/src/test-integrity.security.test.ts",
+        "packages/cli/src/test-integrity.test.ts",
+        "packages/core/src/fix-prompt.test.ts",
+        "packages/core/src/fix-prompt.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/receipt.ts",
+        "packages/core/src/test-integrity.security.test.ts",
+        "packages/core/src/test-integrity.test.ts",
+        "packages/core/src/test-integrity.ts",
+        "packages/core/src/test-source.ts"
+      ]
     },
     {
       "id": "FEAT-019",
@@ -2223,6 +2244,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 701
+    "tests_passed": 753
   }
 }

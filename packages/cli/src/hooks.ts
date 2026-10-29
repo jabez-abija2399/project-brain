@@ -278,8 +278,15 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
             ...(scan ? { secretFindings: scan.findings, secretFindingsOmitted: scan.omitted } : {}),
             // Sent only when there is something to report: flags or test counts.
             ...(integrity &&
-            (integrity.length > 0 || passingBefore !== null || passingAfter !== null)
-              ? { testIntegrity: { flags: integrity, passingBefore, passingAfter } }
+            (integrity.flags.length > 0 || passingBefore !== null || passingAfter !== null)
+              ? {
+                  testIntegrity: {
+                    flags: integrity.flags,
+                    ...(integrity.omitted > 0 ? { omitted: integrity.omitted } : {}),
+                    passingBefore,
+                    passingAfter,
+                  },
+                }
               : {}),
           }),
         ) as { receipt_id?: unknown };
@@ -325,7 +332,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
         warnings.push(`  ... and ${loose.length - MAX_WARNED_ITEMS} more`);
     }
     const testWarnings =
-      (integrity?.length ?? 0) +
+      (integrity ? integrity.flags.length + integrity.omitted : 0) +
       (passingBefore !== null && passingAfter !== null && passingAfter < passingBefore ? 1 : 0);
     if (testWarnings > 0) {
       warnings.push(

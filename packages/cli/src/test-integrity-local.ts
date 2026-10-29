@@ -7,6 +7,8 @@ import {
   checkTestIntegrity,
   isTestConfig,
   isTestFile,
+  safeDisplay,
+  safePath,
 } from "@brain/core";
 import type { Git } from "./scan-secrets";
 
@@ -14,6 +16,16 @@ import type { Git } from "./scan-secrets";
 // each changed test or test-config file is compared locally; only the flags (file, test names, counts) are sent.
 const MAX_FILES = 200;
 const MAX_REPORT_BYTES = 5 * 1024 * 1024;
+// The server accepts at most 50 flags and counts up to 1,000,000; past that the most serious flags are kept.
+const MAX_FLAGS = 50;
+const MAX_COUNT = 1_000_000;
+const PRIORITY: IntegrityFlag["kind"][] = [
+  "deleted_test_file",
+  "deleted_tests",
+  "skipped_tests",
+  "test_config_changed",
+  "removed_assertions",
+];
 
 async function inside(root: string, file: string): Promise<string | null> {
   if (file.startsWith("../") || isAbsolute(file)) return null;
@@ -49,7 +61,7 @@ export async function localIntegrity(
   root: string,
   base: string | null,
   files: string[],
-): Promise<IntegrityFlag[]> {
+): Promise<{ flags: IntegrityFlag[]; omitted: number }> {
   const relevant = files.filter((f) => isTestFile(f) || isTestConfig(f)).slice(0, MAX_FILES);
   const changes: FileChange[] = [];
   for (const path of relevant) {
@@ -61,7 +73,16 @@ export async function localIntegrity(
     if (before === null && after === null) continue;
     changes.push({ path, before, after });
   }
-  return checkTestIntegrity(changes);
+  // Names and paths are cleaned and masked here, so a secret used as a test name never leaves the machine.
+  const flags = checkTestIntegrity(changes)
+    .sort((a, b) => PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind))
+    .map((f) => ({
+      ...f,
+      file: safePath(f.file),
+      names: f.names.map((n) => safeDisplay(n, 200)).filter(Boolean),
+      count: Math.min(f.count, MAX_COUNT),
+    }));
+  return { flags: flags.slice(0, MAX_FLAGS), omitted: Math.max(0, flags.length - MAX_FLAGS) };
 }
 
 /**
@@ -80,7 +101,7 @@ export async function passingTests(
   try {
     const n = (JSON.parse(await readFile(abs, "utf8")) as { numPassedTests?: unknown })
       .numPassedTests;
-    return typeof n === "number" && Number.isInteger(n) && n >= 0 ? n : null;
+    return typeof n === "number" && Number.isInteger(n) && n >= 0 && n <= MAX_COUNT ? n : null;
   } catch {
     return null;
   }

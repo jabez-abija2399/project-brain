@@ -1,4 +1,4 @@
-import { maskPath, safeDisplay } from "@brain/core";
+import { safeDisplay, safePath } from "@brain/core";
 import { z } from "zod";
 import { repoPath } from "./code-index-input";
 
@@ -29,6 +29,8 @@ export const testIntegrityInput = z
           .strict(),
       )
       .max(MAX_INTEGRITY_FLAGS),
+    // Flags past the 50 sent (the hook keeps the most serious ones).
+    omitted: count.optional(),
     passingBefore: count.nullable().optional(),
     passingAfter: count.nullable().optional(),
   })
@@ -38,6 +40,8 @@ export type TestIntegrity = {
   flags: { kind: string; file: string; names: string[]; count: number }[];
   passing_before: number | null;
   passing_after: number | null;
+  // Present only when the hook left flags out.
+  omitted?: number;
 };
 
 /**
@@ -52,12 +56,17 @@ export function testIntegrity(
   const after = input.passingAfter ?? null;
   const flags: TestIntegrity["flags"] = input.flags.map((f) => ({
     kind: f.kind,
-    file: maskPath(f.file),
+    file: safePath(f.file),
     names: f.names.map((n) => safeDisplay(n, 200)).filter(Boolean),
     count: f.count,
   }));
   if (before !== null && after !== null && after < before) {
     flags.push({ kind: "passing_tests_dropped", file: "", names: [], count: before - after });
   }
-  return { flags, passing_before: before, passing_after: after };
+  return {
+    flags,
+    passing_before: before,
+    passing_after: after,
+    ...(input.omitted ? { omitted: input.omitted } : {}),
+  };
 }
