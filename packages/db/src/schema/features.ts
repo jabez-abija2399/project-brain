@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   foreignKey,
   index,
@@ -22,6 +23,8 @@ export const features = pgTable(
     name: text("name").notNull(),
     // Stable path-derived key a re-index matches on; the user renames `name` only. Null when user-created (0006).
     key: text("key"),
+    // The user renamed it, so a re-index keeps it even with no files (KI-037, 0022).
+    nameSetByUser: boolean("name_set_by_user").notNull().default(false),
     description: text("description"),
     status: text("status").notNull().default("todo"),
     createdAt: createdAt(),

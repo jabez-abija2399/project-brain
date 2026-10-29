@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { posix } from "node:path";
 import type { IndexResult } from "./indexer";
 import { maskSecretsIn } from "./mask";
 
@@ -33,6 +34,17 @@ export function toUpload(index: IndexResult): UploadFile[] {
       },
     ]),
   );
+  // KI-036: what an import resolves to can change while the file does not (a new tsconfig.json, an added file), so the
+  // diff hash includes the resolved imports. They are hashed relative to the file's folder, so a folder moved with the
+  // files it imports keeps its hashes (the server matches a renamed hand-placed file by hash, KI-027).
+  for (const f of byPath.values()) {
+    if (f.imports.length === 0) continue;
+    const dir = posix.dirname(f.path);
+    const rel = f.imports.map((i) => posix.relative(dir, i)).sort();
+    f.hash = createHash("sha256")
+      .update(`${f.hash}\nimports:${rel.join("\n")}`)
+      .digest("hex");
+  }
   for (const c of index.components) {
     byPath.get(c.path)?.symbols.push({
       kind: "component",

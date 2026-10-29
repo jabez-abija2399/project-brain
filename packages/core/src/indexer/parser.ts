@@ -1,13 +1,7 @@
 import ts from "typescript";
 import { detectComponent, isJsxNode, lineOf } from "./components";
 import { type DeclaredRoute, detectRouterRoutes } from "./react-router";
-import {
-  type FileLookup,
-  type TsconfigPaths,
-  isExternalSpec,
-  loadTsconfigPaths,
-  resolveImport,
-} from "./resolver";
+import { type FileLookup, type TsconfigPaths, isExternalSpec, resolveImport } from "./resolver";
 import type { ComponentIndex, ImportIndex, IndexError } from "./types";
 
 export type ParsedFile = {
@@ -93,5 +87,3 @@ function kindFor(relPath: string): ts.ScriptKind {
   if (relPath.endsWith(".mjs") || relPath.endsWith(".cjs")) return ts.ScriptKind.JS;
   return ts.ScriptKind.JS;
 }
-
-export { loadTsconfigPaths };

@@ -1,14 +1,20 @@
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
-import { loadTsconfigPaths, parseSource } from "./parser";
-import { type FileLookup, type TsconfigPaths, tsconfigPathsFromText } from "./resolver";
+import { parseSource } from "./parser";
+import {
+  type FileLookup,
+  type TsconfigPaths,
+  tsconfigFinder,
+  tsconfigPathsFromText,
+} from "./resolver";
 import { detectRoute } from "./routes";
 import type { IndexError, IndexOptions, IndexResult, SkippedFile } from "./types";
 import { DEFAULT_MAX_BYTES, isBinary, pathSkipReason, readNoFollow, walkRepo } from "./walker";
 
 export async function indexRepo(root: string, options: IndexOptions = {}): Promise<IndexResult> {
   const absRoot = resolve(root);
-  const cfg = loadTsconfigPaths(absRoot);
+  // KI-036: each file resolves its aliases through its nearest tsconfig.json (a monorepo app's own @/ alias).
+  const cfgFor = tsconfigFinder(absRoot);
   const walked = walkRepo(absRoot, options.maxFileBytes);
   const out = emptyResult(absRoot, walked.skipped, walked.errors);
   for (const entry of walked.files) {
@@ -23,7 +29,7 @@ export async function indexRepo(root: string, options: IndexOptions = {}): Promi
       });
       continue;
     }
-    indexOne(out, source, entry.relPath, absRoot, cfg);
+    indexOne(out, source, entry.relPath, absRoot, cfgFor(entry.relPath));
   }
   return out;
 }

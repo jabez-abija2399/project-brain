@@ -1,0 +1,4 @@
+{
+  // The root config only lists the workspaces; aliases live in tsconfig.base.json and each app's own config.
+  "files": []
+}

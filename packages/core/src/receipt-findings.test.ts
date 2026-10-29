@@ -59,10 +59,13 @@ describe("receipt findings (FEAT-015)", () => {
   it("AC-015-03 attack: control characters and secret-shaped text in table names and paths are cleaned and masked", () => {
     const key = ["sk", "_live_", "aB3dE5gH7j", "aB3dE5gH7j"].join("");
     const [f] = rlsFindings([
-      table(`evil‮\nname_${key}`, { rlsEnabled: false, path: `supabase/migrations/${key}.sql` }),
+      table(`evil\u202E\nname_${key}`, {
+        rlsEnabled: false,
+        path: `supabase/migrations/${key}.sql`,
+      }),
     ]);
     expect(JSON.stringify(f)).not.toContain(key);
-    expect(f?.table).not.toMatch(/[\n‮]/);
+    expect(f?.table).not.toMatch(/[\n\u202E]/);
     const s = secretFinding({
       file: "src/a.ts",
       line: 3,
