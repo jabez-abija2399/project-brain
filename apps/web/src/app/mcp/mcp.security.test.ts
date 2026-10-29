@@ -140,6 +140,7 @@ const ALL_TOOLS = (pid: unknown) =>
     ["find_similar_component", { projectId: pid, query: "VaultPanel" }],
     ["save_progress", { projectId: pid, goal: "planted", nextStep: "planted" }],
     ["add_decision", { projectId: pid, title: "planted" }],
+    ["list_features", { projectId: pid }],
   ] as const;
 
 describe("FEAT-011 security pass: token handling", () => {
@@ -344,6 +345,30 @@ describe("FEAT-011 security pass: cross-project access", () => {
     expect(await otherProjectWrites()).toEqual(before);
   });
 
+  it("AC-011-03 with projectId left out, extra keys and _meta naming project B still do not redirect any tool", async () => {
+    await seedOtherProject();
+    const before = await otherProjectWrites();
+    for (const [name, args] of ALL_TOOLS(undefined)) {
+      const res = await rpc(
+        "tools/call",
+        {
+          name,
+          arguments: { ...args, project_id: otherProjectId, projectID: otherProjectId },
+          _meta: { projectId: otherProjectId },
+        },
+        token,
+      );
+      expect(res.body, name).not.toContain(LEAK);
+      expect(res.body, name).not.toContain("Vault");
+    }
+    for (const [name, args] of ALL_TOOLS("")) {
+      const res = await callTool(name, args, token);
+      expect(res.isError, name).toBe(true);
+      expect(res.text, name).toContain("projectId");
+    }
+    expect(await otherProjectWrites()).toEqual(before);
+  });
+
   it("AC-011-03 a feature name that exists only in project B answers exactly like a missing feature (no existence oracle)", async () => {
     await seedOtherProject();
     const onlyInB = await callTool("get_context_pack", { projectId, feature: "Vault" }, token);
@@ -386,8 +411,8 @@ describe("FEAT-011 security pass: cross-project access", () => {
       headers: { ...BASE_HEADERS, authorization: `Bearer ${token}` },
       body: JSON.stringify(batch),
     });
-    // Processed call by call: B's five calls answer not_found, plus A's get_context_pack (no "Vault" in A).
-    expect(res.body.split("-32004").length - 1).toBe(6);
+    // Processed call by call: B's six calls answer not_found, plus A's get_context_pack (no "Vault" in A).
+    expect(res.body.split("-32004").length - 1).toBe(7);
     expect(res.status).not.toBe(500);
     expect(res.body).not.toContain(LEAK);
     expect(await otherProjectWrites()).toEqual(before);

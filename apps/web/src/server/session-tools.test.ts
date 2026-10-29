@@ -120,7 +120,9 @@ describe("session continuity tools (FEAT-010)", () => {
     expect(note).toContain("- Write the logout test");
     expect(note).not.toContain("Already finished item");
     expect(note).toContain("- Sign-in");
-    expect(note).not.toContain("Billing");
+    // Billing is not in progress: it is only named in the line of all features.
+    expect(note).not.toContain("- Billing");
+    expect(note).toContain("ALL FEATURES: Billing, Sign-in");
     for (const i of [3, 4, 5, 6, 7]) expect(note).toContain(`Decision ${i}`);
     expect(note).not.toContain("Decision 2");
     expect(note).not.toContain("Decision 1");

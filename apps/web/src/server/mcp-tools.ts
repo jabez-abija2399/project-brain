@@ -11,6 +11,7 @@ import {
   type ToolToken,
   addDecision,
   bindToken,
+  listFeatures,
   saveProgress,
   whereDidWeStop,
 } from "./session-tools";
@@ -115,16 +116,19 @@ async function run(
   }
 }
 
-const projectId = z.string().describe("The project id this token belongs to");
+const projectId = z
+  .string()
+  .optional()
+  .describe("Optional: the token's project is used. If given, it must be the token's project id.");
 
-// The five FEAT-011 tools. Arguments are checked again by each service (field caps, trimming); the schemas here
+// The FEAT-011 tools (plus list_features and the FEAT-012 checklist tools). Arguments are checked again by each service (field caps, trimming); the schemas here
 // describe them to the client. Read tools never call an LLM.
 export function registerBrainTools(server: McpServer): void {
   server.registerTool(
     "where_did_we_stop",
     {
       description:
-        "Handoff note for the start of a session: last goal, next step, open items, recent decisions and the owner's standing instructions.",
+        "Handoff note for the start of a session: last goal, next step, open items, recent decisions, the project's feature names and the owner's standing instructions.",
       inputSchema: z.object({ projectId }),
     },
     async (args, ctx) =>
@@ -160,6 +164,19 @@ export function registerBrainTools(server: McpServer): void {
         const matches = await findSimilarComponents(getDb(), token.projectId, input.query);
         return JSON.stringify({ matches });
       }),
+  );
+
+  server.registerTool(
+    "list_features",
+    {
+      description:
+        "The project's features by name, with how many files each has and its status (at most 200; truncated says when there are more).",
+      inputSchema: z.object({ projectId }),
+    },
+    async (args, ctx) =>
+      run("list_features", ctx.http?.authInfo, async (token) =>
+        JSON.stringify(await listFeatures(getDb(), token, args)),
+      ),
   );
 
   server.registerTool(
@@ -233,13 +250,13 @@ export function registerBrainTools(server: McpServer): void {
 
 const featureArgs = z
   .object({
-    projectId: z.string().min(1).max(100),
+    projectId: z.string().min(1).max(100).optional(),
     feature: z.string().trim().min(1, "is required").max(100, "must be 100 characters or fewer"),
   })
   .strict();
 const queryArgs = z
   .object({
-    projectId: z.string().min(1).max(100),
+    projectId: z.string().min(1).max(100).optional(),
     query: z.string().trim().min(1, "is required").max(200, "must be 200 characters or fewer"),
   })
   .strict();

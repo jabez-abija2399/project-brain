@@ -267,3 +267,37 @@ describe("FEAT-007 name filter and scoring use the same words", () => {
     expect(findSimilarComponent(query, [candidate])).toEqual([]);
   });
 });
+
+describe("KI-020 plural forms and word rarity", () => {
+  const candidates = [
+    { name: "ProjectTokensPanel", path: "src/components/ProjectTokensPanel.tsx" },
+    { name: "ReviewList", path: "src/components/ReviewList.tsx" },
+  ];
+
+  it("treats singular and plural as the same word", () => {
+    expect(nameTokens("ProjectTokensPanel")).toEqual(nameTokens("ProjectTokenPanel"));
+    expect(nameTokens("Categories")).toEqual(nameTokens("Category"));
+    expect(nameTokens("Boxes")).toEqual(nameTokens("Box"));
+    expect(nameTokens("Status")).toEqual(["status"]);
+    expect(nameTokens("Address")).toEqual(["address"]);
+  });
+
+  it("'TokenList' ranks ProjectTokensPanel first: a common word like List counts less", () => {
+    const matches = findSimilarComponent("TokenList", candidates, { threshold: 0 });
+    expect(matches.map((m) => m.component.name)).toEqual(["ProjectTokensPanel", "ReviewList"]);
+    expect(findSimilarComponent("TokenList", candidates)[0]?.component.name).toBe(
+      "ProjectTokensPanel",
+    );
+  });
+
+  it("a word that many of the project's components share counts less than a rare one", () => {
+    const project = [
+      { name: "SidebarInvoiceRow", path: "src/SidebarInvoiceRow.tsx" },
+      { name: "WidgetCard", path: "src/WidgetCard.tsx" },
+      { name: "WidgetTable", path: "src/WidgetTable.tsx" },
+      { name: "WidgetChart", path: "src/WidgetChart.tsx" },
+    ];
+    const matches = findSimilarComponent("InvoiceWidget", project, { threshold: 0 });
+    expect(matches[0]?.component.name).toBe("SidebarInvoiceRow");
+  });
+});

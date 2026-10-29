@@ -19,7 +19,7 @@ import { type ToolToken, bindToken } from "./session-tools";
 const id = z.string().min(1).max(100);
 const createSchema = z
   .object({
-    projectId: id,
+    projectId: id.optional(),
     featureId: id,
     request: z
       .string()
@@ -31,7 +31,7 @@ const createSchema = z
   .strict();
 const proposeSchema = z
   .object({
-    projectId: id,
+    projectId: id.optional(),
     itemId: id,
     text: z
       .string()
