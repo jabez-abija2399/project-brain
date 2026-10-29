@@ -2,7 +2,7 @@
 // Saved text is user-visible data, so every value is labelled and nothing is framed as an instruction except the
 // standing instructions the project owner confirmed.
 
-import { oneLineText } from "./text";
+import { plainText } from "./text";
 
 // The note stays under this many characters (AC-010-02).
 export const HANDOFF_LIMIT = 1500;
@@ -23,6 +23,8 @@ export type HandoffInput = {
   } | null;
   checklist: string[];
   featuresInProgress: string[];
+  // FEAT-019: the first feature of the approved plan, by build order, that is not done yet.
+  nextFeature?: string | null;
   // Names of the project's features (the server caps how many it loads). Shown on one line, cut to fit.
   features?: string[];
   // Newest first; only the first 5 are shown.
@@ -46,6 +48,7 @@ const HEADS = [
   null,
   null,
   null,
+  null,
   "OPEN CHECKLIST:",
   "FEATURES IN PROGRESS:",
   "RECENT DECISIONS (newest first):",
@@ -53,22 +56,23 @@ const HEADS = [
 ] as const;
 const DIRECTIVES = 0;
 const GOAL = 1;
-const NEXT = 2;
-const LAST = 3;
-const UNFINISHED = 4;
-const CHECKLIST = 5;
-const FEATURES = 6;
-const DECISIONS = 7;
-const ALL_FEATURES = 8;
+const NEXT_FEATURE = 2;
+const NEXT = 3;
+const LAST = 4;
+const UNFINISHED = 5;
+const CHECKLIST = 6;
+const FEATURES = 7;
+const DECISIONS = 8;
+const ALL_FEATURES = 9;
 
 // Section words that the note itself prints. Saved text may not contain them in any case, so a value cannot pass
 // for a section (e.g. a fake standing instruction in a goal).
 const SECTION_WORDS =
-  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|FEATURES IN PROGRESS|PROJECT HANDOFF|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:)/gi;
+  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|FEATURES IN PROGRESS|PROJECT HANDOFF|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:|NEXT FEATURE)/gi;
 
 // Saved text is flattened to one line so a value cannot start a new section.
 function oneLine(value: string): string {
-  return oneLineText(value).replace(SECTION_WORDS, (word) => word.toLowerCase());
+  return plainText(value).replace(SECTION_WORDS, (word) => word.toLowerCase());
 }
 
 function pieces(input: HandoffInput): Piece[] {
@@ -87,6 +91,8 @@ function pieces(input: HandoffInput): Piece[] {
   } else {
     add(GOAL, "GOAL: none saved yet");
   }
+  if (input.nextFeature)
+    add(NEXT_FEATURE, `NEXT FEATURE (approved plan, build order): ${oneLine(input.nextFeature)}`);
   for (const item of input.checklist) add(CHECKLIST, `- ${oneLine(item)}`);
   for (const f of input.featuresInProgress) add(FEATURES, `- ${oneLine(f)}`);
   for (const d of input.decisions.slice(0, DECISIONS_SHOWN)) {

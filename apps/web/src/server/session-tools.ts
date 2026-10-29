@@ -195,14 +195,15 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
     const input = parseArgs(projectOnlySchema, raw);
     bindToken(token, input.projectId);
     const pid = token.projectId;
-    // DB reads only, no LLM call (AGENTS.md). Six small queries; each one is bounded.
-    const [sessions, checklist, features, decisions, directives, all] = await Promise.all([
+    // DB reads only, no LLM call (AGENTS.md). Seven small queries; each one is bounded.
+    const [sessions, checklist, features, decisions, directives, all, next] = await Promise.all([
       agentSessionsRepo.listNewest(db, pid, 1),
       checklistItemsRepo.listOpenForProject(db, pid, 20),
       featuresRepo.listInProgress(db, pid, 10),
       decisionsRepo.listNewest(db, pid, 5),
       directivesRepo.listActive(db, pid),
       featuresRepo.listSummaries(db, pid, HANDOFF_FEATURES),
+      featuresRepo.nextByBuildOrder(db, pid),
     ]);
     const last = sessions[0];
     return buildHandoffNote({
@@ -219,6 +220,8 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
       decisions: decisions.map((d) => ({ title: d.title, createdAt: d.createdAt })),
       directives: directives.map((d) => d.text),
       features: all.features.map((f) => maskSecretsIn(f.name)),
+      // FEAT-019: the approved plan's next feature by build order (AC-019-05).
+      nextFeature: next ? maskSecretsIn(next.name) : null,
     });
   });
 }

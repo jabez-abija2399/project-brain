@@ -4,6 +4,7 @@ import {
   check,
   foreignKey,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -27,6 +28,8 @@ export const features = pgTable(
     nameSetByUser: boolean("name_set_by_user").notNull().default(false),
     description: text("description"),
     status: text("status").notNull().default("todo"),
+    // FEAT-019: position in the approved plan's build order; null when the feature did not come from a plan (0026).
+    buildOrder: integer("build_order"),
     createdAt: createdAt(),
   },
   (t) => ({

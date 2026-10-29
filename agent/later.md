@@ -95,3 +95,7 @@
 - 2026-10-29 FEAT-018: "Send fix to agent" prompt could also list the receipt's test checks; dashboard could show the omitted-flags count.
 - 2026-10-29 FEAT-018: generate_receipt MCP schema could list the 5 kinds instead of a plain string (the server's zod check already does).
 - 2026-10-29 FEAT-018: raw U+FEFF (BOM) still sits in check-package.security.test.ts:286 and secrets.security.test.ts:37; write it as \\ufeff (semgrep does not block it today).
+- 2026-10-29 FEAT-019 security: core/checklist.ts checklistPrompt has the same single-pass "<<<"/">>>" break as plan.ts had (">>>>>" leaves ">>>"); reuse plan's run-spacing there.
+- 2026-10-29 FEAT-019 security: no route checks Origin on cookie-authenticated POST/PATCH (approve, checklist confirm); they rely on SameSite=Lax. Add one app-wide Origin check.
+- 2026-10-29 FEAT-019 security: feature names are compared case- and invisible-insensitively, but lookalike letters (Cyrillic/fullwidth) still make a second "same" feature; a confusables skeleton compare (and a unique index on lower(name), schema change: ask) would close it.
+- 2026-10-29 FEAT-019 question for the owner: create_checklist can still add new requests/items to a feature that came from an approved plan; decide whether that counts as editing the approved plan.

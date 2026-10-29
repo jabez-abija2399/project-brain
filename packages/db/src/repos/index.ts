@@ -40,3 +40,4 @@ export type { PolicyFlagsRow, TableFlagsRow } from "./db-schema";
 export { MAX_PAGE_SIZE, type Page, type PageOptions } from "./page";
 export { dashboardRepo } from "./dashboard";
 export type { BoardRow, FeedRow } from "./dashboard";
+export { type ApproveResult, planDraftsRepo } from "./plan-drafts";

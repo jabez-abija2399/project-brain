@@ -7,6 +7,7 @@ import { findSimilarComponents } from "./components";
 import { getContextPack } from "./context-pack";
 import { getDb } from "./db";
 import { AppError } from "./errors";
+import { planProject } from "./plan";
 import { MCP_CALLS_PER_MINUTE, rateLimit } from "./rate-limit";
 import { generateReceipt } from "./receipt";
 import {
@@ -63,6 +64,8 @@ function toProtocolError(err: unknown): ProtocolError {
     }
     if (err.status === 401) return new ProtocolError(MCP_ERROR.unauthorized, "unauthorized");
     if (err.status === 404) return new ProtocolError(MCP_ERROR.notFound, "not_found");
+    // A fixed state code (plan_not_open): the call cannot apply to the current state.
+    if (err.status === 409) return new ProtocolError(MCP_ERROR.invalidParams, err.code);
     if (err.code === "ai_budget_exhausted") {
       const now = Date.now();
       const nextDay = (Math.floor(now / 86_400_000) + 1) * 86_400_000;
@@ -226,6 +229,40 @@ export function registerBrainTools(server: McpServer): void {
     async (args, ctx) =>
       run("create_checklist", ctx.http?.authInfo, async (token) =>
         JSON.stringify(await createChecklist(getDb(), token, args)),
+      ),
+  );
+
+  server.registerTool(
+    "plan_project",
+    {
+      description:
+        "Plan a new project or the missing part of this one. Stage 1: pass the user's idea; you get it restated " +
+        "and up to 8 questions with recommended defaults. Stage 2: pass planId with the user's answers (by " +
+        "question id) or approveDefaults: true; you get a draft plan (features in build order with checklist " +
+        "items). The draft is not active until the project owner approves it in the dashboard; agents cannot " +
+        "approve it.",
+      inputSchema: z.object({
+        projectId,
+        idea: z
+          .string()
+          .optional()
+          .describe("Stage 1: the user's idea as they wrote it (max 8,000 characters)"),
+        planId: z.string().optional().describe("Stage 2: plan_id returned by stage 1"),
+        answers: z
+          .record(z.string(), z.string())
+          .optional()
+          .describe(
+            "Stage 2: the user's answers keyed by question id (q1..q8); missing ones use the default",
+          ),
+        approveDefaults: z
+          .literal(true)
+          .optional()
+          .describe("Stage 2: use every question's recommended default"),
+      }),
+    },
+    async (args, ctx) =>
+      run("plan_project", ctx.http?.authInfo, async (token) =>
+        JSON.stringify(await planProject(getDb(), token, args)),
       ),
   );
 

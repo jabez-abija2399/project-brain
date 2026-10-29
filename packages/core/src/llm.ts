@@ -26,7 +26,7 @@ export type LlmCostEntry =
 export type LlmOptions = {
   model?: string;
   timeoutMs?: number;
-  /** Upper bound for every request (default and never above DEFAULT_MAX_TOKENS). */
+  /** Upper bound for every request (default DEFAULT_MAX_TOKENS, never above MAX_TOKENS_CEILING). */
   maxTokens?: number;
   log?: (entry: LlmCostEntry) => void;
 };
@@ -35,6 +35,8 @@ export type CompleteRequest = {
   prompt: string;
   system?: string;
   maxTokens?: number;
+  /** Per-call timeout; never longer than the instance's (a caller with a deadline shortens it). */
+  timeoutMs?: number;
   /** Short label for the cost log, e.g. "component-summary". */
   purpose: string;
 };
@@ -44,6 +46,8 @@ export type Llm = { complete(request: CompleteRequest): Promise<string> };
 export const DEFAULT_MODEL = "claude-haiku-5-5";
 export const DEFAULT_TIMEOUT_MS = 20_000;
 export const DEFAULT_MAX_TOKENS = 300;
+// Only an instance created with a larger maxTokens (the FEAT-019 planner) goes above the default, and never past this.
+export const MAX_TOKENS_CEILING = 4000;
 
 // Only the error's class name (e.g. "RateLimitError"): its message may quote the request.
 export function errorType(err: unknown): string {
@@ -54,7 +58,7 @@ export function errorType(err: unknown): string {
 export function createLlm(client: LlmClient, options: LlmOptions = {}): Llm {
   const model = options.model ?? DEFAULT_MODEL;
   const timeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  const cap = Math.min(options.maxTokens ?? DEFAULT_MAX_TOKENS, DEFAULT_MAX_TOKENS);
+  const cap = Math.min(options.maxTokens ?? DEFAULT_MAX_TOKENS, MAX_TOKENS_CEILING);
   return {
     async complete(request) {
       const started = Date.now();
@@ -67,7 +71,7 @@ export function createLlm(client: LlmClient, options: LlmOptions = {}): Llm {
             ...(request.system ? { system: request.system } : {}),
             messages: [{ role: "user", content: request.prompt }],
           },
-          { timeout },
+          { timeout: Math.min(request.timeoutMs ?? timeout, timeout) },
         );
       } catch (err) {
         options.log?.({ model, purpose: request.purpose, error: errorType(err) });
