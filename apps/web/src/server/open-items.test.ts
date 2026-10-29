@@ -47,7 +47,7 @@ describe("FEAT-016 open checklist items for the session-end hook", () => {
     const fresh = await requestsRepo.createWithItems(
       world.db,
       a.id,
-      { featureId: f.id, text: `Add reviews‮ with ${key}` },
+      { featureId: f.id, text: `Add reviews\u202E with ${key}` },
       [
         { text: "Show the list", needsClarification: false },
         { text: "Add stars", needsClarification: false },

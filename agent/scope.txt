@@ -47,3 +47,5 @@ packages/core/src/receipt-findings.test.ts  # semgrep fix requested by the user:
 apps/web/src/app/mcp/mcp.security.test.ts  # requested by the user: raw U+200B -> \u200B escape
 docs/build-checklist.md  # rule 3: invisible/bidi characters in tests as \u escapes
 apps/web/src/server/check-package.security.test.ts  # requested by the user: lookalike letters as \u escapes
+apps/web/src/server/open-items.security.test.ts  # rule 3: raw U+202E from FEAT-016 as \u escape
+apps/web/src/server/open-items.test.ts  # rule 3: raw U+202E from FEAT-016 as \u escape
