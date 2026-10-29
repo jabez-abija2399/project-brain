@@ -9,11 +9,8 @@ export const MAX_DB_POLICIES = 5_000;
 
 // A Postgres identifier as the reader reports it: up to 63 bytes, quoted names may hold any printable character.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this rejects
-const identifier = z
-  .string()
-  .min(1)
-  .max(128)
-  .regex(/^[^\u0000-\u001f\u007f-\u009f]+$/, "invalid name");
+const NO_CONTROL = /^[^\u0000-\u001f\u007f-\u009f]+$/;
+const identifier = z.string().min(1).max(128).regex(NO_CONTROL, "invalid name");
 
 const table = z
   .object({
