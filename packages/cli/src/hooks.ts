@@ -11,6 +11,7 @@ import {
   writeSync,
 } from "node:fs";
 import { isAbsolute, join, sep } from "node:path";
+import { oneLineText } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 import { callTool } from "./mcp-client";
@@ -51,13 +52,17 @@ const timed =
   (url, init) =>
     fetchImpl(url, { ...init, signal: AbortSignal.timeout(ms) });
 
-// Server text is printed to the agent's context or the user's terminal: no control, C1 or direction characters
-// (terminal escapes, forged lines), and a fixed length.
-// Built from a string so the escapes stay escapes (no literal control or line-separator characters in the source).
-const UNSAFE =
-  /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028\u2029\u202a-\u202e\u2066-\u2069]/g;
-const clean = (text: string, max: number) => text.replace(UNSAFE, "").slice(0, max);
-const line = (text: string) => clean(text.replace(/[\r\n\t]+/g, " "), MAX_LINE_CHARS);
+// Server text is printed to the agent's context or the user's terminal: each line goes through oneLineText (no
+// control, C1, separator or bidi characters, so no terminal escapes or forged lines), the direction marks it keeps
+// are removed, and the length is capped.
+const MARKS = /[\u061c\u200e\u200f]/g;
+const clean = (text: string, max: number) =>
+  text
+    .split("\n")
+    .map((l) => oneLineText(l).replace(MARKS, ""))
+    .join("\n")
+    .slice(0, max);
+const line = (text: string) => oneLineText(text).replace(MARKS, "").slice(0, MAX_LINE_CHARS);
 
 async function hookInput(deps: HookDeps): Promise<{ sessionId: string; cwd: string }> {
   let raw: unknown = {};
