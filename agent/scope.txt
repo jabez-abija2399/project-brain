@@ -144,3 +144,6 @@ packages/db/migrations/0022_feature_name_set_by_user.sql  # KI-037
 packages/db/src/schema/features.ts  # KI-037
 tests/fixtures/monorepo-app/**  # KI-036 nested tsconfig + @/ alias
 apps/web/src/app/api/projects/[[]id]/features/features.test.ts  # KI-037: an emptied automatic feature is now deleted
+packages/core/src/receipt-findings.test.ts  # semgrep fix requested by the user: raw U+202E -> \u202E escape
+apps/web/src/app/mcp/mcp.security.test.ts  # requested by the user: raw U+200B -> \u200B escape
+docs/build-checklist.md  # rule 3: invisible/bidi characters in tests as \u escapes
