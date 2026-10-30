@@ -1,3 +1,4 @@
+import { oneLineText } from "@brain/core";
 import { projectTokensRepo } from "@brain/db";
 import { type AuthInfo, type McpServer, ProtocolError } from "@modelcontextprotocol/server";
 import { z } from "zod";
@@ -7,6 +8,7 @@ import { findSimilarComponents } from "./components";
 import { getContextPack } from "./context-pack";
 import { getDb } from "./db";
 import { AppError } from "./errors";
+import { FeatureNotFoundError, resolveFeature } from "./feature-ref";
 import { planProject } from "./plan";
 import { MCP_CALLS_PER_MINUTE, rateLimit } from "./rate-limit";
 import { generateReceipt } from "./receipt";
@@ -54,6 +56,15 @@ function tokenOf(authInfo: AuthInfo | undefined): ToolToken {
 // One error shape: field name for invalid input, not_found for anything the token may not see, nothing internal.
 function toProtocolError(err: unknown): ProtocolError {
   if (err instanceof ProtocolError) return err;
+  // A wrong feature names the valid ones (this project's only), so the agent can retry with one of them.
+  if (err instanceof FeatureNotFoundError) {
+    const ref = oneLineText(err.ref).slice(0, 100);
+    return new ProtocolError(
+      MCP_ERROR.notFound,
+      `feature "${ref}" not found; use one of: ${err.valid.join(", ") || "(no features yet: run the index)"}`,
+      { valid_features: err.valid },
+    );
+  }
   if (err instanceof AppError) {
     if (err.status === 400) {
       const field = Object.keys(err.fieldErrors ?? {})[0] ?? "_";
@@ -120,6 +131,10 @@ async function run(
   }
 }
 
+// Dogfooding (edutech): the feature exactly as list_features or where_did_we_stop shows it.
+const FEATURE_REF =
+  "The feature's name (as list_features and where_did_we_stop show it), its key or its id";
+
 const projectId = z
   .string()
   .optional()
@@ -144,13 +159,17 @@ export function registerBrainTools(server: McpServer): void {
     {
       description:
         "A feature's files, component summaries, recent decisions and the owner's rules. No source code.",
-      inputSchema: z.object({ projectId, feature: z.string().describe("Feature name") }),
+      inputSchema: z.object({
+        projectId,
+        feature: z.string().describe(FEATURE_REF),
+      }),
     },
     async (args, ctx) =>
       run("get_context_pack", ctx.http?.authInfo, async (token) => {
         const input = parseFeatureArgs(args);
         bindToken(token, input.projectId);
-        return getContextPack(getDb(), token.projectId, input.feature);
+        const feature = await resolveFeature(getDb(), token.projectId, input.feature);
+        return getContextPack(getDb(), token.projectId, feature.name);
       }),
   );
 
@@ -174,7 +193,7 @@ export function registerBrainTools(server: McpServer): void {
     "list_features",
     {
       description:
-        "The project's features by name, with how many files each has and its status (at most 200; truncated says when there are more).",
+        "The project's features by name and id, with how many files each has and its status (at most 200; truncated says when there are more).",
       inputSchema: z.object({ projectId }),
     },
     async (args, ctx) =>
@@ -222,7 +241,8 @@ export function registerBrainTools(server: McpServer): void {
         "are flagged needs_clarification). Items can only be changed later through propose_checklist_change.",
       inputSchema: z.object({
         projectId,
-        featureId: z.string().describe("Feature id the request belongs to"),
+        feature: z.string().optional().describe(FEATURE_REF),
+        featureId: z.string().optional().describe("Older name of `feature` (same values)"),
         request: z.string().describe("The user's request, as they wrote it (max 4,000 characters)"),
       }),
     },
@@ -296,7 +316,11 @@ export function registerBrainTools(server: McpServer): void {
         projectId,
         requestId: z
           .string()
-          .describe("The request the change was made for (from create_checklist)"),
+          .optional()
+          .describe(
+            "The request the change was made for (from create_checklist); without one the receipt still lists the " +
+              "changed files and checks, and says no request was recorded",
+          ),
         changedFiles: z
           .array(z.string())
           .describe("Repo-relative paths of the changed files (max 200)"),

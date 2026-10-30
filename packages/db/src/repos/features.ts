@@ -105,10 +105,18 @@ export const featuresRepo = {
     db: BrainDb,
     projectId: string,
     limit: number,
-  ): Promise<{ features: { name: string; status: string; files: number }[]; total: number }> {
+  ): Promise<{
+    features: { id: string; name: string; status: string; files: number }[];
+    total: number;
+  }> {
     const [rows, [n]] = await Promise.all([
       db
-        .select({ name: features.name, status: features.status, files: count(featureFiles.fileId) })
+        .select({
+          id: features.id,
+          name: features.name,
+          status: features.status,
+          files: count(featureFiles.fileId),
+        })
         .from(features)
         .leftJoin(
           featureFiles,

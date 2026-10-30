@@ -219,7 +219,8 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
       featuresInProgress: features.map((f) => f.name),
       decisions: decisions.map((d) => ({ title: d.title, createdAt: d.createdAt })),
       directives: directives.map((d) => d.text),
-      features: all.features.map((f) => maskSecretsIn(f.name)),
+      // With each id, so an agent can pass either to the tools that take a feature (dogfooding, edutech).
+      features: all.features.map((f) => `${maskSecretsIn(f.name)} (id ${f.id})`),
       // FEAT-019: the approved plan's next feature by build order (AC-019-05).
       nextFeature: next ? maskSecretsIn(next.name) : null,
     });
@@ -238,6 +239,7 @@ export async function listFeatures(db: BrainDb, token: ToolToken, raw: unknown) 
     );
     return {
       features: features.map((f) => ({
+        id: f.id,
         name: maskSecretsIn(f.name),
         files: f.files,
         status: f.status,
