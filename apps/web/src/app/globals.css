@@ -197,3 +197,444 @@ summary:focus-visible {
     font-size: 12px;
   }
 }
+
+/* Landing page ("Calm ledger", docs/DESIGN.md tokens only). Quiet everywhere; the printing receipt is the one bold
+   element and the final call to action the only dark band. */
+.lp-container {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+.lp-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.lp h1,
+.lp h2,
+.lp h3 {
+  letter-spacing: -0.01em;
+}
+.lp p {
+  line-height: 1.6;
+}
+.lp-header {
+  border-bottom: 1px solid var(--border);
+}
+.lp-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 64px;
+}
+.lp-wordmark {
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+}
+.lp-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px 20px;
+}
+.lp-nav > a:not(.btn),
+.lp-footer-links > a {
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+}
+.lp-nav > a:not(.btn):hover,
+.lp-footer-links > a:hover {
+  text-decoration: underline;
+}
+.lp-signin .btn {
+  padding-left: 0;
+  padding-right: 0;
+}
+.lp-error {
+  display: block;
+  color: var(--danger);
+  font-size: 13px;
+}
+.lp-menu-button {
+  display: none;
+}
+@media (max-width: 760px) {
+  .lp-menu-button {
+    display: inline-flex;
+  }
+  .lp-nav {
+    display: none;
+    flex-basis: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 0 16px;
+  }
+  .lp-nav[data-open="true"] {
+    display: flex;
+  }
+}
+.lp-hero {
+  text-align: center;
+  padding-top: 72px;
+  padding-bottom: 32px;
+}
+.lp-hero h1 {
+  font-size: clamp(32px, 6vw, 52px);
+  line-height: 1.1;
+  margin: 0 auto 20px;
+  max-width: 820px;
+}
+.lp-sub {
+  font-size: 18px;
+  color: var(--muted);
+  max-width: 640px;
+  margin: 0 auto 28px;
+}
+.lp-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+}
+.lp-btn-lg {
+  min-height: 44px;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.lp-works-with {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  padding-bottom: 24px;
+}
+
+/* The receipt printing out of a slot. */
+.lp-receipt {
+  max-width: 460px;
+  margin: 48px auto 0;
+  text-align: left;
+  scroll-margin-top: 24px;
+}
+.lp-printer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 40px;
+  padding-bottom: 12px;
+  background: var(--text);
+  border-radius: 14px;
+}
+.lp-slot {
+  width: calc(100% - 40px);
+  height: 4px;
+  border-radius: 4px;
+  background: var(--muted);
+}
+.lp-paper-window {
+  overflow: hidden;
+  margin-top: -14px;
+  padding: 0 24px 24px;
+}
+.lp-paper {
+  filter: drop-shadow(0 1px 1px color-mix(in srgb, var(--text) 20%, transparent))
+    drop-shadow(0 10px 18px color-mix(in srgb, var(--text) 8%, transparent));
+  animation: lp-print 1.4s cubic-bezier(0.2, 0.7, 0.2, 1) 0.2s both;
+}
+@keyframes lp-print {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lp-paper {
+    animation: none;
+  }
+}
+.lp-paper-inner {
+  background: var(--surface);
+  color: var(--text);
+  padding: 28px 20px 32px;
+  display: grid;
+  gap: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.lp-r-head {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed var(--border);
+}
+.lp-r-title {
+  font-size: 15px;
+}
+.lp-r-block {
+  display: grid;
+  gap: 6px;
+}
+.lp-r-label {
+  color: var(--muted);
+}
+.lp-r-text {
+  margin: 0;
+}
+.lp-paper-inner .lp-r-text {
+  line-height: 1.5;
+}
+.lp-r-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.lp-r-line {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 8px;
+}
+.lp-r-path {
+  color: var(--accent);
+}
+.lp-r-foot {
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+.lp-r-action {
+  cursor: default;
+  font-size: 13px;
+}
+
+/* Quiet sections. */
+.lp-section {
+  padding-top: 72px;
+  padding-bottom: 24px;
+}
+.lp-section h2 {
+  font-size: 26px;
+  margin: 0 0 24px;
+}
+.lp h3 {
+  font-size: 17px;
+  margin: 0 0 6px;
+}
+.lp-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+.lp-column {
+  border-top: 1px solid var(--text);
+  padding-top: 16px;
+}
+.lp-column p,
+.lp-step p,
+.lp-check p {
+  margin: 0;
+  color: var(--muted);
+}
+.lp-steps {
+  list-style: none;
+  counter-reset: lp-step;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+.lp-step {
+  counter-increment: lp-step;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.lp-step::before {
+  content: counter(lp-step);
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.lp-step h3 {
+  margin: 0;
+}
+.lp-terminal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.lp-prompt {
+  color: var(--muted);
+}
+.lp-terminal-note {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 13px;
+}
+.lp-checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px 48px;
+}
+.lp-check {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 12px;
+}
+.lp-check-icon {
+  color: var(--accent);
+  padding-top: 2px;
+}
+.lp-privacy {
+  margin-top: 72px;
+  padding: 56px 0;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.lp-privacy h2 {
+  font-size: clamp(24px, 4vw, 34px);
+  margin: 0 0 20px;
+}
+.lp-facts {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.lp-faq {
+  display: grid;
+  max-width: 720px;
+}
+.lp-faq details {
+  border-top: 1px solid var(--border);
+  padding: 16px 0;
+}
+.lp-faq details:last-child {
+  border-bottom: 1px solid var(--border);
+}
+.lp-faq summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.lp-faq details p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+/* The final call to action: the only dark band. */
+.lp-final {
+  margin-top: 72px;
+  padding: 72px 0;
+  background: var(--text);
+  color: var(--surface);
+}
+.lp-final-inner {
+  text-align: center;
+}
+.lp-final h2 {
+  font-size: clamp(28px, 5vw, 40px);
+  margin: 0 0 24px;
+}
+.lp-form {
+  display: grid;
+  gap: 8px;
+  max-width: 460px;
+  margin: 0 auto;
+  text-align: left;
+}
+.lp-form label {
+  font-weight: 600;
+}
+.lp-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.lp-form input {
+  flex: 1 1 220px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.lp-form .btn {
+  min-height: 44px;
+}
+.lp-form-result {
+  min-height: 1.5em;
+  color: var(--border);
+}
+.lp-final .btn:focus-visible,
+.lp-final input:focus-visible {
+  outline: 2px solid var(--surface);
+  outline-offset: 2px;
+}
+.lp-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 24px;
+  padding-top: 24px;
+  padding-bottom: 32px;
+}
+.lp-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 20px;
+  color: var(--muted);
+  font-size: 14px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+@media (max-width: 760px) {
+  .lp-hero {
+    padding-top: 48px;
+  }
+  .lp-columns,
+  .lp-steps,
+  .lp-checks {
+    grid-template-columns: 1fr;
+  }
+  .lp-section {
+    padding-top: 48px;
+  }
+  .lp-paper-window {
+    padding: 0 10px 24px;
+  }
+  .lp-paper-inner {
+    padding: 24px 14px 28px;
+  }
+}

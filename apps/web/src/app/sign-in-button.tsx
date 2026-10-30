@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-export default function SignInButton() {
+// "link": a quiet "Sign in" for the landing page header and footer; the default is the full GitHub button.
+export default function SignInButton({ variant = "default" }: { variant?: "default" | "link" }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +31,21 @@ export default function SignInButton() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (variant === "link") {
+    return (
+      <span className="lp-signin">
+        <button type="button" className="btn btn-ghost" onClick={signIn} disabled={busy}>
+          {busy ? "Opening GitHub..." : "Sign in"}
+        </button>
+        {error ? (
+          <span role="alert" className="lp-error">
+            {error}
+          </span>
+        ) : null}
+      </span>
+    );
   }
 
   return (
