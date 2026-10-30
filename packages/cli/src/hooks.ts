@@ -162,6 +162,55 @@ const head = (git: Git, root: string) =>
     () => null,
   );
 
+const count = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+const number = (v: unknown) =>
+  typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? Math.min(v, 1_000_000) : 0;
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Journey part 4: the receipt in three lines (done, missed, checks needing attention) and a link to the full receipt.
+ * Only counts are read from the server's answer, never its text, so nothing it says reaches the terminal raw.
+ */
+function receiptSummary(
+  receipt: Record<string, unknown>,
+  config: CliConfig,
+  receiptId: string | null,
+): string[] {
+  const items = Array.isArray(receipt.items) ? receipt.items : [];
+  const status = (s: string) =>
+    items.filter(
+      (i) => typeof i === "object" && i !== null && (i as { status?: unknown }).status === s,
+    ).length;
+  const done = status("done");
+  const partial = status("partial");
+  const missed = status("missed") + partial;
+  const integrity =
+    typeof receipt.test_integrity === "object" && receipt.test_integrity !== null
+      ? (receipt.test_integrity as Record<string, unknown>)
+      : {};
+  const findings = count(receipt.findings) + number(receipt.findings_omitted);
+  const tests = count(integrity.flags) + number(integrity.omitted);
+  const outside = count(receipt.outside_scope);
+  const unverified = count(receipt.not_verified);
+  const attention = [
+    findings > 0 ? plural(findings, "security finding") : "",
+    tests > 0 ? plural(tests, "test check") : "",
+    outside > 0 ? `${plural(outside, "file")} outside the request` : "",
+    unverified > 0 ? `${unverified} not verified` : "",
+  ].filter(Boolean);
+  const lines = [
+    `Codeceipt receipt: ${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
+    `Checks needing attention: ${attention.length > 0 ? attention.join(", ") : "none"}.`,
+  ];
+  if (receiptId) {
+    const base = config.apiUrl.replace(/\/+$/, "");
+    lines.push(
+      `Full receipt: ${base}/projects/${encodeURIComponent(config.projectId)}/receipts#receipt-${receiptId}`,
+    );
+  }
+  return lines;
+}
+
 /** The newest session recorded by a session-start hook in this repo (for `codeceipt receipt`), or null. */
 export async function latestSession(git: Git, cwd: string): Promise<string | null> {
   const root = await repoRoot(git, cwd);
@@ -305,6 +354,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     const req = open.requests[0];
     let receiptNote = "";
     let receiptId: string | null = null;
+    const summary: string[] = [];
     const warnings: string[] = [];
     if (req && files.length > 0) {
       // A receipt that fails (AI budget used up, judging unavailable) does not stop progress from being saved.
@@ -328,11 +378,12 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
                 }
               : {}),
           }),
-        ) as { receipt_id?: unknown };
+        ) as Record<string, unknown>;
         if (typeof receipt.receipt_id === "string" && /^[\w-]{1,64}$/.test(receipt.receipt_id)) {
           receiptId = receipt.receipt_id;
           receiptNote = `; receipt ${receipt.receipt_id}`;
         }
+        summary.push(...receiptSummary(receipt, config, receiptId));
       } catch (err) {
         if (err instanceof CliError && err.exitCode === EXIT.server) throw err;
         // Only our own messages are shown, never text from the server's answer.
@@ -385,8 +436,9 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
         `${WARN} ${scan.findings.length + scan.omitted} possible secret(s) in the changed files; see the receipt.`,
       );
     }
-    for (const line of warnings) deps.stderr(line);
-    return warnings.length > 0;
+    // The receipt summary first (journey part 4), then the warnings.
+    for (const line of [...summary, ...warnings]) deps.stderr(line);
+    return summary.length + warnings.length > 0;
   } catch {
     deps.stderr(`${WARN} server unreachable; progress and receipt were not saved.`);
     return true;
