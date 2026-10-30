@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
-import { basename } from "node:path";
+import { statSync } from "node:fs";
+import { basename, delimiter, join } from "node:path";
 import { CliError, EXIT, MAX_RESPONSE_BYTES, readCapped, request } from "./api";
 import { type CliConfig, readProjectToken, saveProjectToken } from "./config";
 import { runIndex } from "./index-command";
@@ -20,11 +21,36 @@ export type SetupDeps = {
   stdout: (line: string) => void;
   sleep: (ms: number) => Promise<void>;
   openUrl?: (url: string) => Promise<boolean>;
+  /** Whether a command is installed; the agents run `codeceipt`, which `npx` alone does not install. */
+  hasCommand?: (name: string) => boolean;
 };
 
 const MAX_WAIT_S = 600;
 const MIN_INTERVAL_S = 5;
 const USER_CODE = /^[A-Z]{4}-[A-Z]{4}$/;
+
+/** Whether `name` is a file in one of the PATH folders (with a PATHEXT extension on Windows). */
+export function onPath(
+  name: string,
+  env: Record<string, string | undefined>,
+  platform: NodeJS.Platform,
+): boolean {
+  const path = env.PATH ?? env.Path ?? "";
+  const exts =
+    platform === "win32" ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean) : [""];
+  return path
+    .split(platform === "win32" ? ";" : delimiter)
+    .filter(Boolean)
+    .some((dir) =>
+      exts.some((ext) => {
+        try {
+          return statSync(join(dir, name + ext.toLowerCase())).isFile();
+        } catch {
+          return false;
+        }
+      }),
+    );
+}
 
 /** Opens the address in the default browser; false when no browser could be started. */
 export function openBrowser(url: string, platform: NodeJS.Platform): Promise<boolean> {
@@ -209,4 +235,7 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
   deps.stdout(
     "  Next:    start a Claude Code or Cursor session here; receipts appear in your dashboard.",
   );
+  if (deps.hasCommand && !deps.hasCommand("codeceipt")) {
+    deps.stdout("  Install: npm install -g codeceipt (your agents run the codeceipt command)");
+  }
 }

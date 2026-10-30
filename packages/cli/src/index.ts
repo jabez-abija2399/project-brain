@@ -17,11 +17,12 @@ import { initReport, runInit } from "./init-command";
 import { runMcpProxy } from "./mcp-proxy";
 import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
-import { runSetup } from "./setup-command";
+import { onPath, runSetup } from "./setup-command";
 
 export const PACKAGE = "@brain/cli";
-export const VERSION = "0.0.0";
-const DEFAULT_API_URL = "http://localhost:3000";
+export const VERSION = "0.1.0";
+// The hosted Codeceipt; --api-url or CODECEIPT_API_URL points the CLI elsewhere (for example http://localhost:3000).
+export const DEFAULT_API_URL = "https://codeceipts.vercel.app";
 
 export function helpText(): string {
   return [
@@ -49,6 +50,7 @@ export type CliDeps = {
   stdinLines?: () => AsyncIterable<string>;
   // Opens the approval page (`codeceipt` with no arguments); tests inject one. False when no browser opened.
   openUrl?: (url: string) => Promise<boolean>;
+  hasCommand?: (name: string) => boolean;
   git?: Git;
 };
 
@@ -159,6 +161,8 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         stdout: deps.stdout,
         sleep: deps.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms))),
         ...(deps.openUrl ? { openUrl: deps.openUrl } : {}),
+        hasCommand:
+          deps.hasCommand ?? ((name) => onPath(name, deps.env, deps.platform ?? process.platform)),
       });
       return EXIT.ok;
     }

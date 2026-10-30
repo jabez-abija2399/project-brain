@@ -31,6 +31,7 @@ export async function build({ outDir = join(pkgDir, "dist") } = {}) {
   });
   await chmod(outfile, 0o755);
   await copyFile(join(pkgDir, "../sandbox/src/child.mjs"), join(outDir, "child.mjs"));
+  await copyFile(join(pkgDir, "README.md"), join(outDir, "README.md"));
   await writeFile(
     join(outDir, "package.json"),
     `${JSON.stringify(await publishManifest(), null, 2)}\n`,
@@ -38,9 +39,10 @@ export async function build({ outDir = join(pkgDir, "dist") } = {}) {
   return outfile;
 }
 
-// dist/ is what gets published (npm publish packages/cli/dist): the public package is "codeceipt" (D-019), while the
-// workspace package keeps its internal name @brain/cli. "projectbrain" stays as a second command name so hooks and
-// helper commands set up before the rename keep working.
+// dist/ is what gets published (npm publish packages/cli/dist, docs/publishing.md): the public package is "codeceipt"
+// (D-019), while the workspace package keeps its internal name @brain/cli. Only the built files and the README are
+// published; the workspace packages are inside the bundle. The first public release has one command, codeceipt
+// (D-020): `codeceipt init` upgrades hooks a pre-release `projectbrain` install left.
 async function publishManifest() {
   const pkg = JSON.parse(await readFile(join(pkgDir, "package.json"), "utf8"));
   const external = ["typescript", "ignore", "libpg-query", "@electric-sql/pglite"];
@@ -48,9 +50,11 @@ async function publishManifest() {
     name: "codeceipt",
     version: pkg.version,
     description: "A receipt for every AI change.",
+    keywords: ["claude-code", "cursor", "mcp", "ai", "receipts"],
+    homepage: "https://codeceipts.vercel.app",
     type: "module",
-    bin: { codeceipt: "./codeceipt.mjs", projectbrain: "./codeceipt.mjs" },
-    files: ["codeceipt.mjs", "child.mjs"],
+    bin: { codeceipt: "./codeceipt.mjs" },
+    files: ["codeceipt.mjs", "child.mjs", "README.md"],
     engines: { node: ">=20" },
     dependencies: Object.fromEntries(external.map((name) => [name, pkg.dependencies[name]])),
   };

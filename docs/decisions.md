@@ -205,4 +205,8 @@ a request with neither (not a browser) passes, because only browsers attach the 
 are stored trimmed and lowercased with one answer whether or not they existed; /admin/waitlist is for the GitHub
 logins in ADMIN_GITHUB_LOGINS, and the login is asked from GitHub with the user's own token on each view (never
 stored or editable, so a renamed or reclaimed login cannot inherit access). One migration (0029) holds both tables.
+(6) The npm package codeceipt 0.1.0 has one command, `codeceipt` (the pre-release `projectbrain` alias is dropped;
+`codeceipt init` upgrades hooks that still use it), defaults to https://codeceipts.vercel.app, bundles the workspace
+packages and publishes only the built files and README (docs/publishing.md). `npx codeceipt` does not install the
+command the agents run, so the setup summary says `npm install -g codeceipt` when it is missing.
 Revisit when: a second admin page is needed (store GitHub's numeric user id instead of asking each time).

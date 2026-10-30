@@ -258,7 +258,7 @@ describe("D-019 rename to Codeceipt", () => {
     ]);
   });
 
-  it("the build publishes as the npm package codeceipt, keeping projectbrain as a second command", async () => {
+  it("the build publishes as the npm package codeceipt, with codeceipt as its one command (D-020)", async () => {
     const pkgDir = fileURLToPath(new URL("..", import.meta.url));
     const outDir = mkdtempSync(join(pkgDir, ".rename-build-"));
     try {
@@ -268,8 +268,9 @@ describe("D-019 rename to Codeceipt", () => {
       expect(manifest).toMatchObject({
         name: "codeceipt",
         description: "A receipt for every AI change.",
-        bin: { codeceipt: "./codeceipt.mjs", projectbrain: "./codeceipt.mjs" },
       });
+      // Launch part 7: the first public release has only the codeceipt command; init upgrades old projectbrain hooks.
+      expect(manifest.bin).toEqual({ codeceipt: "./codeceipt.mjs" });
       expect(Object.keys(manifest.dependencies).sort()).toEqual(
         ["@electric-sql/pglite", "ignore", "libpg-query", "typescript"].sort(),
       );

@@ -36,6 +36,7 @@ const indexRoutes: [RegExp, Handler][] = [
 let world: TestWorld;
 let owner: SessionUser;
 let clock: number;
+let installed: boolean;
 
 // The CLI's fetch, routed in process. The token route runs on a virtual clock that the CLI's sleep moves forward, so
 // the real polling rules (interval, expiry) apply without waiting.
@@ -89,6 +90,8 @@ function cli(
       clock += ms;
     },
     openUrl,
+    // The codeceipt command is installed (the next test covers the case where it is not).
+    hasCommand: () => installed,
   };
   return { home, out, err, run: (...argv: string[]) => main(argv, deps) };
 }
@@ -98,6 +101,7 @@ beforeEach(async () => {
   world = await createTestWorld();
   owner = await world.createUser({ name: "owner" });
   clock = Date.now();
+  installed = true;
   setLlmForTests(null);
 });
 afterEach(async () => {
@@ -183,6 +187,22 @@ describe("npx codeceipt (no arguments) sets everything up", () => {
     expect(s.paths.filter((p) => p === "/api/device/start")).toHaveLength(1);
     expect(again.out[0]).toBe(`This repo is already connected to project ${project.id}.`);
     expect(again.out.at(-5)).toBe("Codeceipt is set up for this repo.");
+  });
+
+  it("when only npx ran it (codeceipt not installed), the summary ends with how to install the command", async () => {
+    installed = false;
+    const repo = gitRepo();
+    const s = serverFetch();
+    const c = cli(repo, s.fetchImpl, async (url) => {
+      const code = new URL(url).searchParams.get("code") ?? "";
+      await approveDevice(world.db, owner, { user_code: code, new_project_name: "app" });
+      return true;
+    });
+    expect(await c.run()).toBe(0);
+    expect(c.out.slice(-2)).toEqual([
+      "  Next:    start a Claude Code or Cursor session here; receipts appear in your dashboard.",
+      "  Install: npm install -g codeceipt (your agents run the codeceipt command)",
+    ]);
   });
 
   it("refuses outside a git repository, before asking for any code", async () => {
