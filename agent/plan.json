@@ -7,7 +7,7 @@
         {
           "id": "AC-011-01",
           "kind": "happy",
-          "check": "An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, list_features, save_progress, add_decision, create_checklist, propose_checklist_change, generate_receipt, check_package"
+          "check": "An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, list_features, save_progress, add_decision, create_checklist, propose_checklist_change, generate_receipt, check_package, plan_project"
         }
       ]
     },
