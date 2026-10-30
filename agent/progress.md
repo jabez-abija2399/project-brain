@@ -390,3 +390,9 @@ Changed: every user-visible name (landing page, layout and page metadata with th
 Verified (ran this session): rename.test.ts (6: init upgrade with no duplicates, edited legacy files left, env and config fallbacks, help text, publish manifest), brand.test.ts, ignore-file tests, all CLI/core/web suites; legacy templates byte-identical to the previous release's; landing page rechecked at 375/1280 px; verify.sh.
 Unchanged on purpose: @brain/* packages, database/migrations, Inngest app id, .git session state folder, FEAT spec criteria text.
 Next: owner review of the rename PR.
+
+## 2026-10-30 | Production deploy prep (Vercel + Neon) | status: done (on branch, PR open)
+Changed: apps/web/src/server/env.ts + instrumentation.ts (production boot check: names missing/malformed variables, never values; private key with real newlines, \n, CRLF or quotes), /api/health services flags (githubApp, inngest, ai), next.config outputFileTracingRoot; machine-only code out of the server: fromPglite moved to @brain/db/testing, the Supabase reader (libpg-query) to @brain/core/supabase; docs/deploy.md runbook; .env.example cleaned (duplicate Inngest lines).
+Verified (ran this session): env.test.ts (8), health tests, server-imports.test.ts (import graph of every server entry; fails when the old barrel export is restored); `pnpm --filter @brain/web build` with an empty production env: passes, and the server output no longer contains PGlite or libpg-query (main's build bundled libpg-query); verify.sh.
+NOT VERIFIED: a real Vercel deploy, Neon production, GitHub apps and Inngest (no accounts here); the runbook steps were written from the code, not clicked through.
+Next: owner runs docs/deploy.md; add a Connect GitHub button (agent/later.md).

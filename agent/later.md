@@ -101,3 +101,6 @@
 - 2026-10-29 FEAT-019 question for the owner: create_checklist can still add new requests/items to a feature that came from an approved plan; decide whether that counts as editing the approved plan.
 - 2026-10-30 Landing page: the waitlist form stores nothing yet (it only shows the confirmation). A real waitlist needs a decision on where emails go (our DB table with consent text, or an email tool), plus rate limiting and spam protection.
 - 2026-10-30 Landing page: "no sideways scroll at 375 px" and the click checks (copy, menu, form) were run with Playwright by hand; a repo e2e suite (test:e2e) needs @playwright/test as a dev dependency (dep-check + owner approval first).
+- 2026-10-30 Deploy: the dashboard has no "Connect GitHub" button; the GitHub App install starts at /api/github/install?projectId=... (docs/deploy.md step 10.8). Add a button on the project page.
+- 2026-10-30 Deploy: plan_project stages can take up to ~30 s; check the Vercel plan's function duration limit (Hobby 60 s) and set maxDuration on /mcp if needed.
+- 2026-10-30 Deploy: publish the codeceipt npm package (npm publish packages/cli/dist after a build) so users can run npx codeceipt.

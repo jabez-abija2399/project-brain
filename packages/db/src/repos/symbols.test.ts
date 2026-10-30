@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fromPglite } from "../db";
+import { fromPglite } from "../pglite";
 import { createTestDb } from "../testing";
 import { filesRepo, projectsRepo, symbolsRepo, usersRepo } from "./index";
 

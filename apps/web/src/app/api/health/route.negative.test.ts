@@ -1,3 +1,4 @@
+import { configuredServices } from "@/server/env";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const originalUrl = process.env.DATABASE_URL;
@@ -17,7 +18,11 @@ describe("GET /api/health (unreachable DB)", () => {
     const elapsed = Date.now() - start;
     expect(elapsed).toBeLessThan(3000);
     expect(res.status).toBe(503);
-    await expect(res.json()).resolves.toEqual({ ok: false, db: false });
+    await expect(res.json()).resolves.toEqual({
+      ok: false,
+      db: false,
+      services: configuredServices(process.env),
+    });
   });
 
   it("AC-001-03 returns 503 within 3s when the host silently drops packets (no ECONNREFUSED)", async () => {
@@ -29,6 +34,10 @@ describe("GET /api/health (unreachable DB)", () => {
     const elapsed = Date.now() - start;
     expect(res.status).toBe(503);
     expect(elapsed).toBeLessThan(3000);
-    await expect(res.json()).resolves.toEqual({ ok: false, db: false });
+    await expect(res.json()).resolves.toEqual({
+      ok: false,
+      db: false,
+      services: configuredServices(process.env),
+    });
   });
 });

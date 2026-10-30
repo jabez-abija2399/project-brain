@@ -101,3 +101,5 @@ export async function servePgliteOverTcp(
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
+
+export { fromPglite } from "./pglite";

@@ -12,8 +12,8 @@ import { type CliDeps, main } from "./index";
 import { uploadSupabaseFlags } from "./supabase-upload";
 
 const reader = vi.hoisted(() => ({ result: null as SupabaseReadResult | null, calls: 0 }));
-vi.mock("@brain/core", async (orig) => {
-  const actual = await orig<typeof import("@brain/core")>();
+vi.mock("@brain/core/supabase", async (orig) => {
+  const actual = await orig<typeof import("@brain/core/supabase")>();
   return {
     ...actual,
     readSupabaseMigrations: (

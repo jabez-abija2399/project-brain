@@ -1,6 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { type MigrationSandbox, readSupabaseMigrations, rlsFlags } from "@brain/core";
+import type { MigrationSandbox } from "@brain/core";
+import { readSupabaseMigrations, rlsFlags } from "@brain/core/supabase";
 import { type RetryOn429, request } from "./api";
 import type { CliConfig } from "./config";
 
