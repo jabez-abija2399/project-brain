@@ -104,3 +104,12 @@
 - 2026-10-30 Deploy: the dashboard has no "Connect GitHub" button; the GitHub App install starts at /api/github/install?projectId=... (docs/deploy.md step 10.8). Add a button on the project page.
 - 2026-10-30 Deploy: plan_project stages can take up to ~30 s; check the Vercel plan's function duration limit (Hobby 60 s) and set maxDuration on /mcp if needed.
 - 2026-10-30 Deploy: publish the codeceipt npm package (npm publish packages/cli/dist after a build) so users can run npx codeceipt.
+- 2026-10-30 Launch security: clientKey trusts the first X-Forwarded-For entry; check on Vercel that a client cannot rotate it to get around the per-IP device and waitlist limits (else use the platform's client IP).
+- 2026-10-30 Launch security: device-code phishing (a victim opens /device?code=ATTACKER). Consider making the user type the code, defaulting to "A new project", and showing when and from where the code was started.
+- 2026-10-30 Launch: each `npx codeceipt` that needs a new code mints a token and never revokes the old one for that repo; revoke the repo's previous token, or reuse it, so projects do not reach the 20-token limit.
+- 2026-10-30 Launch: two approvals racing for one code with new_project_name can leave an empty project; create the project inside the decide transaction.
+- 2026-10-30 Launch: `npx codeceipt` does not install the codeceipt command the agents run (the summary says `npm install -g codeceipt`); consider offering the install, or hooks that run a pinned npx version.
+- 2026-10-30 Launch: no account or project delete button; the privacy page says to email us ([REVIEW] contact address and promised days).
+- 2026-10-30 Launch: choose a license before publishing the npm package (docs/publishing.md).
+- 2026-10-30 Launch: /privacy, /terms, /docs/quickstart and /admin/waitlist were checked by render tests only, not in a browser at 375 and 1280 px.
+- 2026-10-30 Launch: waitlist has no confirmation email or spam protection beyond 5 tries a minute per address.

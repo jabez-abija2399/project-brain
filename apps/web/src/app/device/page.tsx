@@ -1,7 +1,8 @@
 import SignInButton from "@/app/sign-in-button";
-import { getSessionUser } from "@/server/auth";
+import { type SessionUser, getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { deviceView } from "@/server/device";
+import { AppError } from "@/server/errors";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { DeviceApproval } from "./device-approval";
@@ -39,8 +40,26 @@ export default async function DevicePage({
           <SignInButton callbackURL={`/device${code ? `?code=${code}` : ""}`} />
         </div>
       ) : (
-        <DeviceApproval initialCode={code} view={await deviceView(getDb(), user, code)} />
+        await approval(user, code)
       )}
     </main>
   );
+}
+
+// Too many code lookups in a minute (the page is rate limited like approving): say so instead of failing.
+async function approval(user: SessionUser, code: string) {
+  let view: Awaited<ReturnType<typeof deviceView>>;
+  try {
+    view = await deviceView(getDb(), user, code);
+  } catch (err) {
+    if (err instanceof AppError && err.status === 429) {
+      return (
+        <p className="card" role="alert">
+          Too many tries: wait a minute, then reload this page.
+        </p>
+      );
+    }
+    throw err;
+  }
+  return <DeviceApproval initialCode={code} view={view} />;
 }

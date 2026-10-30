@@ -1,10 +1,10 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
-import { type BrainDb, deviceCodesRepo, projectsRepo } from "@brain/db";
+import { type BrainDb, TokenLimitError, deviceCodesRepo, projectsRepo } from "@brain/db";
 import { z } from "zod";
 import { type SessionUser, appOriginOf, requireProjectAccess } from "./auth";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
-import { projectNameSchema } from "./validate";
+import { UNSAFE_NAME_CHARS, projectNameSchema } from "./validate";
 
 // `npx codeceipt` device approval (launch part 1, after RFC 8628). The CLI starts a code, shows the short user code
 // and opens /device; the signed-in owner approves it for one of their projects (or a new one); the CLI polls and gets
@@ -14,6 +14,7 @@ export const POLL_INTERVAL_S = 5;
 const STARTS_PER_MINUTE_PER_IP = 10;
 const POLLS_PER_MINUTE_PER_IP = 30;
 const APPROVALS_PER_MINUTE_PER_USER = 10;
+const VIEWS_PER_MINUTE_PER_USER = 20;
 // No vowels (so no words) and no look-alikes (0/O, 1/I/L are left out): 20 letters, 20^8 codes.
 const ALPHABET = "BCDFGHJKLMNPQRSTVWXZ";
 const USER_CODE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
@@ -47,7 +48,9 @@ export async function startDevice(db: BrainDb, req: Request, raw: unknown, now =
   const input = parse(startSchema, raw ?? {});
   await rateLimit(db, `device:start:${clientKey(req)}`, STARTS_PER_MINUTE_PER_IP, now);
   const deviceCode = randomBytes(32).toString("base64url");
-  const suggested = input.name ? projectNameSchema.safeParse(input.name) : null;
+  // The repo folder name is only a suggestion: control and direction-changing characters are dropped, not shown.
+  const name = input.name?.replace(UNSAFE_NAME_CHARS, "");
+  const suggested = name ? projectNameSchema.safeParse(name) : null;
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = userCode();
     const row = await deviceCodesRepo.create(
@@ -80,12 +83,14 @@ const pollSchema = z.object({ device_code: z.string().min(1).max(200) }).strict(
 export async function pollDevice(db: BrainDb, req: Request, raw: unknown, now = new Date()) {
   const input = parse(pollSchema, raw);
   await rateLimit(db, `device:poll:${clientKey(req)}`, POLLS_PER_MINUTE_PER_IP, now);
-  const result = await deviceCodesRepo.poll(
-    db,
-    hash(input.device_code),
-    now,
-    POLL_INTERVAL_S * 1000,
-  );
+  let result: Awaited<ReturnType<typeof deviceCodesRepo.poll>>;
+  try {
+    result = await deviceCodesRepo.poll(db, hash(input.device_code), now, POLL_INTERVAL_S * 1000);
+  } catch (err) {
+    // Nothing was minted or used (one transaction): the owner revokes a token and the CLI starts again.
+    if (err instanceof TokenLimitError) return { status: 400, body: { error: "token_limit" } };
+    throw err;
+  }
   if (result.status === "approved") {
     console.info(
       "[device]",
@@ -167,6 +172,8 @@ export async function deviceView(
   now = new Date(),
 ) {
   const code = rawCode.trim().toUpperCase();
+  // Looking codes up is limited like approving them, so the page is no faster way to guess one.
+  if (code) await rateLimit(db, `device:view:${user.id}`, VIEWS_PER_MINUTE_PER_USER, now);
   const pending = USER_CODE.test(code)
     ? await deviceCodesRepo.pendingByUserCode(db, code, now)
     : null;

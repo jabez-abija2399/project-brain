@@ -159,6 +159,12 @@ async function approveInBrowser(apiUrl: string, root: string, deps: SetupDeps): 
     if (error === "access_denied") {
       throw new CliError(EXIT.auth, "The code was denied in the browser; nothing was connected.");
     }
+    if (error === "token_limit") {
+      throw new CliError(
+        EXIT.auth,
+        "That project already has 20 active tokens: revoke one on its page in the dashboard, then run `npx codeceipt` again.",
+      );
+    }
     if (error === "expired_token" || error === "invalid_grant") break;
     if (poll.status === 429) {
       interval += 5;

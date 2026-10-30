@@ -90,7 +90,7 @@ describe("waitlist", () => {
     const junk = await joinRoute(
       new Request(`${APP}/api/waitlist`, {
         method: "POST",
-        headers: { origin: APP },
+        headers: { origin: APP, "content-type": "application/json" },
         body: "not json",
       }),
     );

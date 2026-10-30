@@ -1,5 +1,6 @@
+import { existsSync, statSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { brandEnv } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import {
@@ -117,6 +118,9 @@ const NO_TOKEN =
 export async function projectConfig(deps: CliDeps, path: string, dir: string): Promise<CliConfig> {
   const gitDir = await gitDirOf(deps.git ?? runGit, dir);
   if (!gitDir) {
+    // Inside a repo git cannot read (git missing, or "dubious ownership"), the default login is not this repo's
+    // project: send nothing rather than another project's token.
+    if (insideGitFolder(dir)) throw new CliError(EXIT.auth, GIT_UNREADABLE);
     const config = savedConfig(path);
     if (!config) throw new CliError(EXIT.auth, "Not logged in: run `codeceipt login` first.");
     return config;
@@ -127,6 +131,21 @@ export async function projectConfig(deps: CliDeps, path: string, dir: string): P
   const config = readProjectToken(path, link) ?? readProjectToken(legacyConfigPath(path), link);
   if (!config) throw new CliError(EXIT.auth, NO_TOKEN);
   return config;
+}
+
+export const GIT_UNREADABLE =
+  "Cannot read this repo's git folder (is git installed, and does git trust this folder?); nothing was sent.";
+
+/** Whether `dir` or a folder above it is a git repository (.git/HEAD, or a .git file for worktrees and submodules). */
+function insideGitFolder(dir: string): boolean {
+  for (let d = resolve(dir); ; d = dirname(d)) {
+    const dotGit = join(d, ".git");
+    if (existsSync(join(dotGit, "HEAD"))) return true;
+    try {
+      if (statSync(dotGit).isFile()) return true;
+    } catch {}
+    if (dirname(d) === d) return false;
+  }
 }
 
 // A login saved before the rename still counts until the next `codeceipt login` writes the new place.
@@ -249,6 +268,7 @@ function hookProblem(message: string): string | undefined {
     return "this repo is not linked to a Codeceipt project (run `npx codeceipt` here)";
   if (message === NO_TOKEN)
     return "this repo's project has no token on this computer (run `npx codeceipt` here)";
+  if (message === GIT_UNREADABLE) return "git cannot read this repo, so no token was used";
   return undefined;
 }
 

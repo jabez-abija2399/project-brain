@@ -110,6 +110,12 @@ export function appOriginOf(req: Request): string {
 // cannot ride a victim's cookie, so it passes. "null" (sandboxed frames, some redirects) never matches.
 export function assertSameOrigin(req: Request) {
   if (SAFE_METHODS.has(req.method.toUpperCase())) return;
+  // HTML forms can post across sites without JavaScript, but only as form, multipart or text/plain bodies. Our routes
+  // take JSON, so any other declared body type is refused too (a form post that also hides its Origin and Referer).
+  const type = req.headers.get("content-type");
+  if (type !== null && !/^application\/json\s*(;|$)/i.test(type.trim())) {
+    throw new AppError(415, "unsupported_media_type", "send the body as application/json");
+  }
   const expected = appOriginOf(req);
   const origin = req.headers.get("origin");
   if (origin !== null) {

@@ -2,7 +2,7 @@ import { POST as approveRoute } from "@/app/api/device/approve/route";
 import { POST as startRoute } from "@/app/api/device/start/route";
 import { POST as tokenRoute } from "@/app/api/device/token/route";
 import { GET as whoami } from "@/app/api/token/whoami/route";
-import { projectsRepo } from "@brain/db";
+import { MAX_ACTIVE_TOKENS, projectTokensRepo, projectsRepo } from "@brain/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionUser } from "./auth";
 import { approveDevice, pollDevice, startDevice } from "./device";
@@ -201,5 +201,42 @@ describe("npx codeceipt device approval", () => {
     );
     expect(poll.status).toBe(400);
     expect(await poll.json()).toEqual({ error: "authorization_pending" });
+  });
+
+  it("a project at its token limit gets a clear token_limit answer, mints nothing, and works again once one is revoked", async () => {
+    const ids: string[] = [];
+    for (let i = 0; i < MAX_ACTIVE_TOKENS; i++) {
+      ids.push((await projectTokensRepo.create(world.db, projectId)).row.id);
+    }
+    const s = await startDevice(world.db, req(), {}, T0);
+    await approveDevice(world.db, owner, { user_code: s.user_code, project_id: projectId }, at(1));
+    const full = await pollDevice(world.db, req(), { device_code: s.device_code }, at(6));
+    expect(full).toEqual({ status: 400, body: { error: "token_limit" } });
+    await projectTokensRepo.revoke(world.db, projectId, ids[0] ?? "");
+    const ok = await pollDevice(world.db, req(), { device_code: s.device_code }, at(12));
+    expect(ok.status).toBe(200);
+  });
+
+  it("attack: project names with control or text-direction characters are refused (create, and the approval form)", async () => {
+    const s = await startDevice(world.db, req(), {}, T0);
+    const err = await errorOf(
+      approveDevice(
+        world.db,
+        owner,
+        { user_code: s.user_code, new_project_name: "shop\u202etxt" },
+        at(1),
+      ),
+    );
+    expect(err.status).toBe(400);
+    world.signInAs(owner);
+    const { POST: createProject } = await import("@/app/api/projects/route");
+    const res = await createProject(
+      new Request("https://codeceipts.test/api/projects", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "a\u0007b" }),
+      }),
+    );
+    expect(res.status).toBe(400);
   });
 });
