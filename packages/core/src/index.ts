@@ -31,6 +31,7 @@ export {
   FALLBACK_FEATURE,
   ROOT_FEATURE,
   SHARED_MIN_FEATURES,
+  TESTS_KEY,
   featureFromPath,
   groupFeatures,
 } from "./features";
@@ -84,6 +85,7 @@ export {
 } from "./package-check";
 export type { AddedDependency, PackageCheck, RegistryAnswer } from "./package-check";
 export {
+  NO_REQUEST_NOTE,
   RECEIPT_SYSTEM,
   buildReceipt,
   groupFiles,

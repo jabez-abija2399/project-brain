@@ -2,6 +2,7 @@ export {
   FALLBACK_FEATURE,
   ROOT_FEATURE,
   SHARED_MIN_FEATURES,
+  TESTS_KEY,
   featureFromPath,
   groupFeatures,
 } from "./group";

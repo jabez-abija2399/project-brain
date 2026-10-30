@@ -4,13 +4,14 @@ import {
   FALLBACK_KEY,
   type RouteInput,
   type RouteTree,
+  TESTS_KEY,
   addRoute,
   keyOf,
   placementOf,
 } from "./placement";
 import { APP_ROOT_FILE, screenKey } from "./screens";
 
-export { FALLBACK_FEATURE, ROOT_FEATURE, featureFromPath } from "./placement";
+export { FALLBACK_FEATURE, ROOT_FEATURE, TESTS_KEY, featureFromPath } from "./placement";
 export type { RouteInput } from "./placement";
 
 /** `key` is stable and path-derived (a re-index matches on it); `name` is the display name. */
@@ -103,6 +104,8 @@ export function groupFeatures(
         if (seen.has(from)) continue;
         seen.add(from);
         const feature = direct.get(from);
+        // Tests import app code; that never makes the app code test code.
+        if (feature === TESTS_KEY) continue;
         if (feature) tally.set(feature, (tally.get(feature) ?? 0) + 1);
         else queue.push(from);
       }

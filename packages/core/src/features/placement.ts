@@ -9,6 +9,20 @@ export const FALLBACK_FEATURE = "other";
 export const AUTO_PREFIX = "@";
 export const ROOT_KEY = AUTO_PREFIX + ROOT_FEATURE;
 export const FALLBACK_KEY = AUTO_PREFIX + FALLBACK_FEATURE;
+/** Files in test-only folders (dogfooding): one group, never a feature named after the folder. */
+export const TESTS_FEATURE = "tests";
+export const TESTS_KEY = AUTO_PREFIX + TESTS_FEATURE;
+const TEST_DIRS = new Set([
+  "__mocks__",
+  "__tests__",
+  "__fixtures__",
+  "fixtures",
+  "test",
+  "tests",
+  "e2e",
+  "cypress",
+  "playwright",
+]);
 // Entry and router files of a Vite/React app (Lovable): src/main.tsx, src/App.tsx.
 const VITE_ROOT_FILE = /^src\/(main|App)\.[jt]sx?$/;
 // Page file names that are the site root, not a feature: index.tsx, Index.tsx, NotFound.tsx, 404.tsx.
@@ -87,6 +101,8 @@ function packageKey(segments: string[]): string | null {
 export function placementOf(path: string, url: string | undefined): Placement {
   const posix = path.replace(/\\/g, "/");
   const parts = posix.split("/");
+  // A file inside a test-only folder (anywhere in its path) is test code, whatever else its path says.
+  if (parts.slice(0, -1).some((seg) => TEST_DIRS.has(seg))) return { key: TESTS_KEY };
   // Monorepo apps/<name>/ is an app root: the app rules apply inside it.
   if (parts[0] === "apps" && parts.length > 2) return placementOf(parts.slice(2).join("/"), url);
   if (parts[0] === "packages" && parts.length > 2) {
