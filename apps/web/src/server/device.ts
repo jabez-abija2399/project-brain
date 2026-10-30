@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { type BrainDb, deviceCodesRepo, projectsRepo } from "@brain/db";
 import { z } from "zod";
-import { type SessionUser, requireProjectAccess } from "./auth";
+import { type SessionUser, appOriginOf, requireProjectAccess } from "./auth";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
 import { projectNameSchema } from "./validate";
@@ -26,14 +26,6 @@ function clientKey(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const ip = forwarded || req.headers.get("x-real-ip")?.trim() || "unknown";
   return hash(ip).slice(0, 32);
-}
-
-/** The public address of the app: BETTER_AUTH_URL in production, else the request's own origin. */
-export function appOrigin(req: Request): string {
-  try {
-    if (process.env.BETTER_AUTH_URL) return new URL(process.env.BETTER_AUTH_URL).origin;
-  } catch {}
-  return new URL(req.url).origin;
 }
 
 function userCode(): string {
@@ -69,7 +61,7 @@ export async function startDevice(db: BrainDb, req: Request, raw: unknown, now =
       now,
     );
     if (!row) continue;
-    const base = appOrigin(req);
+    const base = appOriginOf(req);
     return {
       device_code: deviceCode,
       user_code: code,
@@ -101,7 +93,7 @@ export async function pollDevice(db: BrainDb, req: Request, raw: unknown, now = 
     );
     return {
       status: 200,
-      body: { access_token: result.token, project_id: result.projectId, api_url: appOrigin(req) },
+      body: { access_token: result.token, project_id: result.projectId, api_url: appOriginOf(req) },
     };
   }
   const error = {
