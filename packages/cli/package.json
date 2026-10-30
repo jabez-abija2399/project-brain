@@ -6,7 +6,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "bin": {
-    "projectbrain": "./dist/projectbrain.mjs"
+    "codeceipt": "./dist/codeceipt.mjs",
+    "projectbrain": "./dist/codeceipt.mjs"
   },
   "exports": {
     ".": "./src/index.ts"

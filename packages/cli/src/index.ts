@@ -1,7 +1,8 @@
 import { homedir as osHomedir } from "node:os";
 import { resolve } from "node:path";
+import { brandEnv } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
-import { configPath, readConfig, writeConfig } from "./config";
+import { configPath, legacyConfigPath, readConfig, writeConfig } from "./config";
 import { mcpHeaders, sessionEnd, sessionStart } from "./hooks";
 import { runIndex } from "./index-command";
 import { initReport, runInit } from "./init-command";
@@ -13,11 +14,11 @@ const DEFAULT_API_URL = "http://localhost:3000";
 
 export function helpText(): string {
   return [
-    `projectbrain ${VERSION}`,
-    "  projectbrain login [--api-url <url>]   reads the project token from stdin or PROJECTBRAIN_TOKEN",
-    "  projectbrain index [dir]               indexes the repo locally and uploads metadata only",
-    "  projectbrain scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
-    "  projectbrain init [--claude] [--cursor] sets up Claude Code and Cursor (MCP config, hooks, Skill, AGENTS.md)",
+    `codeceipt ${VERSION}: A receipt for every AI change.`,
+    "  codeceipt login [--api-url <url>]   reads the project token from stdin or CODECEIPT_TOKEN",
+    "  codeceipt index [dir]               indexes the repo locally and uploads metadata only",
+    "  codeceipt scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
+    "  codeceipt init [--claude] [--cursor] sets up Claude Code and Cursor (MCP config, hooks, Skill, AGENTS.md)",
   ].join("\n");
 }
 
@@ -57,16 +58,16 @@ function isSafeApiUrl(raw: string): boolean {
 }
 
 async function login(args: string[], deps: CliDeps, path: string): Promise<void> {
-  const apiUrl = flag(args, "--api-url") ?? deps.env.PROJECTBRAIN_API_URL ?? DEFAULT_API_URL;
+  // CODECEIPT_* first; the PROJECTBRAIN_* names from before the rename still work (D-019).
+  const apiUrl = flag(args, "--api-url") ?? brandEnv(deps.env, "API_URL") ?? DEFAULT_API_URL;
   if (args.length > 0) throw new CliError(EXIT.usage, `Unknown argument: ${args[0]}`);
   if (!isSafeApiUrl(apiUrl))
     throw new CliError(
       EXIT.usage,
       "--api-url must be https (plain http only for localhost, 127.0.0.1 or [::1]).",
     );
-  const token = (deps.env.PROJECTBRAIN_TOKEN ?? (await deps.readStdin())).trim();
-  if (!token)
-    throw new CliError(EXIT.usage, "No token: paste it on stdin or set PROJECTBRAIN_TOKEN.");
+  const token = (brandEnv(deps.env, "TOKEN") ?? (await deps.readStdin())).trim();
+  if (!token) throw new CliError(EXIT.usage, "No token: paste it on stdin or set CODECEIPT_TOKEN.");
   const who = await request<{ project_id: string }>(
     deps.fetch,
     { apiUrl, token },
@@ -81,17 +82,19 @@ async function login(args: string[], deps: CliDeps, path: string): Promise<void>
 export async function main(argv: string[], deps: CliDeps): Promise<number> {
   const [command, ...args] = argv;
   const path = configPath(deps.env, deps.platform ?? process.platform, deps.homedir ?? osHomedir());
+  // A login saved before the rename still counts until the next `codeceipt login` writes the new place.
+  const savedConfig = () => readConfig(path) ?? readConfig(legacyConfigPath(path));
   try {
     if (command === "login") {
       await login(args, deps, path);
     } else if (command === "index") {
-      if (args.length > 1) throw new CliError(EXIT.usage, "Usage: projectbrain index [dir]");
-      const config = readConfig(path);
-      if (!config) throw new CliError(EXIT.auth, "Not logged in: run `projectbrain login` first.");
+      if (args.length > 1) throw new CliError(EXIT.usage, "Usage: codeceipt index [dir]");
+      const config = savedConfig();
+      if (!config) throw new CliError(EXIT.auth, "Not logged in: run `codeceipt login` first.");
       if (!isSafeApiUrl(config.apiUrl))
         throw new CliError(
           EXIT.usage,
-          "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `projectbrain login` again.",
+          "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `codeceipt login` again.",
         );
       await runIndex(
         deps.fetch,
@@ -102,18 +105,18 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         deps.sleep,
       );
     } else if (command === "init") {
-      const config = readConfig(path);
-      if (!config) throw new CliError(EXIT.auth, "Not logged in: run `projectbrain login` first.");
+      const config = savedConfig();
+      if (!config) throw new CliError(EXIT.auth, "Not logged in: run `codeceipt login` first.");
       if (!isSafeApiUrl(config.apiUrl))
         throw new CliError(
           EXIT.usage,
-          "Saved server address must be https: run `projectbrain login` again.",
+          "Saved server address must be https: run `codeceipt login` again.",
         );
       const root = await repoRoot(deps.git ?? runGit, deps.cwd).catch(() => deps.cwd);
       const result = runInit(root, deps.homedir ?? osHomedir(), config, args);
       for (const line of initReport(result, root, deps.cwd)) deps.stdout(line);
     } else if (command === "hook" || command === "mcp-headers") {
-      return await runHook(command, args, deps, path);
+      return await runHook(command, args, deps, savedConfig());
     } else if (command === "scan-secrets") {
       // Runs offline: nothing is uploaded, so no login is needed.
       return await runScanSecrets(args, deps.cwd, deps.stdout, deps.git);
@@ -138,9 +141,8 @@ async function runHook(
   command: string,
   args: string[],
   deps: CliDeps,
-  path: string,
+  saved: ReturnType<typeof readConfig>,
 ): Promise<number> {
-  const saved = readConfig(path);
   const config = saved && isSafeApiUrl(saved.apiUrl) ? saved : null;
   const hookDeps = {
     fetch: deps.fetch,
@@ -163,9 +165,9 @@ async function runHook(
     else if (event === "session-end") {
       const warned = await sessionEnd(agent, hookDeps);
       return warned && agent === "claude" ? 2 : EXIT.ok;
-    } else deps.stderr("Project Brain: unknown hook (use session-start or session-end).");
+    } else deps.stderr("Codeceipt: unknown hook (use session-start or session-end).");
   } catch {
-    deps.stderr("Project Brain: the hook failed; the session goes on without it.");
+    deps.stderr("Codeceipt: the hook failed; the session goes on without it.");
   }
   return EXIT.ok;
 }

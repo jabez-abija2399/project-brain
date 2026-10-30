@@ -72,7 +72,7 @@ function repo(files: Record<string, string> = { "src/pay.test.ts": PAY_TEST }) {
   }
   git("add", ".");
   git("commit", "-q", "-m", "base");
-  writeConfig(join(home, ".config", "projectbrain", "config.json"), {
+  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
     apiUrl: "https://brain.test",
     projectId: "proj-1",
     token: TOKEN,
@@ -235,7 +235,7 @@ describe("FEAT-018 security: the session-end hook's integrity check (CLI)", () =
     expect(integrityOf(s)?.flags.map((f) => f.kind)).toEqual(["deleted_test_file"]);
   }, 30_000);
 
-  it("AC-018-05 attack: a hostile PROJECTBRAIN_TEST_REPORT (outside the repo, symlinked out, absolute, huge, malformed, negative, float) gives no count", async () => {
+  it("AC-018-05 attack: a hostile CODECEIPT_TEST_REPORT (outside the repo, symlinked out, absolute, huge, malformed, negative, float) gives no count", async () => {
     const r = repo();
     const outside = mkdtempSync(join(tmpdir(), "pb-tis-report-"));
     writeFileSync(join(outside, "report.json"), JSON.stringify({ numPassedTests: 7 }));
@@ -281,7 +281,7 @@ describe("FEAT-018 security: the session-end hook's integrity check (CLI)", () =
       "src/pay.test.ts": PAY_TEST,
       "report.json": JSON.stringify({ numPassedTests: 40 }),
     });
-    const { run } = runner(r, s, { PROJECTBRAIN_TEST_REPORT: "report.json" });
+    const { run } = runner(r, s, { CODECEIPT_TEST_REPORT: "report.json" });
     await run("session-start");
     rmSync(join(r.dir, "src/pay.test.ts"));
     // The server accepts counts up to 1,000,000 (receipt-integrity.ts); anything above fails validation (400).
@@ -363,7 +363,7 @@ describe("FEAT-018 security: the session-end hook's integrity check (CLI)", () =
       "src/pay.test.ts": PAY_TEST,
       "report.json": JSON.stringify({ numPassedTests: 10 }),
     });
-    const { run } = runner(r, s, { PROJECTBRAIN_TEST_REPORT: "report.json" });
+    const { run } = runner(r, s, { CODECEIPT_TEST_REPORT: "report.json" });
     await run("session-start");
     const stateDir = join(r.dir, ".git", "projectbrain");
     const [state] = readdirSync(stateDir);

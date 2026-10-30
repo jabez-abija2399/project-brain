@@ -176,3 +176,18 @@ Decision (owner): check_package flags versions younger than 7 days, matching D-0
 "fewer than 3 days" case and also flags 3-6 day old versions. Suggested versions are the newest stable version at
 least 7 days old.
 Revisit when: users report the 7-day window blocks needed security fixes (they can still install after review).
+
+## D-019 | 2026-10-30 | The product is renamed "Codeceipt"
+Context: "Project Brain" was a working name (docs/product.md [OPEN]). The receipt is what users remember and trust.
+Decision (owner): the product is "Codeceipt", tagline "A receipt for every AI change." Everything users see moves:
+dashboard and landing text, page titles and metadata, the MCP server name, CLI messages and help, docs. The CLI
+command is `codeceipt` and the public npm package is "codeceipt" (built as packages/cli/dist; the workspace package
+stays @brain/cli). Renamed with fallbacks so no existing setup breaks: .codeceiptignore (.projectbrainignore still
+read), CODECEIPT_TOKEN / CODECEIPT_API_URL / CODECEIPT_TEST_REPORT (PROJECTBRAIN_* still read), the user config folder
+codeceipt/ (the old projectbrain/ login still read until the next login), and `projectbrain` kept as a second command
+name of the same bin. `codeceipt init` upgrades a Project Brain setup in place (MCP server entry, hooks, Skill,
+Cursor rule, AGENTS.md section) instead of adding a duplicate; files the user edited are left and reported.
+Unchanged on purpose (internal, renaming adds risk for no user benefit): @brain/* package names, database and
+migration names, the Inngest app id, the session state folder inside .git, and the FEAT specs' criteria text
+(they mirror agent/features.json, which is never reworded).
+Revisit when: the next major CLI version (drop the projectbrain fallbacks and alias).

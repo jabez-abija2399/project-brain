@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 // Remote MCP server (FEAT-011). Every request needs a project token (Authorization: Bearer ...); a missing,
 // unknown or revoked token gets 401 before any tool runs. Tools only ever see the token's own project.
 const handler = createMcpHandler(registerBrainTools, {
-  serverInfo: { name: "project-brain", version: "0.1.0" },
+  serverInfo: { name: "codeceipt", version: "0.1.0" },
 });
 const authed = withMcpAuth(handler, verifyProjectToken, { required: true });
 

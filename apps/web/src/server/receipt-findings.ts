@@ -7,7 +7,7 @@ import { repoPath } from "./code-index-input";
 export const MAX_FINDINGS = 200;
 export const MAX_SECRET_FINDINGS = 200;
 
-// The CLI's `projectbrain scan-secrets` output (FEAT-015): masked findings only. A value that is not the first 4
+// The CLI's `codeceipt scan-secrets` output (FEAT-015): masked findings only. A value that is not the first 4
 // characters + *** is refused (400) and never stored, logged or echoed (AC-015-03).
 export const secretFindingsInput = z
   .array(

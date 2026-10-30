@@ -1,20 +1,20 @@
-# Product: Project Brain
+# Product: Codeceipt
 Written during the kickoff. Labels: [USER] user requirement · [TECH] technical requirement · [ASSUME] assumption ·
 [OPEN] open question (each [OPEN] has a recommended default so the human can answer "approve defaults").
 
 ## Purpose
-- [USER] Vibe coders can build software with AI agents but cannot verify or maintain it. Project Brain gives every
+- [USER] Vibe coders can build software with AI agents but cannot verify or maintain it. Codeceipt gives every
   AI-built app a living blueprint (features, files, components, decisions, progress) that agents read before acting
   and update after, and gives every change a plain-language receipt: what was asked, what was done, what was missed,
   what was touched outside the feature, and which checks passed.
-- Why pick it over the alternative: platforms (Lovable, Cursor, ...) only remember inside their own walls; the Brain
+- Why pick it over the alternative: platforms (Lovable, Cursor, ...) only remember inside their own walls; Codeceipt
   is portable across agents, and the receipt gives non-engineers proof instead of promises.
 - Users: solo builders and small agencies building React/Next.js + Supabase apps with Claude Code or Cursor
   (v1), and later with Lovable, Bolt and Replit through GitHub sync.
 
 ## Core flows (the whole first version; numbered, each one testable end to end)
 1. Sign in with GitHub, create a project, connect a repository.
-2. Run `npx projectbrain init` in the repo: the CLI detects Claude Code / Cursor, indexes the code locally, uploads the
+2. Run `npx codeceipt init` in the repo: the CLI detects Claude Code / Cursor, indexes the code locally, uploads the
    index (never the source), and installs the Skill, AGENTS.md section, MCP config and hooks.
 3. Open a new agent session: the agent calls `where_did_we_stop` and gets the handoff note, then `get_context_pack`
    for the feature it works on, and `find_similar_component` before creating UI.
@@ -74,7 +74,7 @@ Codex/Gemini hooks, test generation, access-control tester, design system engine
 ## Assumptions and open questions
 - [ASSUME] v1 users build with Claude Code or Cursor on TypeScript + React/Next.js + Supabase.
 - [ASSUME] Users are comfortable connecting GitHub.
-- [OPEN] Product name. Default: "Project Brain" (working name), CLI command `projectbrain`.
+- [DECIDED 2026-10-30, D-019] Product name: "Codeceipt" (was the working name "Project Brain"), CLI command `codeceipt`, tagline "A receipt for every AI change."
 - [DECIDED D-009] Receipt checklist judging uses the smallest Claude model, max 1 call per receipt.
 - [OPEN] Pricing in v1. Default: free during the trial; billing comes after the YC application.
 

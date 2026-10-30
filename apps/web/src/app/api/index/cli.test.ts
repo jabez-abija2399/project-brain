@@ -81,7 +81,7 @@ function listFiles(dir: string): string[] {
   });
 }
 
-describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)", () => {
+describe("FEAT-008 codeceipt index end to end (CLI -> /api/index -> PGlite)", () => {
   let world: TestWorld;
   let projectId: string;
   let token: string;
@@ -403,7 +403,7 @@ describe("FEAT-008 projectbrain index end to end (CLI -> /api/index -> PGlite)",
     );
   });
 
-  it("FEAT-006 wire-in: projectbrain index creates the feature map; a re-index keeps renames and follows App.tsx route changes", async () => {
+  it("FEAT-006 wire-in: codeceipt index creates the feature map; a re-index keeps renames and follows App.tsx route changes", async () => {
     setLlmForTests(countingLlm().llm);
     const repo = mkdtempSync(join(tmpdir(), "pb-vite-"));
     cpSync(join(fixtureRoot, "../vite-app"), repo, { recursive: true });

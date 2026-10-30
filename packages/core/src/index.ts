@@ -130,3 +130,11 @@ export {
   planStage2,
 } from "./plan";
 export type { PlanDraft, PlanFeature, PlanItem, PlanQuestion, PlanStage1 } from "./plan";
+export {
+  CLI_NAME,
+  LEGACY_CLI_NAME,
+  LEGACY_PRODUCT_NAME,
+  PRODUCT_NAME,
+  TAGLINE,
+  brandEnv,
+} from "./brand";

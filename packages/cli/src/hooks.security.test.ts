@@ -86,7 +86,7 @@ function setup(fetchImpl: CliDeps["fetch"], apiUrl = "https://brain.test") {
   const home = mkdtempSync(join(tmpdir(), "pb-hsec-home-"));
   const outside = mkdtempSync(join(tmpdir(), "pb-hsec-outside-"));
   const { repo, git } = gitRepo("pb-hsec-repo-");
-  writeConfig(join(home, ".config", "projectbrain", "config.json"), {
+  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
     apiUrl,
     projectId: "proj-1",
     token: TOKEN,

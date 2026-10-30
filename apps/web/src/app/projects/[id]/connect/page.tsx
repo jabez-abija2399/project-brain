@@ -29,15 +29,15 @@ export default async function ConnectPage({ params }: { params: Promise<{ id: st
           Create a token on the <Link href={base}>Tokens</Link> tab, run this in your app's folder
           and paste the token when asked.
         </p>
-        <CopyCommand command={`npx projectbrain login --api-url ${appUrl()}`} />
+        <CopyCommand command={`npx codeceipt login --api-url ${appUrl()}`} />
       </section>
       <section className="stack">
         <h2 style={{ fontSize: 16, margin: 0 }}>2. Set up Claude Code and Cursor</h2>
-        <CopyCommand command="npx projectbrain init" label="Copy command" />
+        <CopyCommand command="npx codeceipt init" label="Copy command" />
       </section>
       <section className="stack">
         <h2 style={{ fontSize: 16, margin: 0 }}>3. Index your code</h2>
-        <CopyCommand command="npx projectbrain index" />
+        <CopyCommand command="npx codeceipt index" />
         {status.indexedFiles === 0 ? (
           <output className="row">
             <StatusBadge status="open" label="Waiting for the first index" />

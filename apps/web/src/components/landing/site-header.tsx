@@ -16,7 +16,7 @@ export function SiteHeader() {
     <header className="lp-header">
       <div className="lp-container lp-header-row">
         <a className="lp-wordmark" href="#top">
-          Project Brain
+          Codeceipt
         </a>
         <button
           type="button"

@@ -329,12 +329,12 @@ export function registerBrainTools(server: McpServer): void {
           .max(200)
           .optional()
           .describe(
-            "Masked secret findings from `projectbrain scan-secrets` on the changed files (never raw values)",
+            "Masked secret findings from `codeceipt scan-secrets` on the changed files (never raw values)",
           ),
         secretFindingsOmitted: z
           .number()
           .optional()
-          .describe("The `omitted` count from `projectbrain scan-secrets`, if any"),
+          .describe("The `omitted` count from `codeceipt scan-secrets`, if any"),
         testIntegrity: z
           .object({
             flags: z

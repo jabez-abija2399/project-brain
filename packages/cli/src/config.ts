@@ -16,7 +16,12 @@ export function configPath(
       : platform === "darwin"
         ? join(homedir, "Library", "Application Support")
         : (xdgConfigHome(env) ?? join(homedir, ".config"));
-  return join(base, "projectbrain", "config.json");
+  return join(base, "codeceipt", "config.json");
+}
+
+/** Where the login was saved before the rename (D-019); read when the new place has none, never written. */
+export function legacyConfigPath(configFile: string): string {
+  return join(configFile, "..", "..", "projectbrain", "config.json");
 }
 
 // The XDG spec: a relative (or empty) XDG_CONFIG_HOME is invalid and ignored, so the token never lands in the cwd.

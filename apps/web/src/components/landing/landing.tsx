@@ -27,19 +27,19 @@ const PROBLEMS = [
 const STEPS: { title: string; command: string; note?: string; text: string }[] = [
   {
     title: "Index your project",
-    command: "projectbrain index",
+    command: "codeceipt index",
     text: "Your code is read on your machine. Only names, paths and hashes are uploaded.",
   },
   {
     title: "Connect your agent",
-    command: "projectbrain init",
+    command: "codeceipt init",
     text: "One command sets up Claude Code and Cursor. Every session starts with a note about where you stopped and what was decided.",
   },
   {
     title: "Get a receipt for every change",
-    command: "projectbrain hook session-end",
+    command: "codeceipt hook session-end",
     note: "Runs on its own when a session ends.",
-    text: "When the session ends, Project Brain checks the changed files from git, not from the agent's word, and writes the receipt.",
+    text: "When the session ends, Codeceipt checks the changed files from git, not from the agent's word, and writes the receipt.",
   },
 ];
 
@@ -80,7 +80,7 @@ const PRIVACY_FACTS = [
 const FAQ = [
   {
     q: "Do you store my code?",
-    a: "No. Your code is indexed on your machine; Project Brain stores only metadata (file names, paths, hashes, symbol names) and short summaries.",
+    a: "No. Your code is indexed on your machine; Codeceipt stores only metadata (file names, paths, hashes, symbol names) and short summaries.",
   },
   {
     q: "Which agents does it work with?",
@@ -88,7 +88,7 @@ const FAQ = [
   },
   {
     q: "Do I need to change how I work?",
-    a: "No. Run one command in your project; your agent uses Project Brain on its own.",
+    a: "No. Run one command in your project; your agent uses Codeceipt on its own.",
   },
   { q: "What does it cost?", a: "It's free during the beta." },
   {
@@ -105,8 +105,8 @@ export function Landing() {
         <section className="lp-container lp-hero" aria-labelledby="lp-title">
           <h1 id="lp-title">Your AI agent says it's done. Get the receipt.</h1>
           <p className="lp-sub">
-            Project Brain remembers your app across every AI session and checks each change against
-            what you asked for, so you can trust what Claude Code, Cursor and Lovable build.
+            Codeceipt remembers your app across every AI session and checks each change against what
+            you asked for, so you can trust what Claude Code, Cursor and Lovable build.
           </p>
           <div className="lp-ctas">
             <a className="btn btn-primary lp-btn-lg" href="#join">
@@ -197,7 +197,10 @@ export function Landing() {
         </section>
       </main>
       <footer className="lp-container lp-footer">
-        <span className="lp-wordmark">Project Brain</span>
+        <span className="lp-footer-brand">
+          <span className="lp-wordmark">Codeceipt</span>
+          <span className="lp-tagline">A receipt for every AI change.</span>
+        </span>
         <nav className="lp-footer-links" aria-label="Footer">
           <SignInButton variant="link" />
           <a href="#privacy">Privacy</a>

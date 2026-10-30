@@ -37,7 +37,7 @@ export type SkippedFile = {
     | "too_large"
     | "binary"
     | "gitignored"
-    | "projectbrainignored"
+    | "codeceiptignored"
     | "excluded_dir"
     | "unsupported_ext"
     | "symlink";

@@ -40,12 +40,12 @@ const whoami: CliDeps["fetch"] = async (url, init) => {
   return Response.json({ ok: false, code: "unauthenticated" }, { status: 401 });
 };
 
-describe("FEAT-008 projectbrain login", () => {
+describe("FEAT-008 codeceipt login", () => {
   it("AC-008-01 login stores the project token in the user's config dir with mode 0600, never in the repo", async () => {
     const t = setup(whoami);
     const code = await main(["login", "--api-url", "https://brain.test"], t.deps);
     expect(code).toBe(0);
-    const path = join(t.home, ".config", "projectbrain", "config.json");
+    const path = join(t.home, ".config", "codeceipt", "config.json");
     expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
       apiUrl: "https://brain.test",
       projectId: "proj-1",
@@ -60,14 +60,14 @@ describe("FEAT-008 projectbrain login", () => {
   it("AC-008-01 a rejected token is not stored and exits 3", async () => {
     const t = setup(whoami, "pb_wrong\n");
     expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(3);
-    expect(() => statSync(join(t.home, ".config", "projectbrain", "config.json"))).toThrow();
+    expect(() => statSync(join(t.home, ".config", "codeceipt", "config.json"))).toThrow();
     expect(t.err.join("\n")).not.toContain("pb_wrong");
   });
 
   it("index without login exits 3; unknown commands exit 2", async () => {
     const t = setup(whoami);
     expect(await main(["index"], t.deps)).toBe(3);
-    expect(t.err).toEqual(["Not logged in: run `projectbrain login` first."]);
+    expect(t.err).toEqual(["Not logged in: run `codeceipt login` first."]);
     expect(await main(["nope"], t.deps)).toBe(2);
   });
   it("KI-024 index of a folder with no indexable files exits 2 and sends nothing, so it cannot wipe the index", async () => {
@@ -111,7 +111,7 @@ describe("FEAT-008 projectbrain login", () => {
     });
     writeFileSync(join(t.repo, "a.ts"), "export const a = 1;\n");
     expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(0);
-    const path = join(t.home, ".config", "projectbrain", "config.json");
+    const path = join(t.home, ".config", "codeceipt", "config.json");
     for (const url of [
       "http://brain.example.com",
       "http://10.0.0.5:3000",
@@ -123,7 +123,7 @@ describe("FEAT-008 projectbrain login", () => {
       expect(await main(["index"], t.deps)).toBe(2);
       expect(calls).toEqual([]);
       expect(t.err.at(-1)).toBe(
-        "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `projectbrain login` again.",
+        "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `codeceipt login` again.",
       );
       expect(t.err.join("\n")).not.toContain(TOKEN);
     }
@@ -169,7 +169,7 @@ vi.mock("node:fs", async (importOriginal) => {
   };
 });
 
-describe("FEAT-008 projectbrain index review fixes", () => {
+describe("FEAT-008 codeceipt index review fixes", () => {
   it("M1 an unreadable folder stops the index with an error naming it, before anything is sent or deleted", async () => {
     const sent: Sent[] = [];
     const t = setup(indexApi(sent));
@@ -186,19 +186,19 @@ describe("FEAT-008 projectbrain index review fixes", () => {
 
   it("L2 a relative XDG_CONFIG_HOME is ignored, so the token is never written into the repo", async () => {
     expect(configPath({ XDG_CONFIG_HOME: "rel/cfg" }, "linux", "/home/u")).toBe(
-      "/home/u/.config/projectbrain/config.json",
+      "/home/u/.config/codeceipt/config.json",
     );
     expect(configPath({ XDG_CONFIG_HOME: "" }, "linux", "/home/u")).toBe(
-      "/home/u/.config/projectbrain/config.json",
+      "/home/u/.config/codeceipt/config.json",
     );
     expect(configPath({ XDG_CONFIG_HOME: "/x/cfg" }, "linux", "/home/u")).toBe(
-      "/x/cfg/projectbrain/config.json",
+      "/x/cfg/codeceipt/config.json",
     );
     const t = setup(whoami);
     t.deps.env.XDG_CONFIG_HOME = "rel/cfg";
     expect(await main(["login", "--api-url", "https://brain.test"], t.deps)).toBe(0);
     expect(readdirSync(t.repo)).toEqual([]);
-    expect(statSync(join(t.home, ".config", "projectbrain", "config.json")).isFile()).toBe(true);
+    expect(statSync(join(t.home, ".config", "codeceipt", "config.json")).isFile()).toBe(true);
   });
 
   it("L3 a file whose name the server cannot store is skipped and reported by name; the rest is indexed", async () => {
@@ -271,7 +271,7 @@ describe("FEAT-008 projectbrain index review fixes", () => {
   });
 });
 
-describe("KI-028 projectbrain index waits and retries on 429", () => {
+describe("KI-028 codeceipt index waits and retries on 429", () => {
   // The fake API answers 429 for the first `limited` requests to `route`, then like the real routes.
   function limitedApi(sent: Sent[], route: string, limited: number, retryAfter?: string) {
     const api = indexApi(sent);

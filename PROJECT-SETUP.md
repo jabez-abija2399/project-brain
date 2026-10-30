@@ -1,4 +1,4 @@
-# Project Brain: kickoff already prepared
+# Codeceipt (formerly Project Brain): kickoff already prepared
 The kickoff (stages 1-3) has been done for you. Filled in:
 AGENTS.md (PROJECT block) · docs/product.md · docs/architecture.md · docs/decisions.md (D-001..D-006) ·
 docs/boundaries.txt · docs/DESIGN.md · docs/dependencies.md (all picks dep-checked 2026-10-23) ·

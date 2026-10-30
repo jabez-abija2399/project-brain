@@ -606,6 +606,14 @@ summary:focus-visible {
   padding-top: 24px;
   padding-bottom: 32px;
 }
+.lp-footer-brand {
+  display: grid;
+  gap: 2px;
+}
+.lp-tagline {
+  color: var(--muted);
+  font-size: 13px;
+}
 .lp-footer-links {
   display: flex;
   flex-wrap: wrap;

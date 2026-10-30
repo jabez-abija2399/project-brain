@@ -102,7 +102,7 @@ export const dashboardRepo = {
     return { rows, total: n?.n ?? 0 };
   },
 
-  /** Indexed files of the project: 0 until the first `projectbrain index` (connect page). */
+  /** Indexed files of the project: 0 until the first `codeceipt index` (connect page). */
   async indexedFiles(db: BrainDb, projectId: string): Promise<number> {
     const [n] = await db.select({ n: count() }).from(files).where(eq(files.projectId, projectId));
     return n?.n ?? 0;

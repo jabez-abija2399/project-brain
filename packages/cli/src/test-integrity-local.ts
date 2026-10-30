@@ -87,7 +87,7 @@ export async function localIntegrity(
 
 /**
  * The passing-test count from a JSON test report (vitest --reporter=json, jest --json: numPassedTests), when the
- * user names one in PROJECTBRAIN_TEST_REPORT. Inside the repo only; anything unreadable is "no count".
+ * user names one in CODECEIPT_TEST_REPORT (or PROJECTBRAIN_TEST_REPORT). Inside the repo only; anything unreadable is "no count".
  */
 export async function passingTests(
   root: string,
