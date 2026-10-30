@@ -301,7 +301,9 @@ describe("FEAT-013 generate_receipt security pass", () => {
       requestId,
       changedFiles: ["src/reviews/List.tsx", "src/billing/Invoice.tsx", "src/testing/helpers.ts"],
     });
-    expect(receipt.items.map((i) => i.status)).toEqual(["not_verified", "not_verified"]);
+    // Owner, 2026-10-30 (D-022): shown as "Done, no test proves it", still listed as not verified, never stored as done.
+    expect(receipt.items.map((i) => i.status)).toEqual(["done_untested", "done_untested"]);
+    expect(receipt.items.some((i) => i.status === "done")).toBe(false);
     expect(receipt.not_verified.map((n) => n.reason)).toEqual([
       "no test changed",
       "no test changed",
