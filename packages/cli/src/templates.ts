@@ -1,6 +1,6 @@
-// FEAT-016: what `codeceipt init` writes for the agents. No token or project secret appears in any of it: the MCP
-// configs reference the CODECEIPT_TOKEN environment variable (Claude Code can also read the token from the
-// user-level login through `codeceipt mcp-headers`).
+// FEAT-016: what `codeceipt init` writes for the agents. No token or project secret appears in any of it, and no
+// environment variable is needed (launch part 3): Claude Code asks `codeceipt mcp-headers` for the header, Cursor runs
+// `codeceipt mcp-proxy`; both take the repo's project token from the user config.
 // D-019: the product was "Project Brain" (`projectbrain`). Every template renders for a brand, so init can recognise
 // exactly what an older version installed (LEGACY_*) and upgrade it instead of adding a second copy.
 
@@ -86,12 +86,14 @@ export const LEGACY_CURSOR_RULE_PATH = `.cursor/rules/${LEGACY.slug}.mdc`;
 export const claudeMcpServer = (apiUrl: string) => ({
   type: "http",
   url: `${apiUrl.replace(/\/+$/, "")}/mcp`,
-  // Used until the folder is trusted; then headersHelper reads the token from the user-level login.
-  headers: { Authorization: "Bearer ${CODECEIPT_TOKEN}" },
   headersHelper: "codeceipt mcp-headers",
 });
 
-export const cursorMcpServer = (apiUrl: string) => ({
-  url: `${apiUrl.replace(/\/+$/, "")}/mcp`,
-  headers: { Authorization: "Bearer ${env:CODECEIPT_TOKEN}" },
+// Cursor has no header helper: it starts the CLI's stdio proxy for the workspace (Cursor fills in ${workspaceFolder}).
+export const cursorMcpServer = (_apiUrl: string) => ({
+  command: "codeceipt",
+  args: ["mcp-proxy", "--repo", "${workspaceFolder}"],
 });
+
+// An entry that reads the token from an environment variable (written by an older init).
+export const TOKEN_VARIABLE = /\$\{(?:env:)?(?:CODECEIPT|PROJECTBRAIN)_TOKEN\}/;

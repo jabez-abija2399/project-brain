@@ -239,7 +239,9 @@ describe("FEAT-016 init security", () => {
     await t.run();
     execFileSync("git", ["add", "-A"], { cwd: t.repo });
     const staged = execFileSync("git", ["diff", "--cached"], { cwd: t.repo }).toString();
-    expect(staged).toContain("CODECEIPT_TOKEN");
+    // Launch part 3: the staged config uses the CLI helper; no token and no token variable are in it.
+    expect(staged).toContain("codeceipt mcp-headers");
+    expect(staged).not.toContain("CODECEIPT_TOKEN");
     expect(staged).not.toContain(TOKEN);
     expect([...t.out, ...t.err].join("\n")).not.toContain(TOKEN);
   });

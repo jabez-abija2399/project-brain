@@ -30,6 +30,7 @@ import {
   LEGACY_START_HOOK,
   SERVER_NAME,
   START_HOOK,
+  TOKEN_VARIABLE,
   claudeMcpServer,
   cursorMcpServer,
   isOurHook,
@@ -169,7 +170,19 @@ const originOf = (url: unknown) => {
   }
 };
 
-function addServer(server: Json & { url: string }) {
+// Our own entry: the same server, or the CLI's stdio proxy (Cursor).
+const ours = (entry: unknown, origin: string | null) =>
+  isObject(entry) &&
+  (originOf(entry.url) === origin ||
+    (entry.command === "codeceipt" && Array.isArray(entry.args) && entry.args[0] === "mcp-proxy"));
+// Launch part 3: an entry of ours that still reads a token variable is replaced by the helper form.
+const readsTokenVariable = (entry: unknown) =>
+  isObject(entry) &&
+  isObject(entry.headers) &&
+  Object.values(entry.headers).some((v) => typeof v === "string" && TOKEN_VARIABLE.test(v));
+
+function addServer(server: Json, apiUrl: string) {
+  const origin = originOf(apiUrl);
   return (doc: Json): Change => {
     if (doc.mcpServers !== undefined && !isObject(doc.mcpServers)) {
       return { added: [], problems: ["mcpServers is not an object; left unchanged"] };
@@ -179,13 +192,9 @@ function addServer(server: Json & { url: string }) {
     const existing = servers[SERVER_NAME];
     const legacy = servers[LEGACY_SERVER_NAME];
     if (existing === undefined) {
-      // Our entry from before the rename (same server): renamed in place. Its headers are kept, so a setup that
-      // reads PROJECTBRAIN_TOKEN keeps working; the helper command moves to the new name.
-      if (isObject(legacy) && originOf(legacy.url) === originOf(server.url)) {
-        servers[SERVER_NAME] = {
-          ...server,
-          ...(legacy.headers !== undefined ? { headers: legacy.headers } : {}),
-        };
+      // Our entry from before the rename (same server): replaced by the current one, which needs no token variable.
+      if (ours(legacy, origin)) {
+        servers[SERVER_NAME] = server;
         delete servers[LEGACY_SERVER_NAME];
         return {
           added: [`MCP server ${SERVER_NAME} (renamed from ${LEGACY_SERVER_NAME})`],
@@ -204,12 +213,19 @@ function addServer(server: Json & { url: string }) {
       };
     }
     // An entry named codeceipt for another address is not ours: init does not vouch for it.
-    if (!isObject(existing) || originOf(existing.url) !== originOf(server.url)) {
+    if (!ours(existing, origin)) {
       return {
         added: [],
         problems: [
           `its ${SERVER_NAME} server points at another address; check it before trusting this folder`,
         ],
+      };
+    }
+    if (readsTokenVariable(existing)) {
+      servers[SERVER_NAME] = server;
+      return {
+        added: [`MCP server ${SERVER_NAME} (token now from the codeceipt helper)`],
+        problems: [],
       };
     }
     return { added: [], problems: [] };
@@ -331,7 +347,7 @@ export function runInit(root: string, home: string, config: CliConfig, args: str
   const w = new Writer(root);
   w.result.agents = agents;
   if (agents.includes("claude")) {
-    w.json(".mcp.json", addServer(claudeMcpServer(config.apiUrl)));
+    w.json(".mcp.json", addServer(claudeMcpServer(config.apiUrl), config.apiUrl));
     w.json(".claude/settings.json", claudeHooks);
     w.file(CLAUDE_SKILL_PATH, CLAUDE_SKILL, {
       rel: LEGACY_CLAUDE_SKILL_PATH,
@@ -339,7 +355,7 @@ export function runInit(root: string, home: string, config: CliConfig, args: str
     });
   }
   if (agents.includes("cursor")) {
-    w.json(".cursor/mcp.json", addServer(cursorMcpServer(config.apiUrl)));
+    w.json(".cursor/mcp.json", addServer(cursorMcpServer(config.apiUrl), config.apiUrl));
     w.json(".cursor/hooks.json", cursorHooks);
     w.file(CURSOR_RULE_PATH, CURSOR_RULE, {
       rel: LEGACY_CURSOR_RULE_PATH,
@@ -357,7 +373,7 @@ export function initReport(r: InitResult, root: string, cwd: string): string[] {
     ...r.added.map((a) => `  added   ${a}`),
     ...r.kept.map((k) => `  kept    ${k} (already set up)`),
     ...r.skipped.map((s) => `  skipped ${s}`),
-    "The token is not stored in the repo. Set CODECEIPT_TOKEN in your shell profile for Cursor (Claude Code reads",
-    "it from your `codeceipt login` once you trust this folder). The hooks need `codeceipt` on your PATH.",
+    "The token is not stored in the repo: Claude Code and Cursor get it from the codeceipt CLI (no environment",
+    "variable to set). The hooks and the agents need `codeceipt` on your PATH (npm install -g codeceipt).",
   ];
 }

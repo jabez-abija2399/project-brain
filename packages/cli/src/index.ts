@@ -14,6 +14,7 @@ import {
 import { mcpHeaders, sessionEnd, sessionStart } from "./hooks";
 import { runIndex } from "./index-command";
 import { initReport, runInit } from "./init-command";
+import { runMcpProxy } from "./mcp-proxy";
 import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 import { runSetup } from "./setup-command";
@@ -44,6 +45,8 @@ export type CliDeps = {
   readStdin: () => Promise<string>;
   // Waits between 429 retries and approval polls; tests inject one that does not really wait.
   sleep?: (ms: number) => Promise<void>;
+  // The agent's MCP messages, one per line (`codeceipt mcp-proxy`); main.ts reads them from stdin.
+  stdinLines?: () => AsyncIterable<string>;
   // Opens the approval page (`codeceipt` with no arguments); tests inject one. False when no browser opened.
   openUrl?: (url: string) => Promise<boolean>;
   git?: Git;
@@ -187,6 +190,25 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       const root = await repoRoot(deps.git ?? runGit, deps.cwd).catch(() => deps.cwd);
       const result = runInit(root, deps.homedir ?? osHomedir(), config, args);
       for (const line of initReport(result, root, deps.cwd)) deps.stdout(line);
+    } else if (command === "mcp-proxy") {
+      // Cursor's MCP server (launch part 3): never fails; problems become MCP errors for Cursor to show.
+      const repo = flag(args, "--repo") ?? deps.cwd;
+      const config = await projectConfig(deps, path, resolve(deps.cwd, repo)).then(
+        (c) =>
+          isSafeApiUrl(c.apiUrl)
+            ? c
+            : { problem: "The saved server address must be https: run `npx codeceipt` here." },
+        (err: unknown) => ({
+          problem: err instanceof CliError ? err.message : "Codeceipt is not set up here.",
+        }),
+      );
+      await runMcpProxy(
+        deps.stdinLines?.() ?? (async function* () {})(),
+        config,
+        deps.fetch,
+        deps.stdout,
+      );
+      return EXIT.ok;
     } else if (command === "hook" || command === "mcp-headers") {
       // Hooks and the helper never fail: a repo without a project link gets one warning line instead.
       const resolved = await projectConfig(deps, path, deps.cwd).then(

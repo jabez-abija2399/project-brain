@@ -67,12 +67,12 @@ describe("FEAT-016 codeceipt init", () => {
     expect(readJson(join(t.repo, ".mcp.json")).mcpServers.codeceipt).toEqual({
       type: "http",
       url: "https://brain.test/mcp",
-      headers: { Authorization: "Bearer ${CODECEIPT_TOKEN}" },
       headersHelper: "codeceipt mcp-headers",
     });
+    // Launch part 3: Cursor runs the CLI's stdio proxy, so no token variable is needed.
     expect(readJson(join(t.repo, ".cursor/mcp.json")).mcpServers.codeceipt).toEqual({
-      url: "https://brain.test/mcp",
-      headers: { Authorization: "Bearer ${env:CODECEIPT_TOKEN}" },
+      command: "codeceipt",
+      args: ["mcp-proxy", "--repo", "${workspaceFolder}"],
     });
     const claude = readJson(join(t.repo, ".claude/settings.json")).hooks;
     expect(claude.SessionStart[0].hooks[0]).toMatchObject({

@@ -142,11 +142,10 @@ describe("D-019 rename to Codeceipt", () => {
 
     const claude = json(join(t.repo, ".mcp.json")).mcpServers;
     expect(Object.keys(claude).sort()).toEqual(["codeceipt", "other"]);
-    // Renamed, still reading the token variable the user already set up; the helper moves to the new command.
+    // Renamed, and (launch part 3) no longer reading a token variable: the CLI helper gives the token.
     expect(claude.codeceipt).toEqual({
       type: "http",
       url: `${API}/mcp`,
-      headers: { Authorization: "Bearer ${PROJECTBRAIN_TOKEN}" },
       headersHelper: "codeceipt mcp-headers",
     });
     const hooks = json(join(t.repo, ".claude/settings.json")).hooks;
@@ -166,7 +165,11 @@ describe("D-019 rename to Codeceipt", () => {
 
     const cursor = json(join(t.repo, ".cursor/mcp.json")).mcpServers;
     expect(Object.keys(cursor)).toEqual(["codeceipt"]);
-    expect(cursor.codeceipt.headers).toEqual({ Authorization: "Bearer ${env:PROJECTBRAIN_TOKEN}" });
+    // Launch part 3: the upgraded entries need no token variable (Cursor runs the CLI's proxy).
+    expect(cursor.codeceipt).toEqual({
+      command: "codeceipt",
+      args: ["mcp-proxy", "--repo", "${workspaceFolder}"],
+    });
     const cursorHooks = json(join(t.repo, ".cursor/hooks.json")).hooks;
     expect(cursorHooks.sessionStart).toEqual([
       { command: "codeceipt hook session-start --agent cursor", timeout: 30 },
