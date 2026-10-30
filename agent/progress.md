@@ -414,3 +414,9 @@ Changed: /start guided page (3 steps with live status from /api/onboarding: proj
 Verified (ran this session): tests first; journey-e2e.test.ts runs the whole journey (real better-auth sign-in with GitHub mocked, npx codeceipt with device approval, index, init, a scripted agent session that misses one item, session end, receipt in the dashboard and the start page); start-page, session-summary, pages tests; full suites; kit.py check; verify.sh (see PR).
 NOT VERIFIED: a real browser (live reload, layout at 375/1280 px), a real GitHub sign-in, real agents.
 Next: real screenshots for the quickstart; later.md items (setup files in the first receipt, Connect tab).
+
+## 2026-10-30 | Dogfooding fixes from edutech (D-023) | status: done (on branch, PR open)
+Changed: tools take a feature by name, key or id (list_features and the start note show ids; a wrong one names the valid features); a session with changed files always gets a receipt (no_request receipts with files by feature and checks, shown on the card); `codeceipt last` + /api/hooks/:projectId/last-receipt (Claude Code does not show SessionEnd output after exit, per its hooks reference); test-only folders go to one tests group; Receipts empty state names all five agents.
+Verified (ran this session): tests first; journey e2e replays edutech (a session without a request gets a receipt, then a feature name from the start note creates the checklist); old tests that pinned `not_found` or feature lists without ids updated, keeping their no-oracle and no-leak checks; fresh-context security pass; full suites; kit.py check; verify.sh (see PR).
+NOT VERIFIED: a real Claude Code exit (what is shown is from its docs), a real edutech re-run.
+Next: later.md items (tie requests to sessions; latest-receipt wording).

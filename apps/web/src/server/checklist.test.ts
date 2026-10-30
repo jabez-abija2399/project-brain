@@ -223,7 +223,9 @@ describe("create_checklist (FEAT-012)", () => {
       featureId: otherFeatureId,
       request: "cross",
     });
-    expect(JSON.parse(otherFeature.text)).toEqual({ code: -32004, message: "not_found" });
+    // D-023: a wrong feature is not found and names only this project's features (B's never appear).
+    expect(JSON.parse(otherFeature.text).code).toBe(-32004);
+    expect(otherFeature.text).not.toContain(otherFeatureId);
     expect(calls).toHaveLength(0);
     expect(await requestsRepo.list(world.db, otherProjectId)).toEqual([]);
     expect(await requestsRepo.list(world.db, projectId)).toEqual([]);

@@ -36,6 +36,9 @@ const ITEM_CUT = "item text cut for the AI check";
 const ITEM_LEFT_OUT = "item left out of the AI check (prompt size cap)";
 const FILE_LEFT_OUT = "file left out of the AI check (prompt size cap)";
 const NO_FEATURE = "(no feature)";
+// Dogfooding: shown on a receipt for a session that changed files without a recorded request.
+export const NO_REQUEST_NOTE =
+  "No request was recorded for this session, so nothing could be checked against what you asked.";
 // The not_verified reason of an item that is done but has no changed test ("Done, no test proves it").
 export const NO_TEST_CHANGED = "no test changed";
 // Test files count as proof that an item was checked (AC-013-07).

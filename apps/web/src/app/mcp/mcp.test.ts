@@ -204,8 +204,9 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
     expect(res.isError).toBe(false);
     expect(JSON.parse(res.text)).toEqual({
       features: [
-        { name: "checkout", files: 3, status: "in_progress" },
-        { name: "login", files: 0, status: "todo" },
+        // D-023: each feature's id too, so a tool can be given either.
+        { id: checkout.id, name: "checkout", files: 3, status: "in_progress" },
+        { id: expect.any(String), name: "login", files: 0, status: "todo" },
       ],
       total: 2,
       truncated: false,
@@ -225,10 +226,13 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
 
   it("where_did_we_stop lists the project's feature names, not another project's", async () => {
     await seedOtherProject();
-    await featuresRepo.insert(world.db, projectId, { name: "checkout" });
-    await featuresRepo.insert(world.db, projectId, { name: "login" });
+    const checkout = await featuresRepo.insert(world.db, projectId, { name: "checkout" });
+    const login = await featuresRepo.insert(world.db, projectId, { name: "login" });
     const res = await callTool("where_did_we_stop", {}, token);
-    expect(res.text).toContain("ALL FEATURES: checkout, login");
+    // D-023: each name with its id.
+    expect(res.text).toContain(
+      `ALL FEATURES: checkout (id ${checkout.id}), login (id ${login.id})`,
+    );
     expect(res.text).not.toContain("Vault");
   });
 

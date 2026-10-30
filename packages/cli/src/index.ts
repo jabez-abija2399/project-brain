@@ -12,7 +12,7 @@ import {
   saveProjectToken,
   writeConfig,
 } from "./config";
-import { latestSession, mcpHeaders, sessionEnd, sessionStart } from "./hooks";
+import { latestSession, mcpHeaders, receiptSummary, sessionEnd, sessionStart } from "./hooks";
 import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { runMcpProxy } from "./mcp-proxy";
@@ -35,6 +35,7 @@ export function helpText(): string {
     "  codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]",
     "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
     "  codeceipt receipt                   saves a receipt and progress now (for agents with no session-end event)",
+    "  codeceipt last                      prints the latest receipt's summary and link again",
   ].join("\n");
 }
 
@@ -250,6 +251,9 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         deps.stdout,
       );
       return EXIT.ok;
+    } else if (command === "last") {
+      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt last");
+      return await runLast(deps, path);
     } else if (command === "receipt") {
       if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt receipt");
       return await runReceipt(deps, path);
@@ -439,5 +443,41 @@ async function runReceipt(deps: CliDeps, path: string): Promise<number> {
       ? `Receipt ${s.receiptId} saved for ${files}; progress saved.`
       : `No receipt (no open request, or no changed files); progress saved for ${files}.`,
   );
+  return EXIT.ok;
+}
+
+// Dogfooding: Claude Code does not show a SessionEnd hook's output once the agent has exited, so the latest receipt's
+// summary can be printed again here. Only counts are read from the server's answer (receiptSummary), never its text.
+async function runLast(deps: CliDeps, path: string): Promise<number> {
+  const config = await projectConfig(deps, path, deps.cwd);
+  if (!isSafeApiUrl(config.apiUrl)) {
+    throw new CliError(
+      EXIT.usage,
+      "Saved server address must be https: run `npx codeceipt` again.",
+    );
+  }
+  const answer = await request<{ receipt_id?: unknown; created_at?: unknown; receipt?: unknown }>(
+    deps.fetch,
+    config,
+    "GET",
+    `/api/hooks/${encodeURIComponent(config.projectId)}/last-receipt`,
+  );
+  const receipt = answer.receipt;
+  if (typeof receipt !== "object" || receipt === null) {
+    deps.stdout("No receipt yet: make a change with your agent and end the session.");
+    return EXIT.ok;
+  }
+  const id =
+    typeof answer.receipt_id === "string" && /^[\w-]{1,64}$/.test(answer.receipt_id)
+      ? answer.receipt_id
+      : null;
+  const at =
+    typeof answer.created_at === "string" &&
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(answer.created_at)
+      ? ` (${answer.created_at.slice(0, 16).replace("T", " ")} UTC)`
+      : "";
+  deps.stdout(`Latest receipt${at}:`);
+  for (const line of receiptSummary(receipt as Record<string, unknown>, config, id))
+    deps.stdout(line);
   return EXIT.ok;
 }

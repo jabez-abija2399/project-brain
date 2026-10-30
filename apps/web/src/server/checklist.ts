@@ -18,6 +18,7 @@ import { z } from "zod";
 import { type SessionUser, isPlausibleId, requireProjectAccess } from "./auth";
 import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
+import { resolveFeature } from "./feature-ref";
 import { getLlm } from "./llm";
 import { reserveDaily } from "./rate-limit";
 import { type ToolToken, bindToken } from "./session-tools";
@@ -26,7 +27,9 @@ const id = z.string().min(1).max(100);
 const createSchema = z
   .object({
     projectId: id.optional(),
-    featureId: id,
+    // The feature as list_features and the start note show it (name, key or id); featureId is the older name.
+    feature: id.optional(),
+    featureId: id.optional(),
     request: z
       .string()
       .trim()
@@ -66,6 +69,8 @@ const hash = (text: string) => createHash("sha256").update(text).digest("hex").s
 
 export type CreatedChecklist = {
   request_id: string;
+  feature_id: string;
+  feature: string;
   items: { id: string; text: string; needs_clarification: boolean }[];
 };
 
@@ -84,8 +89,11 @@ export async function createChecklist(
   const input = parse(createSchema, raw);
   bindToken(token, input.projectId);
   const pid = token.projectId;
-  // A feature of another project is reported exactly like a missing one.
-  if (!(await featuresRepo.byId(db, pid, input.featureId))) throw new AppError(404, "not_found");
+  const ref = input.feature ?? input.featureId;
+  if (!ref)
+    throw new AppError(400, "invalid_input", "input validation failed", { feature: "is required" });
+  // A feature of another project is not found, like a missing one; the error lists this project's names.
+  const feature = await resolveFeature(db, pid, ref);
   const llm = getLlm();
   if (!llm)
     throw new AppError(503, "ai_not_configured", "the checklist splitter is not configured");
@@ -111,7 +119,7 @@ export async function createChecklist(
   const stored = await requestsRepo.createWithItems(
     db,
     pid,
-    { featureId: input.featureId, text: maskSecretsIn(input.request) },
+    { featureId: feature.id, text: maskSecretsIn(input.request) },
     items.map((i) => ({ text: i.text, needsClarification: i.needs_clarification })),
   );
   console.info(
@@ -119,7 +127,7 @@ export async function createChecklist(
     "create_checklist",
     JSON.stringify({
       projectId: pid,
-      featureId: input.featureId,
+      featureId: feature.id,
       ms: Date.now() - started,
       items: stored.items.length,
       llmCalls: 1,
@@ -129,6 +137,8 @@ export async function createChecklist(
   );
   return {
     request_id: stored.request.id,
+    feature_id: feature.id,
+    feature: maskSecretsIn(feature.name),
     items: stored.items.map((i) => ({
       id: i.id,
       text: i.text,

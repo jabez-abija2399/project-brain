@@ -7,6 +7,9 @@ import { oneLineText } from "./text";
 export type ReceiptItemStatus = "done" | "done_untested" | "partial" | "missed" | "not_verified";
 export type ReceiptView = {
   items: { text: string; status: ReceiptItemStatus; evidence: string[] }[];
+  // The changed files by feature, and whether no request was recorded for the session (dogfooding).
+  filesByFeature: { feature: string; files: string[] }[];
+  noRequest: boolean;
   outsideScope: string[];
   notVerified: { text: string; reason: string }[];
   findings: {
@@ -36,6 +39,9 @@ const countOrNull = (v: unknown) =>
 const MAX_LIST = 200;
 const MAX_TEXT = 300;
 const MAX_PROMPT_ITEMS = 20;
+// Display caps for the changed-files list (a receipt has at most 200 files).
+const MAX_FEATURE_GROUPS = 50;
+const MAX_GROUP_FILES = 200;
 const STATUSES = new Set(["done", "done_untested", "partial", "missed", "not_verified"]);
 
 // Zero-width and direction marks that oneLineText keeps (U+200B-U+200F, U+2060, U+FEFF, U+061C).
@@ -76,6 +82,14 @@ export function receiptView(summary: unknown): ReceiptView {
         },
       ];
     }),
+    filesByFeature: list(s.files_by_feature)
+      .slice(0, MAX_FEATURE_GROUPS)
+      .flatMap((raw) => {
+        const g = obj(raw);
+        const files = list(g.files).map(safePath).filter(Boolean).slice(0, MAX_GROUP_FILES);
+        return files.length > 0 ? [{ feature: safeDisplay(g.feature, 100), files }] : [];
+      }),
+    noRequest: s.no_request === true,
     outsideScope: list(s.outside_scope).map(safePath).filter(Boolean),
     notVerified: list(s.not_verified).flatMap((raw) => {
       const n = obj(raw);

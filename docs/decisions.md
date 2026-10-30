@@ -269,3 +269,22 @@ proves it"); "Not verified" is only what Codeceipt could not check (no file evid
 holds: such an item stays listed in the receipt's not_verified data with the reason "no test changed" and is never
 stored or shown as plain done; receipts stored before the split show the same way.
 Revisit when: the owner rewords AC-013-07 to name the two states (criteria change through agent/plan.json).
+
+## D-023 | 2026-10-30 | Dogfooding fixes: features by name, receipts without a request, `codeceipt last`, tests group
+Context: dogfooding on a real project (edutech, owner, 2026-10-30): create_checklist failed for feature "home" shown by
+name in the start note; a session that changed src/app/page.tsx without a checklist produced no receipt; the
+session-end summary was not visible after Claude Code exited; test folders became features.
+Decision: (1) every MCP tool that takes a feature (create_checklist, get_context_pack) accepts its name, key or id
+(resolved in that order, only in the token's project); list_features and the start note show each id; a wrong one
+is an MCP not-found error naming the project's features (data.valid_features, at most 50). create_checklist takes
+`feature` (the older `featureId` still works). (2) generate_receipt's requestId is optional: a session with changed
+files always gets a receipt (files by feature, outside scope, secrets, RLS, test checks, no AI call) marked
+no_request, shown as "No request was recorded for this session, so nothing could be checked against what you asked."
+The hook still uses the newest open request when one exists. (3) Claude Code's hooks reference (checked 2026-10-30):
+SessionEnd "Shows stderr to user only", stdout goes to the debug log, its JSON output (systemMessage) is discarded,
+and hooks have no terminal; nothing shows reliably after exit. So `codeceipt last` (GET
+/api/hooks/:projectId/last-receipt, token-scoped) prints the latest receipt's summary and link, and the setup's
+"What happens next" names it. (4) Files in __mocks__, __tests__, __fixtures__, fixtures, test, tests, e2e, cypress or
+playwright (anywhere in the path) go to one "tests" group (key @tests); tests never pull app code into it, and a test
+file is never "outside" the request in a receipt.
+Revisit when: Claude Code shows SessionEnd output after exit; requests are tied to the session that created them.

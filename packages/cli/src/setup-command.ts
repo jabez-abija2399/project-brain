@@ -248,5 +248,8 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
   deps.stdout("What happens next:");
   deps.stdout(`  1. ${start}`);
   deps.stdout("  2. Ask it for a change, and end the session when it is done.");
-  deps.stdout(`  3. See your receipt: ${apiUrl}/projects/${config.projectId}/receipts`);
+  // Claude Code does not show the session-end summary after it exits, so `codeceipt last` prints it again.
+  deps.stdout(
+    `  3. See your receipt: run \`codeceipt last\`, or open ${apiUrl}/projects/${config.projectId}/receipts`,
+  );
 }
