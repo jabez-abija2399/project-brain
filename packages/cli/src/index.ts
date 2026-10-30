@@ -16,6 +16,7 @@ import { runIndex } from "./index-command";
 import { initReport, runInit } from "./init-command";
 import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
+import { runSetup } from "./setup-command";
 
 export const PACKAGE = "@brain/cli";
 export const VERSION = "0.0.0";
@@ -24,6 +25,7 @@ const DEFAULT_API_URL = "http://localhost:3000";
 export function helpText(): string {
   return [
     `codeceipt ${VERSION}: A receipt for every AI change.`,
+    "  codeceipt                           connects this repo: approve a code in your browser, then index and set up agents",
     "  codeceipt login [--api-url <url>]   reads the project token from stdin or CODECEIPT_TOKEN",
     "  codeceipt index [dir]               indexes the repo locally and uploads metadata only",
     "  codeceipt scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
@@ -40,8 +42,10 @@ export type CliDeps = {
   stdout: (line: string) => void;
   stderr: (line: string) => void;
   readStdin: () => Promise<string>;
-  // Waits between 429 retries; tests inject one that does not really wait.
+  // Waits between 429 retries and approval polls; tests inject one that does not really wait.
   sleep?: (ms: number) => Promise<void>;
+  // Opens the approval page (`codeceipt` with no arguments); tests inject one. False when no browser opened.
+  openUrl?: (url: string) => Promise<boolean>;
   git?: Git;
 };
 
@@ -128,6 +132,33 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
   const [command, ...args] = argv;
   const path = configPath(deps.env, deps.platform ?? process.platform, deps.homedir ?? osHomedir());
   try {
+    if (command === "help" || command === "--help" || command === "-h") {
+      deps.stdout(helpText());
+      return EXIT.ok;
+    }
+    // No command (flags only): the one-command setup.
+    if (command === undefined || command.startsWith("--")) {
+      const args = argv.slice();
+      const apiUrl = flag(args, "--api-url") ?? brandEnv(deps.env, "API_URL") ?? DEFAULT_API_URL;
+      if (args.length > 0) throw new CliError(EXIT.usage, `Unknown argument: ${args[0]}`);
+      if (!isSafeApiUrl(apiUrl)) {
+        throw new CliError(
+          EXIT.usage,
+          "--api-url must be https (plain http only for localhost, 127.0.0.1 or [::1]).",
+        );
+      }
+      await runSetup(apiUrl.replace(/\/+$/, ""), path, {
+        fetch: deps.fetch,
+        git: deps.git ?? runGit,
+        cwd: deps.cwd,
+        home: deps.homedir ?? osHomedir(),
+        platform: deps.platform ?? process.platform,
+        stdout: deps.stdout,
+        sleep: deps.sleep ?? ((ms) => new Promise((done) => setTimeout(done, ms))),
+        ...(deps.openUrl ? { openUrl: deps.openUrl } : {}),
+      });
+      return EXIT.ok;
+    }
     if (command === "login") {
       await login(args, deps, path);
     } else if (command === "index") {

@@ -110,12 +110,16 @@ describe("FEAT-008 the built codeceipt bin runs from a terminal", { timeout: 30_
     if (buildDir) rmSync(buildDir, { recursive: true, force: true });
   });
 
-  it("AC-008-13 prints usage and exits 2 without a command; index before login exits 3", async () => {
+  it("AC-008-13 prints usage and exits 2 for an unknown command; no command outside a git repo asks for one; index before login exits 3", async () => {
     const home = mkdtempSync(join(tmpdir(), "pb-home-"));
     const env = { HOME: home, XDG_CONFIG_HOME: join(home, ".config") };
-    const usage = await run(bin, [], env);
+    const usage = await run(bin, ["nope"], env);
     expect(usage.code).toBe(2);
     expect(usage.stderr).toContain("codeceipt login");
+    // Launch part 1: no command is the one-command setup, which needs a git repo (checked before any request).
+    const setup = await run(bin, [], env);
+    expect(setup.code).toBe(2);
+    expect(setup.stderr).toContain("inside your app's git repository");
     const index = await run(bin, ["index"], env);
     expect(index.code).toBe(3);
     expect(index.stderr).toContain("Not logged in");

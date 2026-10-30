@@ -3,7 +3,12 @@
 import { useState } from "react";
 
 // "link": a quiet "Sign in" for the landing page header and footer; the default is the full GitHub button.
-export default function SignInButton({ variant = "default" }: { variant?: "default" | "link" }) {
+// callbackURL: where to land after GitHub (a path on this site only, never another host).
+export default function SignInButton({
+  variant = "default",
+  callbackURL = "/projects",
+}: { variant?: "default" | "link"; callbackURL?: string }) {
+  const target = /^\/(?!\/)[\w\-/?=&.%]*$/.test(callbackURL) ? callbackURL : "/projects";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,7 +19,7 @@ export default function SignInButton({ variant = "default" }: { variant?: "defau
       const r = await fetch("/api/auth/sign-in/social", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider: "github", callbackURL: "/projects" }),
+        body: JSON.stringify({ provider: "github", callbackURL: target }),
       });
       // better-auth returns { url, redirect: true } for OAuth providers.
       const body = (await r.json().catch(() => ({}))) as {
