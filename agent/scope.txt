@@ -2,9 +2,6 @@ agent/*
 docs/*
 .env.example
 apps/web/*
-packages/db/src/*
-packages/db/package.json
-packages/core/src/index.ts
-packages/core/package.json
-packages/cli/src/supabase-upload.ts
-packages/cli/src/scan-secrets.security.test.ts # the reader moved to @brain/core/supabase: its mock follows it
+packages/cli/*
+packages/db/*
+packages/core/src/*

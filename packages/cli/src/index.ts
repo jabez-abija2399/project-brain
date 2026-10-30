@@ -2,10 +2,19 @@ import { homedir as osHomedir } from "node:os";
 import { resolve } from "node:path";
 import { brandEnv } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
-import { configPath, legacyConfigPath, readConfig, writeConfig } from "./config";
+import {
+  type CliConfig,
+  configPath,
+  legacyConfigPath,
+  readConfig,
+  readProjectToken,
+  saveProjectToken,
+  writeConfig,
+} from "./config";
 import { mcpHeaders, sessionEnd, sessionStart } from "./hooks";
 import { runIndex } from "./index-command";
 import { initReport, runInit } from "./init-command";
+import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 
 export const PACKAGE = "@brain/cli";
@@ -74,23 +83,56 @@ async function login(args: string[], deps: CliDeps, path: string): Promise<void>
     "GET",
     "/api/token/whoami",
   );
-  writeConfig(path, { apiUrl, projectId: who.project_id, token });
+  const config = { apiUrl, projectId: who.project_id, token };
   deps.stdout(`Logged in as project ${who.project_id}`);
+  // Inside a git repo the login is this repo's: its token is kept per project and the repo is linked to it (D-020).
+  const gitDir = await gitDirOf(deps.git ?? runGit, deps.cwd);
+  if (!gitDir) return writeConfig(path, config);
+  saveProjectToken(path, config);
+  if (writeRepoLink(gitDir, { apiUrl, projectId: who.project_id })) {
+    deps.stdout(`This repo now uses project ${who.project_id}.`);
+  } else {
+    deps.stderr("Could not link this repo: its .git/codeceipt folder or link file is a symlink.");
+  }
 }
+
+export const NOT_LINKED =
+  "This repo is not linked to a Codeceipt project: run `npx codeceipt` here.";
+const NO_TOKEN =
+  "This repo is linked to a project this computer has no token for: run `npx codeceipt` here.";
+
+/**
+ * The project a command works on (D-020). In a git repo: the repo's linked project and that project's token, never
+ * another repo's. Outside a git repo (nowhere to keep a link): the default `codeceipt login`.
+ */
+export async function projectConfig(deps: CliDeps, path: string, dir: string): Promise<CliConfig> {
+  const gitDir = await gitDirOf(deps.git ?? runGit, dir);
+  if (!gitDir) {
+    const config = savedConfig(path);
+    if (!config) throw new CliError(EXIT.auth, "Not logged in: run `codeceipt login` first.");
+    return config;
+  }
+  const link = readRepoLink(gitDir);
+  if (!link) throw new CliError(EXIT.auth, NOT_LINKED);
+  // The token may still be in the config folder from before the rename (D-019).
+  const config = readProjectToken(path, link) ?? readProjectToken(legacyConfigPath(path), link);
+  if (!config) throw new CliError(EXIT.auth, NO_TOKEN);
+  return config;
+}
+
+// A login saved before the rename still counts until the next `codeceipt login` writes the new place.
+const savedConfig = (path: string) => readConfig(path) ?? readConfig(legacyConfigPath(path));
 
 // Returns the exit code (spec section 7); errors are one line on stderr, never a stack trace or the token.
 export async function main(argv: string[], deps: CliDeps): Promise<number> {
   const [command, ...args] = argv;
   const path = configPath(deps.env, deps.platform ?? process.platform, deps.homedir ?? osHomedir());
-  // A login saved before the rename still counts until the next `codeceipt login` writes the new place.
-  const savedConfig = () => readConfig(path) ?? readConfig(legacyConfigPath(path));
   try {
     if (command === "login") {
       await login(args, deps, path);
     } else if (command === "index") {
       if (args.length > 1) throw new CliError(EXIT.usage, "Usage: codeceipt index [dir]");
-      const config = savedConfig();
-      if (!config) throw new CliError(EXIT.auth, "Not logged in: run `codeceipt login` first.");
+      const config = await projectConfig(deps, path, resolve(deps.cwd, args[0] ?? "."));
       if (!isSafeApiUrl(config.apiUrl))
         throw new CliError(
           EXIT.usage,
@@ -105,8 +147,7 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         deps.sleep,
       );
     } else if (command === "init") {
-      const config = savedConfig();
-      if (!config) throw new CliError(EXIT.auth, "Not logged in: run `codeceipt login` first.");
+      const config = await projectConfig(deps, path, deps.cwd);
       if (!isSafeApiUrl(config.apiUrl))
         throw new CliError(
           EXIT.usage,
@@ -116,7 +157,15 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       const result = runInit(root, deps.homedir ?? osHomedir(), config, args);
       for (const line of initReport(result, root, deps.cwd)) deps.stdout(line);
     } else if (command === "hook" || command === "mcp-headers") {
-      return await runHook(command, args, deps, savedConfig());
+      // Hooks and the helper never fail: a repo without a project link gets one warning line instead.
+      const resolved = await projectConfig(deps, path, deps.cwd).then(
+        (config) => ({ config, problem: undefined }),
+        (err: unknown) => ({
+          config: null,
+          problem: err instanceof CliError ? hookProblem(err.message) : undefined,
+        }),
+      );
+      return await runHook(command, args, deps, resolved.config, resolved.problem);
     } else if (command === "scan-secrets") {
       // Runs offline: nothing is uploaded, so no login is needed.
       return await runScanSecrets(args, deps.cwd, deps.stdout, deps.git);
@@ -137,11 +186,21 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
 
 // Hooks and the headers helper never fail the agent's session: any error ends as one warning line and exit 0. A
 // Claude Code session-end hook exits 2 when it has warnings, which is how Claude Code shows them to the user.
+// The hook's one-line warning for a repo it cannot act for.
+function hookProblem(message: string): string | undefined {
+  if (message === NOT_LINKED)
+    return "this repo is not linked to a Codeceipt project (run `npx codeceipt` here)";
+  if (message === NO_TOKEN)
+    return "this repo's project has no token on this computer (run `npx codeceipt` here)";
+  return undefined;
+}
+
 async function runHook(
   command: string,
   args: string[],
   deps: CliDeps,
-  saved: ReturnType<typeof readConfig>,
+  saved: CliConfig | null,
+  problem: string | undefined,
 ): Promise<number> {
   const config = saved && isSafeApiUrl(saved.apiUrl) ? saved : null;
   const hookDeps = {
@@ -149,6 +208,7 @@ async function runHook(
     git: deps.git ?? runGit,
     cwd: deps.cwd,
     config,
+    ...(problem ? { configProblem: problem } : {}),
     readStdin: deps.readStdin,
     env: deps.env,
     stdout: deps.stdout,

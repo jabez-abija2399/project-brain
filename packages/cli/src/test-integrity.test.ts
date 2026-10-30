@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
+import { linkRepo } from "./test-support";
 
 // Skip/focus markers in fixtures are joined at runtime so the kit's skip guard does not read them as skipped tests.
 const D = ".";
@@ -68,7 +69,7 @@ function repo() {
   writeFileSync(join(dir, "report.json"), JSON.stringify({ numPassedTests: 42 }));
   git("add", ".");
   git("commit", "-q", "-m", "base");
-  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
+  linkRepo(dir, join(home, ".config", "codeceipt", "config.json"), {
     apiUrl: "https://brain.test",
     projectId: "proj-1",
     token: TOKEN,

@@ -28,6 +28,8 @@ export type HookDeps = {
   git: Git;
   cwd: string;
   config: CliConfig | null;
+  // Why config is null, as a short phrase for the warning (default: not logged in).
+  configProblem?: string;
   readStdin: () => Promise<string>;
   env?: Record<string, string | undefined>;
   stdout: (line: string) => void;
@@ -48,6 +50,9 @@ const MAX_STDIN = 64 * 1024;
 const MAX_RECEIPT_FILES = 200;
 const MAX_WARNED_ITEMS = 10;
 const WARN = "Codeceipt:";
+
+const problemOf = (deps: Pick<HookDeps, "configProblem">) =>
+  deps.configProblem ?? "not logged in (run `codeceipt login`)";
 
 const timed =
   (fetchImpl: Fetch, ms: number): Fetch =>
@@ -165,8 +170,7 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
   } catch {
     // Not a git repo: session end then compares with HEAD.
   }
-  if (!deps.config)
-    return deps.stderr(`${WARN} not logged in (run \`codeceipt login\`); no handoff note.`);
+  if (!deps.config) return deps.stderr(`${WARN} ${problemOf(deps)}; no handoff note.`);
   let note: string;
   try {
     note = await callTool(
@@ -218,7 +222,7 @@ function openList(open: OpenItems): { text: string; status: string }[] {
 export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean> {
   const { sessionId, cwd } = await hookInput(deps);
   if (!deps.config) {
-    deps.stderr(`${WARN} not logged in (run \`codeceipt login\`); progress was not saved.`);
+    deps.stderr(`${WARN} ${problemOf(deps)}; progress was not saved.`);
     return true;
   }
   const config = deps.config;
@@ -360,7 +364,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
  * server using this helper (or an unknown caller) gets no header.
  */
 export function mcpHeaders(
-  deps: Pick<HookDeps, "config" | "stdout" | "stderr"> & {
+  deps: Pick<HookDeps, "config" | "configProblem" | "stdout" | "stderr"> & {
     env: Record<string, string | undefined>;
   },
 ): void {
@@ -372,7 +376,7 @@ export function mcpHeaders(
     }
   };
   if (!deps.config) {
-    deps.stderr(`${WARN} not logged in (run \`codeceipt login\`).`);
+    deps.stderr(`${WARN} ${problemOf(deps)}.`);
   } else if (origin(deps.env.CLAUDE_CODE_MCP_SERVER_URL) !== origin(deps.config.apiUrl)) {
     deps.stderr(`${WARN} no token for this MCP server: it is not the server you logged in to.`);
   } else {

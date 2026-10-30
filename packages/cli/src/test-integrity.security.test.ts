@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
 import { passingTests } from "./test-integrity-local";
+import { linkRepo } from "./test-support";
 
 const TOKEN = ["pb_", "live", "Q7xT2", "mK9vR", "4wZp8"].join("");
 
@@ -72,7 +73,7 @@ function repo(files: Record<string, string> = { "src/pay.test.ts": PAY_TEST }) {
   }
   git("add", ".");
   git("commit", "-q", "-m", "base");
-  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
+  linkRepo(dir, join(home, ".config", "codeceipt", "config.json"), {
     apiUrl: "https://brain.test",
     projectId: "proj-1",
     token: TOKEN,

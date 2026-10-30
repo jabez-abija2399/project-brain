@@ -22,10 +22,12 @@ const TOKEN = "pb_bin-test-token-value";
 
 type Run = { code: number | null; stdout: string; stderr: string };
 
-// Runs the built bin as a separate process, the way a terminal does: real argv, stdin, env, fetch.
+// Runs the built bin as a separate process, the way a terminal does: real argv, stdin, env, fetch. It runs in a fresh
+// folder outside any git repo, so a login can never link (D-020) the repository the tests run from.
 function run(bin: string, args: string[], env: Record<string, string>, stdin = ""): Promise<Run> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [bin, ...args], {
+      cwd: mkdtempSync(join(tmpdir(), "pb-cwd-")),
       env: { PATH: process.env.PATH ?? "", ...env },
       stdio: ["pipe", "pipe", "pipe"],
     });

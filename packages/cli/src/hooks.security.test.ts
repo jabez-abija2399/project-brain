@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
+import { linkRepo } from "./test-support";
 
 // FEAT-016 security pass: attacks on the session hooks (hook stdin, a hostile or broken server, the state folder,
 // the hook time budget). No real network: the server is a fake behind the injected fetch.
@@ -86,7 +87,7 @@ function setup(fetchImpl: CliDeps["fetch"], apiUrl = "https://brain.test") {
   const home = mkdtempSync(join(tmpdir(), "pb-hsec-home-"));
   const outside = mkdtempSync(join(tmpdir(), "pb-hsec-outside-"));
   const { repo, git } = gitRepo("pb-hsec-repo-");
-  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
+  linkRepo(repo, join(home, ".config", "codeceipt", "config.json"), {
     apiUrl,
     projectId: "proj-1",
     token: TOKEN,

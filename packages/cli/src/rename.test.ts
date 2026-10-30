@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { build } from "../build.mjs";
 import { writeConfig } from "./config";
 import { type CliDeps, helpText, main } from "./index";
+import { writeRepoLink } from "./repo-link";
 import {
   AGENTS_START,
   CLAUDE_SKILL,
@@ -16,6 +17,7 @@ import {
   LEGACY_CLAUDE_SKILL,
   LEGACY_CURSOR_RULE,
 } from "./templates";
+import { linkRepo } from "./test-support";
 
 // D-019: the product was renamed from Project Brain to Codeceipt. Existing setups keep working and are upgraded.
 const TOKEN = ["pb_", "live", "Q7xT2", "mK9vR", "4wZp8"].join("");
@@ -130,7 +132,7 @@ function oldSetup(repo: string) {
 describe("D-019 rename to Codeceipt", () => {
   it("init upgrades a Project Brain setup in place: no duplicates, user settings kept", async () => {
     const t = world();
-    writeConfig(join(t.home, ".config", "codeceipt", "config.json"), {
+    linkRepo(t.repo, join(t.home, ".config", "codeceipt", "config.json"), {
       apiUrl: API,
       projectId: "proj-1",
       token: TOKEN,
@@ -186,7 +188,7 @@ describe("D-019 rename to Codeceipt", () => {
 
   it("init leaves an edited Project Brain Skill alone (and adds no second one), and a foreign projectbrain server is reported", async () => {
     const t = world();
-    writeConfig(join(t.home, ".config", "codeceipt", "config.json"), {
+    linkRepo(t.repo, join(t.home, ".config", "codeceipt", "config.json"), {
       apiUrl: API,
       projectId: "proj-1",
       token: TOKEN,
@@ -216,11 +218,16 @@ describe("D-019 rename to Codeceipt", () => {
   it("login takes CODECEIPT_TOKEN, still accepts PROJECTBRAIN_TOKEN, and saves to the codeceipt config folder", async () => {
     const old = world({ PROJECTBRAIN_TOKEN: TOKEN });
     expect(await old.run("login", "--api-url", API)).toBe(0);
-    expect(json(join(old.home, ".config", "codeceipt", "config.json")).token).toBe(TOKEN);
+    // In a git repo the login is kept per project (D-020).
+    expect(json(join(old.home, ".config", "codeceipt", "config.json")).projects[0].token).toBe(
+      TOKEN,
+    );
     const newer = ["cc_", "new", "Z8yW1", "qL4"].join("");
     const both = world({ PROJECTBRAIN_TOKEN: TOKEN, CODECEIPT_TOKEN: newer });
     expect(await both.run("login", "--api-url", API)).toBe(0);
-    expect(json(join(both.home, ".config", "codeceipt", "config.json")).token).toBe(newer);
+    expect(json(join(both.home, ".config", "codeceipt", "config.json")).projects[0].token).toBe(
+      newer,
+    );
   });
 
   it("a login saved under the old projectbrain config folder still works until the next login", async () => {
@@ -230,6 +237,8 @@ describe("D-019 rename to Codeceipt", () => {
       projectId: "proj-1",
       token: TOKEN,
     });
+    // D-020: the repo names its project; the token for it may still be in the old folder.
+    writeRepoLink(join(t.repo, ".git"), { apiUrl: API, projectId: "proj-1" });
     expect(await t.run("mcp-headers")).toBe(0);
     expect(t.out).toEqual([JSON.stringify({ Authorization: `Bearer ${TOKEN}` })]);
   });
@@ -240,7 +249,10 @@ describe("D-019 rename to Codeceipt", () => {
     expect(helpText()).not.toMatch(/projectbrain|Project Brain/);
     const t = world();
     expect(await t.run("index")).toBe(3);
-    expect(t.err).toEqual(["Not logged in: run `codeceipt login` first."]);
+    // D-020: in a git repo without a project link, the CLI says how to link it.
+    expect(t.err).toEqual([
+      "This repo is not linked to a Codeceipt project: run `npx codeceipt` here.",
+    ]);
   });
 
   it("the build publishes as the npm package codeceipt, keeping projectbrain as a second command", async () => {

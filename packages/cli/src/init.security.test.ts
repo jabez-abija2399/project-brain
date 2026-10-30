@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
+import { linkRepo } from "./test-support";
 
 // FEAT-016 security pass: attacks on `codeceipt init` (a hostile cloned repo, odd user files, re-runs) and on the
 // `mcp-headers` helper that Claude Code runs for the MCP config init writes.
@@ -26,7 +27,7 @@ function setup(agentDirs: string[] = [".claude", ".cursor"]) {
   const outside = mkdtempSync(join(tmpdir(), "pb-isec-outside-"));
   execFileSync("git", ["init", "-q"], { cwd: repo });
   for (const d of agentDirs) mkdirSync(join(repo, d), { recursive: true });
-  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
+  linkRepo(repo, join(home, ".config", "codeceipt", "config.json"), {
     apiUrl: "https://brain.test",
     projectId: "proj-1",
     token: TOKEN,
@@ -245,7 +246,7 @@ describe("FEAT-016 init security", () => {
 
   it("AC-016-01 attack: a saved http (non-local) server address is refused before anything is written", async () => {
     const t = setup([".claude"]);
-    writeConfig(join(t.home, ".config", "codeceipt", "config.json"), {
+    linkRepo(t.repo, join(t.home, ".config", "codeceipt", "config.json"), {
       apiUrl: "http://brain.test",
       projectId: "proj-1",
       token: TOKEN,
