@@ -20,6 +20,8 @@ export const LEGACY_AGENTS_END = marks(LEGACY).end;
 const hook = (b: Brand, event: string) => (agent: string) =>
   `${b.slug} hook ${event} --agent ${agent}`;
 export const START_HOOK = hook(BRAND, "session-start");
+// The prompt-submit hook that records each user request for the session (D-024).
+export const PROMPT_HOOK = hook(BRAND, "prompt");
 export const END_HOOK = hook(BRAND, "session-end");
 export const LEGACY_START_HOOK = hook(LEGACY, "session-start");
 export const LEGACY_END_HOOK = hook(LEGACY, "session-end");
@@ -152,7 +154,7 @@ export const ANTIGRAVITY_RULE = [
 // shell: the command and its arguments are fixed) and adds the handoff note to the session without asking for a
 // reply. OpenCode has no session-end event (session.idle fires after every answer), so there is no end hook.
 export const OPENCODE_PLUGIN_PATH = `.opencode/plugins/${BRAND.slug}.js`;
-export const OPENCODE_PLUGIN = `// ${BRAND.name} for OpenCode (added by \`codeceipt init\`). Shows where the last session stopped when a session
+export const OPENCODE_PLUGIN_V1 = `// ${BRAND.name} for OpenCode (added by \`codeceipt init\`). Shows where the last session stopped when a session
 // starts. No token is stored here: the codeceipt command reads this repo's project token from your user config.
 import { spawn } from "node:child_process";
 
@@ -188,6 +190,83 @@ function sessionStart(sessionId, directory) {
 }
 
 export const Codeceipt = async ({ client, directory }) => ({
+  event: async ({ event }) => {
+    if (event?.type !== "session.created") return;
+    const id = event.properties?.info?.id ?? event.properties?.sessionID;
+    if (typeof id !== "string") return;
+    const note = await sessionStart(id, directory);
+    if (!note) return;
+    try {
+      await client.session.prompt({
+        path: { id },
+        body: { noReply: true, parts: [{ type: "text", text: note }] },
+      });
+    } catch {}
+  },
+});
+`;
+
+// D-024: the plugin also records each user message as a request (chat.message).
+export const OPENCODE_PLUGIN = `// ${BRAND.name} for OpenCode (added by \`codeceipt init\`). Shows where the last session stopped when a session
+// starts, and records each request you type. No token is stored here: the codeceipt command reads this repo's project token from your user config.
+import { spawn } from "node:child_process";
+
+const MAX_NOTE = 8000;
+
+// Records the user's message as a request for this session (codeceipt hook prompt). Fire and forget: the message is
+// never changed and never waits for it.
+function recordPrompt(sessionId, directory, text) {
+  try {
+    const child = spawn("codeceipt", ["hook", "prompt", "--agent", "opencode"], {
+      cwd: directory,
+      stdio: ["pipe", "ignore", "ignore"],
+    });
+    child.on("error", () => {});
+    child.stdin.on("error", () => {});
+    child.stdin.end(JSON.stringify({ session_id: sessionId, cwd: directory, prompt: text }));
+  } catch {}
+}
+
+function sessionStart(sessionId, directory) {
+  return new Promise((resolve) => {
+    let out = "";
+    let child;
+    try {
+      child = spawn("codeceipt", ["hook", "session-start", "--agent", "opencode"], {
+        cwd: directory,
+        stdio: ["pipe", "pipe", "ignore"],
+      });
+    } catch {
+      return resolve("");
+    }
+    const timer = setTimeout(() => child.kill(), 30000);
+    child.stdout.on("data", (chunk) => {
+      if (out.length < MAX_NOTE) out += chunk;
+    });
+    child.on("error", () => {
+      clearTimeout(timer);
+      resolve("");
+    });
+    child.on("close", () => {
+      clearTimeout(timer);
+      resolve(out.slice(0, MAX_NOTE).trim());
+    });
+    child.stdin.on("error", () => {});
+    child.stdin.end(JSON.stringify({ session_id: sessionId, cwd: directory }));
+  });
+}
+
+export const Codeceipt = async ({ client, directory }) => ({
+  "chat.message": async (input, output) => {
+    const sessionId = input?.sessionID;
+    if (typeof sessionId !== "string") return;
+    const parts = Array.isArray(output?.parts) ? output.parts : [];
+    const text = parts
+      .filter((p) => p && p.type === "text" && !p.synthetic && !p.ignored && typeof p.text === "string")
+      .map((p) => p.text)
+      .join("\\n");
+    if (text.trim()) recordPrompt(sessionId, directory, text.slice(0, 100000));
+  },
   event: async ({ event }) => {
     if (event?.type !== "session.created") return;
     const id = event.properties?.info?.id ?? event.properties?.sessionID;

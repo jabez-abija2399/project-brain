@@ -53,7 +53,11 @@ function server(
       calls.push({ path, redirect: init?.redirect });
       const body = answers.openItems
         ? answers.openItems()
-        : { ok: true, requests: [{ id: "req-1", text: "Add reviews", items }] };
+        : {
+            ok: true,
+            requests: [{ id: "req-1", text: "Add reviews", items }],
+            session_requests: [{ id: "req-1", text: "Add reviews", items }],
+          };
       return Response.json(body);
     }
     const body = JSON.parse(String(init?.body));
@@ -249,7 +253,7 @@ describe("FEAT-016 hook security", () => {
     const t = setup(s.fetchImpl);
     await t.hook("session-start", "claude");
     writeFileSync(join(t.repo, "x.ts"), "export {};\n");
-    expect(await t.hook("session-end", "claude")).toBe(2);
+    expect(await t.hook("session-end", "claude")).toBe(0);
     const printed = t.err.join("\n");
     expect(printed).not.toContain(ESC);
     expect(printed).not.toContain(BEL);

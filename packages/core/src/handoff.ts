@@ -49,7 +49,8 @@ const HEADS = [
   null,
   null,
   null,
-  "OPEN CHECKLIST:",
+  // Open items at a session's start are from earlier sessions; the new session's receipt never judges them.
+  "STILL OPEN FROM EARLIER:",
   "FEATURES IN PROGRESS:",
   "RECENT DECISIONS (newest first):",
   null,
@@ -68,7 +69,7 @@ const ALL_FEATURES = 9;
 // Section words that the note itself prints. Saved text may not contain them in any case, so a value cannot pass
 // for a section (e.g. a fake standing instruction in a goal).
 const SECTION_WORDS =
-  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|FEATURES IN PROGRESS|PROJECT HANDOFF|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:|NEXT FEATURE)/gi;
+  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|STILL OPEN FROM EARLIER|FEATURES IN PROGRESS|PROJECT HANDOFF|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:|NEXT FEATURE)/gi;
 
 // Saved text is flattened to one line so a value cannot start a new section.
 function oneLine(value: string): string {

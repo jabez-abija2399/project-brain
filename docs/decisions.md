@@ -288,3 +288,27 @@ and hooks have no terminal; nothing shows reliably after exit. So `codeceipt las
 playwright (anywhere in the path) go to one "tests" group (key @tests); tests never pull app code into it, and a test
 file is never "outside" the request in a receipt.
 Revisit when: Claude Code shows SessionEnd output after exit; requests are tied to the session that created them.
+
+## D-024 | 2026-10-30 | Requests captured by prompt-submit hooks, tied to sessions; the session-end hook exits 0
+Context: a real test on edutech (owner, 2026-10-30): requests were recorded only when the agent remembered to call
+create_checklist; an old open request was judged against a new session's changes; Claude Code printed "SessionEnd
+hook ... failed:" above the receipt summary because the hook exited 2.
+Decision: (1) `codeceipt init` installs each agent's prompt-submit hook (docs checked 2026-10-30): Claude Code
+UserPromptSubmit and Codex UserPromptSubmit (stdout is added to the model's context, so the hook prints nothing),
+Cursor beforeSubmitPrompt (answers {"continue":true}, never blocks), OpenCode's plugin "chat.message" event (reads the
+text parts, never changes them). Antigravity documents no prompt event, so its agent keeps calling create_checklist.
+The hook returns at once and records in the background: `codeceipt hook prompt --worker` masks secrets, caps the text
+at 4000 characters and POSTs it with the agent's session id to /api/hooks/:projectId/requests (project token). Empty
+prompts, slash commands and Codeceipt's own commands are never sent. The server makes at most 1 AI call (purpose
+request-capture, counted in the daily budget): "NOT A REQUEST" stores nothing, otherwise the request is stored on the
+named feature (only one of the project's) with its checklist items; with the budget used up it is stored unsplit. The
+user's text is a labelled data block the model is told not to follow. Same text in the same session within 24 h is
+stored once, and create_checklist for a captured request returns it with no second AI call. (2) requests.session_id
+(migration 0032). The session-end hook asks open-items for `?session=<id>&since=<session start>`; a receipt checks
+only that session's requests (a request without a session, from create_checklist, counts when created after the
+session started); with none, the receipt is a no-request receipt. Older open items are shown in the start note as
+"STILL OPEN FROM EARLIER:" and never judged against a new session. (3) Claude Code's hooks reference: SessionEnd output
+is shown only as stderr, JSON output is discarded, and any non-zero exit is labelled failed. The hook now always exits
+0 and keeps the summary on stderr (whether Claude Code shows stderr for exit 0 depends on its version; `codeceipt last`
+prints it again). The summary's first line says how many files changed.
+Revisit when: Antigravity documents a prompt event; Claude Code adds a way to show a hook message without a status.

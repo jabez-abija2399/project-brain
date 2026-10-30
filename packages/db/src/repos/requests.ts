@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type ChecklistItem,
@@ -35,13 +35,18 @@ export const requestsRepo = {
   async createWithItems(
     db: BrainDb,
     projectId: string,
-    data: { featureId: string; text: string },
+    data: { featureId: string | null; text: string; sessionId?: string | null },
     items: { text: string; needsClarification: boolean }[],
   ): Promise<{ request: RequestRow; items: ChecklistItem[] }> {
     return db.transaction(async (tx) => {
       const [request] = await tx
         .insert(requests)
-        .values({ projectId, featureId: data.featureId, text: data.text })
+        .values({
+          projectId,
+          featureId: data.featureId,
+          text: data.text,
+          sessionId: data.sessionId ?? null,
+        })
         .returning();
       if (!request) throw new Error("insert requests returned no row");
       const rows =
@@ -55,6 +60,57 @@ export const requestsRepo = {
               .returning();
       return { request, items: rows.sort((a, b) => a.position - b.position) };
     });
+  },
+
+  /** The newest request with exactly this text since `since` (a request captured by the hook, made again). */
+  async findRecentByText(
+    db: BrainDb,
+    projectId: string,
+    text: string,
+    since: Date,
+    sessionId?: string,
+  ): Promise<RequestRow | null> {
+    const rows = await db
+      .select()
+      .from(requests)
+      .where(
+        and(
+          eq(requests.projectId, projectId),
+          eq(requests.text, text),
+          gte(requests.createdAt, since),
+          ...(sessionId ? [eq(requests.sessionId, sessionId)] : []),
+        ),
+      )
+      .orderBy(desc(requests.createdAt))
+      .limit(1);
+    return rows[0] ?? null;
+  },
+
+  /**
+   * The requests made in one agent session, newest first: those captured with its id, and those recorded without a
+   * session (an agent's own create_checklist) since the session started.
+   */
+  async listForSession(
+    db: BrainDb,
+    projectId: string,
+    sessionId: string,
+    since: Date | null,
+    limit: number,
+  ): Promise<RequestRow[]> {
+    const ofSession = eq(requests.sessionId, sessionId);
+    return db
+      .select()
+      .from(requests)
+      .where(
+        and(
+          eq(requests.projectId, projectId),
+          since
+            ? or(ofSession, and(isNull(requests.sessionId), gte(requests.createdAt, since)))
+            : ofSession,
+        ),
+      )
+      .orderBy(desc(requests.createdAt), desc(requests.id))
+      .limit(limit);
   },
 
   async byId(db: BrainDb, projectId: string, requestId: string): Promise<RequestRow | null> {

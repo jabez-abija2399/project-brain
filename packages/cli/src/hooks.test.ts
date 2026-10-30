@@ -27,10 +27,9 @@ function server(openAfter: { text: string; status: string }[] = []) {
         openCalls === 1
           ? [{ text: "Show the reviews list", status: "open" }, ...openAfter]
           : openAfter;
-      return Response.json({
-        ok: true,
-        requests: items.length ? [{ id: "req-1", text: "Add reviews", items }] : [],
-      });
+      const requests = items.length ? [{ id: "req-1", text: "Add reviews", items }] : [];
+      // The request was made in this session, so the receipt checks it.
+      return Response.json({ ok: true, requests, session_requests: requests });
     }
     const body = JSON.parse(String(init?.body));
     const { name, arguments: args } = body.params;
@@ -158,10 +157,10 @@ describe("FEAT-016 agent hooks", () => {
     const t = setup(s.fetchImpl);
     await t.hook("session-start", "claude");
     writeFileSync(join(t.repo, "stars.tsx"), "export const Stars = () => null;\n");
-    expect(await t.hook("session-end", "claude")).toBe(2);
+    expect(await t.hook("session-end", "claude")).toBe(0);
     // Journey part 4: the 3-line receipt summary comes first (this fake receipt has no item verdicts), then the warnings.
     expect(t.err).toEqual([
-      "Codeceipt receipt: 0 done, 0 missed.",
+      "Codeceipt receipt: 1 file changed; 0 done, 0 missed.",
       "Checks needing attention: none.",
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-1",
       "Codeceipt: 2 checklist items are neither done nor parked:",

@@ -32,6 +32,8 @@ import {
   LEGACY_START_HOOK,
   OPENCODE_PLUGIN,
   OPENCODE_PLUGIN_PATH,
+  OPENCODE_PLUGIN_V1,
+  PROMPT_HOOK,
   SERVER_NAME,
   SHARED_SKILL,
   SHARED_SKILL_PATH,
@@ -67,7 +69,7 @@ const LIMITS: Partial<Record<Agent, string>> = {
   opencode:
     "OpenCode: no session-end event, so no automatic receipt: run `codeceipt receipt` when you finish, or connect the GitHub App for receipts on push.",
   antigravity:
-    "Antigravity: no session-end event, so no automatic receipt: run `codeceipt receipt` when you finish, or connect the GitHub App for receipts on push.",
+    "Antigravity: no session-end event, so no automatic receipt: run `codeceipt receipt` when you finish, or connect the GitHub App for receipts on push. It has no prompt-submit event either, so the agent records requests itself with create_checklist.",
 };
 type Json = Record<string, unknown>;
 
@@ -183,7 +185,7 @@ class Writer {
 
   // A file that should exist once (Skill, rule): created when missing, never replaced. The same file under the old
   // name is moved when it is exactly what an older init wrote; an edited one is left alone and reported.
-  file(rel: string, text: string, legacy?: { rel: string; text: string }) {
+  file(rel: string, text: string, legacy?: { rel: string; text: string }, previous: string[] = []) {
     const abs = this.safe(rel);
     if (!abs) return void this.result.skipped.push(`${rel} (a symlink or outside the repo)`);
     if (existsSync(abs)) {
@@ -194,6 +196,11 @@ class Writer {
         current = lstatSync(abs).isFile() ? readFileSync(abs, "utf8") : null;
       } catch {}
       if (current === text) return void this.result.kept.push(rel);
+      // An unedited copy of an older version of this file is ours: updated in place.
+      if (current !== null && previous.includes(current)) {
+        this.write(abs, text);
+        return void this.result.added.push(`${rel} (updated)`);
+      }
       return void this.result.skipped.push(
         `${rel} (exists with other content; left unchanged, check it before trusting this folder)`,
       );
@@ -421,12 +428,23 @@ const merge = (...changes: Change[]): Change => ({
 });
 
 // Claude Code's .claude/settings.json and Codex's .codex/hooks.json share this shape: { hooks: { Event: [group] } }.
+// The events init adds to whose existing value is not a list: reported, and the file is left unchanged.
+const oddHookLists = (hooks: unknown, events: string[]) =>
+  isObject(hooks)
+    ? events
+        .filter((e) => hooks[e] !== undefined && !Array.isArray(hooks[e]))
+        .map((e) => `${e} is not a list; left unchanged`)
+    : [];
+
 const groupHooks =
   (agent: "claude" | "codex", endTimeout: number) =>
   (doc: Json): Change => {
     if (doc.hooks !== undefined && !isObject(doc.hooks)) {
       return { added: [], problems: ["hooks is not an object; left unchanged"] };
     }
+    // An event whose list has an odd shape leaves the whole file as it is (nothing half set up).
+    const odd = oddHookLists(doc.hooks, ["SessionStart", "SessionEnd", "UserPromptSubmit"]);
+    if (odd.length > 0) return { added: [], problems: odd };
     doc.hooks ??= {};
     const hooks = doc.hooks as Json;
     const ours = (command: string) => (group: unknown) =>
@@ -457,6 +475,14 @@ const groupHooks =
         ours(END_HOOK(agent)),
         upgrade(LEGACY_END_HOOK(agent), END_HOOK(agent)),
       ),
+      // D-024: records each user request for the session; prints nothing, so nothing is added to the agent's context.
+      addHook(
+        hooks,
+        "UserPromptSubmit",
+        entry(PROMPT_HOOK(agent), 10),
+        ours(PROMPT_HOOK(agent)),
+        () => false,
+      ),
     );
   };
 
@@ -464,6 +490,8 @@ const cursorHooks = (doc: Json): Change => {
   if (doc.hooks !== undefined && !isObject(doc.hooks)) {
     return { added: [], problems: ["hooks is not an object; left unchanged"] };
   }
+  const odd = oddHookLists(doc.hooks, ["sessionStart", "sessionEnd", "beforeSubmitPrompt"]);
+  if (odd.length > 0) return { added: [], problems: odd };
   const hooks = (isObject(doc.hooks) ? doc.hooks : {}) as Json;
   const ours = (command: string) => (item: unknown) =>
     isObject(item) && isOurHook(item.command, command);
@@ -481,6 +509,14 @@ const cursorHooks = (doc: Json): Change => {
       { command: END_HOOK("cursor"), timeout: 60 },
       ours(END_HOOK("cursor")),
       (items) => renameHookCommand(items, LEGACY_END_HOOK("cursor"), END_HOOK("cursor")),
+    ),
+    // D-024: records each user request; answers {"continue":true}, so the prompt is never blocked.
+    addHook(
+      hooks,
+      "beforeSubmitPrompt",
+      { command: PROMPT_HOOK("cursor"), timeout: 10 },
+      ours(PROMPT_HOOK("cursor")),
+      () => false,
     ),
   );
   if (change.added.length > 0) {
@@ -574,7 +610,7 @@ export function runInit(
     } else {
       w.json("opencode.json", opencodeConfig(config.apiUrl));
     }
-    w.file(OPENCODE_PLUGIN_PATH, OPENCODE_PLUGIN);
+    w.file(OPENCODE_PLUGIN_PATH, OPENCODE_PLUGIN, undefined, [OPENCODE_PLUGIN_V1]);
   }
   if (agents.includes("antigravity")) {
     w.json(".agents/mcp_config.json", addServer(antigravityMcpServer(), config.apiUrl));

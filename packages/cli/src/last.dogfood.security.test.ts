@@ -67,7 +67,7 @@ describe("codeceipt last", () => {
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-1",
     ]);
     // A string "true" is not the no-request flag.
-    expect(t.out).toContain("Codeceipt receipt: 1 done, 0 missed.");
+    expect(t.out).toContain("Codeceipt receipt: 1 file changed; 1 done, 0 missed.");
   });
 
   it("attack: huge, negative or fractional counts are bounded", async () => {

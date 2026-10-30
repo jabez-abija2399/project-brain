@@ -94,6 +94,26 @@ export async function createChecklist(
     throw new AppError(400, "invalid_input", "input validation failed", { feature: "is required" });
   // A feature of another project is not found, like a missing one; the error lists this project's names.
   const feature = await resolveFeature(db, pid, ref);
+  // The prompt-submit hook may already have recorded this request (same text, recently): return it, no second AI call.
+  const known = await requestsRepo.findRecentByText(
+    db,
+    pid,
+    maskSecretsIn(input.request),
+    new Date(now.getTime() - 24 * 3600_000),
+  );
+  if (known) {
+    const items = await checklistItemsRepo.listForRequest(db, pid, known.id);
+    return {
+      request_id: known.id,
+      feature_id: feature.id,
+      feature: maskSecretsIn(feature.name),
+      items: items.map((i) => ({
+        id: i.id,
+        text: i.text,
+        needs_clarification: i.needsClarification,
+      })),
+    };
+  }
   const llm = getLlm();
   if (!llm)
     throw new AppError(503, "ai_not_configured", "the checklist splitter is not configured");
