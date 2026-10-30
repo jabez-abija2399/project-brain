@@ -6,6 +6,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  readdirSync,
   realpathSync,
   rmSync,
   writeSync,
@@ -22,7 +23,7 @@ import { localIntegrity, passingTests } from "./test-integrity-local";
 // agent session goes on and the hook prints one short warning. Changed files always come from git, never from the
 // agent.
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
-type Agent = "claude" | "cursor";
+type Agent = "claude" | "cursor" | "codex" | "opencode" | "antigravity" | "manual";
 export type HookDeps = {
   fetch: Fetch;
   git: Git;
@@ -35,6 +36,8 @@ export type HookDeps = {
   stdout: (line: string) => void;
   stderr: (line: string) => void;
   now?: () => Date;
+  // Called once progress is saved, with what was sent (`codeceipt receipt` prints it).
+  done?: (summary: { files: number; receiptId: string | null }) => void;
 };
 
 // Claude Code stops a SessionEnd hook after its timeout (we install 60 s): the calls together stay under 50 s, so
@@ -78,10 +81,10 @@ async function hookInput(deps: HookDeps): Promise<{ sessionId: string; cwd: stri
     if (text.length <= MAX_STDIN) raw = JSON.parse(text);
   } catch {}
   const input = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
-  // Cursor names the chat conversation_id in some events.
-  const rawId = input.session_id ?? input.conversation_id;
+  // Cursor names the chat conversation_id in some events, Antigravity conversationId (with workspacePaths).
+  const rawId = input.session_id ?? input.conversation_id ?? input.conversationId;
   const id = typeof rawId === "string" ? rawId : "";
-  const roots = input.workspace_roots;
+  const roots = Array.isArray(input.workspace_roots) ? input.workspace_roots : input.workspacePaths;
   const claimed =
     typeof input.cwd === "string" && isAbsolute(input.cwd)
       ? input.cwd
@@ -159,6 +162,23 @@ const head = (git: Git, root: string) =>
     () => null,
   );
 
+/** The newest session recorded by a session-start hook in this repo (for `codeceipt receipt`), or null. */
+export async function latestSession(git: Git, cwd: string): Promise<string | null> {
+  const root = await repoRoot(git, cwd);
+  const gitDir = realpathSync((await git(["rev-parse", "--absolute-git-dir"], root)).trim());
+  const dir = join(gitDir, "projectbrain");
+  if (lstatSync(dir).isSymbolicLink()) return null;
+  let newest: { id: string; at: number } | null = null;
+  for (const name of readdirSync(dir).slice(0, 1000)) {
+    const m = /^session-([A-Za-z0-9_-]{1,128})\.json$/.exec(name);
+    if (!m?.[1]) continue;
+    const st = lstatSync(join(dir, name));
+    if (!st.isFile()) continue;
+    if (!newest || st.mtimeMs > newest.at) newest = { id: m[1], at: st.mtimeMs };
+  }
+  return newest?.id ?? null;
+}
+
 /** Session start: remembers the starting commit and shows the handoff note from where_did_we_stop. */
 export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> {
   const { sessionId, cwd } = await hookInput(deps);
@@ -183,8 +203,15 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     return deps.stderr(`${WARN} server unreachable; no handoff note this session.`);
   }
   const safe = clean(note, MAX_NOTE_CHARS);
-  // Claude Code adds plain stdout to the session; Cursor reads additional_context from JSON.
-  deps.stdout(agent === "cursor" ? JSON.stringify({ additional_context: safe }) : safe);
+  // Claude Code, Codex and OpenCode's plugin add plain stdout to the session; Cursor reads additional_context and
+  // Antigravity injectSteps from JSON.
+  deps.stdout(
+    agent === "cursor"
+      ? JSON.stringify({ additional_context: safe })
+      : agent === "antigravity"
+        ? JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: safe } }] })
+        : safe,
+  );
 }
 
 type OpenItems = {
@@ -272,6 +299,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     }
     const req = open.requests[0];
     let receiptNote = "";
+    let receiptId: string | null = null;
     const warnings: string[] = [];
     if (req && files.length > 0) {
       // A receipt that fails (AI budget used up, judging unavailable) does not stop progress from being saved.
@@ -297,6 +325,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
           }),
         ) as { receipt_id?: unknown };
         if (typeof receipt.receipt_id === "string" && /^[\w-]{1,64}$/.test(receipt.receipt_id)) {
+          receiptId = receipt.receipt_id;
           receiptNote = `; receipt ${receipt.receipt_id}`;
         }
       } catch (err) {
@@ -328,6 +357,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
         : {}),
       nextStep: (loose[0]?.text ?? "Start the next request").slice(0, 500),
     });
+    deps.done?.({ files: files.length, receiptId });
     if (loose.length > 0) {
       warnings.push(
         `${WARN} ${loose.length} checklist item${loose.length === 1 ? " is" : "s are"} neither done nor parked:`,

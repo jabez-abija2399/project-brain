@@ -4,7 +4,7 @@ import { basename, delimiter, join } from "node:path";
 import { CliError, EXIT, MAX_RESPONSE_BYTES, readCapped, request } from "./api";
 import { type CliConfig, readProjectToken, saveProjectToken } from "./config";
 import { runIndex } from "./index-command";
-import { runInit } from "./init-command";
+import { agentList, runInit } from "./init-command";
 import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot } from "./scan-secrets";
 
@@ -228,7 +228,7 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
   let agents: string;
   try {
     const init = runInit(root, deps.home, config, []);
-    agents = init.agents.map((a) => (a === "claude" ? "Claude Code" : "Cursor")).join(" and ");
+    agents = agentList(init.agents);
   } catch {
     agents = "none found here (run `codeceipt init --claude` or `codeceipt init --cursor`)";
   }

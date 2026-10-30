@@ -1,6 +1,6 @@
 import { existsSync, statSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { brandEnv } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import {
@@ -12,9 +12,9 @@ import {
   saveProjectToken,
   writeConfig,
 } from "./config";
-import { mcpHeaders, sessionEnd, sessionStart } from "./hooks";
+import { latestSession, mcpHeaders, sessionEnd, sessionStart } from "./hooks";
 import { runIndex } from "./index-command";
-import { initReport, runInit } from "./init-command";
+import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { runMcpProxy } from "./mcp-proxy";
 import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
@@ -32,7 +32,9 @@ export function helpText(): string {
     "  codeceipt login [--api-url <url>]   reads the project token from stdin or CODECEIPT_TOKEN",
     "  codeceipt index [dir]               indexes the repo locally and uploads metadata only",
     "  codeceipt scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
-    "  codeceipt init [--claude] [--cursor] sets up Claude Code and Cursor (MCP config, hooks, Skill, AGENTS.md)",
+    "  codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]",
+    "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
+    "  codeceipt receipt                   saves a receipt and progress now (for agents with no session-end event)",
   ].join("\n");
 }
 
@@ -52,6 +54,8 @@ export type CliDeps = {
   // Opens the approval page (`codeceipt` with no arguments); tests inject one. False when no browser opened.
   openUrl?: (url: string) => Promise<boolean>;
   hasCommand?: (name: string) => boolean;
+  // Starts this CLI again with `args` in the background, `input` on its stdin (Codex's 3-second session end).
+  spawnBackground?: (args: string[], input: string, cwd: string) => void;
   git?: Git;
 };
 
@@ -115,9 +119,16 @@ const NO_TOKEN =
  * The project a command works on (D-020). In a git repo: the repo's linked project and that project's token, never
  * another repo's. Outside a git repo (nowhere to keep a link): the default `codeceipt login`.
  */
-export async function projectConfig(deps: CliDeps, path: string, dir: string): Promise<CliConfig> {
+export async function projectConfig(
+  deps: CliDeps,
+  path: string,
+  dir: string,
+  opts: { linkedOnly?: boolean } = {},
+): Promise<CliConfig> {
   const gitDir = await gitDirOf(deps.git ?? runGit, dir);
   if (!gitDir) {
+    // D-021: the agents whose hooks or MCP server may start outside the repo use only a linked repo's token.
+    if (opts.linkedOnly) throw new CliError(EXIT.auth, NOT_LINKED);
     // Inside a repo git cannot read (git missing, or "dubious ownership"), the default login is not this repo's
     // project: send nothing rather than another project's token.
     if (insideGitFolder(dir)) throw new CliError(EXIT.auth, GIT_UNREADABLE);
@@ -211,12 +222,19 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
           "Saved server address must be https: run `codeceipt login` again.",
         );
       const root = await repoRoot(deps.git ?? runGit, deps.cwd).catch(() => deps.cwd);
-      const result = runInit(root, deps.homedir ?? osHomedir(), config, args);
+      const result = runInit(
+        root,
+        deps.homedir ?? osHomedir(),
+        config,
+        args,
+        deps.env.XDG_CONFIG_HOME,
+      );
       for (const line of initReport(result, root, deps.cwd)) deps.stdout(line);
     } else if (command === "mcp-proxy") {
       // Cursor's MCP server (launch part 3): never fails; problems become MCP errors for Cursor to show.
+      const linkedOnly = args.includes("--linked-only");
       const repo = flag(args, "--repo") ?? deps.cwd;
-      const config = await projectConfig(deps, path, resolve(deps.cwd, repo)).then(
+      const config = await projectConfig(deps, path, resolve(deps.cwd, repo), { linkedOnly }).then(
         (c) =>
           isSafeApiUrl(c.apiUrl)
             ? c
@@ -232,6 +250,11 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         deps.stdout,
       );
       return EXIT.ok;
+    } else if (command === "receipt") {
+      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt receipt");
+      return await runReceipt(deps, path);
+    } else if (command === "hook" && hookAgent(args) !== "claude" && hookAgent(args) !== "cursor") {
+      return await runAgentHook(args, deps, path);
     } else if (command === "hook" || command === "mcp-headers") {
       // Hooks and the helper never fail: a repo without a project link gets one warning line instead.
       const resolved = await projectConfig(deps, path, deps.cwd).then(
@@ -296,8 +319,8 @@ async function runHook(
       mcpHeaders({ ...hookDeps, env: deps.env });
       return EXIT.ok;
     }
-    const [event, flag, agentArg] = args;
-    const agent = flag === "--agent" && agentArg === "cursor" ? "cursor" : "claude";
+    const [event] = args;
+    const agent = hookAgent(args) === "cursor" ? "cursor" : "claude";
     if (event === "session-start") await sessionStart(agent, hookDeps);
     else if (event === "session-end") {
       const warned = await sessionEnd(agent, hookDeps);
@@ -306,5 +329,115 @@ async function runHook(
   } catch {
     deps.stderr("Codeceipt: the hook failed; the session goes on without it.");
   }
+  return EXIT.ok;
+}
+
+// `--agent <name>`; Claude Code when missing or unknown (the hooks it installed before D-021 name no other agent).
+function hookAgent(args: string[]): Agent {
+  const i = args.indexOf("--agent");
+  const name = i === -1 ? undefined : args[i + 1];
+  return AGENTS.find((a) => a === name) ?? "claude";
+}
+
+// The folder the agent says the session is in: Codex and OpenCode send cwd, Antigravity workspacePaths. Only an
+// absolute path counts; anything else means the hook's own folder.
+function sessionFolder(stdin: string, fallback: string): string {
+  try {
+    const input = JSON.parse(stdin) as Record<string, unknown>;
+    const paths = Array.isArray(input.workspacePaths) ? input.workspacePaths : [];
+    const claimed = typeof input.cwd === "string" ? input.cwd : paths[0];
+    if (typeof claimed === "string" && isAbsolute(claimed)) return claimed;
+  } catch {}
+  return fallback;
+}
+
+// D-021 hooks for Codex, OpenCode and Antigravity. Their hooks may run outside the repo (Antigravity does not say
+// where), so the repo comes from the session's own folder and only a linked repo's token is used, never the default
+// login. Like the other hooks they never fail the agent's session.
+async function runAgentHook(args: string[], deps: CliDeps, path: string): Promise<number> {
+  const agent = hookAgent(args) as Exclude<Agent, "claude" | "cursor">;
+  const [event] = args;
+  let stdin = "";
+  try {
+    stdin = await deps.readStdin();
+  } catch {}
+  const dir = sessionFolder(stdin, deps.cwd);
+  // Codex gives a SessionEnd hook 3 seconds at most: the same hook runs again in the background with --worker.
+  if (
+    agent === "codex" &&
+    event === "session-end" &&
+    !args.includes("--worker") &&
+    deps.spawnBackground
+  ) {
+    try {
+      deps.spawnBackground(["hook", "session-end", "--agent", "codex", "--worker"], stdin, dir);
+    } catch {
+      deps.stderr("Codeceipt: could not start the receipt in the background.");
+    }
+    return EXIT.ok;
+  }
+  const resolved = await projectConfig(deps, path, dir, { linkedOnly: true }).then(
+    (config) => ({ config, problem: undefined }),
+    (err: unknown) => ({
+      config: null,
+      problem: err instanceof CliError ? hookProblem(err.message) : undefined,
+    }),
+  );
+  const config = resolved.config && isSafeApiUrl(resolved.config.apiUrl) ? resolved.config : null;
+  const hookDeps = {
+    fetch: deps.fetch,
+    git: deps.git ?? runGit,
+    cwd: dir,
+    config,
+    ...(resolved.problem ? { configProblem: resolved.problem } : {}),
+    readStdin: async () => stdin,
+    env: deps.env,
+    stdout: deps.stdout,
+    stderr: deps.stderr,
+  };
+  try {
+    if (event === "session-start") await sessionStart(agent, hookDeps);
+    else if (event === "session-end") await sessionEnd(agent, hookDeps);
+    else deps.stderr("Codeceipt: unknown hook (use session-start or session-end).");
+  } catch {
+    deps.stderr("Codeceipt: the hook failed; the session goes on without it.");
+  }
+  return EXIT.ok;
+}
+
+// `codeceipt receipt`: the session end, run by hand (OpenCode and Antigravity have no session-end event). It covers
+// the changes since the newest session start recorded in this repo, or since the last commit when there is none.
+async function runReceipt(deps: CliDeps, path: string): Promise<number> {
+  const config = await projectConfig(deps, path, deps.cwd, { linkedOnly: true });
+  if (!isSafeApiUrl(config.apiUrl)) {
+    throw new CliError(
+      EXIT.usage,
+      "Saved server address must be https: run `npx codeceipt` again.",
+    );
+  }
+  const git = deps.git ?? runGit;
+  const sessionId = await latestSession(git, deps.cwd).catch(() => null);
+  let summary: { files: number; receiptId: string | null } | null = null;
+  const warned = await sessionEnd("manual", {
+    fetch: deps.fetch,
+    git,
+    cwd: deps.cwd,
+    config,
+    readStdin: async () => JSON.stringify(sessionId ? { session_id: sessionId } : {}),
+    env: deps.env,
+    stdout: deps.stdout,
+    stderr: deps.stderr,
+    done: (s) => {
+      summary = s;
+    },
+  });
+  const s = summary as { files: number; receiptId: string | null } | null;
+  if (!s) return warned ? EXIT.server : EXIT.ok;
+  const files = `${s.files} changed file${s.files === 1 ? "" : "s"}`;
+  deps.stdout(
+    s.receiptId
+      ? `Receipt ${s.receiptId} saved for ${files}; progress saved.`
+      : `No receipt (no open request, or no changed files); progress saved for ${files}.`,
+  );
   return EXIT.ok;
 }

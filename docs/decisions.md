@@ -210,3 +210,40 @@ stored or editable, so a renamed or reclaimed login cannot inherit access). One 
 packages and publishes only the built files and README (docs/publishing.md). `npx codeceipt` does not install the
 command the agents run, so the setup summary says `npm install -g codeceipt` when it is missing.
 Revisit when: a second admin page is needed (store GitHub's numeric user id instead of asking each time).
+
+## D-021 | 2026-10-30 | `codeceipt init` for OpenAI Codex, OpenCode and Google Antigravity
+Context: owner request (2026-10-30). Each agent's official docs were read on 2026-10-30: Codex at
+learn.chatgpt.com/docs/{extend/mcp, config-file/config-reference, hooks, build-skills} (developers.openai.com/codex
+now redirects there; newest CLI 0.166.0), OpenCode at opencode.ai/docs/{config, mcp-servers, plugins, rules, skills}
+plus the @opencode-ai/plugin 1.19.5 types, Antigravity at antigravity.google/docs/{mcp, hooks, rules, skills}.
+Decision, per agent (detection: repo folder or the agent's home folder, like Claude Code and Cursor):
+- Codex (repo `.codex/`, `~/.codex`): MCP server appended to `.codex/config.toml` as `[mcp_servers.codeceipt]`
+  (command `codeceipt`, args `mcp-proxy --linked-only`); hooks in `.codex/hooks.json` (`{ hooks: { Event: [group] } }`):
+  `SessionStart` (plain stdout becomes developer context) and `SessionEnd`, which Codex allows 3 s at most, so the
+  hook starts the same CLI detached with `--worker` and returns. Skill `.agents/skills/codeceipt/SKILL.md`; AGENTS.md.
+  Cannot: Codex ignores a project `.codex/` until the user trusts the project, and asks the user to review new hooks
+  in `/hooks`; SessionEnd is advisory and not guaranteed after a crash (the GitHub App still covers pushes).
+  `http_headers_helper` exists but is not told which server it serves, so a cloned repo could aim it at another
+  server; the stdio proxy is used instead.
+- OpenCode (`opencode.json`/`.jsonc`, `.opencode/`, `~/.config/opencode`): `mcp.codeceipt` in `opencode.json`
+  (`type: "local"`, `command: ["codeceipt","mcp-proxy","--linked-only"]`, `cwd: "."`, created with its `$schema` when
+  missing); an `opencode.jsonc` is never rewritten (comments), init prints the entry to add. Plugin
+  `.opencode/plugins/codeceipt.js`: on `session.created` it runs `codeceipt hook session-start --agent opencode` (no
+  shell) and adds the note with `client.session.prompt({ noReply: true })`. Skill in `.agents/skills`; AGENTS.md.
+  Cannot: no session-end event (`session.idle` fires after every answer, `session.deleted` only on delete), so no
+  automatic receipt: init says to run `codeceipt receipt` or use the GitHub App.
+- Antigravity (repo `.agents/rules|hooks.json|mcp_config.json`, legacy `.agent/`, `~/.gemini/antigravity`,
+  `~/.gemini/config`; a lone `.agents/skills` does not count, Codex and OpenCode share it): MCP in the workspace file
+  `.agents/mcp_config.json` (`mcpServers.codeceipt` = `command`/`args`, the proxy); hook named `codeceipt` in
+  `.agents/hooks.json` with a `SessionStart` handler whose stdout is `{ injectSteps: [{ systemMessage: { systemMessage
+  } }] }`; always-on rule `.agents/rules/codeceipt.md` (`trigger: always_on`); skill in `.agents/skills`.
+  Cannot: no session-end event (`Stop` fires when each execution ends), so `codeceipt receipt` or the GitHub App;
+  MCP headers are static (no helper); the docs do not say which folder hooks and stdio servers run in, so the hook
+  takes the repo from `workspacePaths`; whether the Antigravity App (not IDE/CLI) reads `.agents/mcp_config.json` is
+  not documented.
+Common: the three agents start `codeceipt mcp-proxy --linked-only` and their hooks run with linked-only: outside a
+repo linked to a project they use no token at all (never the default login). New: `codeceipt receipt` runs the
+session end by hand, from the newest session start recorded in the repo (else the last commit). The skill and rule
+add "stay in scope" to the existing workflow; the Claude Code and Cursor texts stay byte-identical so older installs
+are still recognised.
+Revisit when: OpenCode or Antigravity add a session-end event, or Codex lets a header helper see its server URL.

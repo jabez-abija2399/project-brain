@@ -13,8 +13,8 @@ npx codeceipt
 
 1. Your browser opens a page with the same short code as your terminal. Sign in with GitHub.
 2. Pick a project, or create one, and approve.
-3. Codeceipt links this repo to the project, indexes your code on your machine and sets up Claude Code and Cursor,
-   then prints a short summary.
+3. Codeceipt links this repo to the project, indexes your code on your machine and sets up the agents it finds
+   (Claude Code, Cursor, OpenAI Codex, OpenCode, Google Antigravity), then prints a short summary.
 
 Your agents run the `codeceipt` command, so install it once if the summary asks you to:
 
@@ -37,7 +37,8 @@ summaries; secrets found in your code are masked (first 4 characters + `***`). T
 | --- | --- |
 | `codeceipt` | Connects this repo (browser approval), indexes it and sets up the agents |
 | `codeceipt index [dir]` | Re-indexes the repo and uploads metadata only |
-| `codeceipt init [--claude] [--cursor]` | Sets up Claude Code and Cursor again |
+| `codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]` | Sets up the agents found here again |
+| `codeceipt receipt` | Saves a receipt and progress now (OpenCode and Antigravity have no session-end event) |
 | `codeceipt scan-secrets [files...]` | Scans changed (or named) files for secrets; prints masked findings |
 | `codeceipt login [--api-url <url>]` | Saves a token you copied from the dashboard (read from stdin) |
 | `codeceipt help` | Shows all commands |
