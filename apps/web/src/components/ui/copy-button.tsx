@@ -2,6 +2,22 @@
 
 import { useState } from "react";
 
+type Clipboard = { writeText(text: string): Promise<void> };
+
+/** Copies text; "failed" when the browser has no clipboard or refuses (the button then says what to do instead). */
+export async function copyText(
+  text: string,
+  clipboard: Clipboard | undefined = globalThis.navigator?.clipboard,
+): Promise<"copied" | "failed"> {
+  try {
+    if (!clipboard) return "failed";
+    await clipboard.writeText(text);
+    return "copied";
+  } catch {
+    return "failed";
+  }
+}
+
 // Copies text to the clipboard and says so; if the browser refuses, it says what to do instead.
 export function CopyButton({
   text,
@@ -14,12 +30,7 @@ export function CopyButton({
 }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setState("copied");
-    } catch {
-      setState("failed");
-    }
+    setState(await copyText(text));
   }
   return (
     <span className="row">

@@ -99,3 +99,5 @@
 - 2026-10-29 FEAT-019 security: no route checks Origin on cookie-authenticated POST/PATCH (approve, checklist confirm); they rely on SameSite=Lax. Add one app-wide Origin check.
 - 2026-10-29 FEAT-019 security: feature names are compared case- and invisible-insensitively, but lookalike letters (Cyrillic/fullwidth) still make a second "same" feature; a confusables skeleton compare (and a unique index on lower(name), schema change: ask) would close it.
 - 2026-10-29 FEAT-019 question for the owner: create_checklist can still add new requests/items to a feature that came from an approved plan; decide whether that counts as editing the approved plan.
+- 2026-10-30 Landing page: the waitlist form stores nothing yet (it only shows the confirmation). A real waitlist needs a decision on where emails go (our DB table with consent text, or an email tool), plus rate limiting and spam protection.
+- 2026-10-30 Landing page: "no sideways scroll at 375 px" and the click checks (copy, menu, form) were run with Playwright by hand; a repo e2e suite (test:e2e) needs @playwright/test as a dev dependency (dep-check + owner approval first).

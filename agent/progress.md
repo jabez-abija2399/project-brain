@@ -378,3 +378,9 @@ Verified (ran this session): fresh-context security pass (29 attack tests, 12 fa
 NOT VERIFIED: a real model's plan quality and real latency (fake LLM in tests); real Postgres concurrency (PGlite); CI-only gates until the PR's CI runs.
 Open questions: create_checklist on a planned feature (agent/later.md); app-wide Origin check.
 Next: owner review and merge of the FEAT-019 PR.
+
+## 2026-10-30 | Landing page at "/" (outside the 19 planned features) | status: done (on branch, PR open)
+Changed: app/page.tsx (signed-out visitors see the landing page; signed-in users still go to /projects; title, description, Open Graph), components/landing/* (header with phone menu, printing receipt, terminal snippets with copy, waitlist form, sections), sign-in-button link variant, copy-button copyText helper, globals.css landing styles (tokens only; reduced motion stops the print animation).
+Verified (ran this session): landing.test.ts (7 tests: signed-out render, signed-in redirect, metadata, no invented claims, form confirmation, copy, reduced motion); Playwright on next dev at 375 and 1280 px: no sideways scroll, menu, 3 copy buttons say Copied, form messages, FAQ, keyboard focus; token contrast pairs all >= 4.5:1; verify.sh.
+NOT VERIFIED: real sign-in from the landing page against GitHub (no OAuth app here); the 375 px and click checks are not in CI (no e2e suite).
+Next: owner review of the landing page PR; decide where waitlist emails go.

@@ -1,27 +1,25 @@
-import { getAuth } from "@/server/auth";
+import { Landing } from "@/components/landing/landing";
+import { getSessionUser } from "@/server/auth";
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import SignInButton from "./sign-in-button";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
-  const session = await getAuth().api.getSession({ headers: await headers() });
-  if (session?.user) redirect("/projects");
+const TITLE = "Project Brain: receipts for AI-built code";
+const DESCRIPTION =
+  "Project Brain remembers your app across every AI coding session and checks each change against what you asked for, with a receipt for every change.";
 
-  return (
-    <main
-      style={{
-        padding: "48px 32px",
-        maxWidth: 640,
-        margin: "0 auto",
-      }}
-    >
-      <h1 style={{ fontSize: 28, marginBottom: 8 }}>Project Brain</h1>
-      <p style={{ color: "var(--muted)", lineHeight: 1.5 }}>
-        A living blueprint of every AI-built app, with a receipt for every change.
-      </p>
-      <SignInButton />
-    </main>
-  );
+export const metadata: Metadata = {
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", siteName: "Project Brain" },
+  twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
+};
+
+// Signed-in users go straight to their projects, as before; everyone else sees the landing page.
+export default async function HomePage() {
+  const user = await getSessionUser(new Request("http://localhost/", { headers: await headers() }));
+  if (user) redirect("/projects");
+  return <Landing />;
 }

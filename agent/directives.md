@@ -43,3 +43,4 @@
 - 2026-10-29: The checklist confirm and reject API requires the exact proposal shown (proposedAt + change); a confirm without it is rejected (400).
 - 2026-10-29: Invisible, bidirectional and lookalike characters are always written as \u escapes, never raw, in files and in commit messages.
 - 2026-10-29: Agents may add new checklists (create_checklist) to features from an approved plan; the approved plan's own checklist items stay locked (changes only through owner-confirmed proposals).
+- 2026-10-30: Build a public landing page at "/" (outside the 19 planned features): signed-out visitors see it, signed-in users keep their current flow; "Calm ledger" design with the printing receipt as the one bold element; waitlist form stores nothing until we decide where emails go.
