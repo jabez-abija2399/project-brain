@@ -108,6 +108,53 @@ export function detectAgents(
   return AGENTS.filter((a) => signs[a]);
 }
 
+// D-021: how a Codex config.toml defines mcp_servers.codeceipt, read without a TOML library. Comments and multi-line
+// strings are skipped; a table header, a dotted key or an inline table naming codeceipt (bare, "quoted" or 'quoted')
+// is a definition. "ours" only for exactly our table: one header and the two lines init writes, nothing else.
+const OUR_TOML_BODY = ['command = "codeceipt"', 'args = ["mcp-proxy", "--linked-only"]'];
+const tomlKey = (raw: string) => raw.replace(/["'\s]/g, "");
+
+export function codexServer(text: string): "none" | "ours" | "other" {
+  let inString: string | null = null;
+  let table = "";
+  let headers = 0;
+  let other = false;
+  const body: string[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    const marks = line.match(/"""|'''/g) ?? [];
+    if (inString) {
+      if (marks.filter((m) => m === inString).length % 2 === 1) inString = null;
+      continue;
+    }
+    if (line === "" || line.startsWith("#")) continue;
+    const header = /^\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$/.exec(line);
+    if (header?.[1]) {
+      table = tomlKey(header[1]);
+      if (table === "mcp_servers.codeceipt") headers++;
+      else if (table.startsWith("mcp_servers.codeceipt.")) other = true;
+      continue;
+    }
+    if (marks.length % 2 === 1) inString = marks[marks.length - 1] ?? null;
+    const key = tomlKey(/^([^=]+?)\s*=/.exec(line)?.[1] ?? "");
+    const full = table ? `${table}.${key}` : key;
+    if (table === "mcp_servers.codeceipt") {
+      body.push(line);
+      continue;
+    }
+    if (/^mcp_servers\.codeceipt(\.|$)/.test(full)) other = true;
+    if ((full === "mcp_servers" || table === "mcp_servers") && /\bcodeceipt\b/.test(line))
+      other = true;
+  }
+  if (headers === 0 && !other) return "none";
+  const exact =
+    headers === 1 &&
+    !other &&
+    body.length === OUR_TOML_BODY.length &&
+    body.every((l, i) => l === OUR_TOML_BODY[i]);
+  return exact ? "ours" : "other";
+}
+
 class Writer {
   readonly result: InitResult = { agents: [], added: [], kept: [], skipped: [] };
   private readonly realRoot: string;
@@ -139,7 +186,18 @@ class Writer {
   file(rel: string, text: string, legacy?: { rel: string; text: string }) {
     const abs = this.safe(rel);
     if (!abs) return void this.result.skipped.push(`${rel} (a symlink or outside the repo)`);
-    if (existsSync(abs)) return void this.result.kept.push(rel);
+    if (existsSync(abs)) {
+      // Kept only when it is exactly what init writes; anything else (edited, or planted by the repo) is left as it is
+      // and reported, never called "set up".
+      let current: string | null = null;
+      try {
+        current = lstatSync(abs).isFile() ? readFileSync(abs, "utf8") : null;
+      } catch {}
+      if (current === text) return void this.result.kept.push(rel);
+      return void this.result.skipped.push(
+        `${rel} (exists with other content; left unchanged, check it before trusting this folder)`,
+      );
+    }
     const old = legacy ? this.safe(legacy.rel) : null;
     if (legacy && old && existsSync(old)) {
       let current: string | null = null;
@@ -190,29 +248,17 @@ class Writer {
     for (const what of added) this.result.added.push(`${rel}: ${what}`);
   }
 
-  // Codex's config.toml: our server is appended as its own table when no codeceipt server exists in any form. There
-  // is no TOML parser here on purpose: anything that already defines a codeceipt server is left alone and reported.
+  // Codex's config.toml: our server is appended as its own table when no codeceipt server exists in any form.
+  // Anything else that defines one is left alone and reported; only an exact copy of our table counts as ours.
   codexToml(rel: string) {
     const abs = this.safe(rel);
     if (!abs) return void this.result.skipped.push(`${rel} (a symlink or outside the repo)`);
     const current = existsSync(abs) ? readFileSync(abs, "utf8") : "";
-    const table = current.match(
-      /^[ \t]*\[[ \t]*mcp_servers[ \t]*\.[ \t]*"?codeceipt"?[ \t]*\][^\n]*\n?((?:(?![ \t]*\[)[^\n]*\n?)*)/m,
-    );
-    if (table) {
-      const body = table[1] ?? "";
-      const proxy =
-        /^[ \t]*command[ \t]*=[ \t]*"codeceipt"[ \t]*$/m.test(body) &&
-        /^[ \t]*args[ \t]*=[ \t]*\[[ \t]*"mcp-proxy"/m.test(body) &&
-        !/^[ \t]*(url|env|cwd|env_vars)[ \t]*=/m.test(body);
-      if (proxy) return void this.result.kept.push(rel);
+    const state = codexServer(current);
+    if (state === "ours") return void this.result.kept.push(rel);
+    if (state === "other") {
       return void this.result.skipped.push(
         `${rel}: its codeceipt server is not the codeceipt proxy; check it before trusting this folder`,
-      );
-    }
-    if (/mcp_servers[ \t]*\.[ \t]*"?codeceipt"?|^[ \t]*"?codeceipt"?[ \t]*=/m.test(current)) {
-      return void this.result.skipped.push(
-        `${rel}: its codeceipt server is defined in a form init does not change; left unchanged`,
       );
     }
     const sep = current === "" || current.endsWith("\n") ? "" : "\n";
@@ -249,21 +295,39 @@ const originOf = (url: unknown) => {
   }
 };
 
-// Our own entry: the same server, or the CLI's stdio proxy (Cursor).
-// Our own entry: the same server, or the CLI's stdio proxy (Cursor, Antigravity; OpenCode writes the command as one
-// list).
-const ours = (entry: unknown, origin: string | null) =>
+// D-021: an entry counts as ours only when it is exactly what init writes now, or our older HTTP form for the same
+// server (a token variable or the helper, nothing else), which is upgraded. Anything more (another command, extra
+// environment, other arguments) is not vouched for.
+const sameJson = (a: unknown, b: unknown): boolean => {
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((v, i) => sameJson(v, b[i]))
+    );
+  }
+  if (isObject(a) && isObject(b)) {
+    const keys = Object.keys(a);
+    return (
+      keys.length === Object.keys(b).length &&
+      keys.every((k) => Object.hasOwn(b, k) && sameJson(a[k], b[k]))
+    );
+  }
+  return a === b;
+};
+const HELPERS = ["codeceipt mcp-headers", "projectbrain mcp-headers"];
+const olderHttpForm = (entry: unknown, origin: string | null) =>
   isObject(entry) &&
-  (originOf(entry.url) === origin ||
-    (entry.command === "codeceipt" && Array.isArray(entry.args) && entry.args[0] === "mcp-proxy") ||
-    (Array.isArray(entry.command) &&
-      entry.command[0] === "codeceipt" &&
-      entry.command[1] === "mcp-proxy"));
-// Launch part 3: an entry of ours that still reads a token variable is replaced by the helper form.
-const readsTokenVariable = (entry: unknown) =>
-  isObject(entry) &&
-  isObject(entry.headers) &&
-  Object.values(entry.headers).some((v) => typeof v === "string" && TOKEN_VARIABLE.test(v));
+  originOf(entry.url) === origin &&
+  Object.keys(entry).every((k) => ["type", "url", "headers", "headersHelper"].includes(k)) &&
+  (entry.type === undefined || entry.type === "http") &&
+  (entry.headersHelper === undefined || HELPERS.includes(String(entry.headersHelper))) &&
+  (entry.headers === undefined ||
+    (isObject(entry.headers) &&
+      Object.values(entry.headers).every((v) => typeof v === "string" && TOKEN_VARIABLE.test(v))));
+const ours = (entry: unknown, server: Json, origin: string | null) =>
+  sameJson(entry, server) || olderHttpForm(entry, origin);
 
 function addServer(server: Json, apiUrl: string, key = "mcpServers") {
   const origin = originOf(apiUrl);
@@ -277,7 +341,7 @@ function addServer(server: Json, apiUrl: string, key = "mcpServers") {
     const legacy = servers[LEGACY_SERVER_NAME];
     if (existing === undefined) {
       // Our entry from before the rename (same server): replaced by the current one, which needs no token variable.
-      if (ours(legacy, origin)) {
+      if (ours(legacy, server, origin)) {
         servers[SERVER_NAME] = server;
         delete servers[LEGACY_SERVER_NAME];
         return {
@@ -296,23 +360,27 @@ function addServer(server: Json, apiUrl: string, key = "mcpServers") {
               ],
       };
     }
-    // An entry named codeceipt for another address is not ours: init does not vouch for it.
-    if (!ours(existing, origin)) {
-      return {
-        added: [],
-        problems: [
-          `its ${SERVER_NAME} server points at another address; check it before trusting this folder`,
-        ],
-      };
-    }
-    if (readsTokenVariable(existing)) {
+    if (sameJson(existing, server)) return { added: [], problems: [] };
+    // Our HTTP form for this server, perhaps edited by the user (another path): kept as it is, unless it still reads a
+    // token variable, which the current form replaces (the token now comes from the codeceipt helper).
+    const readsTokenVariable =
+      isObject(existing) && isObject(existing.headers) && Object.keys(existing.headers).length > 0;
+    if (olderHttpForm(existing, origin) && !readsTokenVariable) return { added: [], problems: [] };
+    if (olderHttpForm(existing, origin)) {
       servers[SERVER_NAME] = server;
       return {
         added: [`MCP server ${SERVER_NAME} (token now from the codeceipt helper)`],
         problems: [],
       };
     }
-    return { added: [], problems: [] };
+    // An entry named codeceipt that is not exactly ours (another address, command, arguments or environment) is not
+    // vouched for.
+    return {
+      added: [],
+      problems: [
+        `its ${SERVER_NAME} server points at another address, command or settings; check it before trusting this folder`,
+      ],
+    };
   };
 }
 
@@ -435,13 +503,19 @@ const antigravityHooks = (doc: Json): Change => {
   if (!isObject(mine)) {
     return { added: [], problems: [`its ${SERVER_NAME} hook is not an object; left unchanged`] };
   }
-  return addHook(
-    mine,
-    "SessionStart",
-    handler,
-    (item) => isObject(item) && isOurHook(item.command, command),
-    () => false,
+  const isOurs = (item: unknown) => isObject(item) && isOurHook(item.command, command);
+  const change = addHook(mine, "SessionStart", handler, isOurs, () => false);
+  // Other handlers inside the hook named codeceipt are not ours: say so, so the user does not take them for ours.
+  const foreign = Object.entries(mine).some(
+    ([event, list]) =>
+      event !== "enabled" && (!Array.isArray(list) || list.some((item) => !isOurs(item))),
   );
+  if (foreign) {
+    change.problems.push(
+      `its ${SERVER_NAME} hook also runs commands that are not codeceipt's; check them before trusting this folder`,
+    );
+  }
+  return change;
 };
 
 const OPENCODE_SCHEMA = "https://opencode.ai/config.json";

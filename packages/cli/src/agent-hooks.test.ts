@@ -82,7 +82,7 @@ function setup() {
 }
 
 describe("D-021 agent hooks", () => {
-  it("Codex SessionStart prints the handoff note as plain text (developer context), from a subfolder too", async () => {
+  it("Codex SessionStart prints the handoff note as additionalContext (developer context), from a subfolder too", async () => {
     const t = setup();
     mkdirSync(join(t.repo, "src"));
     const stdin = JSON.stringify({
@@ -96,7 +96,10 @@ describe("D-021 agent hooks", () => {
     expect(
       await t.cli(["hook", "session-start", "--agent", "codex"], stdin, join(t.repo, "src")),
     ).toBe(0);
-    expect(t.out).toEqual([NOTE]);
+    // Inside Codex's JSON envelope, so a note can never act as hook control.
+    expect(t.out.map((l) => JSON.parse(l))).toEqual([
+      { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: NOTE } },
+    ]);
     expect(t.calls.map((c) => [c.tool, c.auth])).toEqual([
       ["where_did_we_stop", `Bearer ${TOKEN}`],
     ]);

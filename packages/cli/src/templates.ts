@@ -24,11 +24,11 @@ export const END_HOOK = hook(BRAND, "session-end");
 export const LEGACY_START_HOOK = hook(LEGACY, "session-start");
 export const LEGACY_END_HOOK = hook(LEGACY, "session-end");
 
-// Our hook is the exact command for its event, optionally with a path to the binary; a foreign command that merely
-// mentions "codeceipt hook" is not ours.
+// Our hook is the exact command for its event, optionally with an absolute path to the binary; a foreign command
+// that merely mentions "codeceipt hook", or a relative path (a codeceipt shipped inside the repo), is not ours.
 export const isOurHook = (command: unknown, expected: string) =>
   typeof command === "string" &&
-  command.trim().replace(/^\S*\/(?=(?:codeceipt|projectbrain) )/, "") === expected;
+  command.trim().replace(/^\/\S*\/(?=(?:codeceipt|projectbrain) )/, "") === expected;
 
 const WORKFLOW = [
   "1. At the start of a session call `where_did_we_stop` and follow its handoff note and the owner's instructions.",

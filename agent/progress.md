@@ -402,3 +402,9 @@ Changed: device approval (/device, /api/device/start|token|approve, migration 00
 Verified (ran this session): failing tests first for each part; fresh-context security pass (3 new files, 6 failures fixed: git-unreadable fallback to another project's token, text/plain CSRF, uncapped chunked bodies, unlimited code lookups on /device, bidi/control in project names, framing) plus token_limit handling; web 500, CLI suite, DB suite; kit.py check; verify.sh (see PR).
 NOT VERIFIED: a real browser approval against the deployed app, real `npm install -g` and agent runs, Vercel's X-Forwarded-For behaviour, the new pages at 375/1280 px; nothing published to npm.
 Next: owner reviews the security-sensitive parts (device flow, Origin check, admin access), decides license, runs docs/publishing.md.
+
+## 2026-10-30 | D-021 codeceipt init for OpenAI Codex, OpenCode and Google Antigravity | status: done (on branch, PR open)
+Changed: init detects and sets up Codex (.codex/config.toml proxy table, .codex/hooks.json SessionStart + SessionEnd with a background --worker), OpenCode (opencode.json mcp, .opencode/plugins/codeceipt.js on session.created) and Antigravity (.agents/mcp_config.json, SessionStart in .agents/hooks.json, always-on rule); shared .agents/skills/codeceipt/SKILL.md with a stay-in-scope line; `codeceipt receipt`; `mcp-proxy --linked-only`; hooks for these agents use only a linked repo's token.
+Verified (ran this session): docs of each agent read first (D-021); new tests failed first (init-agents, agent-hooks incl. the real plugin file run with a stand-in codeceipt); fresh-context security pass (2 files, 42 attacks, 14 failures fixed); CLI suite 186 pass; kit.py check; verify.sh (see PR).
+NOT VERIFIED: real Codex, OpenCode or Antigravity runs; Codex hook trust review flow; Antigravity hook folder.
+Next: owner tries each agent once; later.md items for Claude's plain-stdout note and file size.

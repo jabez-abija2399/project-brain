@@ -203,14 +203,19 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     return deps.stderr(`${WARN} server unreachable; no handoff note this session.`);
   }
   const safe = clean(note, MAX_NOTE_CHARS);
-  // Claude Code, Codex and OpenCode's plugin add plain stdout to the session; Cursor reads additional_context and
-  // Antigravity injectSteps from JSON.
+  // Claude Code and OpenCode's plugin add plain stdout to the session; Cursor reads additional_context, Antigravity
+  // injectSteps and Codex hookSpecificOutput.additionalContext from JSON. Codex reads JSON stdout as hook control, so
+  // the note always goes inside our own envelope there: a note that is itself JSON stays data.
   deps.stdout(
     agent === "cursor"
       ? JSON.stringify({ additional_context: safe })
       : agent === "antigravity"
         ? JSON.stringify({ injectSteps: [{ systemMessage: { systemMessage: safe } }] })
-        : safe,
+        : agent === "codex"
+          ? JSON.stringify({
+              hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: safe },
+            })
+          : safe,
   );
 }
 

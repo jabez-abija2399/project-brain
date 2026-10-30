@@ -246,4 +246,11 @@ repo linked to a project they use no token at all (never the default login). New
 session end by hand, from the newest session start recorded in the repo (else the last commit). The skill and rule
 add "stay in scope" to the existing workflow; the Claude Code and Cursor texts stay byte-identical so older installs
 are still recognised.
+Hardening after the fresh-context security pass: an existing `codeceipt` entry counts as ours only when it is exactly
+what init writes (or our older HTTP form for the same server); Codex's config.toml is read skipping comments and
+multi-line strings, and any other definition of mcp_servers.codeceipt (quoted keys, dotted keys, inline tables,
+sub-tables, extra keys) is reported, never appended to; a hook command is ours only bare or with an absolute path (a
+repo cannot know where it is cloned, so it cannot plant one); a skill, rule or plugin file counts as set up only when
+identical to ours; Codex gets the note inside `hookSpecificOutput.additionalContext` so a note can never act as hook
+control.
 Revisit when: OpenCode or Antigravity add a session-end event, or Codex lets a header helper see its server URL.
