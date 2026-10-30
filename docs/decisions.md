@@ -254,3 +254,18 @@ repo cannot know where it is cloned, so it cannot plant one); a skill, rule or p
 identical to ours; Codex gets the note inside `hookSpecificOutput.additionalContext` so a note can never act as hook
 control.
 Revisit when: OpenCode or Antigravity add a session-end event, or Codex lets a header helper see its server URL.
+
+## D-022 | 2026-10-30 | First receipt: setup files left out; "Done, no test proves it" apart from "Not verified"
+Context: owner request (2026-10-30) after the first-time journey work: a user's first receipt listed the files
+`npx codeceipt` added as changes outside the request, and "not verified" mixed two different things.
+Decision: (1) the files `codeceipt init` writes (.mcp.json, .claude/settings.json, .claude/skills/codeceipt,
+.cursor/{mcp,hooks}.json and rules/codeceipt.mdc, .codex/{config.toml,hooks.json}, opencode.json,
+.opencode/plugins/codeceipt.js, .agents/{mcp_config,hooks}.json, rules/codeceipt.md and skills/codeceipt) are never a
+receipt's changed files or outside scope: the CLI leaves them out (the secret scan still reads them) and the server
+drops them too. AGENTS.md counts only when something besides the Codeceipt section changed (the CLI compares it
+without the section). Only these exact paths: the user's own rules, skills and settings in the same folders still
+count. (2) An item judged done with file evidence but no changed test gets the status `done_untested` ("Done, no test
+proves it"); "Not verified" is only what Codeceipt could not check (no file evidence, prompt caps). AC-013-07 still
+holds: such an item stays listed in the receipt's not_verified data with the reason "no test changed" and is never
+stored or shown as plain done; receipts stored before the split show the same way.
+Revisit when: the owner rewords AC-013-07 to name the two states (criteria change through agent/plan.json).

@@ -211,7 +211,9 @@ describe("generate_receipt (FEAT-013)", () => {
       { id: itemIds[0], text: "Show the reviews list", reason: "no test changed" },
       { id: itemIds[1], text: "Add a star rating", reason: "no file evidence" },
     ]);
-    expect(receipt.items.map((i) => i.status)).toEqual(["not_verified", "not_verified"]);
+    // Owner, 2026-10-30: done without a changed test is its own state ("Done, no test proves it"); still listed in
+    // not_verified with its reason and never called plain done.
+    expect(receipt.items.map((i) => i.status)).toEqual(["done_untested", "not_verified"]);
     // Not called done: both items keep their open status.
     expect(await status(itemIds[0] as string)).toBe("open");
     expect(await status(itemIds[1] as string)).toBe("open");
@@ -252,5 +254,27 @@ describe("generate_receipt (FEAT-013)", () => {
     );
     expect((traversal as AppError).status).toBe(400);
     expect(calls).toHaveLength(0);
+  });
+
+  it("Codeceipt's own setup files sent by a client never count as changed files or outside scope", async () => {
+    scripted("1 | done | src/reviews/List.tsx, src/reviews/List.test.tsx\n2 | missed |");
+    const receipt = await generateReceipt(world.db, token, {
+      projectId,
+      requestId,
+      changedFiles: [
+        "src/reviews/List.tsx",
+        "src/reviews/List.test.tsx",
+        ".mcp.json",
+        ".claude/settings.json",
+        ".claude/skills/codeceipt/SKILL.md",
+        ".agents/hooks.json",
+      ],
+    });
+    expect(receipt.files_by_feature.flatMap((g) => g.files).sort()).toEqual([
+      "src/reviews/List.test.tsx",
+      "src/reviews/List.tsx",
+    ]);
+    expect(receipt.outside_scope).toEqual([]);
+    expect(calls[0]?.prompt).not.toContain(".mcp.json");
   });
 });

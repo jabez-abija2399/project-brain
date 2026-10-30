@@ -72,7 +72,7 @@ export function Receipt() {
             </div>
             <div className="lp-r-block">
               <ul className="lp-r-list">
-                <Line badge={<StatusBadge status="not_verified" />}>Sorting has no test</Line>
+                <Line badge={<StatusBadge status="done_untested" />}>Sorting has no test</Line>
               </ul>
             </div>
             <div className="lp-r-foot">

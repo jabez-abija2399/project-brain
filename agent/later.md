@@ -118,3 +118,9 @@
 - 2026-10-30 D-021: the OpenCode plugin waits up to 30 s for the session-start hook inside session.created; check on real OpenCode that this does not delay the first answer (else run it without awaiting).
 - 2026-10-30 D-021: none of the three adapters was run against the real Codex, OpenCode or Antigravity apps here (config shapes are from their docs on 2026-10-30); try each once on a real machine. Antigravity's hook working folder and the App's support for .agents/mcp_config.json are undocumented.
 - 2026-10-30 D-021: packages/cli/src/init-command.ts (~560 lines) and index.ts (~440) are over the 300-line guideline; split the per-agent writers into their own module.
+- 2026-10-30 Journey: the first receipt lists the files `npx codeceipt` added (.mcp.json, .claude/settings.json, the skill, AGENTS.md) as changed outside the request unless the user commits them first; the quickstart says to commit them. Consider leaving Codeceipt's own files out of receipts (only when their content is exactly what init wrote).
+- 2026-10-30 Journey: the start page polls /api/onboarding every 4 s and reloads the page when a step changes; check in a real browser (and at 375/1280 px) that the reload feels right, or switch to a router refresh.
+- 2026-10-30 Journey: the old Connect tab still shows the login + init + index commands; point it at /start or rewrite it around `npx codeceipt`.
+- 2026-10-30 Journey: /docs/quickstart has [SCREENSHOT] placeholders to replace with real screenshots before launch.
+- 2026-10-30 Done (D-022): Codeceipt's own setup files no longer count in receipts, so the quickstart no longer asks users to commit them first.
+- 2026-10-30 AC-013-07 wording ("listed there, not done") predates the "Done, no test proves it" state (D-022); the owner may want to reword it to name both states (through agent/plan.json).

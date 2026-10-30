@@ -12,7 +12,7 @@ import {
   writeSync,
 } from "node:fs";
 import { isAbsolute, join, sep } from "node:path";
-import { brandEnv, oneLineText } from "@brain/core";
+import { brandEnv, isCodeceiptSetupPath, oneLineText, withoutAgentsSection } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 import { callTool } from "./mcp-client";
@@ -53,6 +53,7 @@ const MAX_STDIN = 64 * 1024;
 const MAX_RECEIPT_FILES = 200;
 const MAX_WARNED_ITEMS = 10;
 const WARN = "Codeceipt:";
+const MAX_AGENTS_MD = 1024 * 1024;
 
 const problemOf = (deps: Pick<HookDeps, "configProblem">) =>
   deps.configProblem ?? "not logged in (run `codeceipt login`)";
@@ -162,6 +163,90 @@ const head = (git: Git, root: string) =>
     () => null,
   );
 
+const count = (v: unknown) => (Array.isArray(v) ? v.length : 0);
+const number = (v: unknown) =>
+  typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? Math.min(v, 1_000_000) : 0;
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Journey part 4: the receipt in three lines (done, missed, checks needing attention) and a link to the full receipt.
+ * Only counts are read from the server's answer, never its text, so nothing it says reaches the terminal raw.
+ */
+function receiptSummary(
+  receipt: Record<string, unknown>,
+  config: CliConfig,
+  receiptId: string | null,
+): string[] {
+  const items = Array.isArray(receipt.items) ? receipt.items : [];
+  const status = (s: string) =>
+    items.filter(
+      (i) => typeof i === "object" && i !== null && (i as { status?: unknown }).status === s,
+    ).length;
+  const untested = status("done_untested");
+  const done = status("done") + untested;
+  const partial = status("partial");
+  const missed = status("missed") + partial;
+  const integrity =
+    typeof receipt.test_integrity === "object" && receipt.test_integrity !== null
+      ? (receipt.test_integrity as Record<string, unknown>)
+      : {};
+  const findings = count(receipt.findings) + number(receipt.findings_omitted);
+  const tests = count(integrity.flags) + number(integrity.omitted);
+  const outside = count(receipt.outside_scope);
+  // "no test changed" entries are the done-without-a-test items, counted above; the rest could not be checked.
+  const unverified = (Array.isArray(receipt.not_verified) ? receipt.not_verified : []).filter(
+    (n) =>
+      typeof n !== "object" ||
+      n === null ||
+      (n as { reason?: unknown }).reason !== "no test changed",
+  ).length;
+  const attention = [
+    findings > 0 ? plural(findings, "security finding") : "",
+    tests > 0 ? plural(tests, "test check") : "",
+    untested > 0 ? `${untested} done with no test proving it` : "",
+    outside > 0 ? `${plural(outside, "file")} outside the request` : "",
+    unverified > 0 ? `${unverified} not verified` : "",
+  ].filter(Boolean);
+  const lines = [
+    `Codeceipt receipt: ${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
+    `Checks needing attention: ${attention.length > 0 ? attention.join(", ") : "none"}.`,
+  ];
+  if (receiptId) {
+    const base = config.apiUrl.replace(/\/+$/, "");
+    lines.push(
+      `Full receipt: ${base}/projects/${encodeURIComponent(config.projectId)}/receipts#receipt-${receiptId}`,
+    );
+  }
+  return lines;
+}
+
+/**
+ * First-receipt fix: the changed files without Codeceipt's own setup. AGENTS.md stays only when something besides
+ * the section init adds changed (compared with the session's start, or HEAD).
+ */
+async function withoutSetupFiles(
+  git: Git,
+  root: string,
+  base: string,
+  files: string[],
+): Promise<string[]> {
+  const kept = files.filter((f) => !isCodeceiptSetupPath(f));
+  if (!kept.includes("AGENTS.md")) return kept;
+  let now = "";
+  let before = "";
+  try {
+    const abs = join(root, "AGENTS.md");
+    if (lstatSync(abs).isFile() && lstatSync(abs).size <= MAX_AGENTS_MD)
+      now = readFileSync(abs, "utf8");
+  } catch {}
+  try {
+    before = await git(["show", `${base}:AGENTS.md`], root);
+  } catch {}
+  return withoutAgentsSection(now) === withoutAgentsSection(before)
+    ? kept.filter((f) => f !== "AGENTS.md")
+    : kept;
+}
+
 /** The newest session recorded by a session-start hook in this repo (for `codeceipt receipt`), or null. */
 export async function latestSession(git: Git, cwd: string): Promise<string | null> {
   const root = await repoRoot(git, cwd);
@@ -260,6 +345,8 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
   const config = deps.config;
   let root = cwd;
   let files: string[] = [];
+  // What the receipt is about: the changed files minus Codeceipt's own setup (the secret scan still sees them all).
+  let receiptFiles: string[] = [];
   let start: string | null = null;
   let commit: string | null = null;
   let passingBefore: number | null = null;
@@ -278,6 +365,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
       if (!ancestor) start = null;
     }
     files = await changedFiles(deps.git, root, start ?? undefined);
+    receiptFiles = await withoutSetupFiles(deps.git, root, start ?? "HEAD", files);
   } catch {
     // Not a git repo: no changed files can be known, so none are claimed.
   }
@@ -305,14 +393,15 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     const req = open.requests[0];
     let receiptNote = "";
     let receiptId: string | null = null;
+    const summary: string[] = [];
     const warnings: string[] = [];
-    if (req && files.length > 0) {
+    if (req && receiptFiles.length > 0) {
       // A receipt that fails (AI budget used up, judging unavailable) does not stop progress from being saved.
       try {
         const receipt = JSON.parse(
           await callTool(timed(deps.fetch, RECEIPT_TIMEOUT_MS), config, "generate_receipt", {
             requestId: req.id,
-            changedFiles: files.slice(0, MAX_RECEIPT_FILES),
+            changedFiles: receiptFiles.slice(0, MAX_RECEIPT_FILES),
             ...(commit && commit !== start ? { commitSha: commit } : {}),
             ...(scan ? { secretFindings: scan.findings, secretFindingsOmitted: scan.omitted } : {}),
             // Sent only when there is something to report: flags or test counts.
@@ -328,11 +417,12 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
                 }
               : {}),
           }),
-        ) as { receipt_id?: unknown };
+        ) as Record<string, unknown>;
         if (typeof receipt.receipt_id === "string" && /^[\w-]{1,64}$/.test(receipt.receipt_id)) {
           receiptId = receipt.receipt_id;
           receiptNote = `; receipt ${receipt.receipt_id}`;
         }
+        summary.push(...receiptSummary(receipt, config, receiptId));
       } catch (err) {
         if (err instanceof CliError && err.exitCode === EXIT.server) throw err;
         // Only our own messages are shown, never text from the server's answer.
@@ -342,13 +432,13 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
       }
     }
     const after =
-      req && files.length > 0
+      req && receiptFiles.length > 0
         ? await request<OpenItems>(timed(deps.fetch, OPEN_ITEMS_TIMEOUT_MS), config, "GET", base)
         : open;
     const loose = openList(after);
     await callTool(timed(deps.fetch, SAVE_TIMEOUT_MS), config, "save_progress", {
       goal: (req ? line(req.text) : "") || "Agent session",
-      done: `Changed ${files.length} file${files.length === 1 ? "" : "s"}${receiptNote}`.slice(
+      done: `Changed ${receiptFiles.length} file${receiptFiles.length === 1 ? "" : "s"}${receiptNote}`.slice(
         0,
         1000,
       ),
@@ -362,7 +452,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
         : {}),
       nextStep: (loose[0]?.text ?? "Start the next request").slice(0, 500),
     });
-    deps.done?.({ files: files.length, receiptId });
+    deps.done?.({ files: receiptFiles.length, receiptId });
     if (loose.length > 0) {
       warnings.push(
         `${WARN} ${loose.length} checklist item${loose.length === 1 ? " is" : "s are"} neither done nor parked:`,
@@ -385,8 +475,9 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
         `${WARN} ${scan.findings.length + scan.omitted} possible secret(s) in the changed files; see the receipt.`,
       );
     }
-    for (const line of warnings) deps.stderr(line);
-    return warnings.length > 0;
+    // The receipt summary first (journey part 4), then the warnings.
+    for (const line of [...summary, ...warnings]) deps.stderr(line);
+    return summary.length + warnings.length > 0;
   } catch {
     deps.stderr(`${WARN} server unreachable; progress and receipt were not saved.`);
     return true;

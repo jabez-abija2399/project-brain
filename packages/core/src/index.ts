@@ -139,3 +139,4 @@ export {
   TAGLINE,
   brandEnv,
 } from "./brand";
+export { isCodeceiptSetupPath, withoutAgentsSection } from "./setup-files";

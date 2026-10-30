@@ -33,7 +33,11 @@ export function ReceiptCard({
   const count = (s: string) => view.items.filter((i) => i.status === s).length;
   const missed = count("missed") + count("partial");
   return (
-    <article className={`card${missed > 0 ? " card-highlighted" : ""}`} data-testid="receipt-card">
+    <article
+      id={`receipt-${receipt.id}`}
+      className={`card${missed > 0 ? " card-highlighted" : ""}`}
+      data-testid="receipt-card"
+    >
       <details open={expanded}>
         <summary style={{ cursor: "pointer", listStyle: "none" }}>
           <div className="stack" style={{ gap: 6 }}>
@@ -53,6 +57,12 @@ export function ReceiptCard({
             </strong>
             <span className="row">
               <StatusBadge status="done" label={`${count("done")} done`} />
+              {count("done_untested") > 0 && (
+                <StatusBadge
+                  status="done_untested"
+                  label={`${count("done_untested")} done, no test proves it`}
+                />
+              )}
               <StatusBadge status="partial" label={`${count("partial")} partly done`} />
               <StatusBadge status="missed" label={`${count("missed")} missed`} />
               {view.outsideScope.length > 0 && (

@@ -24,8 +24,8 @@ export default async function FeatureBoardPage(props: ListPageProps) {
       {board.total === 0 ? (
         <EmptyState
           title="No features yet"
-          text="Features appear after the first index of your code."
-          action={{ label: "Connect your project", href: `${base}/connect` }}
+          text="Features grouped from your code appear here after the first index: run npx codeceipt in your project."
+          action={{ label: "Get started", href: "/start" }}
         />
       ) : (
         <>

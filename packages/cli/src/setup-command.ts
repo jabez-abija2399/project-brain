@@ -226,11 +226,14 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
   const files = detail.join("\n").match(/Indexing (\d+) files/)?.[1] ?? "0";
   const features = detail.join("\n").match(/Grouped into (\d+) features/)?.[1];
   let agents: string;
+  let start: string;
   try {
     const init = runInit(root, deps.home, config, []);
     agents = agentList(init.agents);
+    start = `Start ${agents === "" ? "your agent" : agents.replace(" and ", " or ")} in this folder.`;
   } catch {
     agents = "none found here (run `codeceipt init --claude` or `codeceipt init --cursor`)";
+    start = "Start Claude Code or Cursor in this folder (then run `codeceipt init` once).";
   }
   deps.stdout("Codeceipt is set up for this repo.");
   deps.stdout(`  Project: ${apiUrl}/projects/${config.projectId}`);
@@ -238,10 +241,12 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     `  Indexed: ${files} file${files === "1" ? "" : "s"}${features ? `, ${features} features` : ""}`,
   );
   deps.stdout(`  Agents:  ${agents}`);
-  deps.stdout(
-    "  Next:    start a Claude Code or Cursor session here; receipts appear in your dashboard.",
-  );
   if (deps.hasCommand && !deps.hasCommand("codeceipt")) {
     deps.stdout("  Install: npm install -g codeceipt (your agents run the codeceipt command)");
   }
+  // Journey part 3: what to do next, ending with where the receipt will be.
+  deps.stdout("What happens next:");
+  deps.stdout(`  1. ${start}`);
+  deps.stdout("  2. Ask it for a change, and end the session when it is done.");
+  deps.stdout(`  3. See your receipt: ${apiUrl}/projects/${config.projectId}/receipts`);
 }

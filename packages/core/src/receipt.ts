@@ -12,7 +12,8 @@ export type ItemVerdict = "done" | "partial" | "missed";
 export type ReceiptItem = {
   id: string;
   text: string;
-  status: ItemVerdict | "not_verified";
+  // done_untested: judged done with file evidence, but no test changed (still listed in not_verified, AC-013-07).
+  status: ItemVerdict | "done_untested" | "not_verified";
   evidence: string[];
 };
 export type Receipt = {
@@ -35,6 +36,8 @@ const ITEM_CUT = "item text cut for the AI check";
 const ITEM_LEFT_OUT = "item left out of the AI check (prompt size cap)";
 const FILE_LEFT_OUT = "file left out of the AI check (prompt size cap)";
 const NO_FEATURE = "(no feature)";
+// The not_verified reason of an item that is done but has no changed test ("Done, no test proves it").
+export const NO_TEST_CHANGED = "no test changed";
 // Test files count as proof that an item was checked (AC-013-07).
 export const TEST_FILE = /(^|\/)(__tests__|tests?)\/|\.(test|spec|cy)\.[cm]?[jt]sx?$/;
 
@@ -189,9 +192,14 @@ export async function buildReceipt(
     // A judgement on cut text is not a judgement on the item.
     let reason: string | null = plan.cutItems.get(i) ?? null;
     if (!reason && v.verdict !== "missed" && evidence.length === 0) reason = "no file evidence";
-    else if (!reason && v.verdict === "done" && !testChanged) reason = "no test changed";
+    else if (!reason && v.verdict === "done" && !testChanged) reason = NO_TEST_CHANGED;
     if (reason) {
-      out.push({ ...item, status: "not_verified", evidence });
+      // The change is there but no test proves it: its own state, apart from what Codeceipt could not check.
+      out.push({
+        ...item,
+        status: reason === NO_TEST_CHANGED ? "done_untested" : "not_verified",
+        evidence,
+      });
       notVerified.push({ id: item.id, text: item.text, reason });
     } else {
       out.push({ ...item, status: v.verdict, evidence });

@@ -45,7 +45,8 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
       ...summary,
       items: [...summary.items, { status: "hacked" }, null, 7],
     });
-    expect(view.items.map((i) => i.status)).toEqual(["done", "partial", "missed", "not_verified"]);
+    // Owner, 2026-10-30: "no test changed" is shown as "Done, no test proves it", not in the Not verified list.
+    expect(view.items.map((i) => i.status)).toEqual(["done", "partial", "missed", "done_untested"]);
     expect(view.outsideScope).toEqual(["src/billing/Invoice.tsx"]);
     expect(view.findings).toEqual([
       {
@@ -56,7 +57,7 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
         maskedValue: "sk_l***",
       },
     ]);
-    expect(view.notVerified).toEqual([{ text: "Sort by newest", reason: "no test changed" }]);
+    expect(view.notVerified).toEqual([]);
     expect(receiptView(null)).toEqual({
       items: [],
       outsideScope: [],

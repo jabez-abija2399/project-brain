@@ -1,4 +1,4 @@
-import { and, eq, gt, lt } from "drizzle-orm";
+import { and, desc, eq, gt, isNotNull, lt } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type DeviceCode, deviceCodes } from "../schema";
 import { isUniqueViolation } from "./features";
@@ -9,6 +9,23 @@ export type PollResult =
   | { status: "approved"; token: string; projectId: string };
 
 export const deviceCodesRepo = {
+  /** The project this user most recently linked with `npx codeceipt` (a code they approved and the CLI collected). */
+  async lastLinkedProject(db: BrainDb, userId: string): Promise<string | null> {
+    const [row] = await db
+      .select({ projectId: deviceCodes.projectId })
+      .from(deviceCodes)
+      .where(
+        and(
+          eq(deviceCodes.userId, userId),
+          eq(deviceCodes.status, "used"),
+          isNotNull(deviceCodes.projectId),
+        ),
+      )
+      .orderBy(desc(deviceCodes.createdAt), desc(deviceCodes.id))
+      .limit(1);
+    return row?.projectId ?? null;
+  },
+
   /** A new pending code. Null when the user code is already taken by a pending code (the caller picks another). */
   async create(
     db: BrainDb,

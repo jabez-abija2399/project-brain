@@ -159,7 +159,11 @@ describe("FEAT-016 agent hooks", () => {
     await t.hook("session-start", "claude");
     writeFileSync(join(t.repo, "stars.tsx"), "export const Stars = () => null;\n");
     expect(await t.hook("session-end", "claude")).toBe(2);
+    // Journey part 4: the 3-line receipt summary comes first (this fake receipt has no item verdicts), then the warnings.
     expect(t.err).toEqual([
+      "Codeceipt receipt: 0 done, 0 missed.",
+      "Checks needing attention: none.",
+      "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-1",
       "Codeceipt: 2 checklist items are neither done nor parked:",
       "  - [partial] Add a star rating",
       "  - [missed] Email the owner",

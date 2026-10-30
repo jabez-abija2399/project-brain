@@ -147,15 +147,18 @@ describe("npx codeceipt (no arguments) sets everything up", () => {
     expect((await filesRepo.list(world.db, projectId)).length).toBeGreaterThan(0);
     expect(existsSync(join(repo, ".mcp.json"))).toBe(true);
     expect(existsSync(join(repo, ".claude", "settings.json"))).toBe(true);
-    // One short summary at the end (no index or init detail).
-    expect(c.out.slice(-5)).toEqual([
+    // One short summary at the end (no index or init detail), then what happens next (journey part 3).
+    expect(c.out.slice(-8)).toEqual([
       "Codeceipt is set up for this repo.",
       `  Project: ${API}/projects/${projectId}`,
       expect.stringMatching(/^ {2}Indexed: \d+ files?/),
       "  Agents:  Claude Code",
-      "  Next:    start a Claude Code or Cursor session here; receipts appear in your dashboard.",
+      "What happens next:",
+      "  1. Start Claude Code in this folder.",
+      "  2. Ask it for a change, and end the session when it is done.",
+      `  3. See your receipt: ${API}/projects/${projectId}/receipts`,
     ]);
-    expect(c.out.length).toBeLessThanOrEqual(9);
+    expect(c.out.length).toBeLessThanOrEqual(12);
   });
 
   it("prints the address to visit when no browser can open, and a second run reuses the link without a new code", async () => {
@@ -186,10 +189,10 @@ describe("npx codeceipt (no arguments) sets everything up", () => {
     expect(await again.run()).toBe(0);
     expect(s.paths.filter((p) => p === "/api/device/start")).toHaveLength(1);
     expect(again.out[0]).toBe(`This repo is already connected to project ${project.id}.`);
-    expect(again.out.at(-5)).toBe("Codeceipt is set up for this repo.");
+    expect(again.out.at(-8)).toBe("Codeceipt is set up for this repo.");
   });
 
-  it("when only npx ran it (codeceipt not installed), the summary ends with how to install the command", async () => {
+  it("when only npx ran it (codeceipt not installed), the summary says how to install the command", async () => {
     installed = false;
     const repo = gitRepo();
     const s = serverFetch();
@@ -199,10 +202,11 @@ describe("npx codeceipt (no arguments) sets everything up", () => {
       return true;
     });
     expect(await c.run()).toBe(0);
-    expect(c.out.slice(-2)).toEqual([
-      "  Next:    start a Claude Code or Cursor session here; receipts appear in your dashboard.",
+    expect(c.out.slice(-6, -4)).toEqual([
+      "  Agents:  Claude Code",
       "  Install: npm install -g codeceipt (your agents run the codeceipt command)",
     ]);
+    expect(c.out.at(-4)).toBe("What happens next:");
   });
 
   it("refuses outside a git repository, before asking for any code", async () => {

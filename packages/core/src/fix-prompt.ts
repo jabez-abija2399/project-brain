@@ -1,9 +1,10 @@
+import { maskPath, maskSecretsIn } from "./mask";
 // FEAT-017: the dashboard's view of a stored receipt and the "Send fix to agent" prompt. Pure. The stored summary is
 // read defensively (anything of the wrong shape is dropped) and every text is cleaned and masked again before display.
-import { maskPath, maskSecretsIn } from "./mask";
+import { NO_TEST_CHANGED } from "./receipt";
 import { oneLineText } from "./text";
 
-export type ReceiptItemStatus = "done" | "partial" | "missed" | "not_verified";
+export type ReceiptItemStatus = "done" | "done_untested" | "partial" | "missed" | "not_verified";
 export type ReceiptView = {
   items: { text: string; status: ReceiptItemStatus; evidence: string[] }[];
   outsideScope: string[];
@@ -35,7 +36,7 @@ const countOrNull = (v: unknown) =>
 const MAX_LIST = 200;
 const MAX_TEXT = 300;
 const MAX_PROMPT_ITEMS = 20;
-const STATUSES = new Set(["done", "partial", "missed", "not_verified"]);
+const STATUSES = new Set(["done", "done_untested", "partial", "missed", "not_verified"]);
 
 // Zero-width and direction marks that oneLineText keeps (U+200B-U+200F, U+2060, U+FEFF, U+061C).
 const INVISIBLE = /[\u200b-\u200f\u2060\ufeff\u061c]/g;
@@ -53,22 +54,33 @@ const obj = (value: unknown): Record<string, unknown> =>
 
 export function receiptView(summary: unknown): ReceiptView {
   const s = obj(summary);
+  // Done but no changed test: its own state. Receipts stored before the split have it as not_verified with that
+  // reason; both show as "Done, no test proves it" and stay out of the Not verified list.
+  const untested = new Set(
+    list(s.not_verified).flatMap((raw) => {
+      const n = obj(raw);
+      return n.reason === NO_TEST_CHANGED && typeof n.id === "string" ? [n.id] : [];
+    }),
+  );
   return {
     items: list(s.items).flatMap((raw) => {
       const i = obj(raw);
       if (typeof i.status !== "string" || !STATUSES.has(i.status)) return [];
+      const legacyUntested =
+        i.status === "not_verified" && typeof i.id === "string" && untested.has(i.id);
       return [
         {
           text: safeDisplay(i.text),
-          status: i.status as ReceiptItemStatus,
+          status: (legacyUntested ? "done_untested" : i.status) as ReceiptItemStatus,
           evidence: list(i.evidence).map(safePath).filter(Boolean).slice(0, 5),
         },
       ];
     }),
     outsideScope: list(s.outside_scope).map(safePath).filter(Boolean),
-    notVerified: list(s.not_verified).map((raw) => {
+    notVerified: list(s.not_verified).flatMap((raw) => {
       const n = obj(raw);
-      return { text: safeDisplay(n.text), reason: safeDisplay(n.reason, 120) };
+      if (n.reason === NO_TEST_CHANGED) return [];
+      return [{ text: safeDisplay(n.text), reason: safeDisplay(n.reason, 120) }];
     }),
     findings: list(s.findings).map((raw) => {
       const f = obj(raw);
