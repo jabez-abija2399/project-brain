@@ -10,6 +10,17 @@
           "check": "An MCP client (Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component, list_features, save_progress, add_decision, create_checklist, propose_checklist_change, generate_receipt, check_package"
         }
       ]
+    },
+    {
+      "id": "FEAT-013",
+      "title": "Change receipt: done, partly, missed, files by feature, out-of-scope edits",
+      "acceptance": [
+        {
+          "id": "AC-013-07",
+          "kind": "state",
+          "check": "Every receipt shows two separate states for items it cannot call done: 'Done, no test proves it' (the change has file evidence but no test changed) and 'Not verified' (Codeceipt could not check the item, e.g. no file evidence); neither is ever stored or shown as done"
+        }
+      ]
     }
   ]
 }
