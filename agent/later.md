@@ -131,3 +131,7 @@
 - 2026-10-30 D-023 security: /api/hooks/:projectId/last-receipt returns the whole stored receipt (item texts, paths, findings) to the token holder, who already got it from generate_receipt; the CLI prints only counts. Consider returning counts only.
 - 2026-10-30 D-023 security: receipts without a request need no AI call, so the only limit on stored receipts is 300 MCP calls a minute; consider a daily receipt cap per project.
 - 2026-10-30 D-023 security: resolveFeature tries id, name, then key, so a feature a user names "@home" takes the ref "@home" before the automatic feature with that key (same project only); and get_context_pack looks the feature up again by name, which can differ with duplicate names.
+- 2026-10-30 D-024 security: captured items reach the next session's start note and NEXT STEP; they are labelled as the user's quoted words, but a fuller fix keeps captured items "unconfirmed" (left out of NEXT STEP) until the agent or the user confirms them.
+- 2026-10-30 D-024 security: a request without a session (create_checklist) counts for any session that started before it, including another member's session in the same project; tie create_checklist to the agent's session id.
+- 2026-10-30 D-024: hook stdin over 64 KB is dropped, so a very long OpenCode message is never recorded; consider reading only the fields needed.
+- 2026-10-30 D-024: "NOT A REQUEST" answers are not remembered, so the same question asked twice costs two AI calls; consider caching them per session.

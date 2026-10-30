@@ -312,3 +312,10 @@ is shown only as stderr, JSON output is discarded, and any non-zero exit is labe
 0 and keeps the summary on stderr (whether Claude Code shows stderr for exit 0 depends on its version; `codeceipt last`
 prints it again). The summary's first line says how many files changed.
 Revisit when: Antigravity documents a prompt event; Claude Code adds a way to show a hook message without a status.
+Security pass (fresh context, 2026-10-30): only a short summary of a captured message is stored (masked, pasted code
+blocks replaced by "[code omitted]", at most 500 characters; the AI still sees the masked message); acknowledgements
+("ok", "continue", "thanks") are skipped with no AI call; stored captures are capped per project per day
+(REQUEST_CAPTURES_PER_PROJECT_PER_DAY, default 500) so a token cannot fill the database once the AI budget is used;
+create_checklist reuses a captured request only when it already has items; the prompt hook ignores a folder on stdin
+that is in a different repo from the one it runs in; and the start note labels "STILL OPEN FROM EARLIER" as the user's
+earlier requests, quoted as data, to confirm with the user before acting on them.

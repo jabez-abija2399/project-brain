@@ -57,3 +57,28 @@ export async function classifyRequest(
   const first = maskSecretsIn(oneLineText(message)).slice(0, MAX_ITEM_CHARS - 20);
   return { ...got, items: [{ text: `Clarify: ${first}`, needs_clarification: true }] };
 }
+
+/** How much of a captured message is stored: a short summary, never pasted code (the AI sees the full message). */
+export const MAX_STORED_REQUEST_CHARS = 500;
+
+/**
+ * The stored form of a captured message: masked, fenced code blocks replaced by "[code omitted]", on one line, capped.
+ * The prompt-submit hook and create_checklist compare requests in this form.
+ */
+export function requestForStorage(message: string): string {
+  const noCode = maskSecretsIn(message).replace(/```[\s\S]*?(```|$)/g, " [code omitted] ");
+  return oneLineText(noCode).slice(0, MAX_STORED_REQUEST_CHARS).trim();
+}
+
+const ACKNOWLEDGEMENTS =
+  /^(ok(ay)?|k|yes|yep|yeah|y|no|nope|n|sure|thanks|thank you|thx|ty|continue|go|go on|go ahead|proceed|next|done|lgtm|great|cool|nice|perfect|good|looks good|sounds good)$/;
+
+/** A short reply that asks for no change ("ok", "continue"): recorded without an AI call. */
+export function isAcknowledgement(message: string): boolean {
+  return ACKNOWLEDGEMENTS.test(
+    message
+      .trim()
+      .toLowerCase()
+      .replace(/[\s.!,]+$/, ""),
+  );
+}

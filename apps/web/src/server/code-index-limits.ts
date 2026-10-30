@@ -25,6 +25,13 @@ export function dailyAiBudget(env: Record<string, string | undefined> = process.
   return positiveInt(env.AI_CALLS_PER_PROJECT_PER_DAY, DEFAULT_AI_CALLS_PER_DAY);
 }
 
+// Captured requests stored per project per day (D-024), so a token cannot fill the database once the AI budget is used.
+export const DEFAULT_REQUEST_CAPTURES_PER_DAY = 500;
+
+export function dailyCaptureCap(env: Record<string, string | undefined> = process.env): number {
+  return positiveInt(env.REQUEST_CAPTURES_PER_PROJECT_PER_DAY, DEFAULT_REQUEST_CAPTURES_PER_DAY);
+}
+
 export function projectStorageCaps(
   env: Record<string, string | undefined> = process.env,
 ): StorageCaps {

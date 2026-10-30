@@ -83,7 +83,7 @@ function setup(opts: { sessionRequests?: unknown[]; requests?: unknown[] } = {})
         : { spawnBackground: (args, input) => void background.push({ args, input }) }),
     });
   };
-  return { repo, sent, out, err, background, run };
+  return { home, repo, sent, out, err, background, run };
 }
 
 describe("prompt-submit hooks record the user's requests", () => {
@@ -182,6 +182,25 @@ describe("prompt-submit hooks record the user's requests", () => {
       }),
     ).toBe(0);
     expect(t.sent).toEqual([]);
+  });
+});
+
+describe("security pass: prompt hook", () => {
+  it("attack: a cwd on stdin in another linked repo is ignored; the prompt goes to the hook's own project", async () => {
+    const t = setup();
+    const other = mkdtempSync(join(tmpdir(), "cc-prompt-other-"));
+    execFileSync("git", ["init", "-q"], { cwd: other });
+    linkRepo(other, join(t.home, ".config", "codeceipt", "config.json"), {
+      apiUrl: "https://brain.test",
+      projectId: "proj-other",
+      token: TOKEN,
+    });
+    await t.run(["hook", "prompt", "--agent", "claude", "--worker"], {
+      session_id: "s1",
+      cwd: other,
+      prompt: "Add a page",
+    });
+    expect(t.sent.map((s) => s.path)).toEqual(["/api/hooks/proj-1/requests"]);
   });
 });
 

@@ -508,6 +508,16 @@ const PROMPT_TIMEOUT_MS = 20_000;
  * 0. Empty prompts, slash commands and Codeceipt's own commands are skipped. The request goes out masked and capped,
  * in the background (`--worker`), so the prompt never waits for it; only a linked repo's token is used.
  */
+// The folder on stdin is not used when it is in a different repo from the one the hook runs in, so a prompt is never
+// sent to another linked repo's project (a hook run outside any repo, like OpenCode's plugin, uses it).
+async function promptFolder(deps: CliDeps, claimed: string): Promise<string> {
+  const git = deps.git ?? runGit;
+  const own = await repoRoot(git, deps.cwd).catch(() => null);
+  if (own === null) return claimed;
+  const other = await repoRoot(git, claimed).catch(() => null);
+  return other === null || other === own ? claimed : deps.cwd;
+}
+
 async function runPromptHook(args: string[], deps: CliDeps, path: string): Promise<number> {
   const agent = hookAgent(args);
   const answer = () => {
@@ -527,7 +537,7 @@ async function runPromptHook(args: string[], deps: CliDeps, path: string): Promi
   } catch {}
   const prompt = typeof input.prompt === "string" ? input.prompt.trim() : "";
   if (prompt === "" || prompt.startsWith("/") || OWN_COMMAND.test(prompt)) return answer();
-  const dir = sessionFolder(stdin, deps.cwd);
+  const dir = await promptFolder(deps, sessionFolder(stdin, deps.cwd));
   if (!args.includes("--worker") && deps.spawnBackground) {
     try {
       deps.spawnBackground(["hook", "prompt", "--agent", agent, "--worker"], stdin, dir);

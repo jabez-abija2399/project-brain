@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type ChecklistItem,
@@ -78,7 +78,8 @@ export const requestsRepo = {
           eq(requests.projectId, projectId),
           eq(requests.text, text),
           gte(requests.createdAt, since),
-          ...(sessionId ? [eq(requests.sessionId, sessionId)] : []),
+          // Without a session id: only requests a prompt-submit hook captured (they always carry one).
+          sessionId ? eq(requests.sessionId, sessionId) : isNotNull(requests.sessionId),
         ),
       )
       .orderBy(desc(requests.createdAt))

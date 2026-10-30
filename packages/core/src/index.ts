@@ -147,5 +147,8 @@ export {
   type Captured,
   capturePrompt,
   classifyRequest,
+  isAcknowledgement,
+  MAX_STORED_REQUEST_CHARS,
   parseCapture,
+  requestForStorage,
 } from "./request-capture";
