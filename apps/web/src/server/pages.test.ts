@@ -34,7 +34,7 @@ describe("public pages", () => {
       "Services we use",
       "Deleting your data",
     ]) {
-      expect(html).toMatch(new RegExp(`<h2[^>]*>${heading}</h2>`));
+      expect([...html.matchAll(/<h2[^>]*>([^<]*)<\/h2>/g)].map((m) => m[1])).toContain(heading);
     }
     expect(t).toContain("Your source code never leaves your machine");
     for (const service of ["Vercel", "Neon", "GitHub", "Inngest", "Anthropic"]) {

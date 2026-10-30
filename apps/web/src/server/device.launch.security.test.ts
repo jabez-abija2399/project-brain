@@ -26,6 +26,10 @@ let stranger: SessionUser;
 let projectId: string;
 
 beforeEach(async () => {
+  // The routes read the real clock while the test starts codes at T0: pin "now" to T0 so the 10-minute expiry does not
+  // depend on when the suite runs (only Date is faked; timers stay real).
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(T0);
   vi.stubEnv("BETTER_AUTH_URL", APP);
   world = await createTestWorld();
   owner = await world.createUser({ name: "owner" });
@@ -34,6 +38,7 @@ beforeEach(async () => {
   world.signInAs(owner);
 });
 afterEach(async () => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
   await world.teardown();

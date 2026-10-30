@@ -23,9 +23,14 @@ function routeFiles(dir: string): string[] {
 const sessionRoutes = routeFiles(join(appDir, "api")).flatMap((file) => {
   const source = readFileSync(file, "utf8");
   if (!source.includes("requireUser(")) return [];
-  return UNSAFE.filter((m) =>
-    new RegExp(`export (?:async function |const (?:\\{[^}]*\\b)?)${m}\\b`).test(source),
-  ).map((method) => ({ file, method }));
+  const exported = new Set(
+    [
+      ...source.matchAll(
+        /export (?:async function |const (?:\{[^}]*\b)?)(POST|PATCH|PUT|DELETE)\b/g,
+      ),
+    ].map((m) => m[1]),
+  );
+  return UNSAFE.filter((m) => exported.has(m)).map((method) => ({ file, method }));
 });
 
 let world: TestWorld;

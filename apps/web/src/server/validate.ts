@@ -24,6 +24,9 @@ export async function parseInput<T>(req: Request, schema: ZodSchema<T>): Promise
 // Control characters and the ones that change text direction (they can make a name read as something else).
 // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this matches
 export const UNSAFE_NAME_CHARS = /[\u0000-\u001f\u007f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g;
+// The same set without the g flag, for test() (a g regex keeps its position between calls).
+// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this matches
+const UNSAFE_NAME_CHAR = /[\u0000-\u001f\u007f\u200e\u200f\u202a-\u202e\u2066-\u2069]/;
 
 // Project name rule shared by create and rename: trimmed, 1-80 characters, no control or direction characters.
 export const projectNameSchema = z
@@ -31,7 +34,7 @@ export const projectNameSchema = z
   .trim()
   .min(1, "name is required")
   .max(80, "name must be 80 characters or fewer")
-  .refine((name) => !new RegExp(UNSAFE_NAME_CHARS.source).test(name), {
+  .refine((name) => !UNSAFE_NAME_CHAR.test(name), {
     message: "name has control or text-direction characters",
   });
 
