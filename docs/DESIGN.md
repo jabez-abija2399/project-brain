@@ -28,6 +28,7 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 8 px. Spacing scale
 | ChecklistItem | apps/web/src/components/checklist-item | status, evidence CodeRef | receipts |
 | ReceiptCard | apps/web/src/components/receipt-card | collapsed, expanded | receipts feed, feature page |
 | CopyCommand | apps/web/src/components/copy-command | command text + copy | onboarding |
+| JourneySteps | apps/web/src/components/journey-steps | linked, indexed, receipt (each done or waiting) | start page, Connect tab |
 | CopyButton | apps/web/src/components/ui/copy-button | label, text; copied / failed feedback | receipts ("Send fix to agent"), CopyCommand |
 | Pagination | apps/web/src/components/ui/pagination | page, pages, basePath (?page=N, 50 per page) | features, receipts, proposals |
 
@@ -35,7 +36,7 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 8 px. Spacing scale
 1. Receipts feed: newest receipts as ReceiptCards; asked / done / missed / outside scope / checks. Primary action:
    "Send fix to agent" (copies a prompt for missed items).
 2. Feature board: features with status, file count, open items, last receipt. Primary action: open a feature.
-3. Connect project (onboarding): sign in -> create project -> copy `npx codeceipt init` -> waiting for first index.
+3. Connect project (onboarding): sign in -> /start (or the Connect tab) -> copy `npx codeceipt` -> approve the code -> first index -> first receipt, each step ticking off by itself.
    Primary action: copy the command.
 
 ## Rules
