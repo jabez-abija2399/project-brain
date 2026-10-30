@@ -18,3 +18,12 @@ CREATE TABLE "device_codes" (
 );
 CREATE UNIQUE INDEX "device_codes_pending_user_code_uniq" ON "device_codes" ("user_code") WHERE "status" = 'pending';
 CREATE INDEX "device_codes_expires_idx" ON "device_codes" ("expires_at");
+
+-- Launch: the landing page's beta waitlist. Emails are stored trimmed and lowercased, once each; only owners listed
+-- in ADMIN_GITHUB_LOGINS can read them (/admin/waitlist).
+CREATE TABLE "waitlist" (
+  "id" text PRIMARY KEY,
+  "email" text NOT NULL UNIQUE,
+  "created_at" timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX "waitlist_created_idx" ON "waitlist" ("created_at");

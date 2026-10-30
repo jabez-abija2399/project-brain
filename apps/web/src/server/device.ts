@@ -22,7 +22,7 @@ const hash = (value: string) => createHash("sha256").update(value).digest("hex")
 
 // The caller's address for rate limits, hashed so no address is stored. Behind Vercel the first x-forwarded-for entry
 // is the client.
-function clientKey(req: Request): string {
+export function clientKey(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
   const ip = forwarded || req.headers.get("x-real-ip")?.trim() || "unknown";
   return hash(ip).slice(0, 32);

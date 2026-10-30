@@ -42,3 +42,4 @@ export { dashboardRepo } from "./dashboard";
 export type { BoardRow, FeedRow } from "./dashboard";
 export { type ApproveResult, planDraftsRepo } from "./plan-drafts";
 export { type PollResult, deviceCodesRepo } from "./device-codes";
+export { waitlistRepo } from "./waitlist";

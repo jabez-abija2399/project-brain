@@ -191,3 +191,18 @@ Unchanged on purpose (internal, renaming adds risk for no user benefit): @brain/
 migration names, the Inngest app id, the session state folder inside .git, and the FEAT specs' criteria text
 (they mirror agent/features.json, which is never reworded).
 Revisit when: the next major CLI version (drop the projectbrain fallbacks and alias).
+
+## D-020 | 2026-10-30 | Launch: device approval, one project per repo, Origin check, waitlist
+Context: launch request (owner, 2026-10-30): `npx codeceipt` sets everything up, each repo has its own project, agents
+need no environment variables, the landing waitlist saves emails.
+Decision: (1) the CLI gets its token through a device approval (a short code shown in the terminal and on /device,
+10 minutes, single use, polling rate limited); only a sha256 of the CLI's secret device code is stored, and the token
+is minted when the approved code is collected, so no raw token is ever stored. (2) The repo's project link lives in
+.git/codeceipt/project.json (project id and server only); tokens stay in the user config, keyed by server and project.
+(3) Claude Code gets the token from `codeceipt mcp-headers`; Cursor (no header helper) starts `codeceipt mcp-proxy`,
+a stdio proxy to /mcp. (4) Every session request that changes state must carry the app's own Origin (or Referer);
+a request with neither (not a browser) passes, because only browsers attach the victim's cookie. (5) Waitlist emails
+are stored trimmed and lowercased with one answer whether or not they existed; /admin/waitlist is for the GitHub
+logins in ADMIN_GITHUB_LOGINS, and the login is asked from GitHub with the user's own token on each view (never
+stored or editable, so a renamed or reclaimed login cannot inherit access). One migration (0029) holds both tables.
+Revisit when: a second admin page is needed (store GitHub's numeric user id instead of asking each time).

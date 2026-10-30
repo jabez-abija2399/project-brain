@@ -9,3 +9,4 @@ export * from "./rate-counters";
 export * from "./github";
 export * from "./plans";
 export * from "./device";
+export * from "./waitlist";

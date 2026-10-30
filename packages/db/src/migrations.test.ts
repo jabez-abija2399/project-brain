@@ -36,6 +36,7 @@ const EXPECTED_TABLES = [
   "db_policies",
   "plan_drafts",
   "device_codes",
+  "waitlist",
 ];
 
 describe("@brain/db migrations", () => {

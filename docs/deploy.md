@@ -143,6 +143,12 @@ Optional limits (leave empty for the defaults):
 | `INDEX_MAX_FILES_PER_PROJECT` | 10000 | stored files per project |
 | `INDEX_MAX_SYMBOLS_PER_PROJECT` | 100000 | stored symbols per project |
 
+Optional owner access:
+
+| Variable | Value | Meaning |
+| --- | --- | --- |
+| `ADMIN_GITHUB_LOGINS` | e.g. `your-login` (comma separated) | who may open `/admin/waitlist`, the landing page's beta emails. Empty: nobody. |
+
 Not for Vercel: `CODECEIPT_API_URL` and `CODECEIPT_TOKEN` belong to the CLI on a user's own machine.
 
 ## 8. Connect Inngest (background jobs)

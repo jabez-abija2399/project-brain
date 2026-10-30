@@ -108,7 +108,7 @@ export function appOriginOf(req: Request): string {
 // Launch part 4: a state-changing request with the session cookie must come from the app's own pages. Browsers send
 // Origin on these requests (Referer as a fallback); a request with neither comes from a non-browser client, which
 // cannot ride a victim's cookie, so it passes. "null" (sandboxed frames, some redirects) never matches.
-function assertSameOrigin(req: Request) {
+export function assertSameOrigin(req: Request) {
   if (SAFE_METHODS.has(req.method.toUpperCase())) return;
   const expected = appOriginOf(req);
   const origin = req.headers.get("origin");
