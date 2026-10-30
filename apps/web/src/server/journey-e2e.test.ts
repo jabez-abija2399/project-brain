@@ -7,6 +7,7 @@ import { GET as authGet, POST as authPost } from "@/app/api/auth/[...all]/route"
 import { POST as approveRoute } from "@/app/api/device/approve/route";
 import { POST as startRoute } from "@/app/api/device/start/route";
 import { POST as tokenRoute } from "@/app/api/device/token/route";
+import { GET as lastReceipt } from "@/app/api/hooks/[projectId]/last-receipt/route";
 import { GET as openItems } from "@/app/api/hooks/[projectId]/open-items/route";
 import { POST as diff } from "@/app/api/index/[projectId]/diff/route";
 import { POST as group } from "@/app/api/index/[projectId]/features/route";
@@ -18,8 +19,7 @@ import ReceiptsPage from "@/app/projects/[id]/receipts/page";
 import ProjectsPage from "@/app/projects/page";
 import StartPage from "@/app/start/page";
 import { type CliDeps, main } from "@brain/cli";
-import { type CompleteRequest, type Llm, featureFromPath } from "@brain/core";
-import { featuresRepo } from "@brain/db";
+import type { CompleteRequest, Llm } from "@brain/core";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -137,6 +137,7 @@ const projectRoutes: [RegExp, Handler][] = [
   [/^\/api\/index\/([^/]+)\/features$/, group],
   [/^\/api\/index\/([^/]+)$/, upload],
   [/^\/api\/hooks\/([^/]+)\/open-items$/, openItems],
+  [/^\/api\/hooks\/([^/]+)\/last-receipt$/, lastReceipt],
 ];
 
 // What the CLI's fetch reaches: the app's own route handlers, in process.
@@ -234,7 +235,7 @@ describe("first-time user journey, end to end", () => {
 
     // 2. npx codeceipt in the app's repo: the code is approved in the browser (with the session cookie), creating a
     // project; the CLI links the repo, indexes it and sets up Claude Code.
-    const { repo } = newApp();
+    const { repo, git } = newApp();
     const home = mkdtempSync(join(tmpdir(), "cc-journey-home-"));
     let approved = 0;
     const setup = cli(repo, home, async (url) => {
@@ -261,12 +262,11 @@ describe("first-time user journey, end to end", () => {
       "What happens next:",
       "  1. Start Claude Code in this folder.",
       "  2. Ask it for a change, and end the session when it is done.",
-      `  3. See your receipt: ${receiptsUrl}`,
+      `  3. See your receipt: run \`codeceipt last\`, or open ${receiptsUrl}`,
     ]);
     expect(steps(await render(StartPage()))).toEqual(["1:done", "2:done", "3:waiting"]);
     // The user does not commit what setup added: Codeceipt's own files never count in the receipt.
 
-    // 3. A scripted agent session: start hook, the request becomes a checklist, one item is built, session ends.
     const token = (
       JSON.parse(readFileSync(join(home, ".config", "codeceipt", "config.json"), "utf8"))
         .projects as {
@@ -275,21 +275,68 @@ describe("first-time user journey, end to end", () => {
       }[]
     ).find((p) => p.projectId === projectId)?.token as string;
     const agent = cli(repo, home);
+    const fullReceipt = new RegExp(
+      `^Full receipt: ${receiptsUrl.replace(/[.]/g, "\\.")}#receipt-[\\w-]+$`,
+    );
+
+    // 3. Session 1, as in the edutech dogfooding: the agent changes the home page without recording a request. The
+    // session still gets a receipt (files by feature, checks) that says nothing could be checked against a request.
+    await agent.run(
+      ["hook", "session-start", "--agent", "claude"],
+      JSON.stringify({ session_id: "s0", cwd: repo }),
+    );
+    writeFileSync(
+      join(repo, "src", "app", "page.tsx"),
+      "export default function Home() {\n  return <main>Welcome</main>;\n}\n",
+    );
+    expect(
+      await agent.run(
+        ["hook", "session-end", "--agent", "claude"],
+        JSON.stringify({ session_id: "s0", cwd: repo }),
+      ),
+    ).toBe(2);
+    expect(agent.err.slice(0, 3)).toEqual([
+      "Codeceipt receipt: No request was recorded for this session, so nothing could be checked against what you asked.",
+      "Checks needing attention: none.",
+      expect.stringMatching(fullReceipt),
+    ]);
+    // The summary can be printed again after the agent exits (Claude Code does not show it then).
+    expect(await agent.run(["last"])).toBe(0);
+    expect(agent.out[1]).toBe(
+      "Codeceipt receipt: No request was recorded for this session, so nothing could be checked against what you asked.",
+    );
+    const first = plain(
+      await render(
+        ReceiptsPage({
+          params: Promise.resolve({ id: projectId }),
+          searchParams: Promise.resolve({}),
+        }),
+      ),
+    );
+    expect(first).toContain("No request was recorded for this session");
+    expect(first).toContain("src/app/page.tsx");
+
+    // The user commits session 1's change, so session 2's receipt covers only session 2.
+    git("add", "src/app/page.tsx");
+    git("commit", "-q", "-m", "Welcome page");
+
+    // 4. Session 2: the agent takes a feature name from the start note, records the request under it and builds one
+    // of the two items: a ReviewSummary component with its test. The average on the product page is not done.
     expect(
       await agent.run(
         ["hook", "session-start", "--agent", "claude"],
         JSON.stringify({ session_id: "s1", cwd: repo }),
       ),
     ).toBe(0);
-    // The agent files the request under the feature it is about (reviews, which the index found), then builds one of
-    // the two items: a ReviewSummary component with its test. The average on the product page is not done.
-    const key = featureFromPath("src/components/reviews/ReviewSummary.tsx");
-    const feature = (await featuresRepo.byKeys(world.db, projectId, [key ?? ""]))[0];
-    expect(feature?.key).toBe("reviews");
-    await mcp(token, "create_checklist", {
-      featureId: feature?.id,
+    const note = agent.out.join("\n");
+    const allFeatures = note.split("\n").find((l) => l.startsWith("ALL FEATURES:")) ?? "";
+    const named = /(?:: |, )(reviews) \(id [\w-]+\)/.exec(allFeatures)?.[1];
+    expect(named).toBe("reviews");
+    const created = await mcp(token, "create_checklist", {
+      feature: named,
       request: "Add a review summary and show the average rating on the product page",
     });
+    expect(JSON.parse(created).items).toHaveLength(2);
     writeFileSync(
       join(repo, "src", "components", "reviews", "ReviewSummary.tsx"),
       'import { StarRating } from "./StarRating";\nexport function ReviewSummary({ count }: { count: number }) {\n  return <p>{count} reviews</p>;\n}\n',
@@ -307,13 +354,11 @@ describe("first-time user journey, end to end", () => {
     expect(agent.err.slice(0, 3)).toEqual([
       "Codeceipt receipt: 1 done, 1 missed.",
       "Checks needing attention: none.",
-      expect.stringMatching(
-        new RegExp(`^Full receipt: ${receiptsUrl.replace(/[.]/g, "\\.")}#receipt-[\\w-]+$`),
-      ),
+      expect.stringMatching(fullReceipt),
     ]);
     expect(llmCalls).toEqual(expect.arrayContaining(["checklist-split", "receipt-judge"]));
 
-    // 4. The dashboard: the receipt shows the miss, and the start page shows all three steps done with the receipt.
+    // 5. The dashboard: the receipt shows the miss, and the start page shows all three steps done with the receipt.
     const receipts = plain(
       await render(
         ReceiptsPage({

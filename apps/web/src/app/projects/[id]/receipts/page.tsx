@@ -17,7 +17,7 @@ export default async function ReceiptsPage(props: ListPageProps) {
       {feed.total === 0 ? (
         <EmptyState
           title="No receipts yet"
-          text="A receipt for each agent session appears here once you make a change with Claude Code or Cursor and end the session."
+          text="A receipt for each agent session appears here once you make a change with Claude Code, Cursor, Codex, OpenCode or Antigravity and end the session."
           action={{ label: "Get started", href: "/start" }}
         />
       ) : (

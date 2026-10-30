@@ -60,6 +60,9 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
     expect(view.notVerified).toEqual([]);
     expect(receiptView(null)).toEqual({
       items: [],
+      // Dogfooding: the changed files by feature and the no-request flag are part of the view too.
+      filesByFeature: [],
+      noRequest: false,
       outsideScope: [],
       notVerified: [],
       findings: [],

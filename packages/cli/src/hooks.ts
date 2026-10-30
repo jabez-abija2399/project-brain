@@ -12,7 +12,13 @@ import {
   writeSync,
 } from "node:fs";
 import { isAbsolute, join, sep } from "node:path";
-import { brandEnv, isCodeceiptSetupPath, oneLineText, withoutAgentsSection } from "@brain/core";
+import {
+  NO_REQUEST_NOTE,
+  brandEnv,
+  isCodeceiptSetupPath,
+  oneLineText,
+  withoutAgentsSection,
+} from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 import { callTool } from "./mcp-client";
@@ -172,7 +178,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
  * Journey part 4: the receipt in three lines (done, missed, checks needing attention) and a link to the full receipt.
  * Only counts are read from the server's answer, never its text, so nothing it says reaches the terminal raw.
  */
-function receiptSummary(
+export function receiptSummary(
   receipt: Record<string, unknown>,
   config: CliConfig,
   receiptId: string | null,
@@ -208,7 +214,9 @@ function receiptSummary(
     unverified > 0 ? `${unverified} not verified` : "",
   ].filter(Boolean);
   const lines = [
-    `Codeceipt receipt: ${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
+    receipt.no_request === true
+      ? `Codeceipt receipt: ${NO_REQUEST_NOTE}`
+      : `Codeceipt receipt: ${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
     `Checks needing attention: ${attention.length > 0 ? attention.join(", ") : "none"}.`,
   ];
   if (receiptId) {
@@ -395,12 +403,13 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     let receiptId: string | null = null;
     const summary: string[] = [];
     const warnings: string[] = [];
-    if (req && receiptFiles.length > 0) {
+    // Dogfooding (edutech): a session that changed files always gets a receipt, with or without a recorded request.
+    if (receiptFiles.length > 0) {
       // A receipt that fails (AI budget used up, judging unavailable) does not stop progress from being saved.
       try {
         const receipt = JSON.parse(
           await callTool(timed(deps.fetch, RECEIPT_TIMEOUT_MS), config, "generate_receipt", {
-            requestId: req.id,
+            ...(req ? { requestId: req.id } : {}),
             changedFiles: receiptFiles.slice(0, MAX_RECEIPT_FILES),
             ...(commit && commit !== start ? { commitSha: commit } : {}),
             ...(scan ? { secretFindings: scan.findings, secretFindingsOmitted: scan.omitted } : {}),

@@ -46,6 +46,15 @@ const TROUBLE: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
+    q: "I did not see the receipt after the session ended",
+    a: (
+      <>
+        Claude Code does not show a session-end message once it has exited. Run{" "}
+        <code>codeceipt last</code> in the repo to print the latest receipt and its link again.
+      </>
+    ),
+  },
+  {
     q: "My agent does not see Codeceipt",
     a: (
       <>
@@ -106,7 +115,7 @@ export default function QuickstartPage() {
             "What happens next:",
             "  1. Start Claude Code in this folder.",
             "  2. Ask it for a change, and end the session when it is done.",
-            "  3. See your receipt: https://codeceipts.vercel.app/projects/…/receipts",
+            "  3. See your receipt: run `codeceipt last`, or open https://codeceipts.vercel.app/projects/…/receipts",
           ].join("\n")}
         </code>
       </pre>

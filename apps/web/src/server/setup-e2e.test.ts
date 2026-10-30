@@ -156,7 +156,7 @@ describe("npx codeceipt (no arguments) sets everything up", () => {
       "What happens next:",
       "  1. Start Claude Code in this folder.",
       "  2. Ask it for a change, and end the session when it is done.",
-      `  3. See your receipt: ${API}/projects/${projectId}/receipts`,
+      `  3. See your receipt: run \`codeceipt last\`, or open ${API}/projects/${projectId}/receipts`,
     ]);
     expect(c.out.length).toBeLessThanOrEqual(12);
   });

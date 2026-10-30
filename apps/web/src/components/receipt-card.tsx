@@ -1,4 +1,4 @@
-import type { ReceiptView } from "@brain/core";
+import { NO_REQUEST_NOTE, type ReceiptView } from "@brain/core";
 import type { ReactNode } from "react";
 import { ChecklistItem } from "./checklist-item";
 import { CodeRef } from "./code-ref";
@@ -53,7 +53,11 @@ export function ReceiptCard({
               )}
             </span>
             <strong className="wrap">
-              {receipt.asked ? `Asked: ${receipt.asked}` : "Asked: (request removed)"}
+              {view.noRequest
+                ? NO_REQUEST_NOTE
+                : receipt.asked
+                  ? `Asked: ${receipt.asked}`
+                  : "Asked: (request removed)"}
             </strong>
             <span className="row">
               <StatusBadge status="done" label={`${count("done")} done`} />
@@ -87,9 +91,30 @@ export function ReceiptCard({
           </div>
         </summary>
         <div className="stack" style={{ marginTop: 16 }}>
+          {view.filesByFeature.length > 0 && (
+            <Section title="Changed files by feature">
+              <ul className="stack" style={{ margin: 0, paddingLeft: 18, gap: 4 }}>
+                {view.filesByFeature.map((g) => (
+                  <li key={g.feature}>
+                    <span>{g.feature}: </span>
+                    {g.files.map((f, n) => (
+                      <span key={f}>
+                        {n > 0 ? ", " : ""}
+                        <code className="wrap">{f}</code>
+                      </span>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
           <Section title="Checklist">
             {view.items.length === 0 ? (
-              <p className="muted">No checklist items were open for this request.</p>
+              <p className="muted">
+                {view.noRequest
+                  ? "No checklist: the agent did not record your request."
+                  : "No checklist items were open for this request."}
+              </p>
             ) : (
               <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
                 {view.items.map((i, n) => (

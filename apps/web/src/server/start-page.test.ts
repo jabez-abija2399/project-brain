@@ -183,7 +183,9 @@ describe("empty states that teach", () => {
     };
     const expected: Record<string, RegExp> = {
       Features: /features .*appear here .*run npx codeceipt/i,
-      Receipts: /receipt .*appears here .*make a change with Claude Code or Cursor/i,
+      // Dogfooding: every supported agent is named.
+      Receipts:
+        /receipt .*appears here .*make a change with Claude Code, Cursor, Codex, OpenCode or Antigravity/i,
       Proposals: /appear here .*when an agent asks to reword or drop/i,
       Plan: /plan .*appears here .*ask your agent to plan/i,
     };
