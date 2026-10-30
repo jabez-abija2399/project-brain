@@ -9,6 +9,16 @@ export type PollResult =
   | { status: "approved"; token: string; projectId: string };
 
 export const deviceCodesRepo = {
+  /** Whether `npx codeceipt` has linked a repo to this project (an approved code the CLI collected). */
+  async isLinked(db: BrainDb, projectId: string): Promise<boolean> {
+    const rows = await db
+      .select({ id: deviceCodes.id })
+      .from(deviceCodes)
+      .where(and(eq(deviceCodes.projectId, projectId), eq(deviceCodes.status, "used")))
+      .limit(1);
+    return rows.length > 0;
+  },
+
   /** The project this user most recently linked with `npx codeceipt` (a code they approved and the CLI collected). */
   async lastLinkedProject(db: BrainDb, userId: string): Promise<string | null> {
     const [row] = await db

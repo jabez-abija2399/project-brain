@@ -1,12 +1,10 @@
-import { CopyCommand } from "@/components/copy-command";
+import { JourneySteps } from "@/components/journey-steps";
 import { ReceiptCard } from "@/components/receipt-card";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { onboarding } from "@/server/onboarding";
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { LiveStatus } from "./live-status";
 
 export const dynamic = "force-dynamic";
@@ -32,30 +30,6 @@ const RECEIPT_GUIDE: [string, string][] = [
   ["Not verified", "Codeceipt could not check this from the changed files, so try it yourself."],
 ];
 
-function Step({
-  n,
-  done,
-  title,
-  children,
-}: {
-  n: number;
-  done: boolean;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <li data-step={n} data-status={done ? "done" : "waiting"} className="card stack">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <h2 style={{ fontSize: 16, margin: 0 }}>
-          {n}. {title}
-        </h2>
-        <StatusBadge status={done ? "done" : "open"} label={done ? "Done" : "Waiting"} />
-      </div>
-      {children}
-    </li>
-  );
-}
-
 // Journey part 1: the guided start page a new user sees after signing in. Each step turns done by itself (project
 // linked, first index, first receipt); the first receipt is then shown with what each part means.
 export default async function StartPage() {
@@ -70,27 +44,7 @@ export default async function StartPage() {
       <p className="muted" style={{ margin: 0 }}>
         Three steps, about five minutes. Your code stays on your machine.
       </p>
-      <ol className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
-        <Step n={1} done={steps.linked} title="Run npx codeceipt in your project">
-          <p className="muted" style={{ margin: 0 }}>
-            In your app's folder (a git repository), run:
-          </p>
-          <CopyCommand command="npx codeceipt" />
-        </Step>
-        <Step n={2} done={steps.indexed} title="Approve in the browser">
-          <p className="muted" style={{ margin: 0 }}>
-            A page opens with the same short code as your terminal. Check that the codes match, pick
-            or create a project, and approve. Codeceipt then reads your code on your machine and
-            sends only names and paths.
-          </p>
-        </Step>
-        <Step n={3} done={steps.receipt} title="Open Claude Code or Cursor and make a change">
-          <p className="muted" style={{ margin: 0 }}>
-            Ask for something small, let the agent finish, then end the session. Your receipt
-            appears here.
-          </p>
-        </Step>
-      </ol>
+      <JourneySteps steps={steps} />
       <LiveStatus on={!allDone} current={current} />
       {receipt && receipts ? (
         <section className="stack" aria-labelledby="first-receipt">
