@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 import { main } from "./index";
@@ -43,5 +44,19 @@ const code = await main(process.argv.slice(2), {
   readStdin: process.argv[2] === "hook" ? readHookInput : readStdin,
   // `codeceipt mcp-proxy`: Cursor's MCP messages arrive one per line for as long as Cursor keeps it open.
   stdinLines: () => createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY }),
+  // Codex's session end (D-021): this same CLI again, detached, so it outlives the hook's 3 seconds. No shell: the
+  // arguments are passed as a list.
+  spawnBackground: (args, input, cwd) => {
+    const child = spawn(process.execPath, [process.argv[1] ?? "", ...args], {
+      cwd,
+      detached: true,
+      stdio: ["pipe", "ignore", "ignore"],
+      windowsHide: true,
+    });
+    child.on("error", () => {});
+    child.stdin?.on("error", () => {});
+    child.stdin?.end(input);
+    child.unref();
+  },
 });
 process.exitCode = code;

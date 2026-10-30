@@ -113,3 +113,8 @@
 - 2026-10-30 Launch: choose a license before publishing the npm package (docs/publishing.md).
 - 2026-10-30 Launch: /privacy, /terms, /docs/quickstart and /admin/waitlist were checked by render tests only, not in a browser at 375 and 1280 px.
 - 2026-10-30 Launch: waitlist has no confirmation email or spam protection beyond 5 tries a minute per address.
+- 2026-10-30 D-021 security: Claude Code's SessionStart hook prints the handoff note as plain stdout; if Claude Code reads JSON stdout as hook control, a note that is itself JSON could act as control. Wrap it in hookSpecificOutput.additionalContext as Codex now does (changes the existing hooks tests' expected output).
+- 2026-10-30 D-021 security: Codex/OpenCode/Antigravity hooks take the repo from the agent's stdin (cwd/workspacePaths); a confused agent could make the hook act for another linked repo on this machine. For Codex and OpenCode (hooks run in the repo) the hook's own folder could be required.
+- 2026-10-30 D-021: the OpenCode plugin waits up to 30 s for the session-start hook inside session.created; check on real OpenCode that this does not delay the first answer (else run it without awaiting).
+- 2026-10-30 D-021: none of the three adapters was run against the real Codex, OpenCode or Antigravity apps here (config shapes are from their docs on 2026-10-30); try each once on a real machine. Antigravity's hook working folder and the App's support for .agents/mcp_config.json are undocumented.
+- 2026-10-30 D-021: packages/cli/src/init-command.ts (~560 lines) and index.ts (~440) are over the 300-line guideline; split the per-agent writers into their own module.
