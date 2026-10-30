@@ -100,7 +100,8 @@ export {
   buildHandoffNote,
   type HandoffInput,
 } from "./handoff";
-export { policyAllowsAll, readSupabaseMigrations, rlsFlags } from "./supabase";
+// The Supabase migration reader (libpg-query) runs only in the CLI: import it from "@brain/core/supabase", so the web
+// server bundle never loads it.
 export type {
   ColumnDecl,
   MigrationSandbox,

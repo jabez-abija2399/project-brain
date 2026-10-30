@@ -1,3 +1,4 @@
+import { configuredServices } from "@/server/env";
 import { checkDb } from "@brain/db";
 import { NextResponse } from "next/server";
 
@@ -13,9 +14,11 @@ const REACH_TIMEOUT_MS = 2000;
 export async function GET() {
   const url = process.env.DATABASE_URL ?? "";
   const result = await checkDb(url, TIMEOUT_MS, REACH_TIMEOUT_MS);
+  // Which optional services are set up, as true/false only (never a value).
+  const services = configuredServices(process.env);
   if (result.ok) {
-    return NextResponse.json({ ok: true, db: true }, { status: 200 });
+    return NextResponse.json({ ok: true, db: true, services }, { status: 200 });
   }
   console.error("[/api/health] db check failed:", result.reason ?? "unknown");
-  return NextResponse.json({ ok: false, db: false }, { status: 503 });
+  return NextResponse.json({ ok: false, db: false, services }, { status: 503 });
 }

@@ -1,6 +1,6 @@
 // FEAT-019 security pass (independent review): repository-level attacks on plan drafts and approval.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fromPglite } from "../db";
+import { fromPglite } from "../pglite";
 import { createTestDb } from "../testing";
 import { featuresRepo, planDraftsRepo, projectsRepo, usersRepo } from "./index";
 

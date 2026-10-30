@@ -1,5 +1,6 @@
 import { App } from "@octokit/app";
 import { Webhooks } from "@octokit/webhooks";
+import { normalizePrivateKey } from "./env";
 
 // The GitHub App's settings (FEAT-009). Secrets only from the environment (names in .env.example), never logged.
 export type GithubConfig = {
@@ -19,10 +20,10 @@ export function githubConfigFrom(env: Record<string, string | undefined>): Githu
   const clientId = env.GITHUB_APP_CLIENT_ID;
   const clientSecret = env.GITHUB_APP_CLIENT_SECRET;
   if (!appId || !privateKey || !webhookSecret || !slug || !clientId || !clientSecret) return null;
-  // A .pem stored in one env line has its newlines written as \n.
+  // The .pem may be pasted with real newlines or as one line with \n (docs/deploy.md).
   return {
     appId,
-    privateKey: privateKey.replace(/\\n/g, "\n"),
+    privateKey: normalizePrivateKey(privateKey),
     webhookSecret,
     slug,
     clientId,

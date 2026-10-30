@@ -1,9 +1,9 @@
 // Test-only module: wire the server helpers to an in-process PGlite database
 // so API route tests can exercise the real handlers without a Postgres server.
 import { randomUUID } from "node:crypto";
-import { checklistItems, fromPglite, usersRepo } from "@brain/db";
+import { checklistItems, usersRepo } from "@brain/db";
 import type { BrainDb } from "@brain/db";
-import { createTestDb } from "@brain/db/testing";
+import { createTestDb, fromPglite } from "@brain/db/testing";
 import type { PGlite } from "@electric-sql/pglite";
 import { eq } from "drizzle-orm";
 import { type SessionUser, setSessionResolver } from "./auth";

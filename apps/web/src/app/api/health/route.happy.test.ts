@@ -1,3 +1,4 @@
+import { configuredServices } from "@/server/env";
 import { createTestDb, servePgliteOverTcp } from "@brain/db/testing";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -23,6 +24,10 @@ describe("GET /api/health (reachable DB)", () => {
     const { GET } = await import("./route");
     const res = await GET();
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ ok: true, db: true });
+    await expect(res.json()).resolves.toEqual({
+      ok: true,
+      db: true,
+      services: configuredServices(process.env),
+    });
   });
 });

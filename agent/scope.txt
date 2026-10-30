@@ -1,11 +1,10 @@
 agent/*
-AGENTS.md
-PROJECT-SETUP.md
-.env.example
-.codeceiptignore
-.projectbrainignore
 docs/*
-apps/web/src/*
-packages/core/src/*
-packages/cli/*
-packages/db/src/repos/dashboard.ts
+.env.example
+apps/web/*
+packages/db/src/*
+packages/db/package.json
+packages/core/src/index.ts
+packages/core/package.json
+packages/cli/src/supabase-upload.ts
+packages/cli/src/scan-secrets.security.test.ts # the reader moved to @brain/core/supabase: its mock follows it
