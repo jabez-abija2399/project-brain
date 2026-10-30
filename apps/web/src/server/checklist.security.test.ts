@@ -169,8 +169,23 @@ describe("FEAT-012 security pass", () => {
     ]) {
       const res = await tool("create_checklist", args);
       expect(res.isError).toBe(true);
-      expect(JSON.parse(res.text)).toEqual({ code: -32004, message: "not_found" });
+      // D-023: a wrong feature also names this project's features; never anything of project B.
+      expect(JSON.parse(res.text).code).toBe(-32004);
+      expect(res.text).not.toContain(otherFeatureId);
+      expect(res.text).not.toContain(otherProjectId);
     }
+    // B's feature id and a feature that exists nowhere get the same answer (no existence oracle).
+    const cross = await tool("create_checklist", {
+      projectId,
+      featureId: otherFeatureId,
+      request: "c",
+    });
+    const nowhere = await tool("create_checklist", {
+      projectId,
+      featureId: "does-not-exist",
+      request: "p",
+    });
+    expect(cross.text).toBe(nowhere.text);
     expect(calls).toHaveLength(0);
     expect(await requestsRepo.list(world.db, otherProjectId)).toEqual([]);
     expect(await requestsRepo.list(world.db, projectId)).toEqual([]);

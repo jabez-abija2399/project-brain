@@ -125,3 +125,6 @@
 - 2026-10-30 Done (D-022): Codeceipt's own setup files no longer count in receipts, so the quickstart no longer asks users to commit them first.
 - 2026-10-30 AC-013-07 wording ("listed there, not done") predates the "Done, no test proves it" state (D-022); the owner may want to reword it to name both states (through agent/plan.json).
 - 2026-10-30 Done: the Connect tab now shows the npx codeceipt flow (shared JourneySteps with the start page, status of that project). AC-013-07 rewording proposed in agent/plan.json; the owner approves it and runs `python3 scripts/kit.py import` with the kit's spec-change approval.
+- 2026-10-30 Dogfooding (D-023): the session-end hook still attaches a receipt to the newest open request even when that request came from an earlier session; tie requests to the session that created them (record the session start time, compare with the request's created_at).
+- 2026-10-30 Dogfooding (D-023): the start page shows the newest receipt under "Your first receipt"; once more receipts exist it may be better to name it "Your latest receipt".
+- 2026-10-30 Dogfooding (D-023): consider showing the last session's receipt summary in the next SessionStart note (SessionStart output is shown to the agent and user), in addition to `codeceipt last`.

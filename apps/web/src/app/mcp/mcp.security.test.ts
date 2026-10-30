@@ -377,7 +377,9 @@ describe("FEAT-011 security pass: cross-project access", () => {
       { projectId, feature: "NoSuchFeature" },
       token,
     );
-    expect(errorBody(onlyInB.text)).toEqual({ code: MCP_ERROR.notFound, message: "not_found" });
+    // D-023: not found, naming only project A's features (none here), and the same answer as a missing feature.
+    expect(errorBody(onlyInB.text).code).toBe(MCP_ERROR.notFound);
+    expect(onlyInB.body).not.toContain("Vault");
     expect(errorBody(onlyInB.text)).toEqual(errorBody(missing.text));
     // Case and whitespace variants of B's feature name do not match it either.
     for (const feature of ["vault", "VAULT", " Vault ", "Vault\n", "Va%", "%"]) {

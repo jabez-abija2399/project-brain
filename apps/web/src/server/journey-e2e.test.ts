@@ -316,7 +316,8 @@ describe("first-time user journey, end to end", () => {
     expect(first).toContain("No request was recorded for this session");
     expect(first).toContain("src/app/page.tsx");
 
-    // The user commits session 1's change, so session 2's receipt covers only session 2.
+    // Some time later, the user commits session 1's change, so session 2's receipt covers only session 2.
+    vi.setSystemTime(Date.now() + 60 * 60_000);
     git("add", "src/app/page.tsx");
     git("commit", "-q", "-m", "Welcome page");
 

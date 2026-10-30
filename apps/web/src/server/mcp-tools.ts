@@ -1,4 +1,3 @@
-import { oneLineText } from "@brain/core";
 import { projectTokensRepo } from "@brain/db";
 import { type AuthInfo, type McpServer, ProtocolError } from "@modelcontextprotocol/server";
 import { z } from "zod";
@@ -58,10 +57,10 @@ function toProtocolError(err: unknown): ProtocolError {
   if (err instanceof ProtocolError) return err;
   // A wrong feature names the valid ones (this project's only), so the agent can retry with one of them.
   if (err instanceof FeatureNotFoundError) {
-    const ref = oneLineText(err.ref).slice(0, 100);
+    // The name asked for is not echoed: the answer is the same for a missing feature and another project's one.
     return new ProtocolError(
       MCP_ERROR.notFound,
-      `feature "${ref}" not found; use one of: ${err.valid.join(", ") || "(no features yet: run the index)"}`,
+      `feature not found; use one of: ${err.valid.join(", ") || "(no features yet: run the index)"}`,
       { valid_features: err.valid },
     );
   }

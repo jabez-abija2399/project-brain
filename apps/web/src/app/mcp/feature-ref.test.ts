@@ -115,7 +115,7 @@ describe("features by name, key or id", () => {
       expect(res.isError).toBe(true);
       const err = JSON.parse(res.text);
       expect(err.code).toBe(MCP_ERROR.notFound);
-      expect(err.message).toBe('feature "dashboard" not found; use one of: home, Reviews');
+      expect(err.message).toBe("feature not found; use one of: home, Reviews");
       expect(err.data).toEqual({ valid_features: ["home", "Reviews"] });
     }
   });
@@ -124,10 +124,14 @@ describe("features by name, key or id", () => {
     const res = await tool("create_checklist", { feature: otherFeatureId, request: "x" }, token);
     expect(res.isError).toBe(true);
     expect(res.text).not.toContain("Payroll");
-    // The id the agent sent is echoed as given (its own input); nothing says whether it exists elsewhere.
-    expect(JSON.parse(res.text).message).toBe(
-      `feature "${otherFeatureId}" not found; use one of: home, Reviews`,
+    expect(res.text).not.toContain(otherFeatureId);
+    // Exactly the answer for a feature that exists nowhere: no existence oracle.
+    const missing = await tool(
+      "create_checklist",
+      { feature: "no-such-feature", request: "x" },
+      token,
     );
+    expect(res.text).toBe(missing.text);
     expect(JSON.parse(res.text).data).toEqual({ valid_features: ["home", "Reviews"] });
   });
 });
