@@ -1,7 +1,7 @@
-import SignInButton from "@/app/sign-in-button";
 import type { ReactNode } from "react";
 import { KeyIcon, PackageIcon, ScopeIcon, ShieldIcon, TestIcon } from "./icons";
 import { Receipt } from "./receipt";
+import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 import { TerminalSnippet } from "./terminal-snippet";
 import { WaitlistForm } from "./waitlist-form";
@@ -24,22 +24,11 @@ const PROBLEMS = [
   },
 ];
 
-const STEPS: { title: string; command: string; note?: string; text: string }[] = [
+const STEPS: { title: string; command: string; text: string }[] = [
   {
-    title: "Index your project",
-    command: "codeceipt index",
-    text: "Your code is read on your machine. Only names, paths and hashes are uploaded.",
-  },
-  {
-    title: "Connect your agent",
-    command: "codeceipt init",
-    text: "One command sets up Claude Code and Cursor. Every session starts with a note about where you stopped and what was decided.",
-  },
-  {
-    title: "Get a receipt for every change",
-    command: "codeceipt hook session-end",
-    note: "Runs on its own when a session ends.",
-    text: "When the session ends, Codeceipt checks the changed files from git, not from the agent's word, and writes the receipt.",
+    title: "Run one command in your project",
+    command: "npx codeceipt",
+    text: "Approve the short code in your browser and pick a project. Codeceipt indexes your code on your machine (only names, paths and hashes are uploaded) and sets up Claude Code and Cursor. From then on every session starts with a note about where you stopped, and when it ends Codeceipt checks the changed files from git, not from the agent's word, and writes the receipt.",
   },
 ];
 
@@ -145,7 +134,7 @@ export function Landing() {
               <li key={s.title} className="lp-step">
                 <h3>{s.title}</h3>
                 <p>{s.text}</p>
-                <TerminalSnippet command={s.command} note={s.note} />
+                <TerminalSnippet command={s.command} />
               </li>
             ))}
           </ol>
@@ -196,19 +185,7 @@ export function Landing() {
           </div>
         </section>
       </main>
-      <footer className="lp-container lp-footer">
-        <span className="lp-footer-brand">
-          <span className="lp-wordmark">Codeceipt</span>
-          <span className="lp-tagline">A receipt for every AI change.</span>
-        </span>
-        <nav className="lp-footer-links" aria-label="Footer">
-          <SignInButton variant="link" />
-          <a href="#privacy">Privacy</a>
-          <span>
-            {"©"} {new Date().getFullYear()}
-          </span>
-        </nav>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

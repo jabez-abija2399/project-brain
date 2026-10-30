@@ -1,0 +1,22 @@
+import { readJsonCapped } from "@/server/body";
+import { getDb } from "@/server/db";
+import { pollDevice } from "@/server/device";
+import { toResponse } from "@/server/errors";
+import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+// POST /api/device/token: the CLI polls with its secret device code; the token comes back once, after approval.
+export async function POST(req: Request) {
+  try {
+    const raw = await readJsonCapped(req, 4096);
+    const result = await pollDevice(getDb(), req, raw);
+    return NextResponse.json(result.body, {
+      status: result.status,
+      headers: { "cache-control": "no-store" },
+    });
+  } catch (err) {
+    return toResponse(err);
+  }
+}

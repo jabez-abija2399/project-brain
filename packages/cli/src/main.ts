@@ -1,4 +1,5 @@
 import { homedir } from "node:os";
+import { createInterface } from "node:readline";
 import { main } from "./index";
 import { readHiddenLine } from "./prompt";
 
@@ -40,5 +41,7 @@ const code = await main(process.argv.slice(2), {
   stdout: (line) => process.stdout.write(`${line}\n`),
   stderr: (line) => process.stderr.write(`${line}\n`),
   readStdin: process.argv[2] === "hook" ? readHookInput : readStdin,
+  // `codeceipt mcp-proxy`: Cursor's MCP messages arrive one per line for as long as Cursor keeps it open.
+  stdinLines: () => createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY }),
 });
 process.exitCode = code;

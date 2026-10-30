@@ -11,6 +11,18 @@ const config: NextConfig = {
   // Trace server files from the monorepo root, so workspace packages outside apps/web are included in the deployed
   // functions (docs/deploy.md).
   outputFileTracingRoot: join(here, "../.."),
+  // No page may be framed by another site (clickjacking, e.g. a one-click approve on /device).
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
+        ],
+      },
+    ];
+  },
 };
 
 export default config;

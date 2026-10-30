@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
+import { linkRepo } from "./test-support";
 
 const TOKEN = ["pb_", "live", "Q7xT2", "mK9vR", "4wZp8"].join("");
 const openai = ["sk", "-proj-", "aB3dE5gH7j", "aB3dE5gH7j", "aB3dE5gH7j"].join("");
@@ -62,7 +63,7 @@ function setup(fetchImpl: CliDeps["fetch"], loggedIn = true) {
   git("add", ".");
   git("commit", "-q", "-m", "base");
   if (loggedIn) {
-    writeConfig(join(home, ".config", "codeceipt", "config.json"), {
+    linkRepo(repo, join(home, ".config", "codeceipt", "config.json"), {
       apiUrl: "https://brain.test",
       projectId: "proj-1",
       token: TOKEN,

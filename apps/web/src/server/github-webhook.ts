@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { type BrainDb, githubRepo } from "@brain/db";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { readCapped } from "./body";
 import { githubConfig, verifySignature } from "./github";
 import { PUSH_EVENT, getEventSender } from "./inngest";
 
@@ -24,27 +25,6 @@ const installationSchema = z.object({
 });
 
 const json = (body: Record<string, unknown>, status: number) => NextResponse.json(body, { status });
-
-// Reads at most `limit` bytes; null when the body is larger (it is never parsed then).
-async function readCapped(req: Request, limit: number): Promise<string | null> {
-  const declared = Number(req.headers.get("content-length") ?? "0");
-  if (declared > limit) return null;
-  const reader = req.body?.getReader();
-  if (!reader) return "";
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    total += value.byteLength;
-    if (total > limit) {
-      await reader.cancel();
-      return null;
-    }
-    chunks.push(value);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
 
 /**
  * POST /api/github/webhook (docs/specs/FEAT-009.md section 7). The signature is checked on the raw bytes before

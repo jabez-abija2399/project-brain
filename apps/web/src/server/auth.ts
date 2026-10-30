@@ -95,7 +95,44 @@ export async function getSessionUser(req: Request): Promise<SessionUser | null> 
   return resolver(req);
 }
 
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+/** The app's own origin: BETTER_AUTH_URL's (the address users sign in on), else the request's. */
+export function appOriginOf(req: Request): string {
+  try {
+    if (process.env.BETTER_AUTH_URL) return new URL(process.env.BETTER_AUTH_URL).origin;
+  } catch {}
+  return new URL(req.url).origin;
+}
+
+// Launch part 4: a state-changing request with the session cookie must come from the app's own pages. Browsers send
+// Origin on these requests (Referer as a fallback); a request with neither comes from a non-browser client, which
+// cannot ride a victim's cookie, so it passes. "null" (sandboxed frames, some redirects) never matches.
+export function assertSameOrigin(req: Request) {
+  if (SAFE_METHODS.has(req.method.toUpperCase())) return;
+  // HTML forms can post across sites without JavaScript, but only as form, multipart or text/plain bodies. Our routes
+  // take JSON, so any other declared body type is refused too (a form post that also hides its Origin and Referer).
+  const type = req.headers.get("content-type");
+  if (type !== null && !/^application\/json\s*(;|$)/i.test(type.trim())) {
+    throw new AppError(415, "unsupported_media_type", "send the body as application/json");
+  }
+  const expected = appOriginOf(req);
+  const origin = req.headers.get("origin");
+  if (origin !== null) {
+    if (origin !== expected) throw new AppError(403, "bad_origin");
+    return;
+  }
+  const referer = req.headers.get("referer");
+  if (referer === null) return;
+  let refererOrigin = "";
+  try {
+    refererOrigin = new URL(referer).origin;
+  } catch {}
+  if (refererOrigin !== expected) throw new AppError(403, "bad_origin");
+}
+
 export async function requireUser(req: Request): Promise<SessionUser> {
+  assertSameOrigin(req);
   const user = await getSessionUser(req);
   if (!user) throw new AppError(401, "unauthenticated");
   return user;

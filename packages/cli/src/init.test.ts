@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
+import { linkRepo } from "./test-support";
 
 // The token is built at runtime from chunks under 10 characters.
 const TOKEN = ["pb_", "live", "Q7xT2", "mK9vR", "4wZp8"].join("");
@@ -23,7 +24,7 @@ function setup(agentDirs: string[] = [".claude", ".cursor"]) {
   const repo = mkdtempSync(join(tmpdir(), "pb-init-repo-"));
   execFileSync("git", ["init", "-q"], { cwd: repo });
   for (const d of agentDirs) mkdirSync(join(repo, d), { recursive: true });
-  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
+  linkRepo(repo, join(home, ".config", "codeceipt", "config.json"), {
     apiUrl: "https://brain.test",
     projectId: "proj-1",
     token: TOKEN,
@@ -66,12 +67,12 @@ describe("FEAT-016 codeceipt init", () => {
     expect(readJson(join(t.repo, ".mcp.json")).mcpServers.codeceipt).toEqual({
       type: "http",
       url: "https://brain.test/mcp",
-      headers: { Authorization: "Bearer ${CODECEIPT_TOKEN}" },
       headersHelper: "codeceipt mcp-headers",
     });
+    // Launch part 3: Cursor runs the CLI's stdio proxy, so no token variable is needed.
     expect(readJson(join(t.repo, ".cursor/mcp.json")).mcpServers.codeceipt).toEqual({
-      url: "https://brain.test/mcp",
-      headers: { Authorization: "Bearer ${env:CODECEIPT_TOKEN}" },
+      command: "codeceipt",
+      args: ["mcp-proxy", "--repo", "${workspaceFolder}"],
     });
     const claude = readJson(join(t.repo, ".claude/settings.json")).hooks;
     expect(claude.SessionStart[0].hooks[0]).toMatchObject({

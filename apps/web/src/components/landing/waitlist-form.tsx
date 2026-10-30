@@ -1,29 +1,47 @@
 "use client";
 
 import { type FormEvent, useId, useState } from "react";
+import { normalizeWaitlistEmail } from "./waitlist-email";
 
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export const WAITLIST_THANKS = "You're on the list. We'll email you when your invite is ready.";
+const INVALID = "Enter an email address, for example you@example.com.";
 
-/**
- * The beta waitlist's answer to an email. Stores and sends nothing yet: where the emails go is still to be decided
- * (agent/later.md), so the address never leaves the page.
- */
-export function joinWaitlist(email: string): { ok: boolean; message: string } {
-  const value = email.trim();
-  if (value.length > 254 || !EMAIL.test(value)) {
-    return { ok: false, message: "Enter an email address, for example you@example.com." };
+type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
+
+/** Sends the email to the beta waitlist (launch part 5) and returns what to show under the form. */
+export async function joinWaitlist(
+  email: string,
+  fetchImpl: Fetch = (url, init) => fetch(url, init),
+): Promise<{ ok: boolean; message: string }> {
+  const value = normalizeWaitlistEmail(email);
+  if (!value) return { ok: false, message: INVALID };
+  let res: Response;
+  try {
+    res = await fetchImpl("/api/waitlist", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: value }),
+    });
+  } catch {
+    return { ok: false, message: "Could not reach the server. Try again." };
   }
-  return { ok: true, message: WAITLIST_THANKS };
+  if (res.ok) return { ok: true, message: WAITLIST_THANKS };
+  if (res.status === 429)
+    return { ok: false, message: "Too many tries: wait a minute and try again." };
+  if (res.status === 400) return { ok: false, message: INVALID };
+  return { ok: false, message: "Something went wrong on our side. Try again later." };
 }
 
 export function WaitlistForm() {
   const id = useId();
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
-  function submit(event: FormEvent<HTMLFormElement>) {
+  const [sending, setSending] = useState(false);
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const email = new FormData(event.currentTarget).get("email");
-    setResult(joinWaitlist(typeof email === "string" ? email : ""));
+    setSending(true);
+    setResult(await joinWaitlist(typeof email === "string" ? email : ""));
+    setSending(false);
   }
   return (
     <form className="lp-form" onSubmit={submit} noValidate>
@@ -39,8 +57,8 @@ export function WaitlistForm() {
           aria-invalid={result?.ok === false ? true : undefined}
           disabled={result?.ok === true}
         />
-        <button type="submit" className="btn btn-primary" disabled={result?.ok === true}>
-          Join the beta
+        <button type="submit" className="btn btn-primary" disabled={sending || result?.ok === true}>
+          {sending ? "Joining..." : "Join the beta"}
         </button>
       </div>
       <output id={`${id}-result`} aria-live="polite" className="lp-form-result">

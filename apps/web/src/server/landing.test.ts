@@ -63,16 +63,21 @@ describe("landing page", () => {
     });
   });
 
-  it("the waitlist form has a visible Email label and shows its confirmation, storing nothing", () => {
+  it("the waitlist form has a visible Email label and shows its confirmation once the server saved the email", async () => {
     const html = renderToStaticMarkup(createElement(WaitlistForm));
     const id = html.match(/<label for="([^"]+)">Email<\/label>/)?.[1];
     expect(id).toBeTruthy();
     expect(html).toContain(`id="${id}"`);
     expect(html).toContain('type="email"');
-    expect(joinWaitlist(" you@example.com ")).toEqual({ ok: true, message: WAITLIST_THANKS });
+    // Launch part 5: the form now posts to /api/waitlist (stored there; see waitlist.test.ts).
+    const saved = async () => Response.json({ ok: true });
+    expect(await joinWaitlist(" you@example.com ", saved)).toEqual({
+      ok: true,
+      message: WAITLIST_THANKS,
+    });
     expect(WAITLIST_THANKS).toBe("You're on the list. We'll email you when your invite is ready.");
     for (const bad of ["", "you", "you@example", "a b@example.com", `${"x".repeat(250)}@e.com`]) {
-      expect(joinWaitlist(bad).ok).toBe(false);
+      expect((await joinWaitlist(bad, saved)).ok).toBe(false);
     }
   });
 
@@ -80,7 +85,8 @@ describe("landing page", () => {
     setSessionResolver(async () => null);
     const html = await render();
     const commands = [...html.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1]);
-    expect(commands).toEqual(["codeceipt index", "codeceipt init", "codeceipt hook session-end"]);
+    // Launch part 6: "How it works" is the single `npx codeceipt` step; the session-end command is not shown.
+    expect(commands).toEqual(["npx codeceipt"]);
     const written: string[] = [];
     const clipboard = { writeText: async (t: string) => void written.push(t) };
     expect(await copyText("codeceipt index", clipboard)).toBe("copied");

@@ -646,3 +646,20 @@ summary:focus-visible {
     padding: 24px 14px 28px;
   }
 }
+
+/* Launch part 6: privacy, terms and docs pages. */
+.lp-doc {
+  max-width: 720px;
+}
+.lp-doc h2 {
+  margin-top: 40px;
+}
+.lp-doc ul,
+.lp-doc ol {
+  display: grid;
+  gap: 8px;
+  padding-left: 20px;
+}
+.lp-doc-updated {
+  color: var(--muted);
+}
