@@ -85,7 +85,8 @@ describe("landing page", () => {
     setSessionResolver(async () => null);
     const html = await render();
     const commands = [...html.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1]);
-    expect(commands).toEqual(["codeceipt index", "codeceipt init", "codeceipt hook session-end"]);
+    // Launch part 6: "How it works" is the single `npx codeceipt` step; the session-end command is not shown.
+    expect(commands).toEqual(["npx codeceipt"]);
     const written: string[] = [];
     const clipboard = { writeText: async (t: string) => void written.push(t) };
     expect(await copyText("codeceipt index", clipboard)).toBe("copied");
