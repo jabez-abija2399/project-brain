@@ -141,8 +141,8 @@ describe("indexRepo follows .gitignore semantics", () => {
   });
 });
 
-describe("indexRepo honors .projectbrainignore", () => {
-  it("skips paths matched by .projectbrainignore (gitignore syntax, nested files, negation)", async () => {
+describe("indexRepo honors .codeceiptignore and the legacy .projectbrainignore", () => {
+  it("skips paths matched by a legacy .projectbrainignore (gitignore syntax, nested files, negation)", async () => {
     const repo = tempDir();
     const comp = "export function C() { return <div/>; }\n";
     writeTree(repo, {
@@ -167,8 +167,28 @@ describe("indexRepo honors .projectbrainignore", () => {
       "tests/unit/Real.tsx",
     ]);
     for (const p of ["tests/fixtures", "src/Button.stories.tsx", "src/legacy/Old.tsx"]) {
-      expect(reasons.get(p), p).toBe("projectbrainignored");
+      expect(reasons.get(p), p).toBe("codeceiptignored");
     }
+  });
+
+  it("D-019 .codeceiptignore works the same, alongside a legacy .projectbrainignore, and wins where both disagree", async () => {
+    const repo = tempDir();
+    const comp = "export function C() { return <div/>; }\n";
+    writeTree(repo, {
+      ".projectbrainignore": "old/\nShared.tsx\n",
+      ".codeceiptignore": "new/\n!Shared.tsx\n",
+      "old/A.tsx": comp,
+      "new/B.tsx": comp,
+      "src/Shared.tsx": comp,
+      "src/Kept.tsx": comp,
+    });
+    const result = await indexRepo(repo);
+    expect(result.files.map((f) => f.path)).toEqual(["src/Kept.tsx", "src/Shared.tsx"]);
+    const reasons = new Map(result.skipped.map((s) => [s.path, s.reason]));
+    expect([reasons.get("old"), reasons.get("new")]).toEqual([
+      "codeceiptignored",
+      "codeceiptignored",
+    ]);
   });
 });
 

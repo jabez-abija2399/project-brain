@@ -124,7 +124,7 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
       token,
     );
     expect(init.status).toBe(200);
-    expect((init.result?.serverInfo as { name: string }).name).toBe("project-brain");
+    expect((init.result?.serverInfo as { name: string }).name).toBe("codeceipt");
     const list = await rpc("tools/list", {}, token);
     const names = (list.result?.tools as { name: string }[]).map((t) => t.name).sort();
     expect(names).toEqual(

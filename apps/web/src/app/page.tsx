@@ -6,14 +6,14 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-const TITLE = "Project Brain: receipts for AI-built code";
+const TITLE = "Codeceipt: A receipt for every AI change";
 const DESCRIPTION =
-  "Project Brain remembers your app across every AI coding session and checks each change against what you asked for, with a receipt for every change.";
+  "A receipt for every AI change. Codeceipt remembers your app across every AI coding session and checks each change against what you asked for.";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", siteName: "Project Brain" },
+  openGraph: { title: TITLE, description: DESCRIPTION, type: "website", siteName: "Codeceipt" },
   twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
 };
 

@@ -51,7 +51,7 @@ function run(cwd: string, args: string[] = []) {
   return main(["scan-secrets", ...args], deps).then((code) => ({ code, out, err }));
 }
 
-describe("FEAT-015 projectbrain scan-secrets", () => {
+describe("FEAT-015 codeceipt scan-secrets", () => {
   it("AC-015-01 scans only the changed files and prints masked findings with file and line", async () => {
     const repo = gitRepo();
     const line = `const admin = createClient(url, "${serviceRole}"); // ADMIN_CLIENT_MARKER`;

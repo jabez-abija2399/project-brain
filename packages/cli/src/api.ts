@@ -32,10 +32,7 @@ export function retryAfterSeconds(header: string | null, now = Date.now()): numb
 
 function fromStatus(status: number, code: string | undefined): CliError {
   if (status === 401 || status === 404) {
-    return new CliError(
-      EXIT.auth,
-      "The project token was rejected: run `projectbrain login` again.",
-    );
+    return new CliError(EXIT.auth, "The project token was rejected: run `codeceipt login` again.");
   }
   if (status === 413 && code === "project_storage_full")
     return new CliError(

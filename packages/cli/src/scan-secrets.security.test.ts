@@ -1,4 +1,4 @@
-// FEAT-015 security pass (independent review): attacker and realistic-input tests for `projectbrain scan-secrets` and
+// FEAT-015 security pass (independent review): attacker and realistic-input tests for `codeceipt scan-secrets` and
 // the Supabase flags upload. Fake secrets are built at runtime from chunks under 10 characters.
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
@@ -68,21 +68,21 @@ async function scan(cwd: string, args: string[] = []) {
 describe("FEAT-015 scan-secrets security pass", () => {
   it("AC-015-01 attack: changed files whose names git prints quoted (unicode, a double quote) are still scanned", async () => {
     const { repo, git } = gitRepo();
-    writeFileSync(join(repo, "src/café.tsx"), "export {};\n");
+    writeFileSync(join(repo, "src/caf\u00e9.tsx"), "export {};\n");
     git("add", ".");
     git("commit", "-q", "-m", "base");
     // A tracked file with a non-ASCII name changes, and a new untracked one appears.
-    writeFileSync(join(repo, "src/café.tsx"), `"use client";\nconst k = "${openai()}";\n`);
-    writeFileSync(join(repo, "src/zürich client.ts"), `const k = "${openai()}";\n`);
+    writeFileSync(join(repo, "src/caf\u00e9.tsx"), `"use client";\nconst k = "${openai()}";\n`);
+    writeFileSync(join(repo, "src/z\u00fcrich client.ts"), `const k = "${openai()}";\n`);
     writeFileSync(join(repo, 'src/say"hi".ts'), `const k = "${openai()}";\n`);
     const { code, report } = await scan(repo);
     expect(code).toBe(0);
     expect(
       report.findings.map((f: { file: string; line: number }) => [f.file, f.line]).sort(),
     ).toEqual([
-      ["src/café.tsx", 2],
+      ["src/caf\u00e9.tsx", 2],
       ['src/say"hi".ts', 1],
-      ["src/zürich client.ts", 1],
+      ["src/z\u00fcrich client.ts", 1],
     ]);
   });
 

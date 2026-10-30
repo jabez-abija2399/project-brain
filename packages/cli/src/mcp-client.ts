@@ -38,10 +38,7 @@ export async function callTool(
     throw new CliError(EXIT.server, `Cannot reach ${config.apiUrl}.`);
   }
   if (res.status === 401 || res.status === 404) {
-    throw new CliError(
-      EXIT.auth,
-      "The project token was rejected: run `projectbrain login` again.",
-    );
+    throw new CliError(EXIT.auth, "The project token was rejected: run `codeceipt login` again.");
   }
   const body = await readCapped(res, MAX_ANSWER_BYTES).catch(() => null);
   if (!res.ok || body === null) {

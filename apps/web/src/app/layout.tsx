@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata = {
-  title: "Project Brain",
-  description: "A living blueprint of every AI-built app.",
+  title: "Codeceipt",
+  description: "A receipt for every AI change.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -1,6 +1,6 @@
 # AGENTS.md
 <!-- PROJECT:BEGIN  (filled during the kickoff; yours to edit; `kit.py upgrade` never touches this block) -->
-Project: Project Brain: a living blueprint of every AI-built app plus a receipt for every change, so vibe coders can trust what agents build.
+Project: Codeceipt (formerly Project Brain): a receipt for every AI change; a living blueprint of every AI-built app, so vibe coders can trust what agents build.
 Stack: TypeScript pnpm monorepo; Next.js on Vercel (dashboard + API + MCP route + webhooks), Neon Postgres + Drizzle (tests: PGlite),
 Inngest jobs, web-tree-sitter parsing, Claude API (small model), better-auth (GitHub). Start the app: `bash scripts/dev.sh`.
 One test: `pnpm vitest run <path/to/file.test.ts>`

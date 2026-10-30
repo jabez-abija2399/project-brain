@@ -68,7 +68,7 @@ function repo() {
   writeFileSync(join(dir, "report.json"), JSON.stringify({ numPassedTests: 42 }));
   git("add", ".");
   git("commit", "-q", "-m", "base");
-  writeConfig(join(home, ".config", "projectbrain", "config.json"), {
+  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
     apiUrl: "https://brain.test",
     projectId: "proj-1",
     token: TOKEN,
@@ -83,7 +83,7 @@ describe("FEAT-018 the session-end hook checks test integrity on this machine", 
     const run = (event: string) =>
       main(["hook", event, "--agent", "claude"], {
         fetch: s.fetchImpl,
-        env: { XDG_CONFIG_HOME: join(r.home, ".config"), PROJECTBRAIN_TEST_REPORT: "report.json" },
+        env: { XDG_CONFIG_HOME: join(r.home, ".config"), CODECEIPT_TEST_REPORT: "report.json" },
         cwd: r.dir,
         homedir: r.home,
         platform: "linux",

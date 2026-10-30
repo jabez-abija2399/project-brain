@@ -32,7 +32,7 @@ New versions are only installed once they are 7 days old (dependency cooldown: `
 | tailwindcss | apps/web | styling with tokens | unocss, @pandacss/dev (smaller ecosystems) | MIT | 2026-10-23 |
 | ignore | packages/core | .gitignore semantics for the indexer walker (anchored patterns, negation, dir-only, nested files); pinned to 7.0.12: newest version past the 7-day cooldown (D-013) on 2026-10-24 | minimatch, picomatch (generic glob matchers: no gitignore negation/anchoring/last-match-wins rules, we would re-implement them) | MIT | 2026-10-24 |
 | vitest | all (dev) | unit/integration tests, verbose names | jest (slower, ESM friction), mocha (more setup) | MIT | 2026-10-23 |
-| esbuild | packages/cli (dev) | bundle the CLI and @brain/core into one runnable `projectbrain` bin (dist/projectbrain.mjs; KI-023 session 2026-10-28); pinned to 0.28.2: released 2026-08-08, past the 7-day cooldown (D-013), already in the lockfile via vite | tsup (wraps esbuild, extra dep), tsc emit (core imports .ts without extensions and needs path rewriting; no bundling) | MIT | 2026-10-28 |
+| esbuild | packages/cli (dev) | bundle the CLI and @brain/core into one runnable `codeceipt` bin (dist/codeceipt.mjs; KI-023 session 2026-10-28); pinned to 0.28.2: released 2026-08-08, past the 7-day cooldown (D-013), already in the lockfile via vite | tsup (wraps esbuild, extra dep), tsc emit (core imports .ts without extensions and needs path rewriting; no bundling) | MIT | 2026-10-28 |
 | @playwright/test | apps/web (dev) | browser checks for UI criteria (/evaluate) | cypress (heavier), puppeteer (no test runner) | Apache-2.0 | 2026-10-23 |
 | @biomejs/biome | root (dev) | lint + format (the pnpm-monorepo verify preset runs `pnpm biome ci .`) | eslint (slower, more config), oxlint (lint only, no formatter) | MIT OR Apache-2.0 | 2026-10-23 |
 | typescript | all (dev) | typecheck | (no real alternative) | Apache-2.0 | 2026-10-23 |
@@ -40,7 +40,7 @@ New versions are only installed once they are 7 days old (dependency cooldown: `
 | @clack/prompts | packages/cli | interactive setup prompts | inquirer (heavier), prompts (unmaintained: last release 2021) | MIT | 2026-10-23 |
 | @brain/core | apps/web, packages/sandbox, packages/cli | workspace package (pure logic; the CLI indexes locally with it); packages/sandbox imports only the sandbox run types (type-only; core has @brain/sandbox as a dev dependency for its tests) | n/a — internal workspace package | internal | 2026-10-23 |
 | @brain/db | apps/web | workspace package (data access) | n/a — internal workspace package | internal | 2026-10-23 |
-| @brain/cli | apps/web (dev) | workspace package; apps/web tests drive `projectbrain index` end to end against the real /api/index handlers | n/a — internal workspace package | internal | 2026-10-28 |
+| @brain/cli | apps/web (dev) | workspace package; apps/web tests drive `codeceipt index` end to end against the real /api/index handlers | n/a — internal workspace package | internal | 2026-10-28 |
 | @types/node | all (dev) | Node type definitions | required by typescript when targeting Node runtimes | MIT | 2026-10-23 |
 | @types/react | apps/web (dev) | React type definitions | required by react typecheck | MIT | 2026-10-23 |
 | @types/react-dom | apps/web (dev) | ReactDOM type definitions | required by react-dom typecheck | MIT | 2026-10-23 |

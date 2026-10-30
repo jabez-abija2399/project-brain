@@ -44,7 +44,7 @@ function run(bin: string, args: string[], env: Record<string, string>, stdin = "
 }
 
 // Each test spawns node; under a loaded machine 5 s is not enough, so a generous limit keeps it load-independent.
-describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 30_000 }, () => {
+describe("FEAT-008 the built codeceipt bin runs from a terminal", { timeout: 30_000 }, () => {
   let bin: string;
   let buildDir: string;
   let server: ReturnType<typeof createServer>;
@@ -113,7 +113,7 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 
     const env = { HOME: home, XDG_CONFIG_HOME: join(home, ".config") };
     const usage = await run(bin, [], env);
     expect(usage.code).toBe(2);
-    expect(usage.stderr).toContain("projectbrain login");
+    expect(usage.stderr).toContain("codeceipt login");
     const index = await run(bin, ["index"], env);
     expect(index.code).toBe(3);
     expect(index.stderr).toContain("Not logged in");
@@ -130,7 +130,7 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 
     expect(login.code).toBe(0);
     expect(login.stdout).toContain("Logged in as project proj-1");
     expect(login.stdout).not.toContain(TOKEN);
-    const config = join(home, ".config/projectbrain/config.json");
+    const config = join(home, ".config/codeceipt/config.json");
     expect(statSync(config).mode & 0o777).toBe(0o600);
     expect(JSON.parse(readFileSync(config, "utf8"))).toMatchObject({ token: TOKEN });
 
@@ -160,9 +160,9 @@ describe("FEAT-008 the built projectbrain bin runs from a terminal", { timeout: 
     const repo = mkdtempSync(join(tmpdir(), "pb-repo-"));
     cpSync(fixture, repo, { recursive: true });
     const env = { HOME: home, XDG_CONFIG_HOME: join(home, ".config") };
-    mkdirSync(join(home, ".config/projectbrain"), { recursive: true });
+    mkdirSync(join(home, ".config/codeceipt"), { recursive: true });
     writeFileSync(
-      join(home, ".config/projectbrain/config.json"),
+      join(home, ".config/codeceipt/config.json"),
       JSON.stringify({ apiUrl: `${apiUrl}/redirect`, projectId: "proj-1", token: TOKEN }),
       { mode: 0o600 },
     );

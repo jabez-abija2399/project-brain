@@ -4,6 +4,8 @@ import {
   mkdirSync,
   readFileSync,
   realpathSync,
+  rmSync,
+  rmdirSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
@@ -13,17 +15,30 @@ import {
   AGENTS_SECTION,
   AGENTS_START,
   CLAUDE_SKILL,
+  CLAUDE_SKILL_PATH,
   CURSOR_RULE,
+  CURSOR_RULE_PATH,
   END_HOOK,
+  LEGACY_AGENTS_END,
+  LEGACY_AGENTS_START,
+  LEGACY_CLAUDE_SKILL,
+  LEGACY_CLAUDE_SKILL_PATH,
+  LEGACY_CURSOR_RULE,
+  LEGACY_CURSOR_RULE_PATH,
+  LEGACY_END_HOOK,
+  LEGACY_SERVER_NAME,
+  LEGACY_START_HOOK,
+  SERVER_NAME,
   START_HOOK,
   claudeMcpServer,
   cursorMcpServer,
   isOurHook,
 } from "./templates";
 
-// FEAT-016: `projectbrain init` sets up Claude Code and Cursor for this repo: MCP config, hooks, the Skill or rule,
+// FEAT-016: `codeceipt init` sets up Claude Code and Cursor for this repo: MCP config, hooks, the Skill or rule,
 // and an AGENTS.md section. It only adds what is missing (a second run adds nothing), never changes or removes what
-// the user wrote, and never writes the project token into the repo.
+// the user wrote, and never writes the project token into the repo. D-019: a setup made under the old name (Project
+// Brain) is upgraded in place: our own entries are renamed, never duplicated; anything the user edited is left.
 type Agent = "claude" | "cursor";
 type Json = Record<string, unknown>;
 
@@ -69,11 +84,30 @@ class Writer {
     writeFileSync(abs, text);
   }
 
-  // A file that should exist once (Skill, rule): created when missing, never replaced.
-  file(rel: string, text: string) {
+  // A file that should exist once (Skill, rule): created when missing, never replaced. The same file under the old
+  // name is moved when it is exactly what an older init wrote; an edited one is left alone and reported.
+  file(rel: string, text: string, legacy?: { rel: string; text: string }) {
     const abs = this.safe(rel);
     if (!abs) return void this.result.skipped.push(`${rel} (a symlink or outside the repo)`);
     if (existsSync(abs)) return void this.result.kept.push(rel);
+    const old = legacy ? this.safe(legacy.rel) : null;
+    if (legacy && old && existsSync(old)) {
+      let current: string | null = null;
+      try {
+        current = lstatSync(old).isFile() ? readFileSync(old, "utf8") : null;
+      } catch {}
+      if (current !== legacy.text) {
+        return void this.result.skipped.push(
+          `${legacy.rel} (changed by you; rename it to ${rel} yourself)`,
+        );
+      }
+      this.write(abs, text);
+      rmSync(old);
+      try {
+        rmdirSync(dirname(old));
+      } catch {}
+      return void this.result.added.push(`${rel} (replaces ${legacy.rel})`);
+    }
     this.write(abs, text);
     this.result.added.push(rel);
   }
@@ -111,6 +145,14 @@ class Writer {
     if (!abs) return void this.result.skipped.push("AGENTS.md (a symlink or outside the repo)");
     const current = existsSync(abs) ? readFileSync(abs, "utf8") : "";
     if (current.includes(AGENTS_START)) return void this.result.kept.push("AGENTS.md section");
+    // Our section from before the rename: replaced in place (only the part between our own markers).
+    const from = current.indexOf(LEGACY_AGENTS_START);
+    const to = current.indexOf(LEGACY_AGENTS_END, from);
+    if (from !== -1 && to !== -1) {
+      const end = to + LEGACY_AGENTS_END.length;
+      this.write(abs, `${current.slice(0, from)}${AGENTS_SECTION}${current.slice(end)}`);
+      return void this.result.added.push("AGENTS.md section (upgraded from Project Brain)");
+    }
     const sep = current === "" ? "" : current.endsWith("\n") ? "\n" : "\n\n";
     this.write(abs, `${current}${sep}${AGENTS_SECTION}\n`);
     this.result.added.push("AGENTS.md section");
@@ -134,17 +176,39 @@ function addServer(server: Json & { url: string }) {
     }
     doc.mcpServers ??= {};
     const servers = doc.mcpServers as Json;
-    const existing = servers.projectbrain;
+    const existing = servers[SERVER_NAME];
+    const legacy = servers[LEGACY_SERVER_NAME];
     if (existing === undefined) {
-      servers.projectbrain = server;
-      return { added: ["MCP server projectbrain"], problems: [] };
+      // Our entry from before the rename (same server): renamed in place. Its headers are kept, so a setup that
+      // reads PROJECTBRAIN_TOKEN keeps working; the helper command moves to the new name.
+      if (isObject(legacy) && originOf(legacy.url) === originOf(server.url)) {
+        servers[SERVER_NAME] = {
+          ...server,
+          ...(legacy.headers !== undefined ? { headers: legacy.headers } : {}),
+        };
+        delete servers[LEGACY_SERVER_NAME];
+        return {
+          added: [`MCP server ${SERVER_NAME} (renamed from ${LEGACY_SERVER_NAME})`],
+          problems: [],
+        };
+      }
+      servers[SERVER_NAME] = server;
+      return {
+        added: [`MCP server ${SERVER_NAME}`],
+        problems:
+          legacy === undefined
+            ? []
+            : [
+                `its ${LEGACY_SERVER_NAME} server points at another address; check it before trusting this folder`,
+              ],
+      };
     }
-    // An entry named projectbrain for another address is not ours: init does not vouch for it.
+    // An entry named codeceipt for another address is not ours: init does not vouch for it.
     if (!isObject(existing) || originOf(existing.url) !== originOf(server.url)) {
       return {
         added: [],
         problems: [
-          "its projectbrain server points at another address; check it before trusting this folder",
+          `its ${SERVER_NAME} server points at another address; check it before trusting this folder`,
         ],
       };
     }
@@ -152,20 +216,35 @@ function addServer(server: Json & { url: string }) {
   };
 }
 
-// Adds our hook to an event's list unless ours is already there; the user's hooks are never touched.
+// Adds our hook to an event's list unless ours is already there; the user's hooks are never touched. Our hook from
+// before the rename is upgraded in place (`upgrade` rewrites its command and says whether it found one).
 function addHook(
   hooks: Json,
   event: string,
   entry: Json,
   ours: (item: unknown) => boolean,
+  upgrade: (list: unknown[]) => boolean,
 ): Change {
   const list = hooks[event];
   if (list !== undefined && !Array.isArray(list)) {
     return { added: [], problems: [`${event} is not a list; left unchanged`] };
   }
   if ((list ?? []).some(ours)) return { added: [], problems: [] };
+  if (list && upgrade(list))
+    return { added: [`${event} hook (upgraded from projectbrain)`], problems: [] };
   hooks[event] = [...(list ?? []), entry];
   return { added: [`${event} hook`], problems: [] };
+}
+
+// Rewrites the first hook whose command is `legacy` to `command`, keeping everything else about it.
+function renameHookCommand(items: unknown[], legacy: string, command: string): boolean {
+  for (const item of items) {
+    if (isObject(item) && isOurHook(item.command, legacy)) {
+      item.command = command;
+      return true;
+    }
+  }
+  return false;
 }
 
 const merge = (...changes: Change[]): Change => ({
@@ -186,10 +265,26 @@ const claudeHooks = (doc: Json): Change => {
   const entry = (command: string, timeout: number) => ({
     hooks: [{ type: "command", command, timeout }],
   });
+  const upgrade = (legacy: string, command: string) => (groups: unknown[]) =>
+    groups.some(
+      (g) => isObject(g) && Array.isArray(g.hooks) && renameHookCommand(g.hooks, legacy, command),
+    );
   return merge(
-    addHook(hooks, "SessionStart", entry(START_HOOK("claude"), 30), ours(START_HOOK("claude"))),
+    addHook(
+      hooks,
+      "SessionStart",
+      entry(START_HOOK("claude"), 30),
+      ours(START_HOOK("claude")),
+      upgrade(LEGACY_START_HOOK("claude"), START_HOOK("claude")),
+    ),
     // SessionEnd hooks get 1.5 s unless they set a timeout; the receipt needs more (Claude Code allows up to 60 s).
-    addHook(hooks, "SessionEnd", entry(END_HOOK("claude"), 60), ours(END_HOOK("claude"))),
+    addHook(
+      hooks,
+      "SessionEnd",
+      entry(END_HOOK("claude"), 60),
+      ours(END_HOOK("claude")),
+      upgrade(LEGACY_END_HOOK("claude"), END_HOOK("claude")),
+    ),
   );
 };
 
@@ -206,12 +301,14 @@ const cursorHooks = (doc: Json): Change => {
       "sessionStart",
       { command: START_HOOK("cursor"), timeout: 30 },
       ours(START_HOOK("cursor")),
+      (items) => renameHookCommand(items, LEGACY_START_HOOK("cursor"), START_HOOK("cursor")),
     ),
     addHook(
       hooks,
       "sessionEnd",
       { command: END_HOOK("cursor"), timeout: 60 },
       ours(END_HOOK("cursor")),
+      (items) => renameHookCommand(items, LEGACY_END_HOOK("cursor"), END_HOOK("cursor")),
     ),
   );
   if (change.added.length > 0) {
@@ -228,7 +325,7 @@ export function runInit(root: string, home: string, config: CliConfig, args: str
   if (agents.length === 0) {
     throw new CliError(
       EXIT.usage,
-      "Found neither Claude Code nor Cursor: run `projectbrain init --claude` or `projectbrain init --cursor`.",
+      "Found neither Claude Code nor Cursor: run `codeceipt init --claude` or `codeceipt init --cursor`.",
     );
   }
   const w = new Writer(root);
@@ -236,12 +333,18 @@ export function runInit(root: string, home: string, config: CliConfig, args: str
   if (agents.includes("claude")) {
     w.json(".mcp.json", addServer(claudeMcpServer(config.apiUrl)));
     w.json(".claude/settings.json", claudeHooks);
-    w.file(".claude/skills/projectbrain/SKILL.md", CLAUDE_SKILL);
+    w.file(CLAUDE_SKILL_PATH, CLAUDE_SKILL, {
+      rel: LEGACY_CLAUDE_SKILL_PATH,
+      text: LEGACY_CLAUDE_SKILL,
+    });
   }
   if (agents.includes("cursor")) {
     w.json(".cursor/mcp.json", addServer(cursorMcpServer(config.apiUrl)));
     w.json(".cursor/hooks.json", cursorHooks);
-    w.file(".cursor/rules/projectbrain.mdc", CURSOR_RULE);
+    w.file(CURSOR_RULE_PATH, CURSOR_RULE, {
+      rel: LEGACY_CURSOR_RULE_PATH,
+      text: LEGACY_CURSOR_RULE,
+    });
   }
   w.agentsSection();
   return w.result;
@@ -254,7 +357,7 @@ export function initReport(r: InitResult, root: string, cwd: string): string[] {
     ...r.added.map((a) => `  added   ${a}`),
     ...r.kept.map((k) => `  kept    ${k} (already set up)`),
     ...r.skipped.map((s) => `  skipped ${s}`),
-    "The token is not stored in the repo. Set PROJECTBRAIN_TOKEN in your shell profile for Cursor (Claude Code reads",
-    "it from your `projectbrain login` once you trust this folder). The hooks need `projectbrain` on your PATH.",
+    "The token is not stored in the repo. Set CODECEIPT_TOKEN in your shell profile for Cursor (Claude Code reads",
+    "it from your `codeceipt login` once you trust this folder). The hooks need `codeceipt` on your PATH.",
   ];
 }

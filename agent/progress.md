@@ -384,3 +384,9 @@ Changed: app/page.tsx (signed-out visitors see the landing page; signed-in users
 Verified (ran this session): landing.test.ts (7 tests: signed-out render, signed-in redirect, metadata, no invented claims, form confirmation, copy, reduced motion); Playwright on next dev at 375 and 1280 px: no sideways scroll, menu, 3 copy buttons say Copied, form messages, FAQ, keyboard focus; token contrast pairs all >= 4.5:1; verify.sh.
 NOT VERIFIED: real sign-in from the landing page against GitHub (no OAuth app here); the 375 px and click checks are not in CI (no e2e suite).
 Next: owner review of the landing page PR; decide where waitlist emails go.
+
+## 2026-10-30 | Rename: Project Brain -> Codeceipt (D-019) | status: done (on branch, PR open)
+Changed: every user-visible name (landing page, layout and page metadata with the tagline "A receipt for every AI change.", connect page commands, MCP server name, CLI help and messages, receipt hints, fix prompt, docs, AGENTS.md); CLI bin codeceipt (projectbrain kept as an alias) and a dist/package.json that publishes as "codeceipt"; .codeceiptignore (the old .projectbrainignore still read); CODECEIPT_TOKEN/_API_URL/_TEST_REPORT with the PROJECTBRAIN_* fallback; config folder codeceipt/ (old login still read); init upgrades a Project Brain setup in place (server entry, hooks, Skill, Cursor rule, AGENTS.md section).
+Verified (ran this session): rename.test.ts (6: init upgrade with no duplicates, edited legacy files left, env and config fallbacks, help text, publish manifest), brand.test.ts, ignore-file tests, all CLI/core/web suites; legacy templates byte-identical to the previous release's; landing page rechecked at 375/1280 px; verify.sh.
+Unchanged on purpose: @brain/* packages, database/migrations, Inngest app id, .git session state folder, FEAT spec criteria text.
+Next: owner review of the rename PR.

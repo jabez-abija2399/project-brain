@@ -36,15 +36,16 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
   const skipped: SkippedFile[] = [];
   const errors: IndexError[] = [];
   const stack: { dir: string; rules: DirRules }[] = [
-    { dir: root, rules: { ".gitignore": [], ".projectbrainignore": [] } },
+    { dir: root, rules: { ".gitignore": [], ".codeceiptignore": [] } },
   ];
   while (stack.length > 0) {
     const { dir, rules: inherited } = stack.pop() as { dir: string; rules: DirRules };
     const base = toPosix(relative(root, dir));
     const rules = { ...inherited };
-    for (const name of [".gitignore", ".projectbrainignore"] as const) {
-      const own = loadIgnoreFile(dir, base, name);
-      if (own) rules[name] = [...inherited[name], own];
+    for (const [kind, names] of IGNORE_FILES) {
+      // The legacy .projectbrainignore is read first, so .codeceiptignore wins where both set a pattern.
+      const own = names.flatMap((name) => loadIgnoreFile(dir, base, name) ?? []);
+      if (own.length > 0) rules[kind] = [...inherited[kind], ...own];
     }
     let entries: string[];
     try {
@@ -117,13 +118,17 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
   return { files, skipped, errors };
 }
 
-// One .gitignore or .projectbrainignore file; its patterns are relative to the directory it lives in (base, "" for
-// the root).
+// One .gitignore or .codeceiptignore file; its patterns are relative to the directory it lives in (base, "" for
+// the root). The product's own ignore file was .projectbrainignore before the rename (D-019): both are read.
 type IgnoreRules = { base: string; matcher: Ignore };
-type IgnoreFile = ".gitignore" | ".projectbrainignore";
-type DirRules = Record<IgnoreFile, IgnoreRules[]>;
+type IgnoreKind = ".gitignore" | ".codeceiptignore";
+type DirRules = Record<IgnoreKind, IgnoreRules[]>;
+const IGNORE_FILES: [IgnoreKind, string[]][] = [
+  [".gitignore", [".gitignore"]],
+  [".codeceiptignore", [".projectbrainignore", ".codeceiptignore"]],
+];
 
-function loadIgnoreFile(dir: string, base: string, name: IgnoreFile): IgnoreRules | null {
+function loadIgnoreFile(dir: string, base: string, name: string): IgnoreRules | null {
   const file = join(dir, name);
   try {
     if (!lstatSync(file).isFile()) return null;
@@ -134,14 +139,14 @@ function loadIgnoreFile(dir: string, base: string, name: IgnoreFile): IgnoreRule
 }
 
 // Each kind of ignore file is applied on its own: a path is skipped when its .gitignore files or its
-// .projectbrainignore files (same gitignore syntax) ignore it, so a negation in one never un-ignores the other.
+// .codeceiptignore files (same gitignore syntax) ignore it, so a negation in one never un-ignores the other.
 function skipReason(
   relPath: string,
   isDir: boolean,
   rules: DirRules,
 ): SkippedFile["reason"] | null {
   if (isIgnored(relPath, isDir, rules[".gitignore"])) return "gitignored";
-  if (isIgnored(relPath, isDir, rules[".projectbrainignore"])) return "projectbrainignored";
+  if (isIgnored(relPath, isDir, rules[".codeceiptignore"])) return "codeceiptignored";
   return null;
 }
 

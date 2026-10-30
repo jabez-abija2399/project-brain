@@ -32,6 +32,10 @@ describe("landing page", () => {
     expect(html).toContain("Secret found: sb_s*** in");
     expect(html).toContain("Send fix to agent");
     expect(html).toContain("Your source code never leaves your machine.");
+    // D-019: the product is Codeceipt everywhere on the page; the old name is gone.
+    expect(html).toContain('class="lp-wordmark" href="#top">Codeceipt</a>');
+    expect(html).toContain("A receipt for every AI change.");
+    expect(html).not.toMatch(/Project Brain|projectbrain/);
     expect(html.match(/<details>/g)).toHaveLength(5);
     // Decorative icons are hidden from screen readers.
     expect(html.match(/<svg[^>]*aria-hidden="true"/g)).toHaveLength(5);
@@ -51,10 +55,10 @@ describe("landing page", () => {
   });
 
   it("sets the page title, description and Open Graph tags", () => {
-    expect(metadata.title).toBe("Project Brain: receipts for AI-built code");
+    expect(metadata.title).toBe("Codeceipt: A receipt for every AI change");
     expect(metadata.description).toMatch(/receipt/);
     expect(metadata.openGraph).toMatchObject({
-      title: "Project Brain: receipts for AI-built code",
+      title: "Codeceipt: A receipt for every AI change",
       type: "website",
     });
   });
@@ -76,15 +80,11 @@ describe("landing page", () => {
     setSessionResolver(async () => null);
     const html = await render();
     const commands = [...html.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1]);
-    expect(commands).toEqual([
-      "projectbrain index",
-      "projectbrain init",
-      "projectbrain hook session-end",
-    ]);
+    expect(commands).toEqual(["codeceipt index", "codeceipt init", "codeceipt hook session-end"]);
     const written: string[] = [];
     const clipboard = { writeText: async (t: string) => void written.push(t) };
-    expect(await copyText("projectbrain index", clipboard)).toBe("copied");
-    expect(written).toEqual(["projectbrain index"]);
+    expect(await copyText("codeceipt index", clipboard)).toBe("copied");
+    expect(written).toEqual(["codeceipt index"]);
     const refusing = { writeText: async () => Promise.reject(new Error("denied")) };
     expect(await copyText("x", refusing)).toBe("failed");
     expect(await copyText("x", undefined)).toBe("failed");

@@ -1,4 +1,4 @@
-# Design contract: Project Brain
+# Design contract: Codeceipt
 Short on purpose: use one component library as-is; spend design effort only on the key screens.
 
 ## Direction: "Calm ledger" (RECOMMENDED)
@@ -35,7 +35,7 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 8 px. Spacing scale
 1. Receipts feed: newest receipts as ReceiptCards; asked / done / missed / outside scope / checks. Primary action:
    "Send fix to agent" (copies a prompt for missed items).
 2. Feature board: features with status, file count, open items, last receipt. Primary action: open a feature.
-3. Connect project (onboarding): sign in -> create project -> copy `npx projectbrain init` -> waiting for first index.
+3. Connect project (onboarding): sign in -> create project -> copy `npx codeceipt init` -> waiting for first index.
    Primary action: copy the command.
 
 ## Rules

@@ -1,4 +1,4 @@
-# Architecture: Project Brain
+# Architecture: Codeceipt
 Written during the kickoff; updated only when the structure changes. Keep it under ~150 lines.
 
 ## Options considered (trial stage)
@@ -38,7 +38,7 @@ apps/web/                  Next.js app: dashboard, API routes, MCP route, GitHub
   src/inngest/             job definitions (index-push, build-receipt)
 packages/core/             pure logic: indexer, feature grouping, similarity, checklist, receipt, checks, llm wrapper
 packages/db/               Drizzle schema, migrations, repositories (the only code that touches Postgres)
-packages/cli/              `projectbrain` CLI: init, index, hooks; talks to the API with a project token
+packages/cli/              `codeceipt` CLI (published as `codeceipt`; workspace package @brain/cli): init, index, hooks; talks to the API with a project token
 packages/agent-kit/        templates: SKILL.md, AGENTS.md section, hook scripts, MCP config snippets
 ```
 Layering: route/tool/job -> apps/web/src/server service -> packages/core (logic) + packages/db (data).

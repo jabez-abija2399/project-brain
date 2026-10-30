@@ -30,7 +30,7 @@ async function readHookInput(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-// The bin's entry: wires main() to the real process (bundled into dist/projectbrain.mjs by build.mjs).
+// The bin's entry: wires main() to the real process (bundled into dist/codeceipt.mjs by build.mjs).
 const code = await main(process.argv.slice(2), {
   fetch: (url, init) => fetch(url, init),
   env: process.env,

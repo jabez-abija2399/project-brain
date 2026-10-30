@@ -11,7 +11,7 @@ import {
   writeSync,
 } from "node:fs";
 import { isAbsolute, join, sep } from "node:path";
-import { oneLineText } from "@brain/core";
+import { brandEnv, oneLineText } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 import { callTool } from "./mcp-client";
@@ -47,7 +47,7 @@ const OPEN_STATUSES = new Set(["open", "partial", "missed"]);
 const MAX_STDIN = 64 * 1024;
 const MAX_RECEIPT_FILES = 200;
 const MAX_WARNED_ITEMS = 10;
-const WARN = "Project Brain:";
+const WARN = "Codeceipt:";
 
 const timed =
   (fetchImpl: Fetch, ms: number): Fetch =>
@@ -104,6 +104,8 @@ async function hookInput(deps: HookDeps): Promise<{ sessionId: string; cwd: stri
 // must really be inside .git and the file must not be a symlink, so nothing outside the repo is written or removed.
 async function stateFile(git: Git, root: string, sessionId: string): Promise<string> {
   const gitDir = realpathSync((await git(["rev-parse", "--absolute-git-dir"], root)).trim());
+  // Session state inside .git (never shown to the user); the folder keeps its pre-rename name so a session started
+  // before an upgrade still finds its starting commit.
   const dir = join(gitDir, "projectbrain");
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   if (lstatSync(dir).isSymbolicLink() || !realpathSync(dir).startsWith(gitDir + sep)) {
@@ -158,13 +160,13 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
   try {
     const root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
-    const passing = await passingTests(root, deps.env?.PROJECTBRAIN_TEST_REPORT);
+    const passing = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
     writeState(file, JSON.stringify({ start: await head(deps.git, root), passing }));
   } catch {
     // Not a git repo: session end then compares with HEAD.
   }
   if (!deps.config)
-    return deps.stderr(`${WARN} not logged in (run \`projectbrain login\`); no handoff note.`);
+    return deps.stderr(`${WARN} not logged in (run \`codeceipt login\`); no handoff note.`);
   let note: string;
   try {
     note = await callTool(
@@ -216,7 +218,7 @@ function openList(open: OpenItems): { text: string; status: string }[] {
 export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean> {
   const { sessionId, cwd } = await hookInput(deps);
   if (!deps.config) {
-    deps.stderr(`${WARN} not logged in (run \`projectbrain login\`); progress was not saved.`);
+    deps.stderr(`${WARN} not logged in (run \`codeceipt login\`); progress was not saved.`);
     return true;
   }
   const config = deps.config;
@@ -251,7 +253,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     start ?? (commit ? "HEAD" : null),
     files,
   ).catch(() => null);
-  const passingAfter = await passingTests(root, deps.env?.PROJECTBRAIN_TEST_REPORT);
+  const passingAfter = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
   const base = `/api/hooks/${encodeURIComponent(config.projectId)}/open-items`;
   try {
     const open = await request<OpenItems>(
@@ -354,7 +356,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
 
 /**
  * Claude Code headersHelper: the Authorization header from the user-level login (never from a repo file), only for
- * the logged-in Project Brain server. Claude Code names the server in CLAUDE_CODE_MCP_SERVER_URL; a cloned repo's own
+ * the logged-in Codeceipt server. Claude Code names the server in CLAUDE_CODE_MCP_SERVER_URL; a cloned repo's own
  * server using this helper (or an unknown caller) gets no header.
  */
 export function mcpHeaders(
@@ -370,7 +372,7 @@ export function mcpHeaders(
     }
   };
   if (!deps.config) {
-    deps.stderr(`${WARN} not logged in (run \`projectbrain login\`).`);
+    deps.stderr(`${WARN} not logged in (run \`codeceipt login\`).`);
   } else if (origin(deps.env.CLAUDE_CODE_MCP_SERVER_URL) !== origin(deps.config.apiUrl)) {
     deps.stderr(`${WARN} no token for this MCP server: it is not the server you logged in to.`);
   } else {

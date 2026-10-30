@@ -78,7 +78,7 @@ export function rlsFindings(tables: StoredTable[]): Finding[] {
         file,
         line: null,
         table,
-        hint: "RLS cannot be confirmed: a migration touching this table could not be read. Check it in the Supabase dashboard, then run `projectbrain index` again.",
+        hint: "RLS cannot be confirmed: a migration touching this table could not be read. Check it in the Supabase dashboard, then run `codeceipt index` again.",
       });
     } else if (!t.rlsEnabled) {
       out.push({

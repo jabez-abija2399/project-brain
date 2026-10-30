@@ -12,7 +12,7 @@ const NOTE = "LAST SESSION\nGoal: add reviews\nNext step: wire the stars";
 
 type Call = { path: string; tool?: string; args?: Record<string, unknown>; auth: string | null };
 
-// A fake Project Brain server: the MCP route answers tools/call, the open-items route the open checklist.
+// A fake Codeceipt server: the MCP route answers tools/call, the open-items route the open checklist.
 function server(openAfter: { text: string; status: string }[] = []) {
   const calls: Call[] = [];
   let openCalls = 0;
@@ -62,7 +62,7 @@ function setup(fetchImpl: CliDeps["fetch"], loggedIn = true) {
   git("add", ".");
   git("commit", "-q", "-m", "base");
   if (loggedIn) {
-    writeConfig(join(home, ".config", "projectbrain", "config.json"), {
+    writeConfig(join(home, ".config", "codeceipt", "config.json"), {
       apiUrl: "https://brain.test",
       projectId: "proj-1",
       token: TOKEN,
@@ -159,7 +159,7 @@ describe("FEAT-016 agent hooks", () => {
     writeFileSync(join(t.repo, "stars.tsx"), "export const Stars = () => null;\n");
     expect(await t.hook("session-end", "claude")).toBe(2);
     expect(t.err).toEqual([
-      "Project Brain: 2 checklist items are neither done nor parked:",
+      "Codeceipt: 2 checklist items are neither done nor parked:",
       "  - [partial] Add a star rating",
       "  - [missed] Email the owner",
     ]);
@@ -176,12 +176,10 @@ describe("FEAT-016 agent hooks", () => {
     const t = setup(down);
     expect(await t.hook("session-start", "claude")).toBe(0);
     expect(t.out).toEqual([]);
-    expect(t.err).toEqual(["Project Brain: server unreachable; no handoff note this session."]);
+    expect(t.err).toEqual(["Codeceipt: server unreachable; no handoff note this session."]);
     writeFileSync(join(t.repo, "x.ts"), "export {};\n");
     await t.hook("session-end", "claude");
-    expect(t.err).toEqual([
-      "Project Brain: server unreachable; progress and receipt were not saved.",
-    ]);
+    expect(t.err).toEqual(["Codeceipt: server unreachable; progress and receipt were not saved."]);
     const anon = setup(down, false);
     expect(await anon.hook("session-start", "cursor")).toBe(0);
     expect(anon.err).toHaveLength(1);

@@ -1,0 +1,2 @@
+# Paths `codeceipt index` skips (gitignore syntax). Test fixtures are sample apps, not this project's code.
+tests/fixtures/

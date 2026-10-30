@@ -23,7 +23,7 @@ function setup(agentDirs: string[] = [".claude", ".cursor"]) {
   const repo = mkdtempSync(join(tmpdir(), "pb-init-repo-"));
   execFileSync("git", ["init", "-q"], { cwd: repo });
   for (const d of agentDirs) mkdirSync(join(repo, d), { recursive: true });
-  writeConfig(join(home, ".config", "projectbrain", "config.json"), {
+  writeConfig(join(home, ".config", "codeceipt", "config.json"), {
     apiUrl: "https://brain.test",
     projectId: "proj-1",
     token: TOKEN,
@@ -59,42 +59,42 @@ function allFiles(dir: string): string[] {
   });
 }
 
-describe("FEAT-016 projectbrain init", () => {
+describe("FEAT-016 codeceipt init", () => {
   it("AC-016-01 detects Claude Code and Cursor and writes the MCP config, Skill, rule, hooks and an AGENTS.md section for each", async () => {
     const t = setup();
     expect(await t.run()).toBe(0);
-    expect(readJson(join(t.repo, ".mcp.json")).mcpServers.projectbrain).toEqual({
+    expect(readJson(join(t.repo, ".mcp.json")).mcpServers.codeceipt).toEqual({
       type: "http",
       url: "https://brain.test/mcp",
-      headers: { Authorization: "Bearer ${PROJECTBRAIN_TOKEN}" },
-      headersHelper: "projectbrain mcp-headers",
+      headers: { Authorization: "Bearer ${CODECEIPT_TOKEN}" },
+      headersHelper: "codeceipt mcp-headers",
     });
-    expect(readJson(join(t.repo, ".cursor/mcp.json")).mcpServers.projectbrain).toEqual({
+    expect(readJson(join(t.repo, ".cursor/mcp.json")).mcpServers.codeceipt).toEqual({
       url: "https://brain.test/mcp",
-      headers: { Authorization: "Bearer ${env:PROJECTBRAIN_TOKEN}" },
+      headers: { Authorization: "Bearer ${env:CODECEIPT_TOKEN}" },
     });
     const claude = readJson(join(t.repo, ".claude/settings.json")).hooks;
     expect(claude.SessionStart[0].hooks[0]).toMatchObject({
       type: "command",
-      command: "projectbrain hook session-start --agent claude",
+      command: "codeceipt hook session-start --agent claude",
     });
     expect(claude.SessionEnd[0].hooks[0]).toMatchObject({
-      command: "projectbrain hook session-end --agent claude",
+      command: "codeceipt hook session-end --agent claude",
       timeout: 60,
     });
     expect(readJson(join(t.repo, ".cursor/hooks.json"))).toMatchObject({
       version: 1,
       hooks: {
-        sessionStart: [{ command: "projectbrain hook session-start --agent cursor" }],
-        sessionEnd: [{ command: "projectbrain hook session-end --agent cursor" }],
+        sessionStart: [{ command: "codeceipt hook session-start --agent cursor" }],
+        sessionEnd: [{ command: "codeceipt hook session-end --agent cursor" }],
       },
     });
-    expect(readFileSync(join(t.repo, ".claude/skills/projectbrain/SKILL.md"), "utf8")).toContain(
-      "name: projectbrain",
+    expect(readFileSync(join(t.repo, ".claude/skills/codeceipt/SKILL.md"), "utf8")).toContain(
+      "name: codeceipt",
     );
-    expect(readFileSync(join(t.repo, "AGENTS.md"), "utf8")).toContain("## Project Brain");
+    expect(readFileSync(join(t.repo, "AGENTS.md"), "utf8")).toContain("## Codeceipt");
     expect(t.out[0]).toBe("Set up Claude Code and Cursor in .");
-    expect(t.out).toContain("  added   .mcp.json: MCP server projectbrain");
+    expect(t.out).toContain("  added   .mcp.json: MCP server codeceipt");
     expect(t.out).toContain("  added   AGENTS.md section");
   });
 
@@ -118,9 +118,7 @@ describe("FEAT-016 projectbrain init", () => {
     expect(t.out).toContain("  kept    AGENTS.md section (already set up)");
     for (const [file, text] of Object.entries(snapshot))
       expect(readFileSync(file, "utf8")).toBe(text);
-    expect(readFileSync(join(t.repo, "AGENTS.md"), "utf8").split("## Project Brain")).toHaveLength(
-      2,
-    );
+    expect(readFileSync(join(t.repo, "AGENTS.md"), "utf8").split("## Codeceipt")).toHaveLength(2);
   });
 
   it("AC-016-05 never overwrites the user's AGENTS.md content, hooks or MCP servers, and prints what it added", async () => {
@@ -137,7 +135,7 @@ describe("FEAT-016 projectbrain init", () => {
     );
     expect(await t.run()).toBe(0);
     expect(readFileSync(join(t.repo, "AGENTS.md"), "utf8")).toMatch(
-      /^# My rules\nAlways write tests\.\n\n<!-- projectbrain:start -->/,
+      /^# My rules\nAlways write tests\.\n\n<!-- codeceipt:start -->/,
     );
     const settings = readJson(join(t.repo, ".claude/settings.json"));
     expect(settings.permissions).toEqual({ allow: ["Bash(ls)"] });
@@ -145,7 +143,7 @@ describe("FEAT-016 projectbrain init", () => {
     expect(settings.hooks.SessionStart).toHaveLength(2);
     expect(Object.keys(readJson(join(t.repo, ".mcp.json")).mcpServers)).toEqual([
       "other",
-      "projectbrain",
+      "codeceipt",
     ]);
     expect(t.out).toEqual(
       expect.arrayContaining([
@@ -169,11 +167,11 @@ describe("FEAT-016 projectbrain init", () => {
     symlinkSync(t.home, join(t.repo, ".claude/skills"));
     await t.run();
     expect(readFileSync(outside, "utf8")).toBe("export PATH=/usr/bin\n");
-    expect(existsSync(join(t.home, "projectbrain"))).toBe(false);
+    expect(existsSync(join(t.home, "codeceipt"))).toBe(false);
     expect(t.out).toEqual(
       expect.arrayContaining([
         "  skipped AGENTS.md (a symlink or outside the repo)",
-        "  skipped .claude/skills/projectbrain/SKILL.md (a symlink or outside the repo)",
+        "  skipped .claude/skills/codeceipt/SKILL.md (a symlink or outside the repo)",
       ]),
     );
   });
@@ -181,12 +179,12 @@ describe("FEAT-016 projectbrain init", () => {
   it("finds no agent without .claude or .cursor (exit 2), and needs a login first (exit 3)", async () => {
     const t = setup([]);
     expect(await t.run()).toBe(2);
-    expect(t.err[0]).toMatch(/projectbrain init --claude/);
+    expect(t.err[0]).toMatch(/codeceipt init --claude/);
     rmConfig(t.home);
     expect(await t.run("--claude")).toBe(3);
   });
 });
 
 function rmConfig(home: string) {
-  writeFileSync(join(home, ".config", "projectbrain", "config.json"), "{}");
+  writeFileSync(join(home, ".config", "codeceipt", "config.json"), "{}");
 }

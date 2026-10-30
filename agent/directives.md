@@ -44,3 +44,4 @@
 - 2026-10-29: Invisible, bidirectional and lookalike characters are always written as \u escapes, never raw, in files and in commit messages.
 - 2026-10-29: Agents may add new checklists (create_checklist) to features from an approved plan; the approved plan's own checklist items stay locked (changes only through owner-confirmed proposals).
 - 2026-10-30: Build a public landing page at "/" (outside the 19 planned features): signed-out visitors see it, signed-in users keep their current flow; "Calm ledger" design with the printing receipt as the one bold element; waitlist form stores nothing until we decide where emails go.
+- 2026-10-30: Rename the product from "Project Brain" to "Codeceipt" everywhere users see it (tagline "A receipt for every AI change."); CLI codeceipt, npm package codeceipt, .codeceiptignore, CODECEIPT_TOKEN, with the old names still read; internal @brain/* packages, database names and migrations stay.
