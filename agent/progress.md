@@ -408,3 +408,9 @@ Changed: init detects and sets up Codex (.codex/config.toml proxy table, .codex/
 Verified (ran this session): docs of each agent read first (D-021); new tests failed first (init-agents, agent-hooks incl. the real plugin file run with a stand-in codeceipt); fresh-context security pass (2 files, 42 attacks, 14 failures fixed); CLI suite 186 pass; kit.py check; verify.sh (see PR).
 NOT VERIFIED: real Codex, OpenCode or Antigravity runs; Codex hook trust review flow; Antigravity hook folder.
 Next: owner tries each agent once; later.md items for Claude's plain-stdout note and file size.
+
+## 2026-10-30 | First-time user journey (start page, teaching empty states, terminal messages, end-to-end test, quickstart) | status: done (on branch, PR open)
+Changed: /start guided page (3 steps with live status from /api/onboarding: project linked, first index, first receipt; then the first receipt with "How to read it"), /projects sends a user with no receipt yet to /start (?all=1 skips); one-sentence empty states on Features, Receipts, Proposals, Plan; setup ends with "What happens next"; session-end hook prints a 3-line receipt summary with a link (receipt cards have #receipt-<id> anchors); /docs/quickstart rewritten to the journey with [SCREENSHOT] placeholders.
+Verified (ran this session): tests first; journey-e2e.test.ts runs the whole journey (real better-auth sign-in with GitHub mocked, npx codeceipt with device approval, index, init, a scripted agent session that misses one item, session end, receipt in the dashboard and the start page); start-page, session-summary, pages tests; full suites; kit.py check; verify.sh (see PR).
+NOT VERIFIED: a real browser (live reload, layout at 375/1280 px), a real GitHub sign-in, real agents.
+Next: real screenshots for the quickstart; later.md items (setup files in the first receipt, Connect tab).

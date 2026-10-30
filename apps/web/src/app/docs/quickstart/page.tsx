@@ -46,6 +46,15 @@ const TROUBLE: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
+    q: "My first receipt lists files the setup added",
+    a: (
+      <>
+        Commit what <code>npx codeceipt</code> added before your first session; a receipt covers
+        every file changed since the session started.
+      </>
+    ),
+  },
+  {
     q: "My agent does not see Codeceipt",
     a: (
       <>
@@ -57,26 +66,94 @@ const TROUBLE: { q: string; a: React.ReactNode }[] = [
   },
 ];
 
+// A screenshot to add before launch: the page is complete without it, the placeholder says what it will show.
+function Screenshot({ of }: { of: string }) {
+  return (
+    <p className="lp-doc-screenshot muted" data-screenshot={of}>
+      [SCREENSHOT: {of}]
+    </p>
+  );
+}
+
+// Journey part 6: the same steps, in the same words, as the start page, the terminal and the receipt.
 export default function QuickstartPage() {
   return (
     <DocPage title="Quickstart">
-      <p>In your app&apos;s folder, run:</p>
-      <TerminalSnippet command="npx codeceipt" />
-      <ol>
-        <li>
-          Your browser opens a page showing the same short code as your terminal. Sign in with
-          GitHub.
-        </li>
-        <li>Pick a project, or create one, and approve.</li>
-        <li>
-          Codeceipt links this repo to the project, indexes your code on your machine and sets up
-          Claude Code and Cursor. It ends with a short summary.
-        </li>
-      </ol>
       <p>
-        That&apos;s it. Start a Claude Code or Cursor session in the repo; receipts appear in your
-        dashboard when a session ends.
+        About five minutes from sign-in to your first receipt. Your source code stays on your
+        machine.
       </p>
+
+      <h2>1. Sign in with GitHub</h2>
+      <p>
+        Sign in on the Codeceipt home page. You land on <strong>Get your first receipt</strong>,
+        which shows the three steps below and ticks each one off by itself as it happens.
+      </p>
+      <Screenshot of="the Get your first receipt page with three waiting steps" />
+
+      <h2>2. Run npx codeceipt in your project</h2>
+      <p>In your app&apos;s folder (a git repository), run:</p>
+      <TerminalSnippet command="npx codeceipt" />
+      <p>The terminal shows a short code, like BCDF-GHJK, and opens your browser.</p>
+      <Screenshot of="the terminal showing the code and Waiting for approval" />
+
+      <h2>3. Approve in the browser</h2>
+      <p>
+        Check that the code on the page matches the one in your terminal, pick a project or create
+        one, and approve. Codeceipt then links this repo to the project, indexes your code on your
+        machine (only names, paths and hashes are sent) and sets up the agents it finds.
+      </p>
+      <Screenshot of="the approval page with the code and the project picker" />
+      <p>The terminal ends with a short summary and what happens next:</p>
+      <pre className="lp-doc-terminal">
+        <code>
+          {[
+            "Codeceipt is set up for this repo.",
+            "  Project: https://codeceipts.vercel.app/projects/…",
+            "  Indexed: 42 files, 5 features",
+            "  Agents:  Claude Code",
+            "What happens next:",
+            "  1. Start Claude Code in this folder.",
+            "  2. Ask it for a change, and end the session when it is done.",
+            "  3. See your receipt: https://codeceipts.vercel.app/projects/…/receipts",
+          ].join("\n")}
+        </code>
+      </pre>
+      <p>
+        Commit the files it added (the agent settings, the Codeceipt skill and the AGENTS.md
+        section), so your first receipt covers only your agent&apos;s change. The token is not in
+        any of them.
+      </p>
+
+      <h2>4. Open Claude Code or Cursor and make a change</h2>
+      <p>
+        Start your agent in the same folder and ask for something small. It checks where you
+        stopped, turns your request into a checklist and builds it. When it is done, end the
+        session: the terminal prints the receipt in three lines.
+      </p>
+      <pre className="lp-doc-terminal">
+        <code>
+          {[
+            "Codeceipt receipt: 1 done, 1 missed.",
+            "Checks needing attention: none.",
+            "Full receipt: https://codeceipts.vercel.app/projects/…/receipts#receipt-…",
+          ].join("\n")}
+        </code>
+      </pre>
+      <Screenshot of="the terminal after the session ends, with the three-line receipt" />
+      <p>
+        OpenCode and Antigravity have no session-end event: run <code>codeceipt receipt</code> when
+        you finish instead.
+      </p>
+
+      <h2>5. Your first receipt</h2>
+      <p>
+        The start page shows all three steps done and your first receipt, with what each part means:
+        what you asked, the checklist (done, partly done or missed), files changed outside the
+        request, security findings, test checks and what could not be verified. Every receipt after
+        that is on your project&apos;s Receipts tab.
+      </p>
+      <Screenshot of="the first receipt on the start page, with one item missed" />
 
       <h2>Troubleshooting</h2>
       <div className="lp-faq">

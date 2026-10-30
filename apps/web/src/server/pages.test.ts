@@ -61,6 +61,24 @@ describe("public pages", () => {
     expect(t).not.toContain("CODECEIPT_TOKEN");
   });
 
+  it("/docs/quickstart follows the first-time journey step by step, with screenshot placeholders", () => {
+    const html = render(QuickstartPage());
+    const t = text(html);
+    const order = [
+      "Sign in with GitHub",
+      "Run npx codeceipt in your project",
+      "Approve in the browser",
+      "What happens next",
+      "Open Claude Code or Cursor and make a change",
+      "Codeceipt receipt:",
+      "Your first receipt",
+    ].map((phrase) => t.indexOf(phrase));
+    expect(order.every((i) => i >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect((t.match(/\[SCREENSHOT/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    expect(t).toContain("codeceipt receipt");
+  });
+
   it("the landing page: one `npx codeceipt` step, no session-end command, and footer links to the new pages", async () => {
     const html = render(await Home());
     expect(copies(html)).toEqual(["npx codeceipt"]);
