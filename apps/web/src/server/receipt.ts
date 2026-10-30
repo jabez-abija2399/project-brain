@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { type ReceiptFileInput, buildReceipt, errorType, featureFromPath } from "@brain/core";
+import {
+  type ReceiptFileInput,
+  buildReceipt,
+  errorType,
+  featureFromPath,
+  isCodeceiptSetupPath,
+} from "@brain/core";
 import {
   type BrainDb,
   checklistItemsRepo,
@@ -114,7 +120,8 @@ export async function generateReceipt(
   // Bad package.json text or a full per-minute limit fails here, before any AI budget is spent.
   const dependencies = await prepareNewDependencies(db, token, input.packageJson ?? [], now);
   const items = await checklistItemsRepo.listUnresolvedForRequest(db, pid, request.id);
-  const paths = [...new Set(input.changedFiles)];
+  // Codeceipt's own setup files are never the user's change, even when an older CLI sends them.
+  const paths = [...new Set(input.changedFiles)].filter((p) => !isCodeceiptSetupPath(p));
   const files = await filesWithFeatures(db, pid, paths, request.featureId);
 
   let llm = null;
@@ -165,7 +172,10 @@ export async function generateReceipt(
       db,
       pid,
       receipt.items.flatMap((i) =>
-        i.status === "not_verified" ? [] : [{ id: i.id, status: i.status }],
+        // Not verified and done without a test keep their stored status (never called done, AC-013-07).
+        i.status === "not_verified" || i.status === "done_untested"
+          ? []
+          : [{ id: i.id, status: i.status }],
       ),
     );
   }

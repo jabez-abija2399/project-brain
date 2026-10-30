@@ -234,7 +234,7 @@ describe("first-time user journey, end to end", () => {
 
     // 2. npx codeceipt in the app's repo: the code is approved in the browser (with the session cookie), creating a
     // project; the CLI links the repo, indexes it and sets up Claude Code.
-    const { repo, git } = newApp();
+    const { repo } = newApp();
     const home = mkdtempSync(join(tmpdir(), "cc-journey-home-"));
     let approved = 0;
     const setup = cli(repo, home, async (url) => {
@@ -264,9 +264,7 @@ describe("first-time user journey, end to end", () => {
       `  3. See your receipt: ${receiptsUrl}`,
     ]);
     expect(steps(await render(StartPage()))).toEqual(["1:done", "2:done", "3:waiting"]);
-    // The user commits what setup added (agent config, the skill, AGENTS.md), as the quickstart says.
-    git("add", "-A");
-    git("commit", "-q", "-m", "Add Codeceipt");
+    // The user does not commit what setup added: Codeceipt's own files never count in the receipt.
 
     // 3. A scripted agent session: start hook, the request becomes a checklist, one item is built, session ends.
     const token = (

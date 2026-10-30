@@ -46,15 +46,6 @@ const TROUBLE: { q: string; a: React.ReactNode }[] = [
     ),
   },
   {
-    q: "My first receipt lists files the setup added",
-    a: (
-      <>
-        Commit what <code>npx codeceipt</code> added before your first session; a receipt covers
-        every file changed since the session started.
-      </>
-    ),
-  },
-  {
     q: "My agent does not see Codeceipt",
     a: (
       <>
@@ -120,9 +111,8 @@ export default function QuickstartPage() {
         </code>
       </pre>
       <p>
-        Commit the files it added (the agent settings, the Codeceipt skill and the AGENTS.md
-        section), so your first receipt covers only your agent&apos;s change. The token is not in
-        any of them.
+        The files it added (agent settings, the Codeceipt skill, the AGENTS.md section) hold no
+        token and never count as changes in your receipts.
       </p>
 
       <h2>4. Open Claude Code or Cursor and make a change</h2>
@@ -150,8 +140,10 @@ export default function QuickstartPage() {
       <p>
         The start page shows all three steps done and your first receipt, with what each part means:
         what you asked, the checklist (done, partly done or missed), files changed outside the
-        request, security findings, test checks and what could not be verified. Every receipt after
-        that is on your project&apos;s Receipts tab.
+        request, security findings, test checks and what could not be verified.{" "}
+        <strong>Done, no test proves it</strong> means the change is there but no test changed to
+        show it works; <strong>Not verified</strong> means Codeceipt could not check it at all.
+        Every receipt after that is on your project&apos;s Receipts tab.
       </p>
       <Screenshot of="the first receipt on the start page, with one item missed" />
 
