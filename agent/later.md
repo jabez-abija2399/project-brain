@@ -128,3 +128,6 @@
 - 2026-10-30 Dogfooding (D-023): the session-end hook still attaches a receipt to the newest open request even when that request came from an earlier session; tie requests to the session that created them (record the session start time, compare with the request's created_at).
 - 2026-10-30 Dogfooding (D-023): the start page shows the newest receipt under "Your first receipt"; once more receipts exist it may be better to name it "Your latest receipt".
 - 2026-10-30 Dogfooding (D-023): consider showing the last session's receipt summary in the next SessionStart note (SessionStart output is shown to the agent and user), in addition to `codeceipt last`.
+- 2026-10-30 D-023 security: /api/hooks/:projectId/last-receipt returns the whole stored receipt (item texts, paths, findings) to the token holder, who already got it from generate_receipt; the CLI prints only counts. Consider returning counts only.
+- 2026-10-30 D-023 security: receipts without a request need no AI call, so the only limit on stored receipts is 300 MCP calls a minute; consider a daily receipt cap per project.
+- 2026-10-30 D-023 security: resolveFeature tries id, name, then key, so a feature a user names "@home" takes the ref "@home" before the automatic feature with that key (same project only); and get_context_pack looks the feature up again by name, which can differ with duplicate names.

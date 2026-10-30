@@ -220,7 +220,10 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
       decisions: decisions.map((d) => ({ title: d.title, createdAt: d.createdAt })),
       directives: directives.map((d) => d.text),
       // With each id, so an agent can pass either to the tools that take a feature (dogfooding, edutech).
-      features: all.features.map((f) => `${maskSecretsIn(f.name)} (id ${f.id})`),
+      // A name cannot fake another feature's id: commas and parentheses in it are shown as spaces (security pass).
+      features: all.features.map(
+        (f) => `${maskSecretsIn(f.name).replace(/[(),]/g, " ")} (id ${f.id})`,
+      ),
       // FEAT-019: the approved plan's next feature by build order (AC-019-05).
       nextFeature: next ? maskSecretsIn(next.name) : null,
     });

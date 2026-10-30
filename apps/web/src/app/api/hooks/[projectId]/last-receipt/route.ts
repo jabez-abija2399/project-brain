@@ -6,7 +6,8 @@ export const dynamic = "force-dynamic";
 
 // Dogfooding: `codeceipt last` prints the newest receipt's summary again (Claude Code does not show a SessionEnd
 // hook's output after the agent exits). The project comes only from the URL, checked against the token (404
-// otherwise), with the same limits as the other CLI routes. The CLI reads only counts from it.
+// otherwise), with the same limits as the other CLI routes. It returns the stored receipt, which the token's holder
+// already got from generate_receipt; the CLI prints only counts from it.
 export const GET = indexRoute("hooks.last-receipt", async (db, projectId) => {
   const [row] = await receiptsRepo.list(db, projectId, 1);
   if (!row) return { receipt: null };

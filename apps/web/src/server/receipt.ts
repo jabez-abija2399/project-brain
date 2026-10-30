@@ -59,8 +59,13 @@ function parse(raw: unknown): z.infer<typeof receiptSchema> {
   throw new AppError(400, "invalid_input", "input validation failed", fieldErrors);
 }
 
-// Test-only folders (dogfooding): tests for the request are never "outside" it.
-const isTestCode = (path: string) => featureFromPath(path) === TESTS_KEY;
+// Tests for the request are never "outside" it (dogfooding). Only files that are tests by their own name or sit in a
+// __tests__/__mocks__/__fixtures__ folder count: app code kept in a folder named test, e2e or fixtures does not get a
+// pass from the out-of-scope check (security pass, D-023).
+const TEST_NAME = /\.(test|spec|cy)\.[cm]?[jt]sx?$/;
+const TEST_ONLY_DIR = /(^|\/)(__tests__|__mocks__|__fixtures__)\//;
+const isTestCode = (path: string) =>
+  featureFromPath(path) === TESTS_KEY && (TEST_NAME.test(path) || TEST_ONLY_DIR.test(path));
 
 // Each changed path with its feature: stored links first (primary wins for the name), then the FEAT-006 path rule
 // for files that are not indexed yet. In scope = linked (primary or shared) to the request's feature.

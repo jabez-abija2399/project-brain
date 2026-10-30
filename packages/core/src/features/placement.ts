@@ -101,10 +101,18 @@ function packageKey(segments: string[]): string | null {
 export function placementOf(path: string, url: string | undefined): Placement {
   const posix = path.replace(/\\/g, "/");
   const parts = posix.split("/");
-  // A file inside a test-only folder (anywhere in its path) is test code, whatever else its path says.
-  if (parts.slice(0, -1).some((seg) => TEST_DIRS.has(seg))) return { key: TESTS_KEY };
   // Monorepo apps/<name>/ is an app root: the app rules apply inside it.
   if (parts[0] === "apps" && parts.length > 2) return placementOf(parts.slice(2).join("/"), url);
+  // A file inside a test-only folder (anywhere in its path) is test code, whatever else its path says, except under
+  // app/ or pages/: there a folder named test or e2e is a URL (a real page or API route), not test code.
+  const routes = parts[parts[0] === "src" ? 1 : 0];
+  if (
+    routes !== "app" &&
+    routes !== "pages" &&
+    parts.slice(0, -1).some((seg) => TEST_DIRS.has(seg))
+  ) {
+    return { key: TESTS_KEY };
+  }
   if (parts[0] === "packages" && parts.length > 2) {
     const key = packageKey(parts);
     return key ? { key } : null;
