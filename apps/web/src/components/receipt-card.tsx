@@ -57,6 +57,12 @@ export function ReceiptCard({
             </strong>
             <span className="row">
               <StatusBadge status="done" label={`${count("done")} done`} />
+              {count("done_untested") > 0 && (
+                <StatusBadge
+                  status="done_untested"
+                  label={`${count("done_untested")} done, no test proves it`}
+                />
+              )}
               <StatusBadge status="partial" label={`${count("partial")} partly done`} />
               <StatusBadge status="missed" label={`${count("missed")} missed`} />
               {view.outsideScope.length > 0 && (

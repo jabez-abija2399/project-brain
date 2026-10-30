@@ -19,16 +19,17 @@ const RECEIPT_GUIDE: [string, string][] = [
     "Checklist",
     "each part of that request: done, partly done or missed, judged from the files that changed.",
   ],
+  [
+    "Done, no test proves it",
+    "the change is in the code, but no test changed to show that it works.",
+  ],
   ["Changed outside the request's feature", "files the agent touched beyond what you asked about."],
   [
     "Security findings",
     "possible secrets and database rules that need a look (secret values are never shown).",
   ],
   ["Test checks", "tests that were deleted, skipped or weakened during the session."],
-  [
-    "Not verified",
-    "what Codeceipt could not check from the code alone, so you should try it yourself.",
-  ],
+  ["Not verified", "Codeceipt could not check this from the changed files, so try it yourself."],
 ];
 
 function Step({

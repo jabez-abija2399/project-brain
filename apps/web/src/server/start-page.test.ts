@@ -128,6 +128,9 @@ describe("guided start page", () => {
     ]) {
       expect(t).toContain(section);
     }
+    // The guide tells the two "not quite done" states apart, one sentence each.
+    expect(t).toMatch(/Done, no test proves it: [^.]+\./);
+    expect(t).toMatch(/Not verified: [^.]+\./);
     expect(html).toContain(`href="/projects/${project.id}/receipts"`);
     // Once a receipt exists, /projects is the normal list again.
     expect(await redirectOf(ProjectsPage({ searchParams: Promise.resolve({}) }))).toBeNull();

@@ -1,6 +1,7 @@
 // Status is never shown by color alone (docs/DESIGN.md): every badge has an icon and a label.
 export type Status =
   | "done"
+  | "done_untested"
   | "partial"
   | "missed"
   | "open"
@@ -10,6 +11,8 @@ export type Status =
 
 const LOOK: Record<Status, { icon: string; label: string; tone: string }> = {
   done: { icon: "✓", label: "Done", tone: "done" },
+  // The change is there, but no test changed to prove it (apart from "Not verified": could not be checked at all).
+  done_untested: { icon: "✓?", label: "Done, no test proves it", tone: "partial" },
   partial: { icon: "◐", label: "Partly done", tone: "partial" },
   missed: { icon: "✕", label: "Missed", tone: "missed" },
   open: { icon: "○", label: "Open", tone: "open" },

@@ -84,8 +84,9 @@ describe("change receipt (FEAT-013)", () => {
     const noTests = files.filter((f) => !f.path.includes(".test."));
     const { llm } = scripted("1 | done | src/reviews/List.tsx\n2 | partial |\n3 | done |");
     const receipt = await buildReceipt(llm, items, noTests);
+    // Owner, 2026-10-30: done without a changed test is "done_untested" (still listed in not_verified below).
     expect(receipt.items.map((i) => i.status)).toEqual([
-      "not_verified",
+      "done_untested",
       "not_verified",
       "not_verified",
     ]);

@@ -122,3 +122,5 @@
 - 2026-10-30 Journey: the start page polls /api/onboarding every 4 s and reloads the page when a step changes; check in a real browser (and at 375/1280 px) that the reload feels right, or switch to a router refresh.
 - 2026-10-30 Journey: the old Connect tab still shows the login + init + index commands; point it at /start or rewrite it around `npx codeceipt`.
 - 2026-10-30 Journey: /docs/quickstart has [SCREENSHOT] placeholders to replace with real screenshots before launch.
+- 2026-10-30 Done (D-022): Codeceipt's own setup files no longer count in receipts, so the quickstart no longer asks users to commit them first.
+- 2026-10-30 AC-013-07 wording ("listed there, not done") predates the "Done, no test proves it" state (D-022); the owner may want to reword it to name both states (through agent/plan.json).
