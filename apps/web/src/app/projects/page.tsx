@@ -1,19 +1,26 @@
-import { getAuth } from "@/server/auth";
+import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
+import { onboarding } from "@/server/onboarding";
 import { projectsRepo } from "@brain/db";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import CreateProjectForm from "./create-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectsPage() {
-  const session = await getAuth().api.getSession({ headers: await headers() });
-  if (!session?.user) redirect("/");
-
+// Journey part 1: until the user's first receipt arrives, /projects (where sign-in lands) is the guided start page;
+// ?all=1 shows the list anyway.
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ all?: string | string[] }>;
+}) {
+  const user = await pageUser();
   const db = getDb();
-  const { items: projects } = await projectsRepo.listByOwner(db, session.user.id);
+  if ((await searchParams).all === undefined && !(await onboarding(db, user)).steps.receipt) {
+    redirect("/start");
+  }
+  const { items: projects } = await projectsRepo.listByOwner(db, user.id);
 
   return (
     <main style={{ padding: "48px 32px", maxWidth: 800, margin: "0 auto" }}>

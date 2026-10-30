@@ -33,7 +33,11 @@ export function ReceiptCard({
   const count = (s: string) => view.items.filter((i) => i.status === s).length;
   const missed = count("missed") + count("partial");
   return (
-    <article className={`card${missed > 0 ? " card-highlighted" : ""}`} data-testid="receipt-card">
+    <article
+      id={`receipt-${receipt.id}`}
+      className={`card${missed > 0 ? " card-highlighted" : ""}`}
+      data-testid="receipt-card"
+    >
       <details open={expanded}>
         <summary style={{ cursor: "pointer", listStyle: "none" }}>
           <div className="stack" style={{ gap: 6 }}>

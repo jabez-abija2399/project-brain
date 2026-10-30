@@ -18,7 +18,7 @@ export default async function ProposalsPage(props: ListPageProps) {
       {list.total === 0 ? (
         <EmptyState
           title="No proposals waiting"
-          text="When an agent proposes to reword or drop a checklist item, it waits here for you."
+          text="Checklist changes an agent proposes appear here for your decision, when an agent asks to reword or drop an item."
           action={{ label: "See the receipts", href: `${base}/receipts` }}
         />
       ) : (

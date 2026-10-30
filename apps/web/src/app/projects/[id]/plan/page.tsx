@@ -34,8 +34,8 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
         ) : (
           <EmptyState
             title="No plan yet"
-            text="Ask your agent to plan the project with your idea (plan_project). Its draft waits here for your approval."
-            action={{ label: "Connect an agent", href: `${base}/connect` }}
+            text="Your project plan appears here for your approval: ask your agent to plan the project from your idea (plan_project)."
+            action={{ label: "Get started", href: "/start" }}
           />
         )
       ) : (
