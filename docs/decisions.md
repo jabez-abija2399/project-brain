@@ -350,3 +350,9 @@ and at the end files past it count as changed); the state is written before hash
 the session are labelled for the judge. Kept as the owner asked: the snapshot also filters the secret scan, so a
 snapshot edited by an agent with write access to .git could hide a file (as the starting commit already could); see
 agent/later.md.
+Owner decision (2026-10-31): the secret scan reads every changed file, whatever the snapshot says (fail safe).
+Findings in files untouched since the snapshot are sent as secretFindingsBeforeSession (the server refuses any that
+name a file in this change) and shown in a separate section, "Already in your working tree before this session",
+never counted as the agent's change, in the findings count or outside scope. A snapshot edited to hide a file can
+therefore move its secrets to that section, but never hide them. The snapshot still applies to the receipt's changed
+files and the test checks.

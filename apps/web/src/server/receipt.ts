@@ -7,6 +7,7 @@ import {
   errorType,
   featureFromPath,
   isCodeceiptSetupPath,
+  secretFinding,
 } from "@brain/core";
 import {
   type BrainDb,
@@ -69,6 +70,8 @@ const receiptSchema = z
       .optional(),
     packageJson: packageJsonChanges.optional(),
     secretFindings: secretFindingsInput.optional(),
+    // Owner, 2026-10-31: secrets in files already changed before the session (the scan reads every changed file).
+    secretFindingsBeforeSession: secretFindingsInput.optional(),
     testIntegrity: testIntegrityInput.optional(),
     // The CLI's count of findings past its own cap (scan-secrets "omitted").
     secretFindingsOmitted: z.number().int().min(0).max(1_000_000).optional(),
@@ -88,6 +91,14 @@ const receiptSchema = z
       if (paths.some((p) => !changed.has(p))) {
         ctx.addIssue({ code: "custom", path: [key], message: "must name changed files only" });
       }
+    }
+    // A file in this change is the session's: its findings are never filed as "before the session".
+    if ((input.secretFindingsBeforeSession ?? []).some((f) => changed.has(f.file))) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["secretFindingsBeforeSession"],
+        message: "must name files outside this change",
+      });
     }
   });
 
@@ -246,6 +257,9 @@ export async function generateReceipt(
   }
   const noRequest = request === null ? { no_request: true } : {};
   const baseline = {
+    ...(input.secretFindingsBeforeSession?.length
+      ? { findings_before_session: input.secretFindingsBeforeSession.map(secretFinding) }
+      : {}),
     ...(alreadyModified.length > 0 ? { files_already_modified: alreadyModified } : {}),
     ...(input.snapshot === "missing" ? { no_snapshot: true } : {}),
   };

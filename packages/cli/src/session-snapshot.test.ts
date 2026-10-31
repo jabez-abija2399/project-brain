@@ -17,6 +17,7 @@ type Receipt = {
   snapshot?: string;
   changeSummaries?: { path: string }[];
   secretFindings?: { file: string }[];
+  secretFindingsBeforeSession?: { file: string; type: string }[];
   testIntegrity?: { flags: { file: string }[] };
 };
 
@@ -94,7 +95,7 @@ function setup() {
 }
 
 describe("D-025 files changed before the session are not the agent's changes", () => {
-  it("untouched pre-existing modified and untracked files are left out of the receipt, the secret scan and the test checks", async () => {
+  it("untouched pre-existing modified and untracked files are left out of the receipt and the test checks; their secrets are reported apart", async () => {
     const t = setup();
     t.dirty();
     await t.run("session-start");
@@ -104,9 +105,15 @@ describe("D-025 files changed before the session are not the agent's changes", (
     expect(r?.changedFiles).toEqual(["src/app/page.tsx"]);
     expect(r?.preExistingFiles ?? []).toEqual([]);
     expect(r?.snapshot).toBeUndefined();
+    // Owner, 2026-10-31: the secret scan sees every changed file (fail safe); findings in files already changed
+    // before the session are sent apart, never as the agent's.
     expect(r?.secretFindings ?? []).toEqual([]);
+    expect(r?.secretFindingsBeforeSession?.map((f) => f.file)).toEqual(["db_dump.json"]);
     expect(r?.testIntegrity?.flags ?? []).toEqual([]);
     expect(t.err.join("\n")).toContain("Codeceipt receipt: 1 file changed");
+    expect(t.err).toContain(
+      "Codeceipt: already in your working tree before this session: 1 secret finding (see the full receipt).",
+    );
   });
 
   it("a pre-existing changed file the agent edits further counts, marked as already modified before the session", async () => {
@@ -227,5 +234,36 @@ describe("D-025 security pass: snapshot and summaries", () => {
       removed: 0,
       where: ["large file"],
     });
+  });
+});
+
+describe("owner decision 2026-10-31: the secret scan sees every changed file", () => {
+  it("attack: a snapshot edited to hide a new file with a secret still reports that secret", async () => {
+    const t = setup();
+    await t.run("session-start");
+    t.agentEdit();
+    t.write("src/leak.ts", `export const key = "${SECRET}";\n`);
+    const { fileHash } = await import("./session-snapshot");
+    const dir = join(t.repo, ".git", "projectbrain");
+    const [stateName] = readdirSync(dir);
+    const state = JSON.parse(readFileSync(join(dir, stateName as string), "utf8"));
+    state.snapshot = { ...state.snapshot, "src/leak.ts": await fileHash(t.repo, "src/leak.ts") };
+    writeFileSync(join(dir, stateName as string), JSON.stringify(state));
+    await t.run("session-end");
+    const [r] = t.receipts;
+    const all = [...(r?.secretFindings ?? []), ...(r?.secretFindingsBeforeSession ?? [])];
+    expect(all.map((f) => f.file)).toContain("src/leak.ts");
+    expect(JSON.stringify(t.receipts)).not.toContain(SECRET);
+  });
+
+  it("a secret in a file the agent changed during the session is the session's finding", async () => {
+    const t = setup();
+    t.dirty();
+    await t.run("session-start");
+    t.write("src/app/page.tsx", `const key = "${SECRET}";\n`);
+    await t.run("session-end");
+    const [r] = t.receipts;
+    expect(r?.secretFindings?.map((f) => f.file)).toEqual(["src/app/page.tsx"]);
+    expect(r?.secretFindingsBeforeSession?.map((f) => f.file)).toEqual(["db_dump.json"]);
   });
 });

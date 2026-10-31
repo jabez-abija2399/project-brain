@@ -69,6 +69,7 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
       notVerified: [],
       findings: [],
       findingsOmitted: 0,
+      findingsBeforeSession: [],
       testChecks: [],
       passing: { before: null, after: null },
     });

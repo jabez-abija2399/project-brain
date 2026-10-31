@@ -436,6 +436,8 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
   const config = deps.config;
   let root = cwd;
   let files: string[] = [];
+  // Every changed file, before the snapshot filter: what the secret scan reads.
+  let allChanged: string[] = [];
   // What the receipt is about: the changed files minus Codeceipt's own setup (the secret scan still sees them all).
   let receiptFiles: string[] = [];
   let start: string | null = null;
@@ -461,15 +463,21 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
       if (!ancestor) start = null;
     }
     files = await changedFiles(deps.git, root, start ?? undefined);
-    // Only the session's own changes: files new or different since the start snapshot (also for the secret scan and
-    // the test checks). Without a snapshot every changed file counts and the receipt says so.
+    allChanged = files;
+    // Only the session's own changes: files new or different since the start snapshot (also for the test checks; the
+    // secret scan reads every changed file). Without a snapshot every changed file counts and the receipt says so.
     if (snapshot) ({ files, preExisting } = await sinceSnapshot(root, files, snapshot));
     else noSnapshot = true;
     receiptFiles = await withoutSetupFiles(deps.git, root, start ?? "HEAD", files);
   } catch {
     // Not a git repo: no changed files can be known, so none are claimed.
   }
-  const scan = await scanFiles(deps.git, root, files).catch(() => null);
+  // Owner, 2026-10-31: the secret scan sees every changed file, whatever the snapshot says (fail safe). Findings in
+  // files untouched since the snapshot are the user's earlier work: sent apart, never as the session's.
+  const scan = await scanFiles(deps.git, root, allChanged).catch(() => null);
+  const session = new Set(files);
+  const sessionFindings = scan?.findings.filter((f) => session.has(f.file)) ?? [];
+  const beforeFindings = scan?.findings.filter((f) => !session.has(f.file)) ?? [];
   // FEAT-018: tests deleted, skipped or weakened, compared on this machine; only names and counts are sent.
   const integrity = await localIntegrity(
     deps.git,
@@ -523,7 +531,13 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
               ...(noSnapshot ? { snapshot: "missing" } : {}),
               ...(commit && commit !== start ? { commitSha: commit } : {}),
               ...(scan
-                ? { secretFindings: scan.findings, secretFindingsOmitted: scan.omitted }
+                ? {
+                    secretFindings: sessionFindings,
+                    secretFindingsOmitted: scan.omitted,
+                    ...(beforeFindings.length > 0
+                      ? { secretFindingsBeforeSession: beforeFindings }
+                      : {}),
+                  }
                 : {}),
               // Sent only when there is something to report: flags or test counts.
               ...(integrity &&
@@ -562,6 +576,11 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
           ...receiptSummary(combineReceipts(receipts), config, receiptId, receiptFiles.length),
         );
         if (noSnapshot) warnings.push(`${WARN} ${NO_SNAPSHOT_NOTE}`);
+        if (beforeFindings.length > 0) {
+          warnings.push(
+            `${WARN} already in your working tree before this session: ${plural(beforeFindings.length, "secret finding")} (see the full receipt).`,
+          );
+        }
       }
     }
     const after =

@@ -56,4 +56,26 @@ describe("receipt card (D-025)", () => {
     expect(html).not.toContain('page.tsx</code> <span class="muted">(already modified');
     expect(html).toContain(NO_SNAPSHOT_NOTE.replace(/'/g, "&#x27;"));
   });
+
+  it("owner decision 2026-10-31: secrets already in the working tree get their own section, outside the findings count", () => {
+    const html = card({
+      items: [],
+      findings: [],
+      findings_before_session: [
+        {
+          type: "stripe_secret_key",
+          file: "db_dump.json",
+          line: 1,
+          hint: "Move it to an env var",
+          masked_value: "sk_l***",
+        },
+      ],
+    });
+    expect(html).toContain(">Already in your working tree before this session</h3>");
+    const section = html.slice(
+      html.indexOf(">Already in your working tree before this session</h3>"),
+    );
+    expect(section).toContain("db_dump.json");
+    expect(html).not.toContain("findings</span>");
+  });
 });

@@ -433,3 +433,4 @@ Changed: session start snapshots modified/untracked files (paths + hashes, in .g
 Verified (ran this session): tests first (core, CLI with real git repos, server, card render); old tests updated only where the behaviour changed on purpose; fresh-context security pass; full suites; kit.py check; verify.sh (see PR).
 NOT VERIFIED: a real agent session on edutech; the real judge model's answers with summaries.
 Next: later.md items.
+2026-10-31 D-025 owner decision: the secret scan reads every changed file; findings in files already changed before the session are sent and shown apart ("Already in your working tree before this session"), never the agent's or outside scope. Tests first (CLI real git repos incl. a forged snapshot, server, card).

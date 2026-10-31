@@ -21,6 +21,14 @@ import {
 } from "./session-tools";
 
 // JSON-RPC error codes of the MCP route (docs/specs/FEAT-011.md section 7).
+// One masked secret finding as the CLI sends it (validated strictly in the receipt service).
+const maskedSecretFinding = z.object({
+  file: z.string(),
+  line: z.number(),
+  type: z.string(),
+  masked_value: z.string(),
+});
+
 export const MCP_ERROR = {
   invalidParams: -32602,
   unauthorized: -32001,
@@ -341,18 +349,18 @@ export function registerBrainTools(server: McpServer): void {
             "Changed package.json files; every newly added dependency is checked on npm (max 10 files)",
           ),
         secretFindings: z
-          .array(
-            z.object({
-              file: z.string(),
-              line: z.number(),
-              type: z.string(),
-              masked_value: z.string(),
-            }),
-          )
+          .array(maskedSecretFinding)
           .max(200)
           .optional()
           .describe(
             "Masked secret findings from `codeceipt scan-secrets` on the changed files (never raw values)",
+          ),
+        secretFindingsBeforeSession: z
+          .array(maskedSecretFinding)
+          .max(200)
+          .optional()
+          .describe(
+            "Masked secret findings in files that were already changed before the session (not the session's change)",
           ),
         secretFindingsOmitted: z
           .number()

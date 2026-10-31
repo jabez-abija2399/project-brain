@@ -30,6 +30,8 @@ export type ReceiptView = {
     maskedValue?: string;
   }[];
   findingsOmitted: number;
+  // Owner, 2026-10-31: secrets in files already changed before the session (never the agent's findings).
+  findingsBeforeSession: ReceiptView["findings"];
   // FEAT-018: tests deleted, skipped or weakened, and the passing-test count before and after (null when unknown).
   testChecks: { label: string; file: string; names: string[]; count: number }[];
   passing: { before: number | null; after: number | null };
@@ -75,6 +77,20 @@ const obj = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
+// Findings as stored (secrets and RLS), cleaned and masked again for display.
+const findingList = (value: unknown): ReceiptView["findings"] =>
+  list(value).map((raw) => {
+    const f = obj(raw);
+    const masked = safeDisplay(f.masked_value, 16);
+    return {
+      type: safeDisplay(f.type, 60),
+      file: safePath(f.file),
+      line: typeof f.line === "number" && Number.isInteger(f.line) && f.line > 0 ? f.line : null,
+      hint: safeDisplay(f.hint),
+      ...(/^[\x21-\x7e]{1,4}\*\*\*$/.test(masked) ? { maskedValue: masked } : {}),
+    };
+  });
+
 export function receiptView(summary: unknown): ReceiptView {
   const s = obj(summary);
   // Done but no changed test: its own state. Receipts stored before the split have it as not_verified with that
@@ -115,17 +131,8 @@ export function receiptView(summary: unknown): ReceiptView {
       if (n.reason === NO_TEST_CHANGED) return [];
       return [{ text: safeDisplay(n.text), reason: safeDisplay(n.reason, 120) }];
     }),
-    findings: list(s.findings).map((raw) => {
-      const f = obj(raw);
-      const masked = safeDisplay(f.masked_value, 16);
-      return {
-        type: safeDisplay(f.type, 60),
-        file: safePath(f.file),
-        line: typeof f.line === "number" && Number.isInteger(f.line) && f.line > 0 ? f.line : null,
-        hint: safeDisplay(f.hint),
-        ...(/^[\x21-\x7e]{1,4}\*\*\*$/.test(masked) ? { maskedValue: masked } : {}),
-      };
-    }),
+    findings: findingList(s.findings),
+    findingsBeforeSession: findingList(s.findings_before_session),
     findingsOmitted:
       typeof s.findings_omitted === "number" && s.findings_omitted > 0
         ? Math.floor(s.findings_omitted)

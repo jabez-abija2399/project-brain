@@ -189,4 +189,41 @@ describe("D-025 receipts on the server", () => {
       }),
     ).rejects.toMatchObject({ status: 400 });
   });
+
+  it("owner decision 2026-10-31: secrets already in the working tree before the session are kept apart, never the agent's or outside scope", async () => {
+    const masked = { line: 1, type: "stripe_secret_key", masked_value: "sk_l***" };
+    const receipt = await generateReceipt(world.db, token, {
+      changedFiles: ["src/app/page.tsx"],
+      secretFindings: [],
+      secretFindingsBeforeSession: [{ file: "db_dump.json", ...masked }],
+    });
+    expect(receipt.findings.filter((f) => f.type === "stripe_secret_key")).toEqual([]);
+    expect(receipt.outside_scope).toEqual([]);
+    expect(receipt.findings_before_session).toEqual([
+      expect.objectContaining({
+        file: "db_dump.json",
+        type: "stripe_secret_key",
+        masked_value: "sk_l***",
+      }),
+    ]);
+    const [card] = (await receiptsFeed(world.db, owner, projectId, 1)).rows;
+    expect(card?.view.findings).toEqual([]);
+    expect(card?.view.findingsBeforeSession.map((f) => f.file)).toEqual(["db_dump.json"]);
+    // A file in this change is the session's: it cannot be filed as "before the session".
+    await expect(
+      generateReceipt(world.db, token, {
+        changedFiles: ["src/app/page.tsx"],
+        secretFindingsBeforeSession: [{ file: "src/app/page.tsx", ...masked }],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    // Unmasked values are refused like any secret finding.
+    await expect(
+      generateReceipt(world.db, token, {
+        changedFiles: ["src/app/page.tsx"],
+        secretFindingsBeforeSession: [
+          { file: "db_dump.json", ...masked, masked_value: "sk_live_full" },
+        ],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
 });

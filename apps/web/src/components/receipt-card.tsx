@@ -170,6 +170,26 @@ export function ReceiptCard({
               )}
             </Section>
           )}
+          {view.findingsBeforeSession.length > 0 && (
+            <Section title="Already in your working tree before this session">
+              <p className="muted" style={{ margin: 0 }}>
+                Found in files you had already changed before this session: not the agent's change.
+              </p>
+              <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {view.findingsBeforeSession.map((f, n) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id in a stored receipt
+                  <li key={n} className="stack" style={{ gap: 2 }}>
+                    <span className="row">
+                      <StatusBadge status="warning" label={f.type.replaceAll("_", " ")} />
+                      <CodeRef path={f.file} line={f.line} />
+                      {f.maskedValue && <code>{f.maskedValue}</code>}
+                    </span>
+                    <span className="muted wrap">{f.hint}</span>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
           {(view.testChecks.length > 0 || view.passing.before !== null) && (
             <Section title="Test checks">
               {view.passing.before !== null && view.passing.after !== null && (
