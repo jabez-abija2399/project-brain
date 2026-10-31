@@ -267,3 +267,32 @@ describe("owner decision 2026-10-31: the secret scan sees every changed file", (
     expect(r?.secretFindingsBeforeSession?.map((f) => f.file)).toEqual(["db_dump.json"]);
   });
 });
+
+describe("D-026 start blobs", () => {
+  it("attack: a start blob forged in the state file is not trusted; the summary falls back to the starting commit", async () => {
+    const t = setup();
+    t.write("src/lib/offline/sync.ts", "export function sync() {\n  return 2;\n}\n");
+    await t.run("session-start");
+    t.write(
+      "src/lib/offline/sync.ts",
+      "export function sync() {\n  return 3;\n}\nexport const hidden = 1;\n",
+    );
+    // The agent writes the file's final content as a blob and points the state at it.
+    const forged = execFileSync("git", ["hash-object", "-w", "src/lib/offline/sync.ts"], {
+      cwd: t.repo,
+    })
+      .toString()
+      .trim();
+    const dir = join(t.repo, ".git", "projectbrain");
+    const [stateName] = readdirSync(dir);
+    const state = JSON.parse(readFileSync(join(dir, stateName as string), "utf8"));
+    state.blobs = { "src/lib/offline/sync.ts": forged };
+    writeFileSync(join(dir, stateName as string), JSON.stringify(state));
+    await t.run("session-end");
+    const s = (
+      t.receipts[0]?.changeSummaries as { path: string; added: number; symbols_added: string[] }[]
+    ).find((x) => x.path === "src/lib/offline/sync.ts");
+    expect(s?.added).toBeGreaterThan(0);
+    expect(s?.symbols_added).toContain("hidden");
+  });
+});

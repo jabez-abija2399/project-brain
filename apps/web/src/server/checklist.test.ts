@@ -236,7 +236,7 @@ describe("create_checklist (FEAT-012)", () => {
     const out = await createChecklist(world.db, tokenRow, {
       projectId,
       featureId,
-      request: "pricing",
+      request: "Add a pricing page with 3 plans",
     });
     const [first, second] = out.items;
     if (!first || !second) throw new Error("expected two items");

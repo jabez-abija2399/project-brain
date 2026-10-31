@@ -356,3 +356,32 @@ name a file in this change) and shown in a separate section, "Already in your wo
 never counted as the agent's change, in the findings count or outside scope. A snapshot edited to hide a file can
 therefore move its secrets to that section, but never hide them. The snapshot still applies to the receipt's changed
 files and the test checks.
+
+## D-026 | 2026-10-31 | Checklist items are outcomes; evidence for files changed before the session; receipt page size
+Context: a real test on edutech after PR #22: "Add a comment at the top of the main page explaining what it shows."
+became 4 items with steps like "Find the main page file"; 8 comment-only lines added at the top of src/app/page.tsx
+came out "not enough evidence to judge"; older receipts showed empty bullets; a click on the receipts page took 416 ms.
+Decision: (1) Items are outcomes the user would check, never steps or implementation rules (shared prompt rule for the
+splitter and request capture; lines starting with find, locate, open, read, keep, do not, follow and similar are
+dropped). A short single-purpose request (one sentence, at most 25 words, no "and"/"also"/";"/line breaks) is exactly
+one item in the user's words, whatever the model answers; its real questions stay. (2) Traced end to end through the
+real session hooks and routes: the summaries reached the judge intact for a clean file, but when the file was already
+modified before the session, it was diffed against the starting commit, so the user's earlier edits buried the
+session's 8 comment lines. Now session start also writes each already-modified file (up to 500, 1 MB each) into git's
+own object store (`git hash-object -w`, local, never sent), and session end diffs that start blob against the file
+(since_session_start), so the summary covers this session's edits only. The judge prompt says it never sees the code
+and judges by the kind and place of a change. Receipts store the code-free evidence the judge was given per file
+(evidence), and note when the CLI sent no summaries at all (no_change_summaries, an older codeceipt);
+`codeceipt last --evidence` prints both. (3) The receipt view never passes the card an entry without visible text,
+and reads older shapes (plain-text entries, camelCase keys, a group without a feature name). (4) Measured in Chromium
+(4x CPU slowdown, 50 receipts): every closed card carried its whole body (54,000 nodes, 2.4 MB), and a click on a
+summary took 192 ms of style and layout. A closed card now renders only its summary; its body is rendered on first
+open (2,262 nodes, 109 KB, 48 ms).
+Revisit when: the judge needs more than kinds and places (for example the test results of a feature).
+Security pass (fresh context, 2026-10-31): the step filter drops only navigation steps (find, open, read...) and
+general code-style rules (keep the existing code unchanged, follow the style); a constraint the user asked for ("do not
+store passwords in plain text", "keep the admin page behind login") is an outcome and stays, and the prompt says so.
+"with" also marks a request as naming a second thing. The server masks symbol names again and cleans and masks paths
+before storing per-file evidence (a raw path had reached the response). Start blobs are used only when git reports a
+blob whose content hash matches the snapshot (a blob planted in the state file is ignored), and at most 64 MB is
+written as start blobs.

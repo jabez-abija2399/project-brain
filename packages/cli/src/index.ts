@@ -22,6 +22,7 @@ import {
 } from "./hooks";
 import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
+import { evidenceLines } from "./last-evidence";
 import { runMcpProxy } from "./mcp-proxy";
 import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
@@ -43,6 +44,7 @@ export function helpText(): string {
     "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
     "  codeceipt receipt                   saves a receipt and progress now (for agents with no session-end event)",
     "  codeceipt last                      prints the latest receipt's summary and link again",
+    "  codeceipt last --evidence           also prints the code-free evidence the judge was given, per file",
   ].join("\n");
 }
 
@@ -259,8 +261,11 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       );
       return EXIT.ok;
     } else if (command === "last") {
-      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt last");
-      return await runLast(deps, path);
+      const evidence = args.length === 1 && args[0] === "--evidence";
+      if (args.length > 0 && !evidence) {
+        throw new CliError(EXIT.usage, "Usage: codeceipt last [--evidence]");
+      }
+      return await runLast(deps, path, evidence);
     } else if (command === "receipt") {
       if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt receipt");
       return await runReceipt(deps, path);
@@ -463,7 +468,7 @@ async function runReceipt(deps: CliDeps, path: string): Promise<number> {
 
 // Dogfooding: Claude Code does not show a SessionEnd hook's output once the agent has exited, so the latest receipt's
 // summary can be printed again here. Only counts are read from the server's answer (receiptSummary), never its text.
-async function runLast(deps: CliDeps, path: string): Promise<number> {
+async function runLast(deps: CliDeps, path: string, evidence = false): Promise<number> {
   const config = await projectConfig(deps, path, deps.cwd);
   if (!isSafeApiUrl(config.apiUrl)) {
     throw new CliError(
@@ -494,6 +499,8 @@ async function runLast(deps: CliDeps, path: string): Promise<number> {
   deps.stdout(`Latest receipt${at}:`);
   for (const line of receiptSummary(receipt as Record<string, unknown>, config, id))
     deps.stdout(line);
+  if (evidence)
+    for (const line of evidenceLines(receipt as Record<string, unknown>)) deps.stdout(line);
   return EXIT.ok;
 }
 
