@@ -9,6 +9,7 @@ import { POST as startRoute } from "@/app/api/device/start/route";
 import { POST as tokenRoute } from "@/app/api/device/token/route";
 import { GET as lastReceipt } from "@/app/api/hooks/[projectId]/last-receipt/route";
 import { GET as openItems } from "@/app/api/hooks/[projectId]/open-items/route";
+import { POST as captureRequest } from "@/app/api/hooks/[projectId]/requests/route";
 import { POST as diff } from "@/app/api/index/[projectId]/diff/route";
 import { POST as group } from "@/app/api/index/[projectId]/features/route";
 import { POST as upload } from "@/app/api/index/[projectId]/route";
@@ -50,6 +51,9 @@ const llmCalls: string[] = [];
 const fakeLlm: Llm = {
   async complete(request: CompleteRequest) {
     llmCalls.push(request.purpose ?? "");
+    if (request.purpose === "request-capture") {
+      return "FEATURE: reviews\n- Add a ReviewSummary component\n- Show the average rating on the product page";
+    }
     if (request.purpose === "checklist-split") {
       return "- Add a ReviewSummary component\n- Show the average rating on the product page";
     }
@@ -137,6 +141,7 @@ const projectRoutes: [RegExp, Handler][] = [
   [/^\/api\/index\/([^/]+)\/features$/, group],
   [/^\/api\/index\/([^/]+)$/, upload],
   [/^\/api\/hooks\/([^/]+)\/open-items$/, openItems],
+  [/^\/api\/hooks\/([^/]+)\/requests$/, captureRequest],
   [/^\/api\/hooks\/([^/]+)\/last-receipt$/, lastReceipt],
 ];
 
@@ -294,16 +299,16 @@ describe("first-time user journey, end to end", () => {
         ["hook", "session-end", "--agent", "claude"],
         JSON.stringify({ session_id: "s0", cwd: repo }),
       ),
-    ).toBe(2);
+    ).toBe(0);
     expect(agent.err.slice(0, 3)).toEqual([
-      "Codeceipt receipt: No request was recorded for this session, so nothing could be checked against what you asked.",
+      "Codeceipt receipt: 1 file changed. No request was recorded for this session, so nothing could be checked against what you asked.",
       "Checks needing attention: none.",
       expect.stringMatching(fullReceipt),
     ]);
     // The summary can be printed again after the agent exits (Claude Code does not show it then).
     expect(await agent.run(["last"])).toBe(0);
     expect(agent.out[1]).toBe(
-      "Codeceipt receipt: No request was recorded for this session, so nothing could be checked against what you asked.",
+      "Codeceipt receipt: 1 file changed. No request was recorded for this session, so nothing could be checked against what you asked.",
     );
     const first = plain(
       await render(
@@ -321,8 +326,9 @@ describe("first-time user journey, end to end", () => {
     git("add", "src/app/page.tsx");
     git("commit", "-q", "-m", "Welcome page");
 
-    // 4. Session 2: the agent takes a feature name from the start note, records the request under it and builds one
-    // of the two items: a ReviewSummary component with its test. The average on the product page is not done.
+    // 4. Session 2: the user's message is recorded by the prompt-submit hook on the feature the AI picks. The agent
+    // then records the same request itself (create_checklist returns the captured one, no second AI call) and builds
+    // one of the two items: a ReviewSummary component with its test. The average on the product page is not done.
     expect(
       await agent.run(
         ["hook", "session-start", "--agent", "claude"],
@@ -333,6 +339,14 @@ describe("first-time user journey, end to end", () => {
     const allFeatures = note.split("\n").find((l) => l.startsWith("ALL FEATURES:")) ?? "";
     const named = /(?:: |, )(reviews) \(id [\w-]+\)/.exec(allFeatures)?.[1];
     expect(named).toBe("reviews");
+    const ask = "Add a review summary and show the average rating on the product page";
+    expect(
+      await agent.run(
+        ["hook", "prompt", "--agent", "claude", "--worker"],
+        JSON.stringify({ session_id: "s1", cwd: repo, prompt: ask }),
+      ),
+    ).toBe(0);
+    expect(agent.out).toEqual([]);
     const created = await mcp(token, "create_checklist", {
       feature: named,
       request: "Add a review summary and show the average rating on the product page",
@@ -351,13 +365,14 @@ describe("first-time user journey, end to end", () => {
         ["hook", "session-end", "--agent", "claude"],
         JSON.stringify({ session_id: "s1", cwd: repo }),
       ),
-    ).toBe(2);
+    ).toBe(0);
     expect(agent.err.slice(0, 3)).toEqual([
-      "Codeceipt receipt: 1 done, 1 missed.",
+      "Codeceipt receipt: 2 files changed; 1 done, 1 missed.",
       "Checks needing attention: none.",
       expect.stringMatching(fullReceipt),
     ]);
-    expect(llmCalls).toEqual(expect.arrayContaining(["checklist-split", "receipt-judge"]));
+    expect(llmCalls).toEqual(expect.arrayContaining(["request-capture", "receipt-judge"]));
+    expect(llmCalls).not.toContain("checklist-split");
 
     // 5. The dashboard: the receipt shows the miss, and the start page shows all three steps done with the receipt.
     const receipts = plain(
@@ -375,5 +390,33 @@ describe("first-time user journey, end to end", () => {
     expect(steps(start)).toEqual(["1:done", "2:done", "3:done"]);
     expect(plain(start)).toContain("Your first receipt");
     expect(plain(start)).toContain("Show the average rating on the product page");
+
+    // 6. Session 3: the missed item from session 2 is listed as still open from earlier, and with no request in this
+    // session it is not judged against session 3's changes.
+    git("add", "-A");
+    git("commit", "-q", "-m", "Review summary");
+    vi.setSystemTime(Date.now() + 60 * 60_000);
+    await agent.run(
+      ["hook", "session-start", "--agent", "claude"],
+      JSON.stringify({ session_id: "s2", cwd: repo }),
+    );
+    const later = agent.out.join("\n");
+    expect(later).toContain("STILL OPEN FROM EARLIER:");
+    expect(later).toContain("Show the average rating on the product page");
+    writeFileSync(
+      join(repo, "src", "app", "page.tsx"),
+      "export default function Home() {\n  return null;\n}\n",
+    );
+    llmCalls.length = 0;
+    expect(
+      await agent.run(
+        ["hook", "session-end", "--agent", "claude"],
+        JSON.stringify({ session_id: "s2", cwd: repo }),
+      ),
+    ).toBe(0);
+    expect(agent.err[0]).toBe(
+      "Codeceipt receipt: 1 file changed. No request was recorded for this session, so nothing could be checked against what you asked.",
+    );
+    expect(llmCalls).not.toContain("receipt-judge");
   }, 120_000);
 });

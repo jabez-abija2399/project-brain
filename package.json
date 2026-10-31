@@ -20,7 +20,8 @@
   "pnpm": {
     "overrides": {
       "postcss@<8.5.18": ">=8.5.18",
-      "@esbuild-kit/core-utils>esbuild": "^0.25.12"
+      "@esbuild-kit/core-utils>esbuild": "^0.25.12",
+      "gaxios@7>rimraf": "-"
     }
   }
 }

@@ -79,10 +79,10 @@ describe("session-end receipt summary", () => {
       findings_omitted: 0,
       test_integrity: null,
     });
-    // Exit 2 is how Claude Code shows a session-end hook's message to the user.
-    expect(await t.end()).toBe(2);
+    // The hook exits 0: Claude Code labels any other exit "failed", and the summary is not an error.
+    expect(await t.end()).toBe(0);
     expect(t.err.slice(0, 3)).toEqual([
-      "Codeceipt receipt: 1 done, 1 missed.",
+      "Codeceipt receipt: 1 file changed; 1 done, 1 missed.",
       "Checks needing attention: none.",
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-1",
     ]);
@@ -100,7 +100,7 @@ describe("session-end receipt summary", () => {
     });
     await t.end();
     expect(t.err.slice(0, 3)).toEqual([
-      "Codeceipt receipt: 2 done, 1 missed (1 partly done).",
+      "Codeceipt receipt: 1 file changed; 2 done, 1 missed (1 partly done).",
       "Checks needing attention: 3 security findings, 1 test check, 1 file outside the request, 1 not verified.",
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-2",
     ]);
@@ -118,7 +118,7 @@ describe("session-end receipt summary", () => {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this looks for
     expect(all).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f]/);
     expect(all).not.toContain("evil.test");
-    expect(t.err[0]).toBe("Codeceipt receipt: 5000 done, 0 missed.");
+    expect(t.err[0]).toBe("Codeceipt receipt: 1 file changed; 5000 done, 0 missed.");
     expect(t.err.some((l) => l.startsWith("Full receipt:"))).toBe(false);
   });
 });

@@ -142,3 +142,13 @@ export {
   brandEnv,
 } from "./brand";
 export { isCodeceiptSetupPath, withoutAgentsSection } from "./setup-files";
+export {
+  CAPTURE_SYSTEM,
+  type Captured,
+  capturePrompt,
+  classifyRequest,
+  isAcknowledgement,
+  MAX_STORED_REQUEST_CHARS,
+  parseCapture,
+  requestForStorage,
+} from "./request-capture";

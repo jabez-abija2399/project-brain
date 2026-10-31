@@ -1,7 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { brandEnv } from "@brain/core";
+import { MAX_REQUEST_CHARS, brandEnv, maskSecretsIn } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import {
   type CliConfig,
@@ -12,7 +12,14 @@ import {
   saveProjectToken,
   writeConfig,
 } from "./config";
-import { latestSession, mcpHeaders, receiptSummary, sessionEnd, sessionStart } from "./hooks";
+import {
+  latestSession,
+  mcpHeaders,
+  receiptSummary,
+  sessionEnd,
+  sessionIdOf,
+  sessionStart,
+} from "./hooks";
 import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { runMcpProxy } from "./mcp-proxy";
@@ -257,6 +264,8 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
     } else if (command === "receipt") {
       if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt receipt");
       return await runReceipt(deps, path);
+    } else if (command === "hook" && args[0] === "prompt") {
+      return await runPromptHook(args, deps, path);
     } else if (command === "hook" && hookAgent(args) !== "claude" && hookAgent(args) !== "cursor") {
       return await runAgentHook(args, deps, path);
     } else if (command === "hook" || command === "mcp-headers") {
@@ -327,8 +336,10 @@ async function runHook(
     const agent = hookAgent(args) === "cursor" ? "cursor" : "claude";
     if (event === "session-start") await sessionStart(agent, hookDeps);
     else if (event === "session-end") {
-      const warned = await sessionEnd(agent, hookDeps);
-      return warned && agent === "claude" ? 2 : EXIT.ok;
+      // Exit 0 always: Claude Code labels a session-end hook that exits non-zero as "failed", and its docs give no
+      // way to show a SessionEnd message without that label. The summary stays on stderr and `codeceipt last`.
+      await sessionEnd(agent, hookDeps);
+      return EXIT.ok;
     } else deps.stderr("Codeceipt: unknown hook (use session-start or session-end).");
   } catch {
     deps.stderr("Codeceipt: the hook failed; the session goes on without it.");
@@ -348,7 +359,11 @@ function hookAgent(args: string[]): Agent {
 function sessionFolder(stdin: string, fallback: string): string {
   try {
     const input = JSON.parse(stdin) as Record<string, unknown>;
-    const paths = Array.isArray(input.workspacePaths) ? input.workspacePaths : [];
+    const paths = Array.isArray(input.workspacePaths)
+      ? input.workspacePaths
+      : Array.isArray(input.workspace_roots)
+        ? input.workspace_roots
+        : [];
     const claimed = typeof input.cwd === "string" ? input.cwd : paths[0];
     if (typeof claimed === "string" && isAbsolute(claimed)) return claimed;
   } catch {}
@@ -480,4 +495,71 @@ async function runLast(deps: CliDeps, path: string): Promise<number> {
   for (const line of receiptSummary(receipt as Record<string, unknown>, config, id))
     deps.stdout(line);
   return EXIT.ok;
+}
+
+// Codeceipt's own commands typed as a prompt (`codeceipt last`, `npx codeceipt`, `!codeceipt ...`) are not requests.
+const OWN_COMMAND = /^!?\s*(npx\s+)?codeceipt\b/i;
+const PROMPT_TIMEOUT_MS = 20_000;
+
+/**
+ * `codeceipt hook prompt --agent <agent>`: the prompt-submit hook (Claude Code and Codex UserPromptSubmit, Cursor
+ * beforeSubmitPrompt, OpenCode's plugin). It records the user's request for this session and adds nothing to the
+ * agent's context: it prints nothing (Cursor gets {"continue":true}, so the prompt is never blocked) and always exits
+ * 0. Empty prompts, slash commands and Codeceipt's own commands are skipped. The request goes out masked and capped,
+ * in the background (`--worker`), so the prompt never waits for it; only a linked repo's token is used.
+ */
+// The folder on stdin is not used when it is in a different repo from the one the hook runs in, so a prompt is never
+// sent to another linked repo's project (a hook run outside any repo, like OpenCode's plugin, uses it).
+async function promptFolder(deps: CliDeps, claimed: string): Promise<string> {
+  const git = deps.git ?? runGit;
+  const own = await repoRoot(git, deps.cwd).catch(() => null);
+  if (own === null) return claimed;
+  const other = await repoRoot(git, claimed).catch(() => null);
+  return other === null || other === own ? claimed : deps.cwd;
+}
+
+async function runPromptHook(args: string[], deps: CliDeps, path: string): Promise<number> {
+  const agent = hookAgent(args);
+  const answer = () => {
+    if (agent === "cursor") deps.stdout(JSON.stringify({ continue: true }));
+    return EXIT.ok;
+  };
+  let stdin = "";
+  try {
+    stdin = await deps.readStdin();
+  } catch {}
+  let input: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = stdin.length <= 1024 * 1024 ? JSON.parse(stdin) : null;
+    if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+      input = parsed as Record<string, unknown>;
+    }
+  } catch {}
+  const prompt = typeof input.prompt === "string" ? input.prompt.trim() : "";
+  if (prompt === "" || prompt.startsWith("/") || OWN_COMMAND.test(prompt)) return answer();
+  const dir = await promptFolder(deps, sessionFolder(stdin, deps.cwd));
+  if (!args.includes("--worker") && deps.spawnBackground) {
+    try {
+      deps.spawnBackground(["hook", "prompt", "--agent", agent, "--worker"], stdin, dir);
+    } catch {}
+    return answer();
+  }
+  try {
+    const config = await projectConfig(deps, path, dir, { linkedOnly: true });
+    if (isSafeApiUrl(config.apiUrl)) {
+      await request(
+        (url, init) => deps.fetch(url, { ...init, signal: AbortSignal.timeout(PROMPT_TIMEOUT_MS) }),
+        config,
+        "POST",
+        `/api/hooks/${encodeURIComponent(config.projectId)}/requests`,
+        {
+          text: maskSecretsIn(prompt).slice(0, MAX_REQUEST_CHARS),
+          session_id: sessionIdOf(input),
+        },
+      );
+    }
+  } catch {
+    // Never fails the agent's prompt: an unlinked repo or an unreachable server records nothing.
+  }
+  return answer();
 }

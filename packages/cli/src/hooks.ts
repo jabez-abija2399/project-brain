@@ -88,9 +88,6 @@ async function hookInput(deps: HookDeps): Promise<{ sessionId: string; cwd: stri
     if (text.length <= MAX_STDIN) raw = JSON.parse(text);
   } catch {}
   const input = (typeof raw === "object" && raw !== null ? raw : {}) as Record<string, unknown>;
-  // Cursor names the chat conversation_id in some events, Antigravity conversationId (with workspacePaths).
-  const rawId = input.session_id ?? input.conversation_id ?? input.conversationId;
-  const id = typeof rawId === "string" ? rawId : "";
   const roots = Array.isArray(input.workspace_roots) ? input.workspace_roots : input.workspacePaths;
   const claimed =
     typeof input.cwd === "string" && isAbsolute(input.cwd)
@@ -105,14 +102,23 @@ async function hookInput(deps: HookDeps): Promise<{ sessionId: string; cwd: stri
     repoRoot(deps.git, claimed).catch(() => claimed),
   ]);
   const cwd = own === other ? claimed : deps.cwd;
-  // The id names a state file: anything but a plain id is hashed, so it cannot reach outside the state folder.
-  const sessionId = /^[A-Za-z0-9_-]{1,128}$/.test(id)
+  return { sessionId: sessionIdOf(input), cwd };
+}
+
+/**
+ * The agent's session id from a hook's input: Claude Code and Codex send session_id, Cursor conversation_id,
+ * Antigravity conversationId. It names a state file and ties requests to the session, so anything but a plain id is
+ * hashed (it can never reach outside the state folder). Every hook of one session derives the same id.
+ */
+export function sessionIdOf(input: Record<string, unknown>): string {
+  const rawId = input.session_id ?? input.conversation_id ?? input.conversationId;
+  const id = typeof rawId === "string" ? rawId : "";
+  return /^[A-Za-z0-9_-]{1,128}$/.test(id)
     ? id
     : createHash("sha256")
         .update(id || "default")
         .digest("hex")
         .slice(0, 32);
-  return { sessionId, cwd };
 }
 
 // The session's starting commit lives in the repo's .git folder (never committed), keyed by session id. The folder
@@ -144,11 +150,25 @@ function writeState(file: string, text: string) {
 }
 
 // The session's starting commit and, when a test report is configured, its passing-test count then (FEAT-018).
-function readState(file: string): { start: string | null; passing: number | null } {
+function readState(file: string): {
+  start: string | null;
+  passing: number | null;
+  startedAt: string | null;
+} {
   try {
-    if (lstatSync(file).isSymbolicLink()) return { start: null, passing: null };
-    const saved = JSON.parse(readFileSync(file, "utf8")) as { start?: unknown; passing?: unknown };
+    if (lstatSync(file).isSymbolicLink()) return { start: null, passing: null, startedAt: null };
+    const saved = JSON.parse(readFileSync(file, "utf8")) as {
+      start?: unknown;
+      passing?: unknown;
+      startedAt?: unknown;
+    };
     return {
+      // When the session started: requests recorded without a session id since then belong to it.
+      startedAt:
+        typeof saved.startedAt === "string" &&
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(saved.startedAt)
+          ? saved.startedAt
+          : null,
       start:
         typeof saved.start === "string" && /^[0-9a-f]{40,64}$/.test(saved.start)
           ? saved.start
@@ -159,7 +179,7 @@ function readState(file: string): { start: string | null; passing: number | null
           : null,
     };
   } catch {
-    return { start: null, passing: null };
+    return { start: null, passing: null, startedAt: null };
   }
 }
 
@@ -182,7 +202,18 @@ export function receiptSummary(
   receipt: Record<string, unknown>,
   config: CliConfig,
   receiptId: string | null,
+  filesChanged?: number,
 ): string[] {
+  // How many files changed: what the hook sent, or the files the stored receipt lists by feature.
+  const grouped = Array.isArray(receipt.files_by_feature)
+    ? receipt.files_by_feature.reduce(
+        (n: number, g: unknown) =>
+          n + count(typeof g === "object" && g !== null ? (g as { files?: unknown }).files : null),
+        0,
+      )
+    : null;
+  const nFiles = filesChanged ?? grouped;
+  const changed = nFiles === null ? "" : `${plural(Math.min(nFiles, 1_000_000), "file")} changed`;
   const items = Array.isArray(receipt.items) ? receipt.items : [];
   const status = (s: string) =>
     items.filter(
@@ -215,8 +246,8 @@ export function receiptSummary(
   ].filter(Boolean);
   const lines = [
     receipt.no_request === true
-      ? `Codeceipt receipt: ${NO_REQUEST_NOTE}`
-      : `Codeceipt receipt: ${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
+      ? `Codeceipt receipt: ${changed ? `${changed}. ` : ""}${NO_REQUEST_NOTE}`
+      : `Codeceipt receipt: ${changed ? `${changed}; ` : ""}${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
     `Checks needing attention: ${attention.length > 0 ? attention.join(", ") : "none"}.`,
   ];
   if (receiptId) {
@@ -279,7 +310,14 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     const root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
     const passing = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
-    writeState(file, JSON.stringify({ start: await head(deps.git, root), passing }));
+    writeState(
+      file,
+      JSON.stringify({
+        start: await head(deps.git, root),
+        passing,
+        startedAt: (deps.now?.() ?? new Date()).toISOString(),
+      }),
+    );
   } catch {
     // Not a git repo: session end then compares with HEAD.
   }
@@ -314,7 +352,37 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
 
 type OpenItems = {
   requests: { id: string; text: string; items: { text: string; status: string }[] }[];
+  // The requests made in this session (requests tied to sessions); absent from older servers.
+  session_requests?: unknown;
 };
+
+const MAX_SESSION_RECEIPTS = 3;
+
+// This session's requests from the open-items answer: only well-formed ids, newest first, capped.
+function sessionRequests(open: OpenItems): { id: string; text: string }[] {
+  const list = Array.isArray(open.session_requests) ? open.session_requests : [];
+  return list
+    .flatMap((r) =>
+      typeof r === "object" &&
+      r !== null &&
+      typeof (r as { id?: unknown }).id === "string" &&
+      /^[\w-]{1,64}$/.test((r as { id: string }).id)
+        ? [{ id: (r as { id: string }).id, text: String((r as { text?: unknown }).text ?? "") }]
+        : [],
+    )
+    .slice(0, MAX_SESSION_RECEIPTS);
+}
+
+// One session can have several requests, each with its own receipt: the summary adds their item counts; the changed
+// files and checks are the same for all of them, so they are taken from the first.
+function combineReceipts(receipts: Record<string, unknown>[]): Record<string, unknown> {
+  const [first = {}] = receipts;
+  return {
+    ...first,
+    items: receipts.flatMap((r) => (Array.isArray(r.items) ? r.items : [])),
+    no_request: receipts.every((r) => r.no_request === true),
+  };
+}
 
 // The answer has the shape the hook expects (else it is reported as unreadable, never trusted in part).
 const wellFormed = (open: OpenItems) =>
@@ -358,10 +426,11 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
   let start: string | null = null;
   let commit: string | null = null;
   let passingBefore: number | null = null;
+  let startedAt: string | null = null;
   try {
     root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
-    ({ start, passing: passingBefore } = readState(file));
+    ({ start, passing: passingBefore, startedAt } = readState(file));
     rmSync(file, { force: true });
     commit = await head(deps.git, root);
     // A start that is not an ancestor of HEAD (history rewritten, state file edited) cannot bound the session.
@@ -386,7 +455,8 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     files,
   ).catch(() => null);
   const passingAfter = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
-  const base = `/api/hooks/${encodeURIComponent(config.projectId)}/open-items`;
+  // Only this session's requests are checked by its receipt (requests are tied to sessions).
+  const base = `/api/hooks/${encodeURIComponent(config.projectId)}/open-items?session=${encodeURIComponent(sessionId)}${startedAt ? `&since=${encodeURIComponent(startedAt)}` : ""}`;
   try {
     const open = await request<OpenItems>(
       timed(deps.fetch, OPEN_ITEMS_TIMEOUT_MS),
@@ -398,50 +468,67 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
       deps.stderr(`${WARN} the server's open-items answer was unreadable; no receipt this time.`);
       return true;
     }
-    const req = open.requests[0];
+    const own = sessionRequests(open);
+    const req = own[0];
     let receiptNote = "";
     let receiptId: string | null = null;
     const summary: string[] = [];
     const warnings: string[] = [];
-    // Dogfooding (edutech): a session that changed files always gets a receipt, with or without a recorded request.
+    // A session that changed files always gets a receipt (dogfooding): one per request made in this session (newest
+    // first, at most MAX_SESSION_RECEIPTS), or one without a request. Earlier sessions' open items are never judged.
     if (receiptFiles.length > 0) {
-      // A receipt that fails (AI budget used up, judging unavailable) does not stop progress from being saved.
-      try {
-        const receipt = JSON.parse(
-          await callTool(timed(deps.fetch, RECEIPT_TIMEOUT_MS), config, "generate_receipt", {
-            ...(req ? { requestId: req.id } : {}),
-            changedFiles: receiptFiles.slice(0, MAX_RECEIPT_FILES),
-            ...(commit && commit !== start ? { commitSha: commit } : {}),
-            ...(scan ? { secretFindings: scan.findings, secretFindingsOmitted: scan.omitted } : {}),
-            // Sent only when there is something to report: flags or test counts.
-            ...(integrity &&
-            (integrity.flags.length > 0 || passingBefore !== null || passingAfter !== null)
-              ? {
-                  testIntegrity: {
-                    flags: integrity.flags,
-                    ...(integrity.omitted > 0 ? { omitted: integrity.omitted } : {}),
-                    passingBefore,
-                    passingAfter,
-                  },
-                }
-              : {}),
-          }),
-        ) as Record<string, unknown>;
-        if (typeof receipt.receipt_id === "string" && /^[\w-]{1,64}$/.test(receipt.receipt_id)) {
-          receiptId = receipt.receipt_id;
-          receiptNote = `; receipt ${receipt.receipt_id}`;
+      const receipts: Record<string, unknown>[] = [];
+      for (const requestId of own.length > 0 ? own.map((r) => r.id) : [undefined]) {
+        // A receipt that fails (AI budget used up, judging unavailable) does not stop progress from being saved.
+        try {
+          const receipt = JSON.parse(
+            await callTool(timed(deps.fetch, RECEIPT_TIMEOUT_MS), config, "generate_receipt", {
+              ...(requestId ? { requestId } : {}),
+              changedFiles: receiptFiles.slice(0, MAX_RECEIPT_FILES),
+              ...(commit && commit !== start ? { commitSha: commit } : {}),
+              ...(scan
+                ? { secretFindings: scan.findings, secretFindingsOmitted: scan.omitted }
+                : {}),
+              // Sent only when there is something to report: flags or test counts.
+              ...(integrity &&
+              (integrity.flags.length > 0 || passingBefore !== null || passingAfter !== null)
+                ? {
+                    testIntegrity: {
+                      flags: integrity.flags,
+                      ...(integrity.omitted > 0 ? { omitted: integrity.omitted } : {}),
+                      passingBefore,
+                      passingAfter,
+                    },
+                  }
+                : {}),
+            }),
+          ) as Record<string, unknown>;
+          receipts.push(receipt);
+          if (
+            !receiptId &&
+            typeof receipt.receipt_id === "string" &&
+            /^[\w-]{1,64}$/.test(receipt.receipt_id)
+          ) {
+            receiptId = receipt.receipt_id;
+            receiptNote = `; receipt ${receipt.receipt_id}`;
+          }
+        } catch (err) {
+          if (err instanceof CliError && err.exitCode === EXIT.server) throw err;
+          // Only our own messages are shown, never text from the server's answer.
+          warnings.push(
+            `${WARN} no receipt this time (${err instanceof CliError ? line(err.message) : "unreadable answer"}).`,
+          );
+          break;
         }
-        summary.push(...receiptSummary(receipt, config, receiptId));
-      } catch (err) {
-        if (err instanceof CliError && err.exitCode === EXIT.server) throw err;
-        // Only our own messages are shown, never text from the server's answer.
-        warnings.push(
-          `${WARN} no receipt this time (${err instanceof CliError ? line(err.message) : "unreadable answer"}).`,
+      }
+      if (receipts.length > 0) {
+        summary.push(
+          ...receiptSummary(combineReceipts(receipts), config, receiptId, receiptFiles.length),
         );
       }
     }
     const after =
-      req && receiptFiles.length > 0
+      own.length > 0 && receiptFiles.length > 0
         ? await request<OpenItems>(timed(deps.fetch, OPEN_ITEMS_TIMEOUT_MS), config, "GET", base)
         : open;
     const loose = openList(after);

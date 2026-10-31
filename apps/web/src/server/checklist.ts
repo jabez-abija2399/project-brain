@@ -5,6 +5,7 @@ import {
   errorType,
   maskSecretsIn,
   oneLineText,
+  requestForStorage,
   splitRequest,
 } from "@brain/core";
 import {
@@ -94,6 +95,28 @@ export async function createChecklist(
     throw new AppError(400, "invalid_input", "input validation failed", { feature: "is required" });
   // A feature of another project is not found, like a missing one; the error lists this project's names.
   const feature = await resolveFeature(db, pid, ref);
+  // The prompt-submit hook may already have recorded this request (same text, recently): return it, no second AI call.
+  // One it kept without items (the AI budget was used up) is split below as a new request.
+  const known = await requestsRepo.findRecentByText(
+    db,
+    pid,
+    requestForStorage(input.request),
+    new Date(now.getTime() - 24 * 3600_000),
+  );
+  const knownItems = known ? await checklistItemsRepo.listForRequest(db, pid, known.id) : [];
+  if (known && knownItems.length > 0) {
+    const items = knownItems;
+    return {
+      request_id: known.id,
+      feature_id: feature.id,
+      feature: maskSecretsIn(feature.name),
+      items: items.map((i) => ({
+        id: i.id,
+        text: i.text,
+        needs_clarification: i.needsClarification,
+      })),
+    };
+  }
   const llm = getLlm();
   if (!llm)
     throw new AppError(503, "ai_not_configured", "the checklist splitter is not configured");

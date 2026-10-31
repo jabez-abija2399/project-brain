@@ -420,3 +420,10 @@ Changed: tools take a feature by name, key or id (list_features and the start no
 Verified (ran this session): tests first; journey e2e replays edutech (a session without a request gets a receipt, then a feature name from the start note creates the checklist); old tests that pinned `not_found` or feature lists without ids updated, keeping their no-oracle and no-leak checks; fresh-context security pass; full suites; kit.py check; verify.sh (see PR).
 NOT VERIFIED: a real Claude Code exit (what is shown is from its docs), a real edutech re-run.
 Next: later.md items (tie requests to sessions; latest-receipt wording).
+
+## 2026-10-30 | Requests from prompt hooks, tied to sessions, session end exits 0 (D-024) | status: done (on branch, PR open)
+Changed: init installs prompt-submit hooks (Claude Code, Cursor, Codex; OpenCode plugin chat.message; Antigravity falls back to create_checklist); /api/hooks/:projectId/requests records each request with 1 AI call (feature + items) against the daily budget; requests.session_id (0032); receipts check only the session's requests; start note "STILL OPEN FROM EARLIER:"; session-end exits 0 and says how many files changed.
+Verified (ran this session): tests first (core, web, CLI); journey e2e covers capture, dedup with create_checklist and a later session; old tests updated for exit 0 and the file count; fresh-context security pass; full suites; kit.py check; verify.sh (see PR).
+NOT VERIFIED: real Claude Code, Cursor, Codex and OpenCode hook runs; whether Claude Code shows stderr of an exit-0 SessionEnd hook.
+Next: later.md items.
+2026-10-31 PR #21 CI: osv-scanner flagged new advisories in glob 10.5.0 / minimatch 9.0.9 (inngest > otel > gaxios@7 > rimraf@5). gaxios 7 lists rimraf but never uses it; a pnpm override ("gaxios@7>rimraf": "-") drops it. package.json and pnpm-lock.yaml added to scope for this only.

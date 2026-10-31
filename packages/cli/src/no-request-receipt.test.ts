@@ -97,12 +97,12 @@ describe("a session with changes always gets a receipt", () => {
       join(t.repo, "src", "app", "page.tsx"),
       "export default function Page() { return 1; }\n",
     );
-    expect(await t.run(["hook", "session-end", "--agent", "claude"])).toBe(2);
+    expect(await t.run(["hook", "session-end", "--agent", "claude"])).toBe(0);
     const receipt = t.calls.find((c) => c.tool === "generate_receipt");
     expect(receipt?.args?.changedFiles).toEqual(["src/app/page.tsx"]);
     expect(receipt?.args).not.toHaveProperty("requestId");
     expect(t.err.slice(0, 3)).toEqual([
-      `Codeceipt receipt: ${NO_REQUEST}`,
+      `Codeceipt receipt: 1 file changed. ${NO_REQUEST}`,
       "Checks needing attention: none.",
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-9",
     ]);

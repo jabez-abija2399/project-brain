@@ -25,10 +25,13 @@ export const requests = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     featureId: text("feature_id"),
     text: text("text").notNull(),
+    // The agent session the request was made in (0032); null for older ones and those an agent recorded itself.
+    sessionId: text("session_id"),
     createdAt: createdAt(),
   },
   (t) => ({
     projectIdx: index("requests_project_idx").on(t.projectId),
+    projectSessionIdx: index("requests_project_session_idx").on(t.projectId, t.sessionId),
     projectIdUniq: uniqueIndex("requests_project_id_uniq").on(t.projectId, t.id),
     // SQL uses ON DELETE SET NULL ("feature_id") so project_id stays (0002_same_project_refs.sql).
     featureSameProjectFk: foreignKey({
