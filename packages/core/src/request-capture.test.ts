@@ -69,7 +69,7 @@ describe("request capture", () => {
   it("attack: secrets in the message are masked before the AI sees them, and items are capped and cleaned", async () => {
     const secret = ["sk_", "live_", "4eC39Hq", "LyjWDarj", "Ab12Cd34"].join("");
     const { llm, calls } = scripted(
-      `FEATURE: home\n${Array.from({ length: 15 }, (_, i) => `- item ${i} ‮${secret}`).join("\n")}`,
+      `FEATURE: home\n${Array.from({ length: 15 }, (_, i) => `- item ${i} \u202e${secret}`).join("\n")}`,
     );
     const got = await classifyRequest(llm, `use key ${secret} for payments`, FEATURES);
     expect(calls[0]?.prompt).not.toContain(secret);
@@ -77,7 +77,7 @@ describe("request capture", () => {
     expect(got.items).toHaveLength(10);
     for (const i of got.items) {
       expect(i.text).not.toContain(secret);
-      expect(i.text).not.toContain("‮");
+      expect(i.text).not.toContain("\u202e");
     }
   });
 });

@@ -165,6 +165,9 @@ describe("session continuity tools (FEAT-010)", () => {
       title: "Use Neon",
       reason: "Branches for dev",
     });
+    // created_at comes from now(), which PGlite resolves to the millisecond: two inserts in the same millisecond would
+    // fall back to the random id for their order.
+    await new Promise((r) => setTimeout(r, 5));
     await addDecision(world.db, token, { projectId, title: "No Docker" });
     const { decisions } = await listDecisions(world.db, token, { projectId });
     expect(decisions.map((d) => d.title)).toEqual(["No Docker", "Use Neon"]);
