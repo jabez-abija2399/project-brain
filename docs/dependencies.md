@@ -53,3 +53,8 @@ GitHub REST calls (fetching changed file contents in the FEAT-009 job) use the a
 
 Binaries / services (not from a package registry): Neon (hosted Postgres: 'dev' branch for development, main branch or a separate project for production),
 Vercel (hosting), Inngest Cloud + `npx inngest-cli dev` (local job runner), GitHub OAuth app + GitHub App, Anthropic API.
+
+pnpm overrides (package.json): `postcss@<8.5.18`, `@esbuild-kit/core-utils>esbuild` (advisories), and
+`gaxios@7>rimraf: "-"` (2026-10-31): gaxios 7 (via inngest > OpenTelemetry) lists rimraf but never uses it, and rimraf 5
+pulls glob 10.5.0 and minimatch 9.0.9 (osv-scanner advisories GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249). Remove this
+override when inngest moves to gaxios 8, which has no rimraf.

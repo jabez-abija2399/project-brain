@@ -426,3 +426,4 @@ Changed: init installs prompt-submit hooks (Claude Code, Cursor, Codex; OpenCode
 Verified (ran this session): tests first (core, web, CLI); journey e2e covers capture, dedup with create_checklist and a later session; old tests updated for exit 0 and the file count; fresh-context security pass; full suites; kit.py check; verify.sh (see PR).
 NOT VERIFIED: real Claude Code, Cursor, Codex and OpenCode hook runs; whether Claude Code shows stderr of an exit-0 SessionEnd hook.
 Next: later.md items.
+2026-10-31 PR #21 CI: osv-scanner flagged new advisories in glob 10.5.0 / minimatch 9.0.9 (inngest > otel > gaxios@7 > rimraf@5). gaxios 7 lists rimraf but never uses it; a pnpm override ("gaxios@7>rimraf": "-") drops it. package.json and pnpm-lock.yaml added to scope for this only.
