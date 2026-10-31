@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { ChecklistItem } from "./checklist-item";
 import { CodeRef } from "./code-ref";
 import { CopyButton } from "./ui/copy-button";
+import { Disclosure } from "./ui/disclosure";
 import { StatusBadge } from "./ui/status-badge";
 
 export type ReceiptCardData = {
@@ -24,7 +25,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 // One receipt: what was asked, what got done, partly done or missed, edits outside the request's feature, security
-// findings and what could not be verified. Collapsed to its summary line until opened.
+// findings and what could not be verified. Collapsed to its summary line until opened; the body is rendered on first
+// open, so a page of receipts stays small and a click stays fast (INP).
 export function ReceiptCard({
   receipt,
   expanded = false,
@@ -38,8 +40,9 @@ export function ReceiptCard({
       className={`card${missed > 0 ? " card-highlighted" : ""}`}
       data-testid="receipt-card"
     >
-      <details open={expanded}>
-        <summary style={{ cursor: "pointer", listStyle: "none" }}>
+      <Disclosure
+        open={expanded}
+        summary={
           <div className="stack" style={{ gap: 6 }}>
             <span className="muted">
               <time dateTime={receipt.createdAt}>
@@ -95,7 +98,8 @@ export function ReceiptCard({
               )}
             </span>
           </div>
-        </summary>
+        }
+      >
         <div className="stack" style={{ marginTop: 16 }}>
           {view.noSnapshot && (
             <p className="muted wrap" style={{ margin: 0 }}>
@@ -158,7 +162,7 @@ export function ReceiptCard({
                   <li key={n} className="stack" style={{ gap: 2 }}>
                     <span className="row">
                       <StatusBadge status="missed" label={f.type.replaceAll("_", " ")} />
-                      <CodeRef path={f.file} line={f.line} />
+                      {f.file && <CodeRef path={f.file} line={f.line} />}
                       {f.maskedValue && <code>{f.maskedValue}</code>}
                     </span>
                     <span className="muted wrap">{f.hint}</span>
@@ -181,7 +185,7 @@ export function ReceiptCard({
                   <li key={n} className="stack" style={{ gap: 2 }}>
                     <span className="row">
                       <StatusBadge status="warning" label={f.type.replaceAll("_", " ")} />
-                      <CodeRef path={f.file} line={f.line} />
+                      {f.file && <CodeRef path={f.file} line={f.line} />}
                       {f.maskedValue && <code>{f.maskedValue}</code>}
                     </span>
                     <span className="muted wrap">{f.hint}</span>
@@ -221,7 +225,7 @@ export function ReceiptCard({
                   <li key={i} className="row">
                     <StatusBadge status="not_verified" />
                     <span className="wrap">{n.text}</span>
-                    <span className="muted">({n.reason})</span>
+                    {n.reason && <span className="muted">({n.reason})</span>}
                   </li>
                 ))}
               </ul>
@@ -231,7 +235,7 @@ export function ReceiptCard({
             <CopyButton text={receipt.fixPrompt} label="Send fix to agent" variant="primary" />
           )}
         </div>
-      </details>
+      </Disclosure>
     </article>
   );
 }

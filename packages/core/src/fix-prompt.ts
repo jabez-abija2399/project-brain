@@ -79,9 +79,11 @@ const obj = (value: unknown): Record<string, unknown> =>
 
 // Findings as stored (secrets and RLS), cleaned and masked again for display.
 const findingList = (value: unknown): ReceiptView["findings"] =>
-  list(value).map((raw) => {
+  list(value).flatMap((raw) => {
     const f = obj(raw);
     const masked = safeDisplay(f.masked_value, 16);
+    // A finding with no type says nothing: left out rather than shown as an empty entry.
+    if (safeDisplay(f.type, 60) === "") return [];
     return {
       type: safeDisplay(f.type, 60),
       file: safePath(f.file),
@@ -90,6 +92,12 @@ const findingList = (value: unknown): ReceiptView["findings"] =>
       ...(/^[\x21-\x7e]{1,4}\*\*\*$/.test(masked) ? { maskedValue: masked } : {}),
     };
   });
+
+// A list stored under its current key or an older camelCase one.
+const either = (s: Record<string, unknown>, key: string, legacy: string) =>
+  s[key] !== undefined ? s[key] : s[legacy];
+// An entry stored as plain text (older receipts) reads as { text }.
+const entry = (raw: unknown) => (typeof raw === "string" ? { text: raw } : obj(raw));
 
 export function receiptView(summary: unknown): ReceiptView {
   const s = obj(summary);
@@ -102,34 +110,43 @@ export function receiptView(summary: unknown): ReceiptView {
     }),
   );
   return {
+    // Every entry has visible text: one stored without it is left out, never shown as an empty bullet. A plain-text
+    // item (no stored verdict) is not verified.
     items: list(s.items).flatMap((raw) => {
-      const i = obj(raw);
-      if (typeof i.status !== "string" || !STATUSES.has(i.status)) return [];
+      const i = entry(raw) as Record<string, unknown>;
+      const status = typeof raw === "string" ? "not_verified" : i.status;
+      const text = safeDisplay(i.text);
+      if (text === "" || typeof status !== "string" || !STATUSES.has(status)) return [];
       const legacyUntested =
-        i.status === "not_verified" && typeof i.id === "string" && untested.has(i.id);
+        status === "not_verified" && typeof i.id === "string" && untested.has(i.id);
       return [
         {
-          text: safeDisplay(i.text),
-          status: (legacyUntested ? "done_untested" : i.status) as ReceiptItemStatus,
+          text,
+          status: (legacyUntested ? "done_untested" : status) as ReceiptItemStatus,
           evidence: list(i.evidence).map(safePath).filter(Boolean).slice(0, 5),
         },
       ];
     }),
-    filesByFeature: list(s.files_by_feature)
+    filesByFeature: list(either(s, "files_by_feature", "filesByFeature"))
       .slice(0, MAX_FEATURE_GROUPS)
       .flatMap((raw) => {
         const g = obj(raw);
         const files = list(g.files).map(safePath).filter(Boolean).slice(0, MAX_GROUP_FILES);
-        return files.length > 0 ? [{ feature: safeDisplay(g.feature, 100), files }] : [];
+        return files.length > 0
+          ? [{ feature: safeDisplay(g.feature, 100) || "(no feature)", files }]
+          : [];
       }),
     noRequest: s.no_request === true,
     alreadyModified: list(s.files_already_modified).map(safePath).filter(Boolean),
     noSnapshot: s.no_snapshot === true,
-    outsideScope: list(s.outside_scope).map(safePath).filter(Boolean),
-    notVerified: list(s.not_verified).flatMap((raw) => {
-      const n = obj(raw);
-      if (n.reason === NO_TEST_CHANGED) return [];
-      return [{ text: safeDisplay(n.text), reason: safeDisplay(n.reason, 120) }];
+    outsideScope: list(either(s, "outside_scope", "outsideScope"))
+      .map(safePath)
+      .filter(Boolean),
+    notVerified: list(either(s, "not_verified", "notVerified")).flatMap((raw) => {
+      const n = entry(raw) as Record<string, unknown>;
+      const text = safeDisplay(n.text);
+      if (n.reason === NO_TEST_CHANGED || text === "") return [];
+      return [{ text, reason: safeDisplay(n.reason, 120) }];
     }),
     findings: findingList(s.findings),
     findingsBeforeSession: findingList(s.findings_before_session),

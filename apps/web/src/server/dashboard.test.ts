@@ -118,7 +118,9 @@ describe("FEAT-017 dashboard", () => {
     await seedReceipts(3);
     const page = await html(ReceiptsPage(props()));
     expect(page.match(/data-testid="receipt-card"/g)).toHaveLength(3);
-    expect(page.indexOf("Email the owner (2)")).toBeLessThan(page.indexOf("Email the owner (0)"));
+    // Newest first: only the first card is open and renders its body (D-026), and it is the newest receipt.
+    expect(page).toContain("Email the owner (2)");
+    expect(page).not.toContain("Email the owner (0)");
     for (const part of [
       "Asked: Add reviews",
       "1 done",

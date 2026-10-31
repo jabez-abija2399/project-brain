@@ -67,7 +67,10 @@ const openItems = (query: string, id = projectId, bearer = token) =>
 
 describe("captured requests", () => {
   it("records the request on the feature the AI picks, split into items, tied to the session, with one AI call", async () => {
-    const res = await capture({ text: "Add star ratings to reviews", session_id: "sess-1" });
+    const res = await capture({
+      text: "Add star ratings to reviews with the average",
+      session_id: "sess-1",
+    });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toMatchObject({ ok: true, recorded: true, feature: "Reviews", items: 2 });
@@ -101,10 +104,10 @@ describe("captured requests", () => {
   });
 
   it("create_checklist for a request the hook already captured returns it, with no second AI call", async () => {
-    await capture({ text: "Add star ratings to reviews", session_id: "sess-1" });
+    await capture({ text: "Add star ratings to reviews with the average", session_id: "sess-1" });
     const again = await createChecklist(world.db, tokenRow, {
       feature: "Reviews",
-      request: "Add star ratings to reviews",
+      request: "Add star ratings to reviews with the average",
     });
     expect(again.items).toHaveLength(2);
     expect(await requestsRepo.list(world.db, projectId)).toHaveLength(1);
@@ -169,7 +172,7 @@ describe("requests tied to sessions", () => {
   });
 
   it("the start note lists earlier sessions' open items as Still open from earlier", async () => {
-    await capture({ text: "Add star ratings", session_id: "old" });
+    await capture({ text: "Add star ratings with the average", session_id: "old" });
     const note = await whereDidWeStop(world.db, tokenRow, {});
     expect(note).toContain("STILL OPEN FROM EARLIER:");
     expect(note).toContain("- Add a star rating");
@@ -227,13 +230,13 @@ describe("security pass: captured requests", () => {
   it("attack: a captured request kept without items (budget used up) is split when the agent records it", async () => {
     vi.stubEnv("AI_CALLS_PER_PROJECT_PER_DAY", "1");
     await capture({ text: "Add a review form", session_id: "sess-1" });
-    await capture({ text: "Add star ratings to reviews", session_id: "sess-1" });
+    await capture({ text: "Add star ratings to reviews with the average", session_id: "sess-1" });
     expect(calls).toHaveLength(1);
     vi.stubEnv("AI_CALLS_PER_PROJECT_PER_DAY", "5");
     answer = "- Add a star rating\n- Show the average";
     const got = await createChecklist(world.db, tokenRow, {
       feature: "Reviews",
-      request: "Add star ratings to reviews",
+      request: "Add star ratings to reviews with the average",
     });
     expect(got.items).toHaveLength(2);
   });

@@ -434,3 +434,9 @@ Verified (ran this session): tests first (core, CLI with real git repos, server,
 NOT VERIFIED: a real agent session on edutech; the real judge model's answers with summaries.
 Next: later.md items.
 2026-10-31 D-025 owner decision: the secret scan reads every changed file; findings in files already changed before the session are sent and shown apart ("Already in your working tree before this session"), never the agent's or outside scope. Tests first (CLI real git repos incl. a forged snapshot, server, card).
+
+## 2026-10-31 | Edutech after PR #22: outcomes not steps, evidence end to end, older receipts, INP (D-026) | status: done (on branch, PR open)
+Changed: splitter/capture items are outcomes, single-purpose request = 1 item; files already modified before the session are summarized against their start content (local git blobs); judge prompt judges by kind and place; receipts store the evidence; `codeceipt last --evidence`; note for CLIs that send no summaries; receipt view drops empty entries and reads older shapes; closed receipt cards render only their summary (INP).
+Verified (ran this session): tests first, incl. an end-to-end test through the real session hooks and routes with realistic variants (dirty file, commit, CRLF, below "use client"); Chromium measurement before/after; full suites; fresh-context security pass; kit.py check; verify.sh (see PR).
+NOT VERIFIED: the real judge model's answers; the real edutech dashboard rows (the exact old shape that showed empty bullets was not found in git history; the view now drops any entry without text).
+Next: later.md items.

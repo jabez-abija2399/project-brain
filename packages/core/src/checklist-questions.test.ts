@@ -21,8 +21,9 @@ describe("request splitter asks fewer questions", () => {
       scripted("- Add a comment at the top of src/app/page.tsx\n? What should the comment say?"),
       "Add a comment at the top of the main page",
     );
+    // One purpose: one item in the user's words (D-026), and the wording question is gone.
     expect(items).toEqual([
-      { text: "Add a comment at the top of src/app/page.tsx", needs_clarification: false },
+      { text: "Add a comment at the top of the main page", needs_clarification: false },
     ]);
     expect(
       parseChecklist(

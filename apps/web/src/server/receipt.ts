@@ -7,6 +7,8 @@ import {
   errorType,
   featureFromPath,
   isCodeceiptSetupPath,
+  maskSecretsIn,
+  safePath,
   secretFinding,
 } from "@brain/core";
 import {
@@ -54,6 +56,7 @@ const changeSummary = z
     symbols_removed: z.array(symbolName).max(MAX_SUMMARY_SYMBOLS),
     symbols_changed: z.array(symbolName).max(MAX_SUMMARY_SYMBOLS),
     where: z.array(place).max(6),
+    since_session_start: z.boolean().optional(),
   })
   .strict();
 const receiptSchema = z
@@ -256,7 +259,27 @@ export async function generateReceipt(
     );
   }
   const noRequest = request === null ? { no_request: true } : {};
+  // Exactly what the judge was given per file (code-free), for `codeceipt last --evidence` and the dashboard; and a note
+  // when the CLI sent no summaries at all (an older codeceipt: the judge saw paths only).
+  // Names are masked again here: what is stored never depends on the CLI having masked them.
+  const masked = (names: string[]) => names.map((n) => maskSecretsIn(n));
+  const evidence = files.map((f) => ({
+    // Cleaned and masked per segment, like every path in the receipt.
+    path: safePath(f.path),
+    in_scope: f.inScope,
+    ...(f.preExisting ? { pre_existing: true } : {}),
+    summary: f.summary
+      ? {
+          ...f.summary,
+          symbols_added: masked(f.summary.symbols_added),
+          symbols_removed: masked(f.summary.symbols_removed),
+          symbols_changed: masked(f.summary.symbols_changed),
+        }
+      : null,
+  }));
   const baseline = {
+    ...(files.length > 0 ? { evidence } : {}),
+    ...(files.length > 0 && !input.changeSummaries?.length ? { no_change_summaries: true } : {}),
     ...(input.secretFindingsBeforeSession?.length
       ? { findings_before_session: input.secretFindingsBeforeSession.map(secretFinding) }
       : {}),

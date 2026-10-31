@@ -26,10 +26,14 @@ import { callTool } from "./mcp-client";
 import { type Git, changedFiles, repoRoot, scanFiles } from "./scan-secrets";
 import {
   type Snapshot,
+  type StartBlobs,
   changeSummaries,
   sinceSnapshot,
+  startBlobs,
   takeSnapshot,
+  validBlobs,
   validSnapshot,
+  verifiedBlobs,
 } from "./session-snapshot";
 import { localIntegrity, passingTests } from "./test-integrity-local";
 
@@ -164,19 +168,22 @@ function readState(file: string): {
   passing: number | null;
   startedAt: string | null;
   snapshot: Snapshot | null;
+  blobs: StartBlobs;
 } {
   try {
     if (lstatSync(file).isSymbolicLink()) {
-      return { start: null, passing: null, startedAt: null, snapshot: null };
+      return { start: null, passing: null, startedAt: null, snapshot: null, blobs: {} };
     }
     const saved = JSON.parse(readFileSync(file, "utf8")) as {
       start?: unknown;
       passing?: unknown;
       startedAt?: unknown;
       snapshot?: unknown;
+      blobs?: unknown;
     };
     return {
       snapshot: validSnapshot(saved.snapshot),
+      blobs: validBlobs(saved.blobs),
       // When the session started: requests recorded without a session id since then belong to it.
       startedAt:
         typeof saved.startedAt === "string" &&
@@ -193,7 +200,7 @@ function readState(file: string): {
           : null,
     };
   } catch {
-    return { start: null, passing: null, startedAt: null, snapshot: null };
+    return { start: null, passing: null, startedAt: null, snapshot: null, blobs: {} };
   }
 }
 
@@ -332,7 +339,10 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     // Written before hashing, so a hook stopped while hashing still keeps the starting commit (no snapshot then).
     writeState(file, JSON.stringify(state));
     const snapshot = await takeSnapshot(deps.git, root).catch(() => null);
-    if (snapshot) writeState(file, JSON.stringify({ ...state, snapshot }));
+    if (snapshot) {
+      const blobs = await startBlobs(deps.git, root, snapshot).catch(() => ({}));
+      writeState(file, JSON.stringify({ ...state, snapshot, blobs }));
+    }
   } catch {
     // Not a git repo: session end then compares with HEAD.
   }
@@ -445,13 +455,14 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
   let passingBefore: number | null = null;
   let startedAt: string | null = null;
   let snapshot: Snapshot | null = null;
+  let blobs: StartBlobs = {};
   // D-025: changed files that were already modified at the start, and whether there was no start snapshot.
   let preExisting: string[] = [];
   let noSnapshot = false;
   try {
     root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
-    ({ start, passing: passingBefore, startedAt, snapshot } = readState(file));
+    ({ start, passing: passingBefore, startedAt, snapshot, blobs } = readState(file));
     rmSync(file, { force: true });
     commit = await head(deps.git, root);
     // A start that is not an ancestor of HEAD (history rewritten, state file edited) cannot bound the session.
@@ -492,6 +503,16 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     root,
     start ?? (commit ? "HEAD" : null),
     receiptFiles.slice(0, MAX_RECEIPT_FILES),
+    // Only files already modified at the start and changed further are diffed against their start content, and only
+    // with a start blob that matches the snapshot.
+    snapshot
+      ? await verifiedBlobs(
+          deps.git,
+          root,
+          Object.fromEntries(Object.entries(blobs).filter(([path]) => preExisting.includes(path))),
+          snapshot,
+        ).catch(() => ({}))
+      : {},
   ).catch(() => []);
   const marked = preExisting.filter((f) => receiptFiles.includes(f));
   // Only this session's requests are checked by its receipt (requests are tied to sessions).
