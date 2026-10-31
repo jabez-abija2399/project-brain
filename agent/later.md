@@ -135,3 +135,6 @@
 - 2026-10-30 D-024 security: a request without a session (create_checklist) counts for any session that started before it, including another member's session in the same project; tie create_checklist to the agent's session id.
 - 2026-10-30 D-024: hook stdin over 64 KB is dropped, so a very long OpenCode message is never recorded; consider reading only the fields needed.
 - 2026-10-30 D-024: "NOT A REQUEST" answers are not remembered, so the same question asked twice costs two AI calls; consider caching them per session.
+- 2026-10-31 D-025 security: the session snapshot lives in .git (like the starting commit); an agent that can write there could edit it to hide its changes from the receipt. Consider signing the state with a key kept outside the repo.
+- 2026-10-31 D-025: test checks compare a test file with the session's starting commit; for a test file that was already modified before the session and changed further, the user's earlier edits are included (only hashes are kept, not content).
+- 2026-10-31 D-025: the session-end warning about loose checklist items and save_progress's next step still include clarifying questions; consider listing them apart as questions for the user.

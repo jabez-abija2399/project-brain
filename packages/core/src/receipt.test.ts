@@ -51,8 +51,8 @@ describe("change receipt (FEAT-013)", () => {
         status: "partial",
         evidence: ["src/reviews/Stars.tsx"],
       },
-      // Not answered by the model: missed, never assumed done.
-      { id: "i3", text: "Email the owner on new reviews", status: "missed", evidence: [] },
+      // Not answered by the model: not verified (D-025: missed needs evidence), never assumed done.
+      { id: "i3", text: "Email the owner on new reviews", status: "not_verified", evidence: [] },
     ]);
   });
 

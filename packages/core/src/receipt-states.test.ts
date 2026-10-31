@@ -12,7 +12,23 @@ const items = [
   { id: "i2", text: "Add a star rating" },
   { id: "i3", text: "Email the owner" },
 ];
-const file = (path: string) => ({ path, feature: "reviews", inScope: true });
+// Each file has a change summary (D-025), so a "missed" verdict is evidence, not a guess.
+const file = (path: string) => ({
+  path,
+  feature: "reviews",
+  inScope: true,
+  summary: {
+    path,
+    added: 3,
+    removed: 0,
+    comment_only: false,
+    imports_changed: false,
+    symbols_added: [],
+    symbols_removed: [],
+    symbols_changed: [],
+    where: ["new file"],
+  },
+});
 
 describe("done, no test proves it", () => {
   it("an item judged done with file evidence but no changed test is done_untested; one without evidence stays not verified", async () => {

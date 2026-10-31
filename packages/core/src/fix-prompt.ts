@@ -4,12 +4,22 @@ import { maskPath, maskSecretsIn } from "./mask";
 import { NO_TEST_CHANGED } from "./receipt";
 import { oneLineText } from "./text";
 
-export type ReceiptItemStatus = "done" | "done_untested" | "partial" | "missed" | "not_verified";
+export type ReceiptItemStatus =
+  | "done"
+  | "done_untested"
+  | "partial"
+  | "missed"
+  | "not_verified"
+  | "question";
 export type ReceiptView = {
   items: { text: string; status: ReceiptItemStatus; evidence: string[] }[];
   // The changed files by feature, and whether no request was recorded for the session (dogfooding).
   filesByFeature: { feature: string; files: string[] }[];
   noRequest: boolean;
+  // D-025: changed files that were already modified before the session (the agent edited them further), and whether
+  // the session had no start snapshot (files changed before it may be counted).
+  alreadyModified: string[];
+  noSnapshot: boolean;
   outsideScope: string[];
   notVerified: { text: string; reason: string }[];
   findings: {
@@ -42,7 +52,14 @@ const MAX_PROMPT_ITEMS = 20;
 // Display caps for the changed-files list (a receipt has at most 200 files).
 const MAX_FEATURE_GROUPS = 50;
 const MAX_GROUP_FILES = 200;
-const STATUSES = new Set(["done", "done_untested", "partial", "missed", "not_verified"]);
+const STATUSES = new Set([
+  "done",
+  "done_untested",
+  "partial",
+  "missed",
+  "not_verified",
+  "question",
+]);
 
 // Zero-width and direction marks that oneLineText keeps (U+200B-U+200F, U+2060, U+FEFF, U+061C).
 const INVISIBLE = /[\u200b-\u200f\u2060\ufeff\u061c]/g;
@@ -90,6 +107,8 @@ export function receiptView(summary: unknown): ReceiptView {
         return files.length > 0 ? [{ feature: safeDisplay(g.feature, 100), files }] : [];
       }),
     noRequest: s.no_request === true,
+    alreadyModified: list(s.files_already_modified).map(safePath).filter(Boolean),
+    noSnapshot: s.no_snapshot === true,
     outsideScope: list(s.outside_scope).map(safePath).filter(Boolean),
     notVerified: list(s.not_verified).flatMap((raw) => {
       const n = obj(raw);
@@ -137,6 +156,7 @@ export function receiptView(summary: unknown): ReceiptView {
 /**
  * "Send fix to agent" (AC-017-06): a prompt listing the receipt's missed (and partly done) items for the user to
  * paste into their agent. Null when nothing was missed. Item texts are marked as the user's request, not commands.
+ * Clarifying questions are never in it (D-025): they are for the user to answer, not work for the agent.
  */
 export function fixPrompt(asked: string | null, view: ReceiptView): string | null {
   const open = view.items.filter((i) => i.status === "missed" || i.status === "partial");

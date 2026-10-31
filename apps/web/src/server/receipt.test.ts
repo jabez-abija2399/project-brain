@@ -76,6 +76,20 @@ afterEach(async () => {
 const status = async (id: string) =>
   (await checklistItemsRepo.byId(world.db, projectId, id))?.status;
 
+// D-025: what the CLI sends with each changed file; with a summary for every file, "missed" is evidence.
+const summaries = (paths: string[]) =>
+  paths.map((path) => ({
+    path,
+    added: 2,
+    removed: 0,
+    comment_only: false,
+    imports_changed: false,
+    symbols_added: [],
+    symbols_removed: [],
+    symbols_changed: [],
+    where: ["new file"],
+  }));
+
 describe("generate_receipt (FEAT-013)", () => {
   it("AC-013-01 returns done/partial/missed per item with file evidence, from one LLM call, and stores the receipt", async () => {
     scripted("1 | done | src/reviews/List.tsx, src/reviews/List.test.tsx\n2 | missed |");
@@ -83,6 +97,7 @@ describe("generate_receipt (FEAT-013)", () => {
       projectId,
       requestId,
       changedFiles: ["src/reviews/List.tsx", "src/reviews/List.test.tsx"],
+      changeSummaries: summaries(["src/reviews/List.tsx", "src/reviews/List.test.tsx"]),
     });
     expect(calls).toHaveLength(1);
     expect(receipt.items).toEqual([
@@ -138,6 +153,7 @@ describe("generate_receipt (FEAT-013)", () => {
       projectId,
       requestId,
       changedFiles: ["src/reviews/List.tsx"],
+      changeSummaries: summaries(["src/reviews/List.tsx"]),
     });
     expect(await status(itemIds[0] as string)).toBe("missed");
     // Still listed as unfinished work in the handoff note.
@@ -149,6 +165,7 @@ describe("generate_receipt (FEAT-013)", () => {
       projectId,
       requestId,
       changedFiles: ["src/reviews/List.tsx", "src/reviews/List.test.tsx"],
+      changeSummaries: summaries(["src/reviews/List.tsx", "src/reviews/List.test.tsx"]),
     });
     expect(await status(itemIds[0] as string)).toBe("done");
     // A done item is not judged again: the third receipt only asks about item 2.
@@ -157,6 +174,7 @@ describe("generate_receipt (FEAT-013)", () => {
       projectId,
       requestId,
       changedFiles: ["src/reviews/List.tsx"],
+      changeSummaries: summaries(["src/reviews/List.tsx"]),
     });
     expect(calls[0]?.prompt).not.toContain("Show the reviews list");
     expect(await status(itemIds[0] as string)).toBe("done");

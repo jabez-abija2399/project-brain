@@ -63,6 +63,8 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
       // Dogfooding: the changed files by feature and the no-request flag are part of the view too.
       filesByFeature: [],
       noRequest: false,
+      alreadyModified: [],
+      noSnapshot: false,
       outsideScope: [],
       notVerified: [],
       findings: [],

@@ -427,3 +427,9 @@ Verified (ran this session): tests first (core, web, CLI); journey e2e covers ca
 NOT VERIFIED: real Claude Code, Cursor, Codex and OpenCode hook runs; whether Claude Code shows stderr of an exit-0 SessionEnd hook.
 Next: later.md items.
 2026-10-31 PR #21 CI: osv-scanner flagged new advisories in glob 10.5.0 / minimatch 9.0.9 (inngest > otel > gaxios@7 > rimraf@5). gaxios 7 lists rimraf but never uses it; a pnpm override ("gaxios@7>rimraf": "-") drops it. package.json and pnpm-lock.yaml added to scope for this only.
+
+## 2026-10-31 | Edutech real-test bugs: session snapshot, change summaries, questions (D-025) | status: done (on branch, PR open)
+Changed: session start snapshots modified/untracked files (paths + hashes, in .git); receipts, secret scan and test checks only see files new or changed since then (pre-existing edited files marked; no snapshot = fallback with a notice); CLI sends code-free change summaries; judge may say unclear; missed needs a summary for every file, otherwise not verified / done no test; needs_clarification items are "Question", never judged or missed, not in Send fix; splitter asks fewer questions.
+Verified (ran this session): tests first (core, CLI with real git repos, server, card render); old tests updated only where the behaviour changed on purpose; fresh-context security pass; full suites; kit.py check; verify.sh (see PR).
+NOT VERIFIED: a real agent session on edutech; the real judge model's answers with summaries.
+Next: later.md items.

@@ -177,9 +177,10 @@ describe("FEAT-016 hook security", () => {
     const t = setup(s.fetchImpl);
     const other = gitRepo("pb-hsec-other-");
     writeFileSync(join(other.repo, "other-private-plan.ts"), "export const plan = 1;\n");
-    writeFileSync(join(t.repo, "a.ts"), "export const a = 1;\n");
     const stdin = { session_id: "s1", cwd: other.repo };
     await t.hook("session-start", "claude", stdin);
+    // Changed during the session (D-025: files changed before it are the user's, not the session's).
+    writeFileSync(join(t.repo, "a.ts"), "export const a = 1;\n");
     await t.hook("session-end", "claude", stdin);
     const receipt = s.calls.find((c) => c.tool === "generate_receipt");
     expect(JSON.stringify(s.calls)).not.toContain("other-private-plan.ts");
@@ -192,8 +193,8 @@ describe("FEAT-016 hook security", () => {
     const secretOutside = join(t.outside, "creds.txt");
     const key = ["sk", "-proj-", "aB3dE5gH7j", "aB3dE5gH7j", "aB3dE5gH7j"].join("");
     writeFileSync(secretOutside, `KEY=${key}\n`);
-    symlinkSync(secretOutside, join(t.repo, "creds-link.txt"));
     await t.hook("session-start", "claude");
+    symlinkSync(secretOutside, join(t.repo, "creds-link.txt"));
     await t.hook("session-end", "claude");
     const receipt = s.calls.find((c) => c.tool === "generate_receipt");
     expect(receipt?.args?.secretFindings).toEqual([]);

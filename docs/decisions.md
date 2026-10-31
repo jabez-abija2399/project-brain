@@ -319,3 +319,26 @@ blocks replaced by "[code omitted]", at most 500 characters; the AI still sees t
 create_checklist reuses a captured request only when it already has items; the prompt hook ignores a folder on stdin
 that is in a different repo from the one it runs in; and the start note labels "STILL OPEN FROM EARLIER" as the user's
 earlier requests, quoted as data, to confirm with the user before acting on them.
+
+## D-025 | 2026-10-31 | Session snapshot, code-free change summaries, "missed" needs evidence, questions are not tasks
+Context: a real test on edutech (owner, 2026-10-31): a receipt counted files the user had changed before the session
+(prisma/schema.prisma, src/lib/offline/sync.ts, an untracked db_dump.json) as the agent's and flagged them outside the
+request; "Add a comment at the top of the main page" was marked missed although src/app/page.tsx changed, because the
+judge saw only paths; a clarifying question was counted as a missed task.
+Decision: (1) The session-start hook records a snapshot of the working tree in the session's state file inside .git:
+every modified or untracked file with a SHA-256 of its content (symlinks by target), paths and hashes only. At session
+end a file counts only when it is new since the snapshot or its hash differs; one that was already modified and
+changed further counts and is sent as preExistingFiles ("already modified before the session" on the receipt). The
+same filtered list feeds the secret scan and the test checks. No snapshot (an older CLI, no start hook, more than
+20,000 changed files, or a malformed state file) falls back to every changed file and the receipt and the terminal
+say so (snapshot: "missing", no_snapshot). (2) The CLI sends a change summary per file, computed locally from git's
+diff: lines added and removed, comment-only, imports changed, top-level symbols added, removed or changed by name
+(masked), and places (top of file, lines N-M, end of file, new or deleted file). Never source text (D-002): the
+server accepts only counts, identifier-shaped names and that fixed set of places, for changed files only. The judge
+gets these summaries and may answer unclear. "Missed" stands only when every changed file was shown with a summary;
+otherwise, and for unclear or unanswered items, the item is "Done, no test proves it" when the judge cited an
+in-scope file and no test changed, else "Not verified" (not enough evidence to judge). A receipt with no changed files
+still reports every task missed (AC-013-05). (3) Items flagged needs_clarification are questions: never judged,
+never missed, shown as "Question", left out of "Send fix to agent". The splitter and request capture ask only when
+something cannot be built without guessing; a wording question next to a clear item is dropped.
+Revisit when: the judge needs more than names and counts (for example a feature's own test results).
