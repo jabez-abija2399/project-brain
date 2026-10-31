@@ -24,6 +24,16 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+/** Something on the receipt needs the user: missed or partly done items, findings, test checks, edits outside scope. */
+export function needsAttention(view: ReceiptView): boolean {
+  return (
+    view.items.some((i) => i.status === "missed" || i.status === "partial") ||
+    view.findings.length + view.findingsOmitted > 0 ||
+    view.testChecks.length > 0 ||
+    view.outsideScope.length > 0
+  );
+}
+
 // One receipt: what was asked, what got done, partly done or missed, edits outside the request's feature, security
 // findings and what could not be verified. Collapsed to its summary line until opened; the body is rendered on first
 // open, so a page of receipts stays small and a click stays fast (INP).

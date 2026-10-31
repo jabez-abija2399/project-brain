@@ -440,3 +440,8 @@ Changed: splitter/capture items are outcomes, single-purpose request = 1 item; f
 Verified (ran this session): tests first, incl. an end-to-end test through the real session hooks and routes with realistic variants (dirty file, commit, CRLF, below "use client"); Chromium measurement before/after; full suites; fresh-context security pass; kit.py check; verify.sh (see PR).
 NOT VERIFIED: the real judge model's answers; the real edutech dashboard rows (the exact old shape that showed empty bullets was not found in git history; the view now drops any entry without text).
 Next: later.md items.
+
+## 2026-10-31 | Bright ledger: new visual style across landing and dashboard | status: done (on branch, PR open)
+Changed: new tokens (cool neutrals, indigo/violet accent, soft status tints, 12 px radius, shadows) with automatic dark mode; filled badges, lifting cards with a red edge when a receipt needs attention, pill tabs, focus ring, chevron + fade on receipt open, rounded tables with row hover; receipts feed filter chips (All / Needs attention / All good); landing hero glow, card sections, numbered steps, tilting receipt, animated FAQ, sticky blurred header. DESIGN.md updated; screenshots in docs/screenshots.
+Verified (ran this session): filter test first; pages rendered and screenshotted in Chromium at 1280 and 375 px, light and dark; full suites; kit.py check; verify.sh (see PR).
+NOT VERIFIED: the live app in a real browser with hydration (screenshots are server-rendered HTML with the app's CSS); contrast measured by eye, not a tool.

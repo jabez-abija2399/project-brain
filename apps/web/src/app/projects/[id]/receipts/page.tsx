@@ -1,4 +1,5 @@
-import { ReceiptCard } from "@/components/receipt-card";
+import { ReceiptCard, needsAttention } from "@/components/receipt-card";
+import { ReceiptsFilter } from "@/components/receipts-filter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { receiptsFeed } from "@/server/dashboard";
@@ -22,13 +23,18 @@ export default async function ReceiptsPage(props: ListPageProps) {
         />
       ) : (
         <>
-          <ol className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
-            {feed.rows.map((r, n) => (
-              <li key={r.id}>
-                <ReceiptCard receipt={r} expanded={feed.page === 1 && n === 0} />
-              </li>
-            ))}
-          </ol>
+          <ReceiptsFilter
+            total={feed.rows.length}
+            attention={feed.rows.filter((r) => needsAttention(r.view)).length}
+          >
+            <ol className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {feed.rows.map((r, n) => (
+                <li key={r.id} data-attention={needsAttention(r.view)}>
+                  <ReceiptCard receipt={r} expanded={feed.page === 1 && n === 0} />
+                </li>
+              ))}
+            </ol>
+          </ReceiptsFilter>
           <Pagination page={feed.page} pages={feed.pages} basePath={`${base}/receipts`} />
         </>
       )}
