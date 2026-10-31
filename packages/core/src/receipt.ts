@@ -14,6 +14,8 @@ export type ReceiptFileInput = {
   feature: string | null;
   inScope: boolean;
   summary?: ChangeSummary;
+  // Already modified before the session: its summary includes the user's earlier edits.
+  preExisting?: boolean;
 };
 export type ItemVerdict = "done" | "partial" | "missed";
 // unclear: the judge cannot tell from the evidence (D-025).
@@ -86,7 +88,11 @@ export const safePath = (path: string) =>
 
 // One line per file: the path, whether it is in the request's feature, and its change summary (or that it has none).
 function fileLine(f: ReceiptFileInput, path: string): string {
-  const scope = f.inScope ? "in the request's feature" : "outside the request's feature";
+  const scope = `${f.inScope ? "in the request's feature" : "outside the request's feature"}${
+    f.preExisting
+      ? ", already modified before the session, the summary includes the user's earlier edits"
+      : ""
+  }`;
   const s = f.summary;
   if (!s) return `- ${path} (${scope}): no change summary`;
   const names = (label: string, list: string[]) =>
@@ -253,10 +259,11 @@ export async function buildReceipt(
     const evidence = v.evidence;
     // A judgement on cut text is not a judgement on the item.
     let reason: string | null = plan.cutItems.get(n) ?? null;
-    let verdict: ItemVerdict | "unclear" = v.verdict;
-    // "Missed" needs evidence that the item was not done: a summary of every changed file.
-    if (!reason && verdict === "missed" && !plan.fullEvidence) verdict = "unclear";
-    if (!reason && verdict === "unclear") {
+    const verdict: ItemVerdict | "unclear" = v.verdict;
+    // "Missed" needs evidence that the item was not done: a summary of every changed file. Without it the judge's
+    // "missed" is not enough evidence either way (never turned into done).
+    if (!reason && verdict === "missed" && !plan.fullEvidence) reason = NOT_ENOUGH_EVIDENCE;
+    else if (!reason && verdict === "unclear") {
       reason =
         evidence.some((p) => inScope.has(p)) && !testChanged
           ? NO_TEST_CHANGED

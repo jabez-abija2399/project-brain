@@ -324,15 +324,15 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     const root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
     const passing = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
-    writeState(
-      file,
-      JSON.stringify({
-        start: await head(deps.git, root),
-        passing,
-        startedAt: (deps.now?.() ?? new Date()).toISOString(),
-        snapshot: await takeSnapshot(deps.git, root).catch(() => null),
-      }),
-    );
+    const state = {
+      start: await head(deps.git, root),
+      passing,
+      startedAt: (deps.now?.() ?? new Date()).toISOString(),
+    };
+    // Written before hashing, so a hook stopped while hashing still keeps the starting commit (no snapshot then).
+    writeState(file, JSON.stringify(state));
+    const snapshot = await takeSnapshot(deps.git, root).catch(() => null);
+    if (snapshot) writeState(file, JSON.stringify({ ...state, snapshot }));
   } catch {
     // Not a git repo: session end then compares with HEAD.
   }

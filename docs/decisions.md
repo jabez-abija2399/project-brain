@@ -342,3 +342,11 @@ still reports every task missed (AC-013-05). (3) Items flagged needs_clarificati
 never missed, shown as "Question", left out of "Send fix to agent". The splitter and request capture ask only when
 something cannot be built without guessing; a wording question next to a clear item is dropped.
 Revisit when: the judge needs more than names and counts (for example a feature's own test results).
+Security pass (fresh context, 2026-10-31): a judge's "missed" with a file lacking a summary becomes not verified,
+never done (only an explicit done, or unclear citing an in-scope file, can give "Done, no test proves it"); binary,
+large (over 1 MB, or a diff over 2 MB) and symlinked files get a kind-only summary ("binary file", "large file",
+"symlink"), so one image does not remove the evidence; hashing has a 256 MB budget (no snapshot past it at the start,
+and at the end files past it count as changed); the state is written before hashing; files already modified before
+the session are labelled for the judge. Kept as the owner asked: the snapshot also filters the secret scan, so a
+snapshot edited by an agent with write access to .git could hide a file (as the starting commit already could); see
+agent/later.md.

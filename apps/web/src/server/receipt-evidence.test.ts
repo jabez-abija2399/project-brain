@@ -158,4 +158,35 @@ describe("D-025 receipts on the server", () => {
       generateReceipt(world.db, token, { changedFiles: ["src/app/page.tsx"], snapshot: "used" }),
     ).rejects.toMatchObject({ status: 400 });
   });
+
+  it("security pass: a binary or large file's kind-only summary is accepted, and pre-existing files are labelled for the judge", async () => {
+    const { request } = await edutechRequest();
+    answer = "1 | missed |";
+    const receipt = await generateReceipt(world.db, token, {
+      requestId: request.id,
+      changedFiles: ["src/app/page.tsx", "public/logo.png"],
+      changeSummaries: [
+        comment,
+        {
+          ...comment,
+          path: "public/logo.png",
+          added: 0,
+          comment_only: false,
+          where: ["binary file"],
+        },
+      ],
+      preExistingFiles: ["src/app/page.tsx"],
+    });
+    expect(calls[0]?.prompt).toContain(
+      "src/app/page.tsx (in the request's feature, already modified before the session",
+    );
+    // Every file had a summary, so the judge's missed stands.
+    expect(receipt.items[0]?.status).toBe("missed");
+    await expect(
+      generateReceipt(world.db, token, {
+        changedFiles: ["a.bin"],
+        changeSummaries: [{ ...comment, path: "a.bin", where: ["huge file"] }],
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
 });

@@ -88,6 +88,7 @@ export {
   MAX_SUMMARY_SYMBOLS,
   type ChangeSummary,
   summarizeDiff,
+  skippedFile,
   summarizeNewFile,
 } from "./change-summary";
 export {

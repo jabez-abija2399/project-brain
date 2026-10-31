@@ -195,3 +195,37 @@ describe("D-025 code-free change summaries", () => {
     expect(t.receipts[0]?.changeSummaries?.map((s) => s.path)).toEqual(["src/config.ts"]);
   });
 });
+
+describe("D-025 security pass: snapshot and summaries", () => {
+  it("attack: a huge untracked file stops the snapshot quickly (no snapshot) instead of hashing gigabytes", async () => {
+    const { takeSnapshot } = await import("./session-snapshot");
+    const { runGit } = await import("./scan-secrets");
+    const t = setup();
+    execFileSync("truncate", ["-s", "2G", join(t.repo, "dataset.bin")]);
+    const started = Date.now();
+    expect(await takeSnapshot(runGit, t.repo)).toBeNull();
+    expect(Date.now() - started).toBeLessThan(5_000);
+  });
+
+  it("a binary or large file still gets a summary (no counts), so it never removes the evidence for missed", async () => {
+    const t = setup();
+    await t.run("session-start");
+    t.agentEdit();
+    t.write("public/logo.png", "\u0089PNG\u0000\u0000binary");
+    t.write("public/big.json", `"${"x".repeat(1_100_000)}"`);
+    await t.run("session-end");
+    const byPath = Object.fromEntries(
+      (t.receipts[0]?.changeSummaries ?? []).map((s) => [s.path, s]),
+    );
+    expect(byPath["public/logo.png"]).toMatchObject({
+      added: 0,
+      removed: 0,
+      where: ["binary file"],
+    });
+    expect(byPath["public/big.json"]).toMatchObject({
+      added: 0,
+      removed: 0,
+      where: ["large file"],
+    });
+  });
+});

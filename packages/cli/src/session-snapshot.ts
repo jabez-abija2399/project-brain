@@ -2,7 +2,13 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { lstat, readFile, readlink, realpath } from "node:fs/promises";
 import { isAbsolute, join, sep } from "node:path";
-import { type ChangeSummary, MAX_SCAN_BYTES, summarizeDiff, summarizeNewFile } from "@brain/core";
+import {
+  type ChangeSummary,
+  MAX_SCAN_BYTES,
+  skippedFile,
+  summarizeDiff,
+  summarizeNewFile,
+} from "@brain/core";
 import { type Git, changedFiles } from "./scan-secrets";
 
 // D-025: the working tree at session start. Every modified or untracked file with a content hash (paths and hashes
@@ -12,6 +18,9 @@ export type Snapshot = Record<string, string>;
 
 // More changed files than this at session start: no snapshot (session end falls back and says so).
 export const MAX_SNAPSHOT_FILES = 20_000;
+// Bytes hashed at most, at start and again at end (the hooks have seconds, not minutes): past it, no snapshot at the
+// start, and at the end the remaining files count as changed.
+export const MAX_SNAPSHOT_BYTES = 256 * 1024 * 1024;
 const HASH = /^(deleted|[0-9a-f]{64}|link:[0-9a-f]{64}|other)$/;
 
 async function inside(root: string, file: string): Promise<string | null> {
@@ -45,9 +54,21 @@ export async function fileHash(root: string, file: string): Promise<string> {
 }
 
 /** Null when the working tree has too many changed files to record (session end then falls back). */
+// The size fileHash would read for this file (0 for anything it does not read).
+async function hashedSize(root: string, file: string): Promise<number> {
+  const abs = await inside(root, file);
+  const st = abs ? await lstat(abs).catch(() => null) : null;
+  return st?.isFile() ? st.size : 0;
+}
+
 export async function takeSnapshot(git: Git, root: string): Promise<Snapshot | null> {
   const files = await changedFiles(git, root, undefined);
   if (files.length > MAX_SNAPSHOT_FILES) return null;
+  let bytes = 0;
+  for (const f of files) {
+    bytes += await hashedSize(root, f);
+    if (bytes > MAX_SNAPSHOT_BYTES) return null;
+  }
   const out: Snapshot = {};
   for (const f of files) out[f] = await fileHash(root, f);
   return out;
@@ -79,9 +100,16 @@ export async function sinceSnapshot(
 ): Promise<{ files: string[]; preExisting: string[] }> {
   const kept: string[] = [];
   const preExisting: string[] = [];
+  let bytes = 0;
   for (const f of files) {
     const before = Object.hasOwn(snapshot, f) ? snapshot[f] : undefined;
     if (before === undefined) {
+      kept.push(f);
+      continue;
+    }
+    bytes += await hashedSize(root, f);
+    // Past the byte budget a file is not hashed again: it counts as changed (never hidden).
+    if (bytes > MAX_SNAPSHOT_BYTES) {
       kept.push(f);
       continue;
     }
@@ -116,11 +144,24 @@ export async function changeSummaries(
     const abs = await inside(root, file);
     if (!abs) continue;
     const st = await lstat(abs).catch(() => null);
-    if (st && (!st.isFile() || st.size > MAX_SCAN_BYTES)) continue;
+    // Files whose lines are not counted still get a summary of their kind: every changed file has one, so a single
+    // image does not take away the evidence a "missed" verdict needs.
+    if (st?.isSymbolicLink()) {
+      out.push(skippedFile(file, "symlink"));
+      continue;
+    }
+    if (st && !st.isFile()) continue;
+    if (st && st.size > MAX_SCAN_BYTES) {
+      out.push(skippedFile(file, "large file"));
+      continue;
+    }
     const total = st ? await lineCount(abs) : 0;
     if (untracked.has(file) || !base) {
       const text = st ? await readFile(abs, "utf8").catch(() => null) : null;
-      if (text !== null && !text.includes("\0")) out.push(summarizeNewFile(file, text));
+      if (text === null) continue;
+      out.push(
+        text.includes("\0") ? skippedFile(file, "binary file") : summarizeNewFile(file, text),
+      );
       continue;
     }
     const diff = await git(
@@ -136,7 +177,11 @@ export async function changeSummaries(
       ],
       root,
     ).catch(() => null);
-    if (diff === null || diff.length > MAX_DIFF_CHARS) continue;
+    if (diff === null) continue;
+    if (diff.length > MAX_DIFF_CHARS) {
+      out.push(skippedFile(file, "large file"));
+      continue;
+    }
     if (diff.trim() === "") continue;
     out.push(summarizeDiff(file, diff, total));
   }

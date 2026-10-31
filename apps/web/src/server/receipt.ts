@@ -38,7 +38,7 @@ const symbolName = z.string().regex(/^[A-Za-z_$][\w$.]{0,99}(\*\*\*)?$/, "must b
 const place = z
   .string()
   .regex(
-    /^(top of file|end of file|new file|deleted file|binary file|line \d{1,7}|lines \d{1,7}-\d{1,7}|\d{1,7} more places)$/,
+    /^(top of file|end of file|new file|deleted file|binary file|large file|symlink|line \d{1,7}|lines \d{1,7}-\d{1,7}|\d{1,7} more places)$/,
     "must be a place in the file",
   );
 const count = z.number().int().min(0).max(1_000_000);
@@ -180,7 +180,8 @@ export async function generateReceipt(
   const summaries = new Map((input.changeSummaries ?? []).map((s) => [s.path, s]));
   const files = (await filesWithFeatures(db, pid, paths, request?.featureId ?? null)).map((f) => {
     const summary = summaries.get(f.path);
-    return summary ? { ...f, summary } : f;
+    const marked = (input.preExistingFiles ?? []).includes(f.path) ? { preExisting: true } : {};
+    return summary ? { ...f, summary, ...marked } : { ...f, ...marked };
   });
   const alreadyModified = [...new Set(input.preExistingFiles ?? [])].filter((p) =>
     paths.includes(p),

@@ -124,6 +124,14 @@ export function summarizeDiff(path: string, diff: string, total: number): Change
   return summary(path, plus, minus, inside, places(hunks, total));
 }
 
+/** A file whose lines are not counted (binary, larger than the scan limit, a symlink): its kind only. */
+export function skippedFile(
+  path: string,
+  kind: "binary file" | "large file" | "symlink",
+): ChangeSummary {
+  return summary(path, [], [], new Set(), [kind]);
+}
+
 /** A file git does not track yet: every line is added. */
 export function summarizeNewFile(path: string, text: string): ChangeSummary {
   const lines = text.split("\n");

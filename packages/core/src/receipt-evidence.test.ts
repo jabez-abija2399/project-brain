@@ -119,3 +119,20 @@ describe("clarifying questions are never checklist tasks", () => {
     expect(prompt.match(/>>>/g)).toHaveLength(2);
   });
 });
+
+describe("D-025 security pass", () => {
+  it("attack: a judge's missed is never turned into done when another file has no summary", async () => {
+    const receipt = await buildReceipt(scripted("1 | missed | src/app/page.tsx").llm, ask, [
+      { ...page, summary: comment },
+      { path: "public/logo.png", feature: null, inScope: false },
+    ]);
+    expect(receipt.items[0]?.status).toBe("not_verified");
+  });
+
+  it("files already modified before the session are labelled for the judge", () => {
+    const prompt = receiptPrompt(ask, [{ ...page, summary: comment, preExisting: true }]);
+    expect(prompt).toContain(
+      "- src/app/page.tsx (in the request's feature, already modified before the session, the summary includes the user's earlier edits): +1 -0",
+    );
+  });
+});
