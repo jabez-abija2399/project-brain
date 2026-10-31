@@ -139,7 +139,7 @@ async function makeItems(answer = "- Add a pricing page\n- Show 3 plans", tok = 
   const out = await createChecklist(world.db, tok, {
     projectId: pid,
     featureId: fid,
-    request: "x y z",
+    request: "Add a pricing page and a plan toggle",
   });
   calls = [];
   return out;
@@ -496,7 +496,7 @@ describe("FEAT-012 security pass", () => {
     const out = await createChecklist(world.db, tokenRow, {
       projectId,
       featureId,
-      request: "x y z",
+      request: "Add a pricing page and a plan toggle",
     });
     const item = out.items[0];
     if (!item) throw new Error("expected an item");

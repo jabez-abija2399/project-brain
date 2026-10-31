@@ -1,6 +1,6 @@
 // FEAT-013: a change receipt. Everything is deterministic except one small-model call that judges the checklist
 // items against the changed files (D-009: at most one LLM call per receipt). Pure: the caller passes the Llm.
-import type { ChangeSummary } from "./change-summary";
+import { type ChangeSummary, describeChange } from "./change-summary";
 import type { Llm } from "./llm";
 import { maskSecretsIn } from "./mask";
 import { oneLineText } from "./text";
@@ -64,7 +64,10 @@ export const TEST_FILE = /(^|\/)(__tests__|tests?)\/|\.(test|spec|cy)\.[cm]?[jt]
 export const RECEIPT_SYSTEM =
   "You check a code change against the user's checklist. Each changed file comes with a summary of its change: lines " +
   "added and removed, whether only comments changed, imports, symbols added, removed or changed, and where in the " +
-  "file. For every numbered item answer one line: " +
+  "file. You never see the code itself: judge by the kind and place of each change. A change of the asked kind at " +
+  "the asked place counts as done even though you cannot read its wording (for example comment-only lines at the " +
+  "top of the main page's file for a request to add a comment at the top of the main page). " +
+  "For every numbered item answer one line: " +
   "'<number> | done|partial|missed|unclear | <comma-separated changed file paths that implement it>'. Use only " +
   "paths from the CHANGED FILES list. Say done only when the summaries clearly cover the whole item; partial when " +
   "they cover part of it; missed only when the summaries show that no change implements it; unclear when you " +
@@ -90,23 +93,16 @@ export const safePath = (path: string) =>
 function fileLine(f: ReceiptFileInput, path: string): string {
   const scope = `${f.inScope ? "in the request's feature" : "outside the request's feature"}${
     f.preExisting
-      ? ", already modified before the session, the summary includes the user's earlier edits"
+      ? f.summary?.since_session_start
+        ? ", already modified before the session, the summary covers this session's edits only"
+        : ", already modified before the session, the summary includes the user's earlier edits"
       : ""
   }`;
-  const s = f.summary;
-  if (!s) return `- ${path} (${scope}): no change summary`;
-  const names = (label: string, list: string[]) =>
-    list.length > 0 ? [`${label}: ${list.map(safeText).join(", ")}`] : [];
-  const parts = [
-    `+${s.added} -${s.removed}`,
-    ...(s.comment_only ? ["comment only"] : []),
-    ...(s.imports_changed ? ["imports changed"] : []),
-    ...names("symbols added", s.symbols_added),
-    ...names("symbols removed", s.symbols_removed),
-    ...names("symbols changed", s.symbols_changed),
-    ...s.where.map(safeText),
-  ];
-  return `- ${path} (${scope}): ${parts.join(", ")}`.slice(0, MAX_PATH_CHARS + MAX_SUMMARY_CHARS);
+  if (!f.summary) return `- ${path} (${scope}): no change summary`;
+  return `- ${path} (${scope}): ${describeChange(f.summary)}`.slice(
+    0,
+    MAX_PATH_CHARS + MAX_SUMMARY_CHARS,
+  );
 }
 
 type PromptPlan = {

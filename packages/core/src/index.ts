@@ -87,6 +87,7 @@ export type { AddedDependency, PackageCheck, RegistryAnswer } from "./package-ch
 export {
   MAX_SUMMARY_SYMBOLS,
   type ChangeSummary,
+  describeChange,
   summarizeDiff,
   skippedFile,
   summarizeNewFile,

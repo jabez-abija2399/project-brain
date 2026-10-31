@@ -398,6 +398,7 @@ export function registerBrainTools(server: McpServer): void {
               symbols_removed: z.array(z.string()),
               symbols_changed: z.array(z.string()),
               where: z.array(z.string()),
+              since_session_start: z.boolean().optional(),
             }),
           )
           .max(200)

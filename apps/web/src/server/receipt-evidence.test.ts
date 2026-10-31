@@ -226,4 +226,18 @@ describe("D-025 receipts on the server", () => {
       }),
     ).rejects.toMatchObject({ status: 400 });
   });
+
+  it("D-026 security pass: evidence names are masked again before they are stored, whatever the CLI sent", async () => {
+    const token36 = ["ghp_", "abcdefghij", "klmnopqrst", "uvwxyz0123", "456789"].join("");
+    await generateReceipt(world.db, token, {
+      changedFiles: ["src/app/page.tsx"],
+      changeSummaries: [{ ...comment, comment_only: false, symbols_added: [token36] }],
+    });
+    const [stored] = await receiptsRepo.list(world.db, projectId, 5);
+    expect(JSON.stringify(stored?.summaryJson)).not.toContain(token36);
+    expect(
+      (stored?.summaryJson as { evidence: { summary: { symbols_added: string[] } }[] }).evidence[0]
+        ?.summary.symbols_added,
+    ).toEqual(["ghp_***"]);
+  });
 });

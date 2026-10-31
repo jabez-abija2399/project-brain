@@ -20,7 +20,12 @@ const scripted = (answer: string) => {
 describe("request capture", () => {
   it("one AI call returns the feature (one of the list) and the checklist items", async () => {
     const { llm, calls } = scripted("FEATURE: reviews\n- Add a star rating\n- Show the average");
-    const got = await classifyRequest(llm, "Add star ratings to reviews", FEATURES);
+    // Two purposes, so the model's items are kept (a single-purpose request is one item, D-026).
+    const got = await classifyRequest(
+      llm,
+      "Add star ratings to reviews and show the average",
+      FEATURES,
+    );
     expect(got).toEqual({
       kind: "request",
       feature: "Reviews",
@@ -71,7 +76,11 @@ describe("request capture", () => {
     const { llm, calls } = scripted(
       `FEATURE: home\n${Array.from({ length: 15 }, (_, i) => `- item ${i} \u202e${secret}`).join("\n")}`,
     );
-    const got = await classifyRequest(llm, `use key ${secret} for payments`, FEATURES);
+    const got = await classifyRequest(
+      llm,
+      `use key ${secret} for payments and add the payment settings`,
+      FEATURES,
+    );
     expect(calls[0]?.prompt).not.toContain(secret);
     if (got.kind !== "request") throw new Error("expected a request");
     expect(got.items).toHaveLength(10);

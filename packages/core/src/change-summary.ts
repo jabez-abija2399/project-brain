@@ -1,6 +1,7 @@
 // D-025: a code-free summary of what changed in one file, computed on the user's machine from git's diff (or from a new
 // file's text). Only counts, symbol names and places leave the machine, never a line of source (D-002). Pure.
 import { maskSecretsIn } from "./mask";
+import { oneLineText } from "./text";
 
 export type ChangeSummary = {
   path: string;
@@ -14,7 +15,27 @@ export type ChangeSummary = {
   symbols_changed: string[];
   // "top of file", "end of file", "line N", "lines N-M", "new file", "deleted file", "binary file", "N more places".
   where: string[];
+  // A file already modified before the session, diffed against its content at session start: only this session's
+  // edits are counted.
+  since_session_start?: boolean;
 };
+
+/** The summary as the judge reads it: "+8 -0, comment only, top of file". Also printed by `codeceipt last --evidence`. */
+export function describeChange(s: ChangeSummary): string {
+  const names = (label: string, list: string[]) =>
+    list.length > 0
+      ? [`${label}: ${list.map((n) => maskSecretsIn(oneLineText(n))).join(", ")}`]
+      : [];
+  return [
+    `+${s.added} -${s.removed}`,
+    ...(s.comment_only ? ["comment only"] : []),
+    ...(s.imports_changed ? ["imports changed"] : []),
+    ...names("symbols added", s.symbols_added),
+    ...names("symbols removed", s.symbols_removed),
+    ...names("symbols changed", s.symbols_changed),
+    ...s.where.map((w) => oneLineText(w)),
+  ].join(", ");
+}
 
 export const MAX_SUMMARY_SYMBOLS = 20;
 const MAX_PLACES = 5;

@@ -61,6 +61,79 @@ async function hashedSize(root: string, file: string): Promise<number> {
   return st?.isFile() ? st.size : 0;
 }
 
+// Files already modified at the start whose content is kept as a git blob in the repo's own object store (local, never
+// sent), so session end can summarize only the session's own edits to them.
+export type StartBlobs = Record<string, string>;
+const MAX_START_BLOBS = 500;
+// Bytes written into .git as start blobs at most (they are loose, unreachable objects that git prunes later).
+const MAX_START_BLOB_BYTES = 64 * 1024 * 1024;
+const BLOB = /^[0-9a-f]{40,64}$/;
+
+/** Writes each small, regular, already-modified file into .git's object store and returns path -> blob id. */
+export async function startBlobs(git: Git, root: string, snapshot: Snapshot): Promise<StartBlobs> {
+  const out: StartBlobs = {};
+  let bytes = 0;
+  for (const file of Object.keys(snapshot)) {
+    if (Object.keys(out).length >= MAX_START_BLOBS) break;
+    bytes += await hashedSize(root, file);
+    if (bytes > MAX_START_BLOB_BYTES) break;
+    const blob = await blobOf(git, root, file);
+    if (blob) out[file] = blob;
+  }
+  return out;
+}
+
+/**
+ * The start blobs that match the snapshot: a real blob whose content hash is the one recorded at session start. One
+ * planted in the state file (pointing at the file's final content) is dropped, so that file's summary falls back to the
+ * starting commit.
+ */
+export async function verifiedBlobs(
+  git: Git,
+  root: string,
+  blobs: StartBlobs,
+  snapshot: Snapshot,
+): Promise<StartBlobs> {
+  const out: StartBlobs = {};
+  for (const [path, id] of Object.entries(blobs)) {
+    const expected = Object.hasOwn(snapshot, path) ? snapshot[path] : undefined;
+    if (!expected) continue;
+    const type = (await git(["cat-file", "-t", id], root).catch(() => "")).trim();
+    if (type !== "blob") continue;
+    const content = await git(["cat-file", "blob", id], root).catch(() => null);
+    if (content !== null && createHash("sha256").update(content).digest("hex") === expected) {
+      out[path] = id;
+    }
+  }
+  return out;
+}
+
+async function blobOf(git: Git, root: string, file: string): Promise<string | null> {
+  const abs = await inside(root, file);
+  const st = abs ? await lstat(abs).catch(() => null) : null;
+  if (!abs || !st?.isFile() || st.size > MAX_SCAN_BYTES) return null;
+  // --no-filters: the bytes as they are on disk, the same at start and end (line-ending filters do not apply).
+  const id = (
+    await git(["hash-object", "-w", "--no-filters", "--", abs], root).catch(() => "")
+  ).trim();
+  return BLOB.test(id) ? id : null;
+}
+
+/** Start blobs read back from the state file: anything of the wrong shape is dropped. */
+export function validBlobs(raw: unknown): StartBlobs {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  const out: StartBlobs = {};
+  for (const [path, id] of Object.entries(raw as Record<string, unknown>).slice(
+    0,
+    MAX_START_BLOBS,
+  )) {
+    if (typeof id === "string" && BLOB.test(id) && path.length <= 4096 && !path.includes("\0")) {
+      out[path] = id;
+    }
+  }
+  return out;
+}
+
 export async function takeSnapshot(git: Git, root: string): Promise<Snapshot | null> {
   const files = await changedFiles(git, root, undefined);
   if (files.length > MAX_SNAPSHOT_FILES) return null;
@@ -133,6 +206,8 @@ export async function changeSummaries(
   root: string,
   base: string | null,
   files: string[],
+  // Already-modified files' content at session start: diffed against it, only the session's own edits count.
+  blobs: StartBlobs = {},
 ): Promise<ChangeSummary[]> {
   const untracked = new Set(
     (await git(["ls-files", "-z", "--others", "--exclude-standard"], root).catch(() => ""))
@@ -156,6 +231,18 @@ export async function changeSummaries(
       continue;
     }
     const total = st ? await lineCount(abs) : 0;
+    const before = Object.hasOwn(blobs, file) ? blobs[file] : undefined;
+    const after = before && st ? await blobOf(git, root, file) : null;
+    if (before && after) {
+      const diff = await git(
+        ["diff", "-U0", "--no-color", "--no-ext-diff", before, after],
+        root,
+      ).catch(() => null);
+      if (diff !== null && diff.length <= MAX_DIFF_CHARS) {
+        out.push({ ...summarizeDiff(file, diff, total), since_session_start: true });
+        continue;
+      }
+    }
     if (untracked.has(file) || !base) {
       const text = st ? await readFile(abs, "utf8").catch(() => null) : null;
       if (text === null) continue;
