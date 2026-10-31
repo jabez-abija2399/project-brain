@@ -7,6 +7,7 @@ export type Status =
   | "open"
   | "warning"
   | "not_verified"
+  | "question"
   | "neutral";
 
 const LOOK: Record<Status, { icon: string; label: string; tone: string }> = {
@@ -18,6 +19,8 @@ const LOOK: Record<Status, { icon: string; label: string; tone: string }> = {
   open: { icon: "○", label: "Open", tone: "open" },
   warning: { icon: "!", label: "Check", tone: "warning" },
   not_verified: { icon: "?", label: "Not verified", tone: "warning" },
+  // A clarifying question for the user (D-025): never a task, never missed.
+  question: { icon: "?", label: "Question", tone: "neutral" },
   neutral: { icon: "•", label: "Unknown", tone: "neutral" },
 };
 

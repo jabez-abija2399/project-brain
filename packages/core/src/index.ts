@@ -85,7 +85,16 @@ export {
 } from "./package-check";
 export type { AddedDependency, PackageCheck, RegistryAnswer } from "./package-check";
 export {
+  MAX_SUMMARY_SYMBOLS,
+  type ChangeSummary,
+  summarizeDiff,
+  skippedFile,
+  summarizeNewFile,
+} from "./change-summary";
+export {
+  NOT_ENOUGH_EVIDENCE,
   NO_REQUEST_NOTE,
+  NO_SNAPSHOT_NOTE,
   RECEIPT_SYSTEM,
   buildReceipt,
   groupFiles,

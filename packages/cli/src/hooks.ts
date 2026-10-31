@@ -14,6 +14,7 @@ import {
 import { isAbsolute, join, sep } from "node:path";
 import {
   NO_REQUEST_NOTE,
+  NO_SNAPSHOT_NOTE,
   brandEnv,
   isCodeceiptSetupPath,
   oneLineText,
@@ -23,6 +24,13 @@ import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 import { callTool } from "./mcp-client";
 import { type Git, changedFiles, repoRoot, scanFiles } from "./scan-secrets";
+import {
+  type Snapshot,
+  changeSummaries,
+  sinceSnapshot,
+  takeSnapshot,
+  validSnapshot,
+} from "./session-snapshot";
 import { localIntegrity, passingTests } from "./test-integrity-local";
 
 // FEAT-016 agent hooks. They fail safe: whatever goes wrong (not logged in, server unreachable, git missing), the
@@ -150,19 +158,25 @@ function writeState(file: string, text: string) {
 }
 
 // The session's starting commit and, when a test report is configured, its passing-test count then (FEAT-018).
+// D-025: and the working tree's changed files then (paths and hashes); null when missing or not well formed.
 function readState(file: string): {
   start: string | null;
   passing: number | null;
   startedAt: string | null;
+  snapshot: Snapshot | null;
 } {
   try {
-    if (lstatSync(file).isSymbolicLink()) return { start: null, passing: null, startedAt: null };
+    if (lstatSync(file).isSymbolicLink()) {
+      return { start: null, passing: null, startedAt: null, snapshot: null };
+    }
     const saved = JSON.parse(readFileSync(file, "utf8")) as {
       start?: unknown;
       passing?: unknown;
       startedAt?: unknown;
+      snapshot?: unknown;
     };
     return {
+      snapshot: validSnapshot(saved.snapshot),
       // When the session started: requests recorded without a session id since then belong to it.
       startedAt:
         typeof saved.startedAt === "string" &&
@@ -179,7 +193,7 @@ function readState(file: string): {
           : null,
     };
   } catch {
-    return { start: null, passing: null, startedAt: null };
+    return { start: null, passing: null, startedAt: null, snapshot: null };
   }
 }
 
@@ -310,14 +324,15 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     const root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
     const passing = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
-    writeState(
-      file,
-      JSON.stringify({
-        start: await head(deps.git, root),
-        passing,
-        startedAt: (deps.now?.() ?? new Date()).toISOString(),
-      }),
-    );
+    const state = {
+      start: await head(deps.git, root),
+      passing,
+      startedAt: (deps.now?.() ?? new Date()).toISOString(),
+    };
+    // Written before hashing, so a hook stopped while hashing still keeps the starting commit (no snapshot then).
+    writeState(file, JSON.stringify(state));
+    const snapshot = await takeSnapshot(deps.git, root).catch(() => null);
+    if (snapshot) writeState(file, JSON.stringify({ ...state, snapshot }));
   } catch {
     // Not a git repo: session end then compares with HEAD.
   }
@@ -421,16 +436,22 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
   const config = deps.config;
   let root = cwd;
   let files: string[] = [];
+  // Every changed file, before the snapshot filter: what the secret scan reads.
+  let allChanged: string[] = [];
   // What the receipt is about: the changed files minus Codeceipt's own setup (the secret scan still sees them all).
   let receiptFiles: string[] = [];
   let start: string | null = null;
   let commit: string | null = null;
   let passingBefore: number | null = null;
   let startedAt: string | null = null;
+  let snapshot: Snapshot | null = null;
+  // D-025: changed files that were already modified at the start, and whether there was no start snapshot.
+  let preExisting: string[] = [];
+  let noSnapshot = false;
   try {
     root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
-    ({ start, passing: passingBefore, startedAt } = readState(file));
+    ({ start, passing: passingBefore, startedAt, snapshot } = readState(file));
     rmSync(file, { force: true });
     commit = await head(deps.git, root);
     // A start that is not an ancestor of HEAD (history rewritten, state file edited) cannot bound the session.
@@ -442,11 +463,21 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
       if (!ancestor) start = null;
     }
     files = await changedFiles(deps.git, root, start ?? undefined);
+    allChanged = files;
+    // Only the session's own changes: files new or different since the start snapshot (also for the test checks; the
+    // secret scan reads every changed file). Without a snapshot every changed file counts and the receipt says so.
+    if (snapshot) ({ files, preExisting } = await sinceSnapshot(root, files, snapshot));
+    else noSnapshot = true;
     receiptFiles = await withoutSetupFiles(deps.git, root, start ?? "HEAD", files);
   } catch {
     // Not a git repo: no changed files can be known, so none are claimed.
   }
-  const scan = await scanFiles(deps.git, root, files).catch(() => null);
+  // Owner, 2026-10-31: the secret scan sees every changed file, whatever the snapshot says (fail safe). Findings in
+  // files untouched since the snapshot are the user's earlier work: sent apart, never as the session's.
+  const scan = await scanFiles(deps.git, root, allChanged).catch(() => null);
+  const session = new Set(files);
+  const sessionFindings = scan?.findings.filter((f) => session.has(f.file)) ?? [];
+  const beforeFindings = scan?.findings.filter((f) => !session.has(f.file)) ?? [];
   // FEAT-018: tests deleted, skipped or weakened, compared on this machine; only names and counts are sent.
   const integrity = await localIntegrity(
     deps.git,
@@ -455,6 +486,14 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     files,
   ).catch(() => null);
   const passingAfter = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
+  // D-025: what changed in each file (counts, symbol names, places), computed here; never source text.
+  const summaries = await changeSummaries(
+    deps.git,
+    root,
+    start ?? (commit ? "HEAD" : null),
+    receiptFiles.slice(0, MAX_RECEIPT_FILES),
+  ).catch(() => []);
+  const marked = preExisting.filter((f) => receiptFiles.includes(f));
   // Only this session's requests are checked by its receipt (requests are tied to sessions).
   const base = `/api/hooks/${encodeURIComponent(config.projectId)}/open-items?session=${encodeURIComponent(sessionId)}${startedAt ? `&since=${encodeURIComponent(startedAt)}` : ""}`;
   try {
@@ -485,9 +524,20 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
             await callTool(timed(deps.fetch, RECEIPT_TIMEOUT_MS), config, "generate_receipt", {
               ...(requestId ? { requestId } : {}),
               changedFiles: receiptFiles.slice(0, MAX_RECEIPT_FILES),
+              ...(summaries.length > 0 ? { changeSummaries: summaries } : {}),
+              ...(marked.length > 0
+                ? { preExistingFiles: marked.slice(0, MAX_RECEIPT_FILES) }
+                : {}),
+              ...(noSnapshot ? { snapshot: "missing" } : {}),
               ...(commit && commit !== start ? { commitSha: commit } : {}),
               ...(scan
-                ? { secretFindings: scan.findings, secretFindingsOmitted: scan.omitted }
+                ? {
+                    secretFindings: sessionFindings,
+                    secretFindingsOmitted: scan.omitted,
+                    ...(beforeFindings.length > 0
+                      ? { secretFindingsBeforeSession: beforeFindings }
+                      : {}),
+                  }
                 : {}),
               // Sent only when there is something to report: flags or test counts.
               ...(integrity &&
@@ -525,6 +575,12 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
         summary.push(
           ...receiptSummary(combineReceipts(receipts), config, receiptId, receiptFiles.length),
         );
+        if (noSnapshot) warnings.push(`${WARN} ${NO_SNAPSHOT_NOTE}`);
+        if (beforeFindings.length > 0) {
+          warnings.push(
+            `${WARN} already in your working tree before this session: ${plural(beforeFindings.length, "secret finding")} (see the full receipt).`,
+          );
+        }
       }
     }
     const after =

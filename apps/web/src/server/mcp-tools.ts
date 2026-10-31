@@ -21,6 +21,14 @@ import {
 } from "./session-tools";
 
 // JSON-RPC error codes of the MCP route (docs/specs/FEAT-011.md section 7).
+// One masked secret finding as the CLI sends it (validated strictly in the receipt service).
+const maskedSecretFinding = z.object({
+  file: z.string(),
+  line: z.number(),
+  type: z.string(),
+  masked_value: z.string(),
+});
+
 export const MCP_ERROR = {
   invalidParams: -32602,
   unauthorized: -32001,
@@ -341,18 +349,18 @@ export function registerBrainTools(server: McpServer): void {
             "Changed package.json files; every newly added dependency is checked on npm (max 10 files)",
           ),
         secretFindings: z
-          .array(
-            z.object({
-              file: z.string(),
-              line: z.number(),
-              type: z.string(),
-              masked_value: z.string(),
-            }),
-          )
+          .array(maskedSecretFinding)
           .max(200)
           .optional()
           .describe(
             "Masked secret findings from `codeceipt scan-secrets` on the changed files (never raw values)",
+          ),
+        secretFindingsBeforeSession: z
+          .array(maskedSecretFinding)
+          .max(200)
+          .optional()
+          .describe(
+            "Masked secret findings in files that were already changed before the session (not the session's change)",
           ),
         secretFindingsOmitted: z
           .number()
@@ -377,6 +385,37 @@ export function registerBrainTools(server: McpServer): void {
           .optional()
           .describe(
             "Tests deleted, skipped or weakened, as found by the session-end hook (names and counts only)",
+          ),
+        changeSummaries: z
+          .array(
+            z.object({
+              path: z.string(),
+              added: z.number(),
+              removed: z.number(),
+              comment_only: z.boolean(),
+              imports_changed: z.boolean(),
+              symbols_added: z.array(z.string()),
+              symbols_removed: z.array(z.string()),
+              symbols_changed: z.array(z.string()),
+              where: z.array(z.string()),
+            }),
+          )
+          .max(200)
+          .optional()
+          .describe(
+            "A summary of each changed file's change from the session-end hook: line counts, comment-only, " +
+              "imports, symbol names and places (never source text)",
+          ),
+        preExistingFiles: z
+          .array(z.string())
+          .max(200)
+          .optional()
+          .describe("Changed files that were already modified before the session started"),
+        snapshot: z
+          .literal("missing")
+          .optional()
+          .describe(
+            "Set when the session had no start snapshot, so earlier changes may be counted",
           ),
       }),
     },

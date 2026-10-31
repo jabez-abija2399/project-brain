@@ -134,6 +134,21 @@ describe("FEAT-016 agent hooks", () => {
     expect(receipt?.args).toEqual({
       requestId: "req-1",
       changedFiles: ["src.ts", "keys.ts"],
+      // D-025: a code-free summary of each change (names, counts, places), never the source.
+      changeSummaries: ["src.ts:a", "keys.ts:key"].map((f) => {
+        const [path, name] = f.split(":");
+        return {
+          path,
+          added: 1,
+          removed: 0,
+          comment_only: false,
+          imports_changed: false,
+          symbols_added: [name],
+          symbols_removed: [],
+          symbols_changed: [],
+          where: ["new file"],
+        };
+      }),
       commitSha: head,
       secretFindings: [
         { file: "keys.ts", line: 1, type: "openai_api_key", masked_value: "sk-p***" },

@@ -1,4 +1,4 @@
-import { NO_REQUEST_NOTE, type ReceiptView } from "@brain/core";
+import { NO_REQUEST_NOTE, NO_SNAPSHOT_NOTE, type ReceiptView } from "@brain/core";
 import type { ReactNode } from "react";
 import { ChecklistItem } from "./checklist-item";
 import { CodeRef } from "./code-ref";
@@ -69,6 +69,12 @@ export function ReceiptCard({
               )}
               <StatusBadge status="partial" label={`${count("partial")} partly done`} />
               <StatusBadge status="missed" label={`${count("missed")} missed`} />
+              {count("question") > 0 && (
+                <StatusBadge
+                  status="question"
+                  label={`${count("question")} question${count("question") === 1 ? "" : "s"}`}
+                />
+              )}
               {view.outsideScope.length > 0 && (
                 <StatusBadge status="warning" label={`${view.outsideScope.length} outside scope`} />
               )}
@@ -91,6 +97,11 @@ export function ReceiptCard({
           </div>
         </summary>
         <div className="stack" style={{ marginTop: 16 }}>
+          {view.noSnapshot && (
+            <p className="muted wrap" style={{ margin: 0 }}>
+              {NO_SNAPSHOT_NOTE}
+            </p>
+          )}
           {view.filesByFeature.length > 0 && (
             <Section title="Changed files by feature">
               <ul className="stack" style={{ margin: 0, paddingLeft: 18, gap: 4 }}>
@@ -101,6 +112,12 @@ export function ReceiptCard({
                       <span key={f}>
                         {n > 0 ? ", " : ""}
                         <code className="wrap">{f}</code>
+                        {view.alreadyModified.includes(f) && (
+                          <>
+                            {" "}
+                            <span className="muted">(already modified before the session)</span>
+                          </>
+                        )}
                       </span>
                     ))}
                   </li>
@@ -151,6 +168,26 @@ export function ReceiptCard({
               {view.findingsOmitted > 0 && (
                 <p className="muted">…and {view.findingsOmitted} more.</p>
               )}
+            </Section>
+          )}
+          {view.findingsBeforeSession.length > 0 && (
+            <Section title="Already in your working tree before this session">
+              <p className="muted" style={{ margin: 0 }}>
+                Found in files you had already changed before this session: not the agent's change.
+              </p>
+              <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                {view.findingsBeforeSession.map((f, n) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id in a stored receipt
+                  <li key={n} className="stack" style={{ gap: 2 }}>
+                    <span className="row">
+                      <StatusBadge status="warning" label={f.type.replaceAll("_", " ")} />
+                      <CodeRef path={f.file} line={f.line} />
+                      {f.maskedValue && <code>{f.maskedValue}</code>}
+                    </span>
+                    <span className="muted wrap">{f.hint}</span>
+                  </li>
+                ))}
+              </ul>
             </Section>
           )}
           {(view.testChecks.length > 0 || view.passing.before !== null) && (
