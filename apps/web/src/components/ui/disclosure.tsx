@@ -21,8 +21,8 @@ export function Disclosure({
         if (e.currentTarget.open) setOpened(true);
       }}
     >
-      <summary style={{ cursor: "pointer", listStyle: "none" }}>{summary}</summary>
-      {opened ? children : null}
+      <summary className="disclosure-summary">{summary}</summary>
+      {opened ? <div className="disclosure-body">{children}</div> : null}
     </details>
   );
 }

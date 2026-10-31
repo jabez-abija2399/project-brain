@@ -1,13 +1,51 @@
 :root {
-  --bg: #fafaf9;
+  /* Bright ledger (docs/DESIGN.md, 2026-10-31): cool neutrals, one indigo accent, soft tinted status colors. */
+  --bg: #f6f7fb;
   --surface: #ffffff;
-  --border: #e7e5e4;
-  --text: #1c1917;
-  --muted: #78716c;
-  --accent: #4f46e5;
-  --success: #15803d;
+  --surface-2: #f1f3f9;
+  --border: #e3e6ef;
+  --text: #0b1020;
+  --muted: #5b6478;
+  --accent: #5146e5;
+  --accent-2: #7c3aed;
+  --accent-soft: #eef0ff;
+  --success: #047857;
+  --success-soft: #e6f6ef;
   --warning: #b45309;
-  --danger: #b91c1c;
+  --warning-soft: #fff4e6;
+  --danger: #c81e1e;
+  --danger-soft: #fdecec;
+  --radius: 12px;
+  --shadow-sm: 0 1px 2px rgb(11 16 32 / 6%), 0 1px 3px rgb(11 16 32 / 4%);
+  --shadow-md: 0 4px 12px rgb(11 16 32 / 8%), 0 2px 4px rgb(11 16 32 / 4%);
+  --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* Always dark, in both themes: the receipt printer and the final call to action. */
+  --ink: #0b1020;
+  --on-ink: #ffffff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0f1a;
+    --surface: #121829;
+    --surface-2: #182036;
+    --border: #263049;
+    --text: #e8ecf6;
+    --muted: #9aa4ba;
+    --accent: #8b83ff;
+    --accent-2: #b794ff;
+    --accent-soft: #1f2347;
+    --success: #34d399;
+    --success-soft: #0f2a22;
+    --warning: #fbbf24;
+    --warning-soft: #2c220f;
+    --danger: #f87171;
+    --danger-soft: #2f1518;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-md: 0 6px 16px rgb(0 0 0 / 45%);
+    color-scheme: dark;
+  }
 }
 
 * {
@@ -676,4 +714,407 @@ summary:focus-visible {
   border-radius: 8px;
   padding: 24px 16px;
   text-align: center;
+}
+
+/* ---------------------------------------------------------------------------------------------------------------
+   Bright ledger (2026-10-31): the shared components, then the landing page. Tokens only; status keeps its icon and
+   label; every motion stops under prefers-reduced-motion.
+   --------------------------------------------------------------------------------------------------------------- */
+body {
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+::selection {
+  background: var(--accent-soft);
+}
+a {
+  text-underline-offset: 3px;
+}
+.page h1 {
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+
+/* Buttons: raised, a press that you can feel, and a soft ring for focus. */
+.btn {
+  border-radius: 10px;
+  font-weight: 500;
+  box-shadow: var(--shadow-sm);
+  transition: transform 120ms var(--ease), box-shadow 160ms var(--ease), background-color 160ms
+    var(--ease), border-color 160ms var(--ease);
+}
+.btn:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  box-shadow: var(--shadow-md);
+}
+.btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
+  color: #fff;
+}
+.btn-primary:hover {
+  filter: brightness(1.06);
+}
+.btn-ghost {
+  box-shadow: none;
+}
+.btn:focus-visible,
+a:focus-visible,
+summary:focus-visible,
+.chip:focus-visible,
+input:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* Project tabs as pills. */
+.project-nav {
+  gap: 4px;
+  border-bottom: 0;
+  padding: 4px;
+  background: var(--surface-2);
+  border-radius: 12px;
+  width: fit-content;
+  max-width: 100%;
+}
+.project-nav a {
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background-color 160ms var(--ease), color 160ms var(--ease);
+}
+.project-nav a:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+.project-nav a[aria-current="page"] {
+  border-bottom: 0;
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Cards lift on hover; a card that needs attention gets a red edge. */
+.card {
+  border-radius: var(--radius);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 180ms var(--ease), transform 180ms var(--ease), border-color 180ms
+    var(--ease);
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--accent) 20%, var(--border));
+}
+.card-highlighted {
+  border-color: var(--border);
+  box-shadow: inset 3px 0 0 var(--danger), var(--shadow-sm);
+}
+.card-highlighted:hover {
+  box-shadow: inset 3px 0 0 var(--danger), var(--shadow-md);
+}
+
+/* Status badges: filled, soft color, icon + label as before. */
+.badge {
+  border: 0;
+  padding: 3px 10px;
+  transition: transform 120ms var(--ease);
+}
+.badge-done {
+  background: var(--success-soft);
+}
+.badge-partial,
+.badge-warning {
+  background: var(--warning-soft);
+}
+.badge-missed {
+  background: var(--danger-soft);
+}
+.badge-open,
+.badge-neutral {
+  background: var(--surface-2);
+}
+
+/* Receipt cards open with a turning chevron and a fade. */
+.disclosure-summary {
+  position: relative;
+  list-style: none;
+  cursor: pointer;
+  padding-right: 28px;
+}
+.disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+.disclosure-summary::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 200ms var(--ease);
+}
+details[open] > .disclosure-summary::after {
+  transform: rotate(225deg);
+  top: 10px;
+}
+.disclosure-body {
+  animation: reveal 220ms var(--ease) both;
+}
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Receipts filter chips. */
+.chips {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 160ms var(--ease), border-color 160ms var(--ease), color 160ms
+    var(--ease);
+}
+.chip:hover {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.chip[aria-pressed="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.chip-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+.chip[aria-pressed="true"] .chip-count {
+  background: var(--surface);
+  color: var(--accent);
+}
+.receipts-filtered[data-filter="attention"] li[data-attention="false"],
+.receipts-filtered[data-filter="good"] li[data-attention="true"] {
+  display: none;
+}
+
+/* Tables: rounded, with a row highlight. */
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.table caption {
+  text-align: left;
+  padding: 0 2px 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.table thead th:first-child {
+  border-top-left-radius: var(--radius);
+}
+.table thead th:last-child {
+  border-top-right-radius: var(--radius);
+}
+.table th {
+  background: var(--surface-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 11px;
+}
+.table tbody tr {
+  transition: background-color 140ms var(--ease);
+}
+.table tbody tr:hover {
+  background: var(--surface-2);
+}
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+code {
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+/* Landing: a soft glow behind the hero, cards for the problem and checks, numbered steps, a receipt that tilts. */
+.lp-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(1.4) blur(10px);
+}
+.lp-hero {
+  position: relative;
+  isolation: isolate;
+}
+.lp-hero::before {
+  content: "";
+  position: absolute;
+  inset: -40px 0 auto;
+  height: 520px;
+  z-index: -1;
+  background: radial-gradient(
+      40% 50% at 30% 30%,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      35% 45% at 72% 25%,
+      color-mix(in srgb, var(--accent-2) 18%, transparent),
+      transparent 70%
+    );
+  filter: blur(8px);
+}
+.lp-hero h1 {
+  letter-spacing: -0.03em;
+  animation: rise 600ms var(--ease) both;
+}
+.lp-sub,
+.lp-ctas {
+  animation: rise 600ms var(--ease) 80ms both;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.lp-receipt {
+  transition: transform 300ms var(--ease);
+}
+.lp-receipt:hover {
+  transform: rotate(-1deg) translateY(-4px);
+}
+.lp-column,
+.lp-check {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 180ms var(--ease), box-shadow 180ms var(--ease), border-color 180ms
+    var(--ease);
+}
+.lp-column:hover,
+.lp-check:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.lp-check-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.lp-privacy {
+  background: linear-gradient(180deg, var(--accent-soft), transparent);
+}
+.lp-faq details {
+  transition: background-color 160ms var(--ease);
+}
+.lp-faq summary {
+  list-style: none;
+  position: relative;
+  padding-right: 28px;
+}
+.lp-faq summary::-webkit-details-marker {
+  display: none;
+}
+.lp-faq summary::after {
+  content: "+";
+  position: absolute;
+  right: 4px;
+  top: 0;
+  color: var(--accent);
+  font-size: 20px;
+  line-height: 1;
+  transition: transform 200ms var(--ease);
+}
+.lp-faq details[open] summary::after {
+  transform: rotate(45deg);
+}
+.lp-faq details[open] p {
+  animation: reveal 220ms var(--ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .lp-receipt:hover,
+  .lp-column:hover,
+  .lp-check:hover,
+  .btn:active {
+    transform: none;
+  }
+}
+
+.lp-step::before {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+.lp-printer {
+  background: var(--ink);
+}
+.lp-final {
+  background: radial-gradient(
+      60% 80% at 50% 0%,
+      color-mix(in srgb, var(--accent) 35%, transparent),
+      transparent 70%
+    ), var(--ink);
+  color: var(--on-ink);
+}
+.lp-final .btn:focus-visible,
+.lp-final input:focus-visible {
+  outline: 2px solid var(--on-ink);
 }
