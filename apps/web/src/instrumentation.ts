@@ -7,7 +7,8 @@ export function register() {
   assertProductionEnv(process.env);
   // A database behind the code (a migration not run before deploy) is logged at start, naming the migration. It runs
   // in the background and never stops the server: the landing and docs pages still work, and the migration fixes it.
-  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.DATABASE_URL) void logMissingMigrations();
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.DATABASE_URL)
+    void logMissingMigrations();
 }
 
 async function logMissingMigrations() {
