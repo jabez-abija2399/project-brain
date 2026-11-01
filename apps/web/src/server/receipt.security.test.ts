@@ -325,7 +325,8 @@ describe("FEAT-013 generate_receipt security pass", () => {
       "no test changed",
       "no test changed",
     ]);
-    expect(await status(projectId, itemIds[0] as string)).toBe("open");
+    // Owner, 2026-11-01 (real-test H): stored as its own state (never done), so the start note can tell it apart.
+    expect(await status(projectId, itemIds[0] as string)).toBe("done_untested");
   });
 
   it("AC-013-07 attack: an agent cannot pass statuses or items directly; unknown fields are refused", async () => {

@@ -193,8 +193,8 @@ async function filesWithFeatures(
     return {
       path,
       feature: sibling?.featureName ?? (dir ? `${dir}/` : null),
-      inScope:
-        requestFeatureId === null || isTestCode(path) || sibling?.featureId === requestFeatureId,
+      // Only for grouping: a guess from the folder never makes a file count as in scope.
+      inScope: requestFeatureId === null || isTestCode(path),
     };
   });
 }
