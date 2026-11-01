@@ -43,7 +43,7 @@ export default async function ProjectsPage({
                 padding: "12px 16px",
               }}
             >
-              <Link href={`/projects/${p.id}`} style={{ textDecoration: "none" }}>
+              <Link href={`/projects/${p.id}/overview`} style={{ textDecoration: "none" }}>
                 <strong>{p.name}</strong>
               </Link>
             </li>

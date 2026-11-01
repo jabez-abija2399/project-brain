@@ -1,6 +1,6 @@
 import { and, asc, count, desc, eq, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { features, files, receipts, requests } from "../schema";
+import { checklistItems, features, files, receipts, requests } from "../schema";
 
 // FEAT-017 dashboard reads: one bounded query per page (no query per row), scoped by project.
 export type BoardRow = {
@@ -19,6 +19,15 @@ export type FeedRow = {
   commitSha: string | null;
   summaryJson: unknown;
   createdAt: Date;
+};
+
+export type ItemStatus = "open" | "done" | "partial" | "missed" | "dismissed";
+export type FeatureProgress = {
+  id: string;
+  name: string;
+  total: number;
+  done: number;
+  open: number;
 };
 
 export const dashboardRepo = {
@@ -100,6 +109,55 @@ export const dashboardRepo = {
       db.select({ n: count() }).from(receipts).where(eq(receipts.projectId, projectId)),
     ]);
     return { rows, total: n?.n ?? 0 };
+  },
+
+  /** The project's checklist items counted by status (overview). */
+  async itemCounts(db: BrainDb, projectId: string): Promise<Record<ItemStatus, number>> {
+    const rows = await db
+      .select({ status: checklistItems.status, n: count() })
+      .from(checklistItems)
+      .where(eq(checklistItems.projectId, projectId))
+      .groupBy(checklistItems.status);
+    const out: Record<ItemStatus, number> = {
+      open: 0,
+      done: 0,
+      partial: 0,
+      missed: 0,
+      dismissed: 0,
+    };
+    for (const r of rows) out[r.status] = Number(r.n);
+    return out;
+  },
+
+  /**
+   * Features with checklist items: total (dismissed left out), done and still open (open, partial, missed), most open
+   * first. One grouped query, bounded by limit.
+   */
+  async featureProgress(db: BrainDb, projectId: string, limit: number): Promise<FeatureProgress[]> {
+    const total = sql<number>`count(*) FILTER (WHERE ${checklistItems.status} <> 'dismissed')::int`;
+    const done = sql<number>`count(*) FILTER (WHERE ${checklistItems.status} = 'done')::int`;
+    const open = sql<number>`count(*) FILTER (WHERE ${checklistItems.status} IN ('open', 'partial', 'missed'))::int`;
+    const rows = await db
+      .select({ id: features.id, name: features.name, total, done, open })
+      .from(checklistItems)
+      .innerJoin(
+        requests,
+        and(
+          eq(requests.id, checklistItems.requestId),
+          eq(requests.projectId, checklistItems.projectId),
+        ),
+      )
+      .innerJoin(
+        features,
+        and(eq(features.id, requests.featureId), eq(features.projectId, requests.projectId)),
+      )
+      .where(eq(checklistItems.projectId, projectId))
+      .groupBy(features.id, features.name)
+      .orderBy(desc(open), asc(features.name), asc(features.id))
+      .limit(limit);
+    return rows
+      .map((r) => ({ ...r, total: Number(r.total), done: Number(r.done), open: Number(r.open) }))
+      .filter((r) => r.total > 0);
   },
 
   /** Indexed files of the project: 0 until the first `codeceipt index` (connect page). */

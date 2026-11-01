@@ -1,4 +1,9 @@
-import { NO_REQUEST_NOTE, NO_SNAPSHOT_NOTE, type ReceiptView } from "@brain/core";
+import {
+  NO_REQUEST_NOTE,
+  NO_SNAPSHOT_NOTE,
+  type ReceiptView,
+  receiptNeedsAttention,
+} from "@brain/core";
 import type { ReactNode } from "react";
 import { ChecklistItem } from "./checklist-item";
 import { CodeRef } from "./code-ref";
@@ -24,16 +29,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-/** Something on the receipt needs the user: missed or partly done items, findings, test checks, edits outside scope. */
-export function needsAttention(view: ReceiptView): boolean {
-  return (
-    view.items.some((i) => i.status === "missed" || i.status === "partial") ||
-    view.findings.length + view.findingsOmitted > 0 ||
-    view.testChecks.length > 0 ||
-    view.outsideScope.length > 0
-  );
-}
-
 // One receipt: what was asked, what got done, partly done or missed, edits outside the request's feature, security
 // findings and what could not be verified. Collapsed to its summary line until opened; the body is rendered on first
 // open, so a page of receipts stays small and a click stays fast (INP).
@@ -44,10 +39,11 @@ export function ReceiptCard({
   const { view } = receipt;
   const count = (s: string) => view.items.filter((i) => i.status === s).length;
   const missed = count("missed") + count("partial");
+  const attention = receiptNeedsAttention(view);
   return (
     <article
       id={`receipt-${receipt.id}`}
-      className={`card${missed > 0 ? " card-highlighted" : ""}`}
+      className={`card${attention ? " card-highlighted" : ""}`}
       data-testid="receipt-card"
     >
       <Disclosure
