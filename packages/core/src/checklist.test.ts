@@ -34,10 +34,23 @@ describe("checklist splitter (FEAT-012)", () => {
     expect(item?.text).not.toContain("x".repeat(24));
   });
 
-  it("AC-012-04 an answer with no usable item becomes one item flagged needs_clarification, not a guess", async () => {
-    const { llm } = scripted("Sure! I will make it better.");
+  it("AC-012-04 an ambiguous request ('make it better') stays flagged needs_clarification, not a guess", async () => {
+    const { llm, calls } = scripted("? What should be better: the speed, the look or the wording?");
     const items = await splitRequest(llm, "make it better");
-    expect(items).toEqual([{ text: "Clarify: make it better", needs_clarification: true }]);
+    expect(calls).toHaveLength(1);
+    expect(items).toEqual([
+      {
+        text: "What should be better: the speed, the look or the wording?",
+        needs_clarification: true,
+      },
+    ]);
+  });
+
+  it("AC-012-04 (owner, 2026-11-01) an answer with no usable item is retried once, then kept as one task, never a 'Clarify:' question", async () => {
+    const { llm, calls } = scripted("Sure! I will make it better.");
+    const items = await splitRequest(llm, "make it better");
+    expect(calls).toHaveLength(2);
+    expect(items).toEqual([{ text: "make it better", needs_clarification: false }]);
   });
 
   it("AC-012-07 attack: the request is wrapped as labelled user data and cannot close the block", () => {

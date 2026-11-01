@@ -52,13 +52,14 @@ describe("request capture", () => {
     expect(parseCapture("FEATURE: none\n- Add a page", FEATURES).kind).toBe("request");
   });
 
-  it("an answer with no usable item keeps the request as one item to clarify", async () => {
-    const { llm } = scripted("FEATURE: home\nsure thing");
+  it("an answer with no usable item is retried once, then the request is kept as one task (owner, 2026-11-01)", async () => {
+    const { llm, calls } = scripted("FEATURE: home\nsure thing");
     const got = await classifyRequest(llm, "make it nicer", FEATURES);
+    expect(calls).toHaveLength(2);
     expect(got).toEqual({
       kind: "request",
       feature: "home",
-      items: [{ text: "Clarify: make it nicer", needs_clarification: true }],
+      items: [{ text: "make it nicer", needs_clarification: false }],
     });
   });
 
