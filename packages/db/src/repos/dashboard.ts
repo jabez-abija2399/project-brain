@@ -9,8 +9,14 @@ export type BoardRow = {
   status: string;
   files: number;
   openItems: number;
+  // Progress: done items out of all items (dismissed ones left out), and the next open item to do.
+  doneItems: number;
+  totalItems: number;
+  nextItem: string | null;
   lastReceiptAt: Date | null;
 };
+// Feature board order: by name (default), most open items first, or most recent receipt first.
+export type BoardSort = "name" | "open" | "recent";
 
 export type FeedRow = {
   id: string;
@@ -37,6 +43,7 @@ export const dashboardRepo = {
     projectId: string,
     limit: number,
     offset: number,
+    sort: BoardSort = "name",
   ): Promise<{ rows: BoardRow[]; total: number }> {
     // Static SQL with explicit aliases (no input): drizzle would print the inner columns unqualified, which Postgres
     // reads as ambiguous between the subquery and the outer features row.
@@ -48,6 +55,18 @@ export const dashboardRepo = {
       JOIN requests rq ON rq.id = ci.request_id AND rq.project_id = ci.project_id
       WHERE ci.project_id = features.project_id AND rq.feature_id = features.id
         AND ci.status IN ('open', 'partial', 'missed'))`;
+    const itemsOf = (filter: string) => sql<number>`(
+      SELECT count(*)::int FROM checklist_items ci
+      JOIN requests rq ON rq.id = ci.request_id AND rq.project_id = ci.project_id
+      WHERE ci.project_id = features.project_id AND rq.feature_id = features.id AND ${sql.raw(filter)})`;
+    const doneItems = itemsOf("ci.status = 'done'");
+    const totalItems = itemsOf("ci.status <> 'dismissed'");
+    const nextItem = sql<string | null>`(
+      SELECT ci.text FROM checklist_items ci
+      JOIN requests rq ON rq.id = ci.request_id AND rq.project_id = ci.project_id
+      WHERE ci.project_id = features.project_id AND rq.feature_id = features.id
+        AND ci.status IN ('open', 'partial', 'missed')
+      ORDER BY rq.created_at, ci.position, ci.id LIMIT 1)`;
     const lastReceiptAt = sql<Date | null>`(
       SELECT max(rc.created_at) FROM receipts rc
       JOIN requests rq ON rq.id = rc.request_id AND rq.project_id = rc.project_id
@@ -60,11 +79,22 @@ export const dashboardRepo = {
           status: features.status,
           files: fileCount,
           openItems,
+          doneItems,
+          totalItems,
+          nextItem,
           lastReceiptAt,
         })
         .from(features)
         .where(eq(features.projectId, projectId))
-        .orderBy(asc(features.name), asc(features.id))
+        .orderBy(
+          ...(sort === "open"
+            ? [desc(openItems)]
+            : sort === "recent"
+              ? [sql`${lastReceiptAt} DESC NULLS LAST`]
+              : []),
+          asc(features.name),
+          asc(features.id),
+        )
         .limit(limit)
         .offset(offset),
       db.select({ n: count() }).from(features).where(eq(features.projectId, projectId)),
@@ -74,6 +104,8 @@ export const dashboardRepo = {
         ...r,
         files: Number(r.files),
         openItems: Number(r.openItems),
+        doneItems: Number(r.doneItems),
+        totalItems: Number(r.totalItems),
         lastReceiptAt: r.lastReceiptAt ? new Date(r.lastReceiptAt) : null,
       })),
       total: n?.n ?? 0,
@@ -109,6 +141,41 @@ export const dashboardRepo = {
       db.select({ n: count() }).from(receipts).where(eq(receipts.projectId, projectId)),
     ]);
     return { rows, total: n?.n ?? 0 };
+  },
+
+  /** Features counted by status, and how many have open checklist items (feature board summary). */
+  async featureCounts(
+    db: BrainDb,
+    projectId: string,
+  ): Promise<{
+    total: number;
+    todo: number;
+    inProgress: number;
+    done: number;
+    withOpenItems: number;
+  }> {
+    const hasOpen = sql<number>`count(*) FILTER (WHERE EXISTS (
+      SELECT 1 FROM checklist_items ci
+      JOIN requests rq ON rq.id = ci.request_id AND rq.project_id = ci.project_id
+      WHERE ci.project_id = features.project_id AND rq.feature_id = features.id
+        AND ci.status IN ('open', 'partial', 'missed')))::int`;
+    const [row] = await db
+      .select({
+        total: count(),
+        todo: sql<number>`count(*) FILTER (WHERE ${features.status} = 'todo')::int`,
+        inProgress: sql<number>`count(*) FILTER (WHERE ${features.status} = 'in_progress')::int`,
+        done: sql<number>`count(*) FILTER (WHERE ${features.status} = 'done')::int`,
+        withOpenItems: hasOpen,
+      })
+      .from(features)
+      .where(eq(features.projectId, projectId));
+    return {
+      total: Number(row?.total ?? 0),
+      todo: Number(row?.todo ?? 0),
+      inProgress: Number(row?.inProgress ?? 0),
+      done: Number(row?.done ?? 0),
+      withOpenItems: Number(row?.withOpenItems ?? 0),
+    };
   },
 
   /** The project's checklist items counted by status (overview). */

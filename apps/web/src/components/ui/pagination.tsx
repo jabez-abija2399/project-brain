@@ -1,13 +1,15 @@
 import Link from "next/link";
 
 // Pages of at most 50 rows (docs/DESIGN.md); links keep the page in the URL so the back button works.
+// query: other search parameters to keep on every page (for example "sort=open").
 export function Pagination({
   page,
   pages,
   basePath,
-}: { page: number; pages: number; basePath: string }) {
+  query,
+}: { page: number; pages: number; basePath: string; query?: string }) {
   if (pages <= 1) return null;
-  const href = (n: number) => `${basePath}?page=${n}`;
+  const href = (n: number) => `${basePath}?${query ? `${query}&` : ""}page=${n}`;
   return (
     <nav className="pagination" aria-label="Pages">
       {page > 1 ? (

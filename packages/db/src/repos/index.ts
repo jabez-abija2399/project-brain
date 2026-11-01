@@ -38,7 +38,7 @@ export { RepoAlreadyLinkedError, githubRepo } from "./github";
 export { dbPoliciesRepo, dbSchemaRepo, dbTablesRepo } from "./db-schema";
 export type { PolicyFlagsRow, TableFlagsRow } from "./db-schema";
 export { MAX_PAGE_SIZE, type Page, type PageOptions } from "./page";
-export { dashboardRepo, type FeatureProgress, type ItemStatus } from "./dashboard";
+export { dashboardRepo, type BoardSort, type FeatureProgress, type ItemStatus } from "./dashboard";
 export type { BoardRow, FeedRow } from "./dashboard";
 export { type ApproveResult, planDraftsRepo } from "./plan-drafts";
 export { type PollResult, deviceCodesRepo } from "./device-codes";
