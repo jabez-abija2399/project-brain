@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import net from "node:net";
 import postgres from "postgres";
 import { runMigrations } from "./migrations-core.mjs";
 
@@ -8,7 +9,10 @@ if (!url) {
   process.exit(0);
 }
 
-const sql = postgres(url, { max: 1, prepare: false, onnotice: () => {} });
+// Node tries each of a host's addresses (IPv6, IPv4) for only 250 ms by default, too short on a slow link to a cloud
+// database; give each attempt 5 s, and the whole connection 30 s.
+net.setDefaultAutoSelectFamilyAttemptTimeout?.(5000);
+const sql = postgres(url, { max: 1, prepare: false, connect_timeout: 30, onnotice: () => {} });
 
 // Adapts a postgres.js client (or the tx handle from sql.begin) to the runner's driver.
 function driver(client) {
@@ -55,6 +59,19 @@ try {
     }
   }
   console.error("[@brain/db] migrate failed:", Object.keys(info).length ? info : err);
+  // A timeout means the database was never reached: say where it tried to go (host and port only, never the URL).
+  if (["ETIMEDOUT", "CONNECT_TIMEOUT", "ECONNREFUSED", "ENOTFOUND"].includes(String(info.code))) {
+    let where = "the database host";
+    try {
+      const u = new URL(url);
+      where = `${u.hostname}:${u.port || 5432}`;
+    } catch {}
+    console.error(
+      `[@brain/db] could not reach ${where}. Check that DATABASE_URL is the direct (not pooled) connection string, ` +
+        "that this network allows outgoing port 5432, and try again (or run the migration in the Neon SQL editor, " +
+        "see docs/deploy.md).",
+    );
+  }
   if (err && typeof err === "object" && "stack" in err) console.error(err.stack);
   process.exitCode = 1;
 } finally {
