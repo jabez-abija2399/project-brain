@@ -67,9 +67,12 @@ try {
       where = `${u.hostname}:${u.port || 5432}`;
     } catch {}
     console.error(
-      `[@brain/db] could not reach ${where}. Check that DATABASE_URL is the direct (not pooled) connection string, ` +
-        "that this network allows outgoing port 5432, and try again (or run the migration in the Neon SQL editor, " +
-        "see docs/deploy.md).",
+      [
+        `[@brain/db] could not reach ${where}.`,
+        "Check that DATABASE_URL is the direct (not pooled) connection string,",
+        "that this network allows outgoing port 5432, and try again",
+        "(or run the migration in the Neon SQL editor, see docs/deploy.md).",
+      ].join(" "),
     );
   }
   if (err && typeof err === "object" && "stack" in err) console.error(err.stack);
