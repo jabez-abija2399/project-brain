@@ -57,6 +57,8 @@ async function seedReceipts(n: number) {
     await receiptsRepo.insert(world.db, projectId, {
       requestId: request.id,
       commitSha: null,
+      // Distinct, increasing times: inserts in one millisecond would leave "newest first" to chance (seen in CI).
+      createdAt: new Date(Date.now() - (n - i) * 1000),
       summaryJson: {
         items: [
           {
