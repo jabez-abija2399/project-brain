@@ -34,6 +34,10 @@ DATABASE_URL="postgresql://...direct connection string..." pnpm --filter @brain/
 It prints `applied N migration(s): ...` the first time and `no new migrations to apply.` afterwards. It is safe to run
 again. Run it again before each deploy that adds a file to `packages/db/migrations`.
 
+If a deploy goes out before its migration is run, the app says so: `/api/health` answers 503 with
+`"migrations": { "pending": [...] }`, and the server log names the missing migration and this command (at start and on
+the first failing request), instead of a vague error such as "Failed to get session".
+
 Tip: start the command with a space, so most shells keep it out of your history.
 
 ## 3. Create the GitHub OAuth app (sign-in)
