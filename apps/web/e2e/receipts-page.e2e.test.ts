@@ -127,7 +127,11 @@ describe("production build: the receipts page renders with receipts on several d
     server.stderr?.on("data", (chunk) => {
       serverLog += chunk;
     });
-    await waitForServer(() => serverLog.includes("Ready in"), () => server?.exitCode !== null, 120_000);
+    await waitForServer(
+      () => serverLog.includes("Ready in"),
+      () => server?.exitCode !== null,
+      120_000,
+    );
   }, 1_200_000);
 
   afterAll(async () => {
