@@ -158,3 +158,8 @@ export function currentProjectId(pathname: string | null): string | null {
   const m = /^\/projects\/([\w-]{1,64})(?:\/|$)/.exec(pathname ?? "");
   return m?.[1] ?? null;
 }
+
+/** Whether the typed text matches the account name (what the delete-account button waits for). */
+export function confirmMatches(typed: string, name: string): boolean {
+  return typed.trim().length > 0 && typed.trim() === name.trim();
+}

@@ -6,3 +6,9 @@ export { runMigrations } from "./migrations";
 export type { SqlExec } from "./migrations";
 export * from "./schema";
 export * from "./repos";
+export {
+  MIGRATION_IDS,
+  migrationHint,
+  pendingMigrations,
+  pendingMigrationsAt,
+} from "./migration-check";

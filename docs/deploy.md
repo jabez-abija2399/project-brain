@@ -34,6 +34,21 @@ DATABASE_URL="postgresql://...direct connection string..." pnpm --filter @brain/
 It prints `applied N migration(s): ...` the first time and `no new migrations to apply.` afterwards. It is safe to run
 again. Run it again before each deploy that adds a file to `packages/db/migrations`.
 
+If a deploy goes out before its migration is run, the app says so: `/api/health` answers 503 with
+`"migrations": { "pending": [...] }`, and the server log names the missing migration and this command (at start and on
+the first failing request), instead of a vague error such as "Failed to get session".
+
+**If your computer cannot reach the database** (`ETIMEDOUT` / `could not reach ...:5432`, often a network that blocks
+outgoing port 5432): run the migration in the browser instead. In the Neon console open **SQL Editor** on the
+production branch, paste the whole migration file (for example `packages/db/migrations/0035_account_admin.sql`), run
+it, then record it so `migrate` never runs it twice:
+
+```sql
+INSERT INTO "_brain_migrations" (id) VALUES ('0035_account_admin');
+```
+
+Check `/api/health`: it answers 200 again once nothing is pending.
+
 Tip: start the command with a space, so most shells keep it out of your history.
 
 ## 3. Create the GitHub OAuth app (sign-in)

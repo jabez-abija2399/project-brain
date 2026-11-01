@@ -1,5 +1,5 @@
 import { configuredServices } from "@/server/env";
-import { checkDb } from "@brain/db";
+import { checkDb, migrationHint, pendingMigrationsAt } from "@brain/db";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +17,15 @@ export async function GET() {
   // Which optional services are set up, as true/false only (never a value).
   const services = configuredServices(process.env);
   if (result.ok) {
+    // The database answers; is it also up to date with this code's migrations (ids only, never data)?
+    const pending = (await pendingMigrationsAt(url, TIMEOUT_MS)) ?? [];
+    if (pending.length > 0) {
+      console.error(`[/api/health] ${migrationHint(pending)}`);
+      return NextResponse.json(
+        { ok: false, db: true, services, migrations: { pending } },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ ok: true, db: true, services }, { status: 200 });
   }
   console.error("[/api/health] db check failed:", result.reason ?? "unknown");

@@ -6,6 +6,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { getDb } from "./db";
 import { AppError } from "./errors";
+import { explainMissingMigrations } from "./migration-check";
 import { SUSPENDED_PROJECT, assertNotSuspended } from "./suspension";
 
 export type SessionUser = { id: string; email: string; name: string };
@@ -95,8 +96,11 @@ export function getAuth(): Auth {
 
 // Default resolver reads the better-auth session from the request headers.
 // Tests inject a resolver via setSessionResolver to avoid a real OAuth flow.
+// A database that is behind the code (a migration not run) fails here first; the error then names the migration.
 const defaultResolver: SessionResolver = async (req) => {
-  const session = (await getAuth().api.getSession({ headers: req.headers })) as {
+  const session = (await explainMissingMigrations(getDb, () =>
+    getAuth().api.getSession({ headers: req.headers }),
+  )) as {
     user?: { id: string; email?: string | null; name?: string | null };
   } | null;
   const u = session?.user;
