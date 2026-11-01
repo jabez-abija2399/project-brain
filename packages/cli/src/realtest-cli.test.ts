@@ -253,7 +253,7 @@ describe("macOS/npx: hooks work without a global install", () => {
       execFileSync("/bin/sh", ["-c", shellHook("codeceipt hook stop --agent claude")], {
         env: { PATH: path, HOME: dir },
       }).toString();
-    expect(run(`${bin}:/usr/bin:/bin`)).toBe("npx -y codeceipt@0.1.0 hook stop --agent claude\n");
+    expect(run(`${bin}:/usr/bin:/bin`)).toBe("npx -y codeceipt@0.1.1 hook stop --agent claude\n");
     writeFileSync(join(bin, "codeceipt"), '#!/bin/sh\necho "codeceipt $*"\n', { mode: 0o755 });
     expect(run(`${bin}:/usr/bin:/bin`)).toBe("codeceipt hook stop --agent claude\n");
     // A GUI app's PATH without the user's folders: $HOME/.local/bin is added by the hook itself.

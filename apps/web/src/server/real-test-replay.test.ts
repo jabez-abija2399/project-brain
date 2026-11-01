@@ -192,7 +192,7 @@ describe("the real test session, replayed in order", () => {
     expect(await c.run(app.dir, ["init", "--claude"])).toBe(0);
     const settings = JSON.parse(readFileSync(join(app.dir, ".claude", "settings.json"), "utf8"));
     expect(JSON.stringify(settings.hooks)).toContain(
-      "npx -y codeceipt@0.1.0 hook session-end --agent claude",
+      "npx -y codeceipt@0.1.1 hook session-end --agent claude",
     );
     expect(settings.hooks.Stop).toHaveLength(1);
     app.git("add", "-A");
