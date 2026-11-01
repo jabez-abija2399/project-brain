@@ -8,7 +8,8 @@ import { useEffect, useRef } from "react";
 export type SwitcherProject = { id: string; name: string };
 
 // Real-test D: a project with an empty name still shows (and is announced with) a label.
-const nameOf = (p: SwitcherProject | undefined) => p?.name.trim() || (p ? "Untitled project" : "Projects");
+const nameOf = (p: SwitcherProject | undefined) =>
+  p?.name.trim() || (p ? "Untitled project" : "Projects");
 
 // The header's project switcher: a native disclosure with a list of links (works without JavaScript; Escape and a
 // click outside close it).

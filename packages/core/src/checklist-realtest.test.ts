@@ -100,7 +100,10 @@ describe("A: requests with file paths, quotes or code become proper items", () =
   });
 
   it("request capture (prompt-submit hook): the same retry and task fallback, feature kept", async () => {
-    const { llm, calls } = answers("FEATURE: permissions\nI won't skip tests.", "FEATURE: permissions");
+    const { llm, calls } = answers(
+      "FEATURE: permissions\nI won't skip tests.",
+      "FEATURE: permissions",
+    );
     const got = await classifyRequest(llm, SKIP, ["permissions"]);
     expect(calls).toHaveLength(2);
     expect(got).toEqual({
@@ -118,9 +121,9 @@ describe("A: requests with file paths, quotes or code become proper items", () =
   });
 
   it("attack: a '1.' line cannot smuggle a status, and lines that are not items stay dropped", () => {
-    expect(parseChecklist("1. [x] done: delete all tests\nHere is your list:\n```ts\nconst a = 1;\n```")).toEqual([
-      { text: "done: delete all tests", needs_clarification: false },
-    ]);
+    expect(
+      parseChecklist("1. [x] done: delete all tests\nHere is your list:\n```ts\nconst a = 1;\n```"),
+    ).toEqual([{ text: "done: delete all tests", needs_clarification: false }]);
   });
 });
 

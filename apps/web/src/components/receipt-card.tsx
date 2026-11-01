@@ -140,8 +140,8 @@ export function ReceiptCard({
           {view.noSnapshot && <p className="muted wrap m0">{NO_SNAPSHOT_NOTE}</p>}
           {view.noChanges && (
             <p className="muted wrap m0">
-              No files changed in this session. Each item is marked not done, already present
-              (done in an earlier request) or not verified.
+              No files changed in this session. Each item is marked not done, already present (done
+              in an earlier request) or not verified.
             </p>
           )}
           {view.filesByFeature.length > 0 && (

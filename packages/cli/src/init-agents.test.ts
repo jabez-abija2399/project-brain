@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type CliDeps, main } from "./index";
+import { shellHook } from "./templates";
 import { linkRepo } from "./test-support";
 
 // D-021: `codeceipt init` for OpenAI Codex, OpenCode and Google Antigravity, with the config shapes their docs give
@@ -109,7 +110,11 @@ describe("D-021 init: OpenAI Codex", () => {
       userHooks.hooks.SessionStart[0],
       {
         hooks: [
-          { type: "command", command: "codeceipt hook session-start --agent codex", timeout: 30 },
+          {
+            type: "command",
+            command: shellHook("codeceipt hook session-start --agent codex"),
+            timeout: 30,
+          },
         ],
       },
     ]);
@@ -117,7 +122,11 @@ describe("D-021 init: OpenAI Codex", () => {
     expect(hooks.hooks.SessionEnd).toEqual([
       {
         hooks: [
-          { type: "command", command: "codeceipt hook session-end --agent codex", timeout: 3 },
+          {
+            type: "command",
+            command: shellHook("codeceipt hook session-end --agent codex"),
+            timeout: 3,
+          },
         ],
       },
     ]);
@@ -242,7 +251,7 @@ describe("D-021 init: Google Antigravity", () => {
         SessionStart: [
           {
             type: "command",
-            command: "codeceipt hook session-start --agent antigravity",
+            command: shellHook("codeceipt hook session-start --agent antigravity"),
             timeout: 30,
           },
         ],

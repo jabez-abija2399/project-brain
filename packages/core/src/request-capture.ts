@@ -3,8 +3,8 @@
 // Pure: the caller passes the Llm. The message and the names are labelled data; the answer is parsed strictly.
 import {
   type ChecklistDraftItem,
-  ITEM_RULE,
   DATA_RULE,
+  ITEM_RULE,
   POSTPONE_RULE,
   QUESTION_RULE,
   RETRY_NOTE,

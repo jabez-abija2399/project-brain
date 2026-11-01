@@ -64,6 +64,9 @@ describe("dashboard item progress", () => {
       partial: 1,
       missed: 2,
       dismissed: 0,
+      // Real-test G and H (2026-11-01): the two new states are counted too.
+      postponed: 0,
+      done_untested: 0,
     });
     expect(await dashboardRepo.featureProgress(db, a.id, 8)).toEqual([
       { id: reviews.id, name: "Reviews", total: 4, done: 2, open: 2 },

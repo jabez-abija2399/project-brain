@@ -22,6 +22,7 @@ import {
 } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
+import { dependencyChanges } from "./dependency-changes";
 import { callTool } from "./mcp-client";
 import { type Git, changedFiles, repoRoot, scanFiles } from "./scan-secrets";
 import {
@@ -35,7 +36,6 @@ import {
   validSnapshot,
   verifiedBlobs,
 } from "./session-snapshot";
-import { dependencyChanges } from "./dependency-changes";
 import { localIntegrity, passingTests } from "./test-integrity-local";
 
 // FEAT-016 agent hooks. They fail safe: whatever goes wrong (not logged in, server unreachable, git missing), the
@@ -164,25 +164,47 @@ function writeState(file: string, text: string) {
 
 // The session's starting commit and, when a test report is configured, its passing-test count then (FEAT-018).
 // D-025: and the working tree's changed files then (paths and hashes); null when missing or not well formed.
-function readState(file: string): {
+type SessionState = {
   start: string | null;
   passing: number | null;
   startedAt: string | null;
   snapshot: Snapshot | null;
   blobs: StartBlobs;
-} {
+  // Stop hook (owner, 2026-11-01): the receipt it made last and what it was made from.
+  receiptId: string | null;
+  stopKey: string | null;
+};
+const EMPTY_STATE: SessionState = {
+  start: null,
+  passing: null,
+  startedAt: null,
+  snapshot: null,
+  blobs: {},
+  receiptId: null,
+  stopKey: null,
+};
+
+function readState(file: string): SessionState {
   try {
-    if (lstatSync(file).isSymbolicLink()) {
-      return { start: null, passing: null, startedAt: null, snapshot: null, blobs: {} };
-    }
+    if (lstatSync(file).isSymbolicLink()) return EMPTY_STATE;
     const saved = JSON.parse(readFileSync(file, "utf8")) as {
       start?: unknown;
       passing?: unknown;
       startedAt?: unknown;
       snapshot?: unknown;
       blobs?: unknown;
+      receiptId?: unknown;
+      stopKey?: unknown;
     };
     return {
+      receiptId:
+        typeof saved.receiptId === "string" && /^[\w-]{1,64}$/.test(saved.receiptId)
+          ? saved.receiptId
+          : null,
+      stopKey:
+        typeof saved.stopKey === "string" && /^[0-9a-f]{64}$/.test(saved.stopKey)
+          ? saved.stopKey
+          : null,
       snapshot: validSnapshot(saved.snapshot),
       blobs: validBlobs(saved.blobs),
       // When the session started: requests recorded without a session id since then belong to it.
@@ -201,7 +223,7 @@ function readState(file: string): {
           : null,
     };
   } catch {
-    return { start: null, passing: null, startedAt: null, snapshot: null, blobs: {} };
+    return EMPTY_STATE;
   }
 }
 
@@ -261,10 +283,13 @@ export function receiptSummary(
     list(integrity.flags).filter(isAsked).length +
     count(receipt.outside_scope_asked);
   const findings =
-    count(receipt.findings) - list(receipt.findings).filter(isAsked).length +
+    count(receipt.findings) -
+    list(receipt.findings).filter(isAsked).length +
     number(receipt.findings_omitted);
   const tests =
-    count(integrity.flags) - list(integrity.flags).filter(isAsked).length + number(integrity.omitted);
+    count(integrity.flags) -
+    list(integrity.flags).filter(isAsked).length +
+    number(integrity.omitted);
   const outside = Math.max(0, count(receipt.outside_scope) - count(receipt.outside_scope_asked));
   // "no test changed" entries are the done-without-a-test items, counted above; the rest could not be checked.
   const unverified = (Array.isArray(receipt.not_verified) ? receipt.not_verified : []).filter(
@@ -286,7 +311,11 @@ export function receiptSummary(
     askedCount > 0 ? `${askedCount} you asked for` : "",
     present > 0 && receipt.no_changes !== true ? `${present} already present` : "",
     count(receipt.new_dependencies) > 0
-      ? plural(count(receipt.new_dependencies), "dependency added or changed", "dependencies added or changed")
+      ? plural(
+          count(receipt.new_dependencies),
+          "dependency added or changed",
+          "dependencies added or changed",
+        )
       : "",
   ].filter(Boolean);
   const lines = [
@@ -471,7 +500,13 @@ function openList(open: OpenItems): { text: string; status: string }[] {
  * them for secrets on this machine, asks for a receipt for the newest open request, saves progress and warns about
  * checklist items that are neither done nor parked. Returns true when there is something to warn about.
  */
-export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean> {
+export async function sessionEnd(
+  _agent: Agent,
+  deps: HookDeps,
+  // Stop (owner, 2026-11-01): Claude finished responding. The session goes on: its state is kept, the receipt it
+  // made before is replaced, and nothing is sent when nothing changed since then.
+  opts: { stop?: boolean } = {},
+): Promise<boolean> {
   const { sessionId, cwd } = await hookInput(deps);
   if (!deps.config) {
     deps.stderr(`${WARN} ${problemOf(deps)}; progress was not saved.`);
@@ -493,11 +528,28 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
   // D-025: changed files that were already modified at the start, and whether there was no start snapshot.
   let preExisting: string[] = [];
   let noSnapshot = false;
+  let stateFilePath: string | null = null;
+  let previous: { receiptId: string | null; stopKey: string | null } = {
+    receiptId: null,
+    stopKey: null,
+  };
   try {
     root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
-    ({ start, passing: passingBefore, startedAt, snapshot, blobs } = readState(file));
-    rmSync(file, { force: true });
+    stateFilePath = file;
+    let receiptId: string | null;
+    let stopKey: string | null;
+    ({
+      start,
+      passing: passingBefore,
+      startedAt,
+      snapshot,
+      blobs,
+      receiptId,
+      stopKey,
+    } = readState(file));
+    previous = { receiptId, stopKey };
+    if (!opts.stop) rmSync(file, { force: true });
     commit = await head(deps.git, root);
     // A start that is not an ancestor of HEAD (history rewritten, state file edited) cannot bound the session.
     if (start && commit) {
@@ -579,6 +631,24 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     }
     const own = sessionRequests(open);
     const req = own[0];
+    // Stop: the same files, summaries, dependencies and requests as the last receipt need no new one.
+    const stopKey = createHash("sha256")
+      .update(
+        JSON.stringify({
+          files: receiptFiles,
+          summaries,
+          dependencies,
+          requests: own.map((r) => r.id),
+          findings: sessionFindings.length,
+          flags: integrity?.flags.length ?? 0,
+        }),
+      )
+      .digest("hex");
+    if (
+      opts.stop &&
+      (stopKey === previous.stopKey || (receiptFiles.length === 0 && own.length === 0))
+    )
+      return false;
     let receiptNote = "";
     let receiptId: string | null = null;
     const summary: string[] = [];
@@ -594,6 +664,10 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
           const receipt = JSON.parse(
             await callTool(timed(deps.fetch, RECEIPT_TIMEOUT_MS), config, "generate_receipt", {
               ...(requestId ? { requestId } : {}),
+              // One receipt per session: a later Stop or the session end replaces the one made before.
+              ...(previous.receiptId && requestId === own[0]?.id
+                ? { replacesReceiptId: previous.receiptId }
+                : {}),
               changedFiles: receiptFiles.slice(0, MAX_RECEIPT_FILES),
               ...(summaries.length > 0 ? { changeSummaries: summaries } : {}),
               ...(marked.length > 0
@@ -643,6 +717,12 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
           );
           break;
         }
+      }
+      if (opts.stop && stateFilePath && receiptId) {
+        try {
+          const raw = JSON.parse(readFileSync(stateFilePath, "utf8")) as Record<string, unknown>;
+          writeState(stateFilePath, JSON.stringify({ ...raw, receiptId, stopKey }));
+        } catch {}
       }
       if (receipts.length > 0) {
         summary.push(

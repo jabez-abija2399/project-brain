@@ -391,7 +391,11 @@ async function runHook(
       // way to show a SessionEnd message without that label. The summary stays on stderr and `codeceipt last`.
       await sessionEnd(agent, hookDeps);
       return EXIT.ok;
-    } else deps.stderr("Codeceipt: unknown hook (use session-start or session-end).");
+    } else if (event === "stop") {
+      // Owner, 2026-11-01: Claude finished responding (VS Code may never send SessionEnd): keep the receipt current.
+      await sessionEnd(agent, hookDeps, { stop: true });
+      return EXIT.ok;
+    } else deps.stderr("Codeceipt: unknown hook (use session-start, session-end or stop).");
   } catch {
     deps.stderr("Codeceipt: the hook failed; the session goes on without it.");
   }

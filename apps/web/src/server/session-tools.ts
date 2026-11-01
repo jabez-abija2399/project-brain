@@ -195,9 +195,16 @@ export async function saveDirective(db: BrainDb, token: ToolToken, raw: unknown)
  * postponed items are "still open"; questions and items done without a test are listed apart; the same item from a
  * repeated request is listed once. `open` is the open work alone, in order (the first is the next step).
  */
-export function startNoteItems(rows: { text: string; status: string; needsClarification: boolean }[]) {
+export function startNoteItems(
+  rows: { text: string; status: string; needsClarification: boolean }[],
+) {
   const seen = new Set<string>();
-  const out = { open: [] as string[], checklist: [] as string[], questions: [] as string[], untested: [] as string[] };
+  const out = {
+    open: [] as string[],
+    checklist: [] as string[],
+    questions: [] as string[],
+    untested: [] as string[],
+  };
   for (const r of rows) {
     const key = r.text.trim().toLowerCase();
     if (seen.has(key)) continue;
@@ -231,9 +238,7 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
     const last = sessions[0];
     const items = startNoteItems(checklist);
     // Real-test H: the next step is the first truly open item; a saved step naming finished work is not repeated.
-    const listed = new Set(
-      [...items.questions, ...items.untested].map((t) => t.toLowerCase()),
-    );
+    const listed = new Set([...items.questions, ...items.untested].map((t) => t.toLowerCase()));
     const saved = last?.nextStep ?? "";
     const nextStep =
       items.open[0] ?? (listed.has(saved.toLowerCase()) ? "Start the next request" : saved);

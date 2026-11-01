@@ -38,6 +38,7 @@ import {
   SHARED_SKILL,
   SHARED_SKILL_PATH,
   START_HOOK,
+  STOP_HOOK,
   TOKEN_VARIABLE,
   antigravityMcpServer,
   claudeMcpServer,
@@ -45,6 +46,7 @@ import {
   cursorMcpServer,
   isOurHook,
   opencodeMcpServer,
+  shellHook,
 } from "./templates";
 
 // FEAT-016: `codeceipt init` sets up Claude Code and Cursor for this repo: MCP config, hooks, the Skill or rule,
@@ -404,11 +406,40 @@ function addHook(
   if (list !== undefined && !Array.isArray(list)) {
     return { added: [], problems: [`${event} is not a list; left unchanged`] };
   }
-  if ((list ?? []).some(ours)) return { added: [], problems: [] };
+  if ((list ?? []).some(ours)) {
+    // An earlier install wrote the bare command: rewrite it to the shell form (works without a global install).
+    const wanted = (entry as { command?: unknown }).command ?? firstCommand(entry);
+    return typeof wanted === "string" && refreshHook(list ?? [], wanted)
+      ? { added: [`${event} hook (now runs without a global install)`], problems: [] }
+      : { added: [], problems: [] };
+  }
   if (list && upgrade(list))
     return { added: [`${event} hook (upgraded from projectbrain)`], problems: [] };
   hooks[event] = [...(list ?? []), entry];
   return { added: [`${event} hook`], problems: [] };
+}
+
+const firstCommand = (entry: Json): unknown =>
+  Array.isArray(entry.hooks) && isObject(entry.hooks[0]) ? entry.hooks[0].command : undefined;
+
+// Our hooks (in a list of hooks, or of groups of hooks) whose command is ours but not exactly `wanted` (the bare or
+// absolute-path form an older init wrote) get `wanted`. True when one was rewritten.
+function refreshHook(list: unknown[], wanted: string): boolean {
+  const bare = wanted.match(/then (codeceipt [^;]+);/)?.[1];
+  if (!bare) return false;
+  let changed = false;
+  const fix = (h: unknown) => {
+    // Only the exact bare command an older init wrote; a path the user chose (/usr/local/bin/codeceipt …) stays.
+    if (isObject(h) && typeof h.command === "string" && h.command.trim() === bare) {
+      h.command = wanted;
+      changed = true;
+    }
+  };
+  for (const item of list) {
+    if (isObject(item) && Array.isArray(item.hooks)) item.hooks.forEach(fix);
+    else fix(item);
+  }
+  return changed;
 }
 
 // Rewrites the first hook whose command is `legacy` to `command`, keeping everything else about it.
@@ -443,7 +474,7 @@ const groupHooks =
       return { added: [], problems: ["hooks is not an object; left unchanged"] };
     }
     // An event whose list has an odd shape leaves the whole file as it is (nothing half set up).
-    const odd = oddHookLists(doc.hooks, ["SessionStart", "SessionEnd", "UserPromptSubmit"]);
+    const odd = oddHookLists(doc.hooks, ["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop"]);
     if (odd.length > 0) return { added: [], problems: odd };
     doc.hooks ??= {};
     const hooks = doc.hooks as Json;
@@ -452,7 +483,7 @@ const groupHooks =
       Array.isArray(group.hooks) &&
       group.hooks.some((h) => isObject(h) && isOurHook(h.command, command));
     const entry = (command: string, timeout: number) => ({
-      hooks: [{ type: "command", command, timeout }],
+      hooks: [{ type: "command", command: shellHook(command), timeout }],
     });
     const upgrade = (legacy: string, command: string) => (groups: unknown[]) =>
       groups.some(
@@ -464,7 +495,7 @@ const groupHooks =
         "SessionStart",
         entry(START_HOOK(agent), 30),
         ours(START_HOOK(agent)),
-        upgrade(LEGACY_START_HOOK(agent), START_HOOK(agent)),
+        upgrade(LEGACY_START_HOOK(agent), shellHook(START_HOOK(agent))),
       ),
       // Claude Code: SessionEnd hooks get 1.5 s unless they set a timeout; the receipt needs more (up to 60 s allowed).
       // Codex allows 3 s at most: its hook starts the receipt in the background and returns.
@@ -473,7 +504,7 @@ const groupHooks =
         "SessionEnd",
         entry(END_HOOK(agent), endTimeout),
         ours(END_HOOK(agent)),
-        upgrade(LEGACY_END_HOOK(agent), END_HOOK(agent)),
+        upgrade(LEGACY_END_HOOK(agent), shellHook(END_HOOK(agent))),
       ),
       // D-024: records each user request for the session; prints nothing, so nothing is added to the agent's context.
       addHook(
@@ -483,6 +514,10 @@ const groupHooks =
         ours(PROMPT_HOOK(agent)),
         () => false,
       ),
+      // Owner, 2026-11-01: Claude Code in VS Code may never fire SessionEnd; Stop keeps the session's receipt current.
+      ...(agent === "claude"
+        ? [addHook(hooks, "Stop", entry(STOP_HOOK(agent), 60), ours(STOP_HOOK(agent)), () => false)]
+        : []),
     );
   };
 
@@ -499,22 +534,23 @@ const cursorHooks = (doc: Json): Change => {
     addHook(
       hooks,
       "sessionStart",
-      { command: START_HOOK("cursor"), timeout: 30 },
+      { command: shellHook(START_HOOK("cursor")), timeout: 30 },
       ours(START_HOOK("cursor")),
-      (items) => renameHookCommand(items, LEGACY_START_HOOK("cursor"), START_HOOK("cursor")),
+      (items) =>
+        renameHookCommand(items, LEGACY_START_HOOK("cursor"), shellHook(START_HOOK("cursor"))),
     ),
     addHook(
       hooks,
       "sessionEnd",
-      { command: END_HOOK("cursor"), timeout: 60 },
+      { command: shellHook(END_HOOK("cursor")), timeout: 60 },
       ours(END_HOOK("cursor")),
-      (items) => renameHookCommand(items, LEGACY_END_HOOK("cursor"), END_HOOK("cursor")),
+      (items) => renameHookCommand(items, LEGACY_END_HOOK("cursor"), shellHook(END_HOOK("cursor"))),
     ),
     // D-024: records each user request; answers {"continue":true}, so the prompt is never blocked.
     addHook(
       hooks,
       "beforeSubmitPrompt",
-      { command: PROMPT_HOOK("cursor"), timeout: 10 },
+      { command: shellHook(PROMPT_HOOK("cursor")), timeout: 10 },
       ours(PROMPT_HOOK("cursor")),
       () => false,
     ),
@@ -530,7 +566,7 @@ const cursorHooks = (doc: Json): Change => {
 // handler (Antigravity has no session-end event).
 const antigravityHooks = (doc: Json): Change => {
   const command = START_HOOK("antigravity");
-  const handler = { type: "command", command, timeout: 30 };
+  const handler = { type: "command", command: shellHook(command), timeout: 30 };
   const mine = doc[SERVER_NAME];
   if (mine === undefined) {
     doc[SERVER_NAME] = { SessionStart: [handler] };

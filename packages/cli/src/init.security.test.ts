@@ -13,6 +13,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
+import { shellHook } from "./templates";
 import { linkRepo } from "./test-support";
 
 // FEAT-016 security pass: attacks on `codeceipt init` (a hostile cloned repo, odd user files, re-runs) and on the
@@ -141,7 +142,7 @@ describe("FEAT-016 init security", () => {
     expect(raw).toContain('"__proto__"');
     const doc = readJson(join(t.repo, ".claude/settings.json"));
     expect(doc.permissions).toEqual({ allow: ["Bash(ls)"] });
-    expect(doc.hooks.SessionStart[0].hooks[0].command).toBe(START);
+    expect(doc.hooks.SessionStart[0].hooks[0].command).toBe(shellHook(START));
   });
 
   it("AC-016-05 attack: a CRLF AGENTS.md keeps every user byte, and a re-run adds no second section", async () => {
@@ -189,8 +190,10 @@ describe("FEAT-016 init security", () => {
     const commands = (event: string) =>
       hooks[event].flatMap((g: { hooks: { command: string }[] }) => g.hooks.map((h) => h.command));
     // Our real hooks must be installed (and reported), not vouched for by a look-alike.
-    expect(commands("SessionStart")).toContain(START);
-    expect(commands("SessionEnd")).toContain("codeceipt hook session-end --agent claude");
+    expect(commands("SessionStart")).toContain(shellHook(START));
+    expect(commands("SessionEnd")).toContain(
+      shellHook("codeceipt hook session-end --agent claude"),
+    );
     expect(t.out).not.toContain("  kept    .claude/settings.json (already set up)");
   });
 

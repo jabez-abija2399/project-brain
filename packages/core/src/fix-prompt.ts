@@ -238,7 +238,8 @@ export function fixPrompt(asked: string | null, view: ReceiptView): string | nul
   if (open.length === 0) return null;
   const lines = open.slice(0, MAX_PROMPT_ITEMS).map((i, n) => {
     const where = i.evidence.length > 0 ? ` (started in ${i.evidence.join(", ")})` : "";
-    const label = i.status === "partial" ? "partly done" : i.status === "missed" ? "missed" : "not done";
+    const label =
+      i.status === "partial" ? "partly done" : i.status === "missed" ? "missed" : "not done";
     return `${n + 1}. [${label}] ${i.text}${where}`;
   });
   if (open.length > MAX_PROMPT_ITEMS)

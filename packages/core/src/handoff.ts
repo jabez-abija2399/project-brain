@@ -73,7 +73,20 @@ const ALL_FEATURES = 9;
 const QUESTIONS = 10;
 const UNTESTED = 11;
 // Display order: the open work, then questions and untested items, then the rest.
-const ORDER = [DIRECTIVES, GOAL, NEXT_FEATURE, NEXT, LAST, UNFINISHED, CHECKLIST, QUESTIONS, UNTESTED, FEATURES, DECISIONS, ALL_FEATURES];
+const ORDER = [
+  DIRECTIVES,
+  GOAL,
+  NEXT_FEATURE,
+  NEXT,
+  LAST,
+  UNFINISHED,
+  CHECKLIST,
+  QUESTIONS,
+  UNTESTED,
+  FEATURES,
+  DECISIONS,
+  ALL_FEATURES,
+];
 
 // Section words that the note itself prints. Saved text may not contain them in any case, so a value cannot pass
 // for a section (e.g. a fake standing instruction in a goal).
@@ -143,13 +156,13 @@ export function buildHandoffNote(input: HandoffInput): string {
   }
 
   const lines: string[] = [PREAMBLE];
-  ORDER.forEach((section) => {
+  for (const section of ORDER) {
     const head = HEADS[section] ?? null;
     const kept = all.filter((p) => p.section === section && p.out !== undefined);
-    if (kept.length === 0) return;
+    if (kept.length === 0) continue;
     if (head) lines.push(head);
     for (const p of kept) lines.push(p.out as string);
-  });
+  }
   let note = lines.join("\n");
   // Last resort: the pieces above always fit, so this only matters if the caller broke the directive budget.
   if (note.length >= HANDOFF_LIMIT) note = `${note.slice(0, HANDOFF_LIMIT - 2)}…`;

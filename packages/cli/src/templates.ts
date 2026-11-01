@@ -23,14 +23,30 @@ export const START_HOOK = hook(BRAND, "session-start");
 // The prompt-submit hook that records each user request for the session (D-024).
 export const PROMPT_HOOK = hook(BRAND, "prompt");
 export const END_HOOK = hook(BRAND, "session-end");
+// Owner, 2026-11-01 (VS Code): Claude Code in VS Code may not fire SessionEnd; Stop (Claude finished responding)
+// creates or updates the session's receipt.
+export const STOP_HOOK = hook(BRAND, "stop");
 export const LEGACY_START_HOOK = hook(LEGACY, "session-start");
 export const LEGACY_END_HOOK = hook(LEGACY, "session-end");
 
-// Our hook is the exact command for its event, optionally with an absolute path to the binary; a foreign command
-// that merely mentions "codeceipt hook", or a relative path (a codeceipt shipped inside the repo), is not ours.
+// Owner, 2026-11-01 (macOS / npx): an agent launched from the Dock or Finder does not get the terminal's PATH, and a
+// user who ran `npx codeceipt` has no global codeceipt. The hook command written into the agent's settings therefore
+// adds the usual Node install folders to PATH and runs the installed codeceipt when there is one, else the published
+// package through npx. POSIX sh, the same on every machine that shares the committed settings file.
+const NODE_PATHS =
+  '"$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.volta/bin:$HOME/.npm-global/bin:$HOME/.local/bin"';
+export const shellHook = (bare: string) => {
+  const args = bare.replace(/^codeceipt /, "");
+  return `PATH=${NODE_PATHS}; if command -v codeceipt >/dev/null 2>&1; then codeceipt ${args}; else npx -y codeceipt ${args}; fi`;
+};
+
+// Our hook is the exact command for its event: bare, with an absolute path to the binary, or wrapped by shellHook. A
+// foreign command that merely mentions "codeceipt hook", or a relative path (a codeceipt shipped inside the repo), is
+// not ours.
 export const isOurHook = (command: unknown, expected: string) =>
   typeof command === "string" &&
-  command.trim().replace(/^\/\S*\/(?=(?:codeceipt|projectbrain) )/, "") === expected;
+  (command.trim().replace(/^\/\S*\/(?=(?:codeceipt|projectbrain) )/, "") === expected ||
+    (expected.startsWith("codeceipt ") && command.trim() === shellHook(expected)));
 
 const WORKFLOW = [
   "1. At the start of a session call `where_did_we_stop` and follow its handoff note and the owner's instructions.",

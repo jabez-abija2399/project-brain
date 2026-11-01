@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
+import { shellHook } from "./templates";
 import { linkRepo } from "./test-support";
 
 // The token is built at runtime from chunks under 10 characters.
@@ -77,17 +78,17 @@ describe("FEAT-016 codeceipt init", () => {
     const claude = readJson(join(t.repo, ".claude/settings.json")).hooks;
     expect(claude.SessionStart[0].hooks[0]).toMatchObject({
       type: "command",
-      command: "codeceipt hook session-start --agent claude",
+      command: shellHook("codeceipt hook session-start --agent claude"),
     });
     expect(claude.SessionEnd[0].hooks[0]).toMatchObject({
-      command: "codeceipt hook session-end --agent claude",
+      command: shellHook("codeceipt hook session-end --agent claude"),
       timeout: 60,
     });
     expect(readJson(join(t.repo, ".cursor/hooks.json"))).toMatchObject({
       version: 1,
       hooks: {
-        sessionStart: [{ command: "codeceipt hook session-start --agent cursor" }],
-        sessionEnd: [{ command: "codeceipt hook session-end --agent cursor" }],
+        sessionStart: [{ command: shellHook("codeceipt hook session-start --agent cursor") }],
+        sessionEnd: [{ command: shellHook("codeceipt hook session-end --agent cursor") }],
       },
     });
     expect(readFileSync(join(t.repo, ".claude/skills/codeceipt/SKILL.md"), "utf8")).toContain(

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, gte, isNull } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type NewReceipt, type Receipt, receipts } from "../schema";
 
@@ -23,5 +23,30 @@ export const receiptsRepo = {
       .where(eq(receipts.projectId, projectId))
       .orderBy(desc(receipts.createdAt))
       .limit(limit);
+  },
+
+  /**
+   * Owner, 2026-11-01 (Stop hook): removes the session's earlier receipt that a new one replaces. Only a receipt of this
+   * project, for the same request (or both without one), made since `since`; anything else is left alone.
+   */
+  async deleteReplaced(
+    db: BrainDb,
+    projectId: string,
+    receiptId: string,
+    requestId: string | null,
+    since: Date,
+  ): Promise<number> {
+    const rows = await db
+      .delete(receipts)
+      .where(
+        and(
+          eq(receipts.projectId, projectId),
+          eq(receipts.id, receiptId),
+          requestId === null ? isNull(receipts.requestId) : eq(receipts.requestId, requestId),
+          gte(receipts.createdAt, since),
+        ),
+      )
+      .returning({ id: receipts.id });
+    return rows.length;
   },
 };

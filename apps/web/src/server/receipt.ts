@@ -67,6 +67,8 @@ const receiptSchema = z
     projectId: id.optional(),
     // Optional (dogfooding): a session that changed files without a recorded request still gets a receipt.
     requestId: id.optional(),
+    // Owner, 2026-11-01 (Stop hook): the receipt this one replaces (same session, same request, last 24 hours).
+    replacesReceiptId: id.optional(),
     changedFiles: z
       .array(repoPath)
       .max(MAX_RECEIPT_FILES, `at most ${MAX_RECEIPT_FILES} files per receipt`),
@@ -141,7 +143,7 @@ async function filesWithFeatures(
   for (const p of paths) {
     const own = byPath.get(p);
     // Only a test file with no feature, or only the tests group, takes its subject's.
-    if (own && own.some((l) => l.featureKey !== TESTS_KEY)) continue;
+    if (own?.some((l) => l.featureKey !== TESTS_KEY)) continue;
     const subject = (subjects.get(p) ?? []).find((s) => byPath.has(s));
     if (subject) byPath.set(p, byPath.get(subject) ?? []);
   }
@@ -151,6 +153,12 @@ async function filesWithFeatures(
     const key = featureFromPath(p);
     if (key) unlinkedKeys.set(p, key);
   }
+  const folderOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+  const byFolder = await featureFilesRepo.primaryFeatureByFolder(
+    db,
+    projectId,
+    paths.filter((p) => !byPath.has(p)).map(folderOf),
+  );
   const byKey = new Map(
     (await featuresRepo.byKeys(db, projectId, [...new Set(unlinkedKeys.values())])).map((f) => [
       f.key,
@@ -171,10 +179,22 @@ async function filesWithFeatures(
       };
     }
     const guess = byKey.get(unlinkedKeys.get(path) ?? "");
+    if (guess) {
+      return {
+        path,
+        feature: guess.name,
+        inScope: requestFeatureId === null || isTestCode(path) || guess.id === requestFeatureId,
+      };
+    }
+    // Real-test E: a file not indexed yet goes with its folder: the feature most of the folder's files belong to,
+    // else the folder itself, never "(no feature)" when it sits in a folder.
+    const dir = folderOf(path);
+    const sibling = byFolder.get(dir);
     return {
       path,
-      feature: guess?.name ?? null,
-      inScope: requestFeatureId === null || isTestCode(path) || guess?.id === requestFeatureId,
+      feature: sibling?.featureName ?? (dir ? `${dir}/` : null),
+      inScope:
+        requestFeatureId === null || isTestCode(path) || sibling?.featureId === requestFeatureId,
     };
   });
 }
@@ -348,6 +368,16 @@ export async function generateReceipt(
       test_integrity: integrity,
     },
   });
+  // One receipt per session: the one it replaces goes, only within this project, for the same request and if recent.
+  if (input.replacesReceiptId) {
+    await receiptsRepo.deleteReplaced(
+      db,
+      pid,
+      input.replacesReceiptId,
+      request?.id ?? null,
+      new Date(now.getTime() - 24 * 3600_000),
+    );
+  }
   console.info(
     "[mcp]",
     "generate_receipt",

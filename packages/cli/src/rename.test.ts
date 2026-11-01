@@ -16,6 +16,7 @@ import {
   LEGACY_AGENTS_START,
   LEGACY_CLAUDE_SKILL,
   LEGACY_CURSOR_RULE,
+  shellHook,
 } from "./templates";
 import { linkRepo } from "./test-support";
 
@@ -152,12 +153,18 @@ describe("D-019 rename to Codeceipt", () => {
     expect(hooks.SessionStart).toEqual([
       {
         hooks: [
-          { type: "command", command: "codeceipt hook session-start --agent claude", timeout: 45 },
+          {
+            type: "command",
+            command: shellHook("codeceipt hook session-start --agent claude"),
+            timeout: 45,
+          },
         ],
       },
     ]);
     expect(hooks.SessionEnd).toHaveLength(1);
-    expect(hooks.SessionEnd[0].hooks[0].command).toBe("codeceipt hook session-end --agent claude");
+    expect(hooks.SessionEnd[0].hooks[0].command).toBe(
+      shellHook("codeceipt hook session-end --agent claude"),
+    );
     expect(readFileSync(join(t.repo, ".claude/skills/codeceipt/SKILL.md"), "utf8")).toBe(
       CLAUDE_SKILL,
     );
@@ -172,7 +179,7 @@ describe("D-019 rename to Codeceipt", () => {
     });
     const cursorHooks = json(join(t.repo, ".cursor/hooks.json")).hooks;
     expect(cursorHooks.sessionStart).toEqual([
-      { command: "codeceipt hook session-start --agent cursor", timeout: 30 },
+      { command: shellHook("codeceipt hook session-start --agent cursor"), timeout: 30 },
     ]);
     expect(cursorHooks.sessionEnd).toHaveLength(1);
     expect(readFileSync(join(t.repo, ".cursor/rules/codeceipt.mdc"), "utf8")).toBe(CURSOR_RULE);

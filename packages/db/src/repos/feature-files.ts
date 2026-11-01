@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type FeatureFile, type NewFeatureFile, featureFiles, features, files } from "../schema";
 
@@ -67,5 +67,57 @@ export const featureFilesRepo = {
         ),
       )
       .where(and(eq(featureFiles.projectId, projectId), inArray(files.path, paths)));
+  },
+
+  /**
+   * Real-test E (2026-11-01): for each folder, the feature most of its indexed files (directly in it) belong to as
+   * primary, so a file new in this session (not indexed yet) is grouped with its folder. One grouped query.
+   */
+  async primaryFeatureByFolder(
+    db: BrainDb,
+    projectId: string,
+    folders: string[],
+  ): Promise<Map<string, { featureId: string; featureName: string }>> {
+    const dirs = [...new Set(folders.filter((d) => d !== ""))].slice(0, 200);
+    if (dirs.length === 0) return new Map();
+    const dir = sql<string>`regexp_replace(${files.path}, '/[^/]*$', '')`;
+    const rows = await db
+      .select({
+        dir,
+        featureId: features.id,
+        featureName: features.name,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(featureFiles)
+      .innerJoin(
+        files,
+        and(eq(files.projectId, featureFiles.projectId), eq(files.id, featureFiles.fileId)),
+      )
+      .innerJoin(
+        features,
+        and(
+          eq(features.projectId, featureFiles.projectId),
+          eq(features.id, featureFiles.featureId),
+        ),
+      )
+      .where(
+        and(
+          eq(featureFiles.projectId, projectId),
+          eq(featureFiles.role, "primary"),
+          inArray(dir, dirs),
+        ),
+      )
+      .groupBy(dir, features.id, features.name);
+    const out = new Map<string, { featureId: string; featureName: string; n: number }>();
+    for (const r of rows) {
+      const best = out.get(r.dir);
+      // Most files wins; a tie goes to the name first in the alphabet (stable).
+      if (!best || r.n > best.n || (r.n === best.n && r.featureName < best.featureName)) {
+        out.set(r.dir, { featureId: r.featureId, featureName: r.featureName, n: Number(r.n) });
+      }
+    }
+    return new Map(
+      [...out].map(([d, v]) => [d, { featureId: v.featureId, featureName: v.featureName }]),
+    );
   },
 };

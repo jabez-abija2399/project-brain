@@ -46,18 +46,23 @@ export function onPath(
   const path = env.PATH ?? env.Path ?? "";
   const exts =
     platform === "win32" ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean) : [""];
-  return path
-    .split(platform === "win32" ? ";" : delimiter)
-    .filter(Boolean)
-    .some((dir) =>
-      exts.some((ext) => {
-        try {
-          return statSync(join(dir, name + ext.toLowerCase())).isFile();
-        } catch {
-          return false;
-        }
-      }),
-    );
+  return (
+    path
+      .split(platform === "win32" ? ";" : delimiter)
+      .filter(Boolean)
+      // Owner, 2026-11-01: `npx codeceipt` puts its temporary install on PATH (…/_npx/<hash>/node_modules/.bin); that copy
+      // is gone after the run, so it does not count as installed.
+      .filter((dir) => !/[\\/]_npx[\\/]/.test(dir))
+      .some((dir) =>
+        exts.some((ext) => {
+          try {
+            return statSync(join(dir, name + ext.toLowerCase())).isFile();
+          } catch {
+            return false;
+          }
+        }),
+      )
+  );
 }
 
 /** Opens the address in the default browser; false when no browser could be started. */
@@ -231,6 +236,7 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     );
   }
   const fingerprint = await repoFingerprint(deps.git, root);
+  const known = fingerprint.root !== null || fingerprint.remote !== null;
   let config = await existingConfig(
     configFile,
     gitDir,
@@ -243,12 +249,19 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     deps.stdout(`This repo is already connected to project ${config.projectId}.`);
     // An older link learns its repository's fingerprint.
     const link = readRepoLink(gitDir);
-    if (link && !link.fingerprint) writeRepoLink(gitDir, { ...link, fingerprint });
+    if (link && !link.fingerprint && known) writeRepoLink(gitDir, { ...link, fingerprint });
   } else {
     const approved = await approveInBrowser(apiUrl, root, deps);
     saveProjectToken(configFile, approved);
     config = { ...approved, repo: fingerprintToken(fingerprint) };
-    if (!writeRepoLink(gitDir, { apiUrl, projectId: config.projectId, fingerprint })) {
+    // A repo with no commit and no remote yet has nothing to fingerprint: it learns it on its first upload.
+    if (
+      !writeRepoLink(gitDir, {
+        apiUrl,
+        projectId: config.projectId,
+        ...(known ? { fingerprint } : {}),
+      })
+    ) {
       throw new CliError(
         EXIT.failure,
         "Could not link this repo: its .git/codeceipt folder or link file is a symlink.",
@@ -278,7 +291,9 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
   );
   deps.stdout(`  Agents:  ${agents}`);
   if (deps.hasCommand && !deps.hasCommand("codeceipt")) {
-    deps.stdout("  Install: npm install -g codeceipt (your agents run the codeceipt command)");
+    deps.stdout(
+      "  Install: optional. Your agents' hooks run codeceipt through npx when it is not installed; npm install -g codeceipt makes them faster.",
+    );
   }
   // Journey part 3: what to do next, ending with where the receipt will be.
   deps.stdout("What happens next:");
