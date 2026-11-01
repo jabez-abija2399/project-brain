@@ -5,9 +5,7 @@ import { receiptView, safeDisplay } from "@brain/core";
 // receipt is data: it is read through receiptView (cleaned, masked again, capped) and control characters are dropped,
 // so nothing the server says reaches the terminal raw.
 const MAX_LINES = 30;
-// biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this removes
-const CONTROL = /[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁠-⁩﻿]/g;
-const clean = (text: string) => safeDisplay(text.replace(CONTROL, ""), 200);
+const clean = (text: string) => safeDisplay(text, 200);
 const ASKED = " [You asked for this]";
 
 // Server text with control or direction characters is dropped whole (never "cleaned" into something printable), and a
