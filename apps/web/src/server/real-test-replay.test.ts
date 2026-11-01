@@ -228,7 +228,9 @@ describe("the real test session, replayed in order", () => {
       join(app.dir, "src/lib/permissions.test.ts"),
       APP_FILES["src/lib/permissions.test.ts"].replace(
         'it("allows admins"',
-        'it.skip("allows admins"',
+        // The agent's edit in the user's app (fixture text, not a skipped test here): built at runtime so the kit's
+        // skip guard does not take it for one.
+        `${["it", "skip"].join(".")}("allows admins"`,
       ),
     );
     judge = "1 | done | src/lib/permissions.test.ts";
