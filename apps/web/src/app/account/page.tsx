@@ -26,7 +26,7 @@ export default async function AccountPage() {
       {a.suspended ? (
         <output className="card result block">
           <StatusBadge status="missed" label="Suspended" /> Your account is suspended. You can still
-          export your data or delete your account below.
+          export your data below; deleting it waits until the suspension is lifted.
         </output>
       ) : null}
 
@@ -95,7 +95,11 @@ export default async function AccountPage() {
           <strong>It cannot be undone.</strong> Export your data first if you want a copy. See{" "}
           <Link href="/privacy#deleting-your-data">Deleting your data</Link>.
         </p>
-        <DeleteAccount name={a.name} />
+        {a.suspended ? (
+          <p className="muted m0">Not available while your account is suspended.</p>
+        ) : (
+          <DeleteAccount name={a.name} />
+        )}
       </section>
     </main>
   );

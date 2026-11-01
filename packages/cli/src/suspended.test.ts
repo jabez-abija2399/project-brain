@@ -28,7 +28,10 @@ describe("suspension in the CLI", () => {
           content: [
             {
               type: "text",
-              text: JSON.stringify({ code: -32001, message: "This project is suspended; ...!" }),
+              text: JSON.stringify({
+                code: -32001,
+                message: "This Codeceipt project is suspended. Contact support.",
+              }),
             },
           ],
         },
@@ -53,5 +56,23 @@ describe("a revoked token", () => {
       {},
     ).catch((e: unknown) => e);
     expect((mcp as Error).message).toContain("run `npx codeceipt` in this repo again");
+  });
+});
+
+describe("only a real suspension says suspended", () => {
+  it("an unrelated tool error that mentions the word is not shown as a suspension", async () => {
+    const fetchImpl = async () =>
+      Response.json({
+        jsonrpc: "2.0",
+        id: 1,
+        result: {
+          isError: true,
+          content: [
+            { type: "text", text: JSON.stringify({ code: -32602, message: "feature suspended" }) },
+          ],
+        },
+      });
+    const err = await callTool(fetchImpl, config, "x", {}).catch((e: unknown) => e);
+    expect((err as Error).message).toBe("x failed: feature suspended");
   });
 });

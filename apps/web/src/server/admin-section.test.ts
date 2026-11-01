@@ -99,6 +99,30 @@ describe("admin access", () => {
       );
     }
     expect((await usersRepo.getById(world.db, eve.id))?.suspendedAt).toBeNull();
+    // Signed out, the admin API is 404 like any unknown path (not 401).
+    world.signInAs(null);
+    expect(
+      (await suspendRoute(post({ targetType: "user", targetId: eve.id, suspended: true }))).status,
+    ).toBe(404);
+  });
+
+  it("attack: another site cannot start the waitlist export in an admin's browser (and nothing is logged)", async () => {
+    const res = await csvRoute(
+      new Request(`${APP}/api/admin/waitlist`, { headers: { "sec-fetch-site": "cross-site" } }),
+    );
+    expect(res.status).toBe(404);
+    expect(await adminAuditRepo.list(world.db)).toEqual([]);
+  });
+
+  it("attack: the GitHub login check is rate limited per user (reloading cannot spend GitHub calls)", async () => {
+    let calls = 0;
+    setGithubLoginResolverForTests(async () => {
+      calls++;
+      return "eve-gh";
+    });
+    world.signInAs(eve);
+    for (let i = 0; i < 40; i++) await digestOf(AdminPage());
+    expect(calls).toBe(30);
   });
 
   it("attack: a renamed display name never makes an admin (only the GitHub login counts)", async () => {

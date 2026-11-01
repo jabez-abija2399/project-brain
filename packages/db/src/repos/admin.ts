@@ -194,6 +194,27 @@ export const adminRepo = {
     return rows.length > 0;
   },
 
+  /** Suspends or restores a user or project and writes its audit row in one transaction; false when not found. */
+  async setSuspendedAudited(
+    db: BrainDb,
+    input: {
+      targetType: "user" | "project";
+      targetId: string;
+      suspended: boolean;
+      audit: Parameters<typeof adminAuditRepo.record>[1];
+    },
+  ): Promise<boolean> {
+    return db.transaction(async (tx) => {
+      const t = tx as unknown as BrainDb;
+      const changed =
+        input.targetType === "user"
+          ? await adminRepo.setUserSuspended(t, input.targetId, input.suspended)
+          : await adminRepo.setProjectSuspended(t, input.targetId, input.suspended);
+      if (changed) await adminAuditRepo.record(t, input.audit);
+      return changed;
+    });
+  },
+
   /** Suspended users and projects, for the overview. */
   async suspendedCounts(db: BrainDb) {
     const [[u], [p]] = await Promise.all([

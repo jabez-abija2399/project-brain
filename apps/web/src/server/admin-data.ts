@@ -175,18 +175,20 @@ export async function setSuspended(admin: Admin, db: BrainDb, raw: unknown, now 
   if (targetType === "user" && targetId === admin.user.id) {
     throw new AppError(400, "cannot_suspend_self", "An admin cannot suspend their own account.");
   }
-  const changed =
-    targetType === "user"
-      ? await adminRepo.setUserSuspended(db, targetId, suspended)
-      : await adminRepo.setProjectSuspended(db, targetId, suspended);
-  if (!changed) throw new AppError(404, "not_found");
-  await adminAuditRepo.record(db, {
-    adminUserId: admin.user.id,
-    adminLogin: admin.login,
-    action: suspended ? `suspend_${targetType}` : `unsuspend_${targetType}`,
+  // The change and its audit row commit together, or neither does.
+  const changed = await adminRepo.setSuspendedAudited(db, {
     targetType,
     targetId,
+    suspended,
+    audit: {
+      adminUserId: admin.user.id,
+      adminLogin: admin.login,
+      action: suspended ? `suspend_${targetType}` : `unsuspend_${targetType}`,
+      targetType,
+      targetId,
+    },
   });
+  if (!changed) throw new AppError(404, "not_found");
   return { targetType, targetId, suspended };
 }
 

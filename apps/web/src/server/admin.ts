@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { type SessionUser, getAuth, getSessionUser, requireUser } from "./auth";
 import { getDb } from "./db";
 import { AppError } from "./errors";
+import { rateLimit } from "./rate-limit";
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 type LoginResolver = (user: SessionUser, req: Request) => Promise<string | null>;
@@ -79,17 +80,33 @@ export type Admin = { user: SessionUser; login: string };
  * else gets 404, so the admin section does not reveal that it exists.
  */
 export async function requireAdmin(req: Request): Promise<Admin> {
-  const user = await requireUser(req);
-  const login = await adminLogin(user, req);
+  // Signed out is 404 too, so the admin API looks like any unknown path.
+  const user = await requireUser(req).catch((err: unknown) => {
+    if (err instanceof AppError && err.status === 401) throw new AppError(404, "not_found");
+    throw err;
+  });
+  const login = await checkedLogin(user, req);
   if (!login) throw new AppError(404, "not_found");
   return { user, login };
+}
+
+const ADMIN_CHECKS_PER_MINUTE = 30;
+
+// Each admin check asks GitHub, so it is rate limited per user first (no one can spend GitHub calls by reloading).
+async function checkedLogin(user: SessionUser, req: Request): Promise<string | null> {
+  try {
+    await rateLimit(getDb(), `admin:check:${user.id}`, ADMIN_CHECKS_PER_MINUTE);
+  } catch {
+    return null;
+  }
+  return adminLogin(user, req);
 }
 
 /** Admin pages: the admin, or the normal 404 page for everyone else (signed out included). */
 export async function pageAdmin(): Promise<Admin> {
   const req = new Request("http://localhost/", { headers: await headers() });
   const user = await getSessionUser(req);
-  const login = user ? await adminLogin(user, req) : null;
+  const login = user ? await checkedLogin(user, req) : null;
   if (!user || !login) notFound();
   return { user, login };
 }

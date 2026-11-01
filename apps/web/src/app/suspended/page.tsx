@@ -24,9 +24,7 @@ export default async function SuspendedPage({
               : "Codeceipt suspended your account. The dashboard, the CLI and MCP do not work until it is restored."}{" "}
             Reply to any email from Codeceipt or contact support to ask why and to restore it.
           </p>
-          <p className="muted m0">
-            You can still export your data or delete your account on the Account page.
-          </p>
+          <p className="muted m0">You can still export your data on the Account page.</p>
           <div className="row">
             <Link className="btn btn-primary" href="/account">
               Go to your account

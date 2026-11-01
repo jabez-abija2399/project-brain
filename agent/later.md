@@ -154,3 +154,5 @@
 - 2026-11-01 (audit L-8): have the CLI send a computer name (hostname, masked) with the device start, for the approval page and /account.
 - 2026-11-01 (audit L-9): split apps/web/src/server/mcp-tools.ts (485 lines) by responsibility.
 - 2026-11-01 (audit L-10): add /api/auth/sign-out to the Origin test (better-auth checks it itself today).
+- 2026-11-01 (security review): Inngest push jobs queued before a suspension still run once; check suspension inside the job too.
+- 2026-11-01 (security review): revoke UPDATE, DELETE, TRUNCATE on admin_audit from the app's database role (needs a separate owner role on Neon).

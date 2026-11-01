@@ -1,4 +1,10 @@
 import { CliError, EXIT, SUSPENDED_MESSAGE, readCapped } from "./api";
+
+// The server's two suspension messages begin exactly like this (apps/web/src/server/suspension.ts).
+const SUSPENDED_PREFIXES = [
+  "Your Codeceipt account is suspended.",
+  "This Codeceipt project is suspended.",
+];
 import type { CliConfig } from "./config";
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
@@ -37,7 +43,6 @@ export async function callTool(
   } catch {
     throw new CliError(EXIT.server, `Cannot reach ${config.apiUrl}.`);
   }
-  if (res.status === 403) throw new CliError(EXIT.auth, SUSPENDED_MESSAGE);
   if (res.status === 401 || res.status === 404) {
     throw new CliError(
       EXIT.auth,
@@ -64,7 +69,10 @@ export async function callTool(
     try {
       const parsed = JSON.parse(text) as { message?: unknown };
       // A suspension gets the CLI's own words (the server's text is never printed).
-      if (typeof parsed.message === "string" && /\bsuspended\b/i.test(parsed.message.slice(0, 300)))
+      if (
+        typeof parsed.message === "string" &&
+        SUSPENDED_PREFIXES.some((p) => parsed.message?.toString().startsWith(p))
+      )
         throw new CliError(EXIT.auth, SUSPENDED_MESSAGE);
       if (typeof parsed.message === "string" && /^[\w ."-]{1,80}$/.test(parsed.message))
         code = parsed.message;

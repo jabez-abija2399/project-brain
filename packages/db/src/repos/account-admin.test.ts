@@ -3,13 +3,13 @@ import { fromPglite } from "../pglite";
 import { createTestDb } from "../testing";
 import {
   accountRepo,
-  githubRepo,
   adminAuditRepo,
   adminRepo,
   aiUsageRepo,
   decisionsRepo,
   deviceCodesRepo,
   featuresRepo,
+  githubRepo,
   lastDays,
   projectTokensRepo,
   projectsRepo,
@@ -269,5 +269,33 @@ describe("account and admin repos", () => {
     await adminRepo.setProjectSuspended(db, p.id, false);
     await adminRepo.setUserSuspended(db, ada.id, true);
     expect(await githubRepo.linkedProjects(db, 42, "acme/app")).toEqual([]);
+  });
+
+  it("suspending writes its audit row in the same transaction; an unknown target writes nothing", async () => {
+    const ada = await user("ada");
+    const audit = {
+      adminUserId: "u-x",
+      adminLogin: "x",
+      action: "suspend_user",
+      targetType: "user",
+      targetId: ada.id,
+    };
+    expect(
+      await adminRepo.setSuspendedAudited(db, {
+        targetType: "user",
+        targetId: ada.id,
+        suspended: true,
+        audit,
+      }),
+    ).toBe(true);
+    expect(
+      await adminRepo.setSuspendedAudited(db, {
+        targetType: "user",
+        targetId: "missing",
+        suspended: true,
+        audit: { ...audit, targetId: "missing" },
+      }),
+    ).toBe(false);
+    expect((await adminAuditRepo.list(db)).map((r) => r.targetId)).toEqual([ada.id]);
   });
 });

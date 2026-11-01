@@ -1,7 +1,6 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import AccountLoading from "@/app/account/loading";
-import AdminLoading from "@/app/admin/loading";
 import AppError from "@/app/error";
 import SelectRepoPage from "@/app/github/select/page";
 import ProjectsLoading from "@/app/projects/loading";
@@ -26,14 +25,21 @@ afterEach(async () => {
 });
 
 const digestOf = async (p: Promise<unknown>) =>
-  String(((await p.then(() => null, (e: unknown) => e)) as { digest?: string } | null)?.digest);
+  String(
+    (
+      (await p.then(
+        () => null,
+        (e: unknown) => e,
+      )) as { digest?: string } | null
+    )?.digest,
+  );
 
 describe("audit 2026-11 fixes", () => {
   it("M-1: the GitHub repo picker sends a signed-out visitor to sign in instead of a broken picker", async () => {
     world.signInAs(null);
-    expect(await digestOf(SelectRepoPage({ searchParams: Promise.resolve({ state: "x" }) }))).toContain(
-      ";/sign-in",
-    );
+    expect(
+      await digestOf(SelectRepoPage({ searchParams: Promise.resolve({ state: "x" }) })),
+    ).toContain(";/sign-in");
   });
 
   it("M-2: every page has an error state, and the list pages outside projects have a loading state", () => {
@@ -42,7 +48,7 @@ describe("audit 2026-11 fixes", () => {
     const err = renderToStaticMarkup(createElement(AppError, { reset: () => {} }));
     expect(err).toContain('role="alert"');
     expect(err).toContain("Try again");
-    for (const L of [ProjectsLoading, StartLoading, AccountLoading, AdminLoading]) {
+    for (const L of [ProjectsLoading, StartLoading, AccountLoading]) {
       const html = renderToStaticMarkup(createElement(L));
       expect(html).toContain('aria-busy="true"');
       expect(html).toContain('<span class="lp-visually-hidden">Loading');

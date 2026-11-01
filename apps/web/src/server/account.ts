@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { SessionUser } from "./auth";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
+import { SUSPENDED_USER } from "./suspension";
 
 // The account page (2026-11-01). Every function acts on the signed-in user only; ids from the client are never used.
 
@@ -17,7 +18,7 @@ export async function accountView(db: BrainDb, user: SessionUser) {
   ]);
   if (!row) throw new AppError(404, "not_found");
   return {
-    name: safeDisplay(row.name, 100),
+    name: safeDisplay(row.name, 100).trim() || safeDisplay(row.email, 200),
     email: safeDisplay(row.email, 200),
     // GitHub avatars only (https on GitHub's own host); anything else shows the initial instead.
     image:
@@ -65,8 +66,11 @@ export async function deleteAccount(
   const input = parsed.data;
   const row = await usersRepo.getById(db, user.id);
   if (!row) throw new AppError(404, "not_found");
-  // Compared with the name exactly as the account page shows it.
-  if (input.confirm.trim() !== safeDisplay(row.name, 100).trim()) {
+  // A suspended account cannot be deleted (it could sign up again unsuspended); export still works.
+  if (row.suspendedAt) throw new AppError(403, "suspended", SUSPENDED_USER);
+  // Compared with the name exactly as the account page shows it, and never an empty match.
+  const expected = safeDisplay(row.name, 100).trim() || safeDisplay(row.email, 200).trim();
+  if (input.confirm.trim() === "" || input.confirm.trim() !== expected) {
     throw new AppError(400, "confirm_mismatch", "Type your account name exactly as shown.", {
       confirm: "does not match your account name",
     });

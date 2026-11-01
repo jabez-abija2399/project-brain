@@ -72,7 +72,9 @@ describe("app shell", () => {
     const { Landing } = await import("@/components/landing/landing");
     const landing = renderToStaticMarkup(createElement(Landing));
     // Signed in, the footer is the landing page's without its Sign in link.
-    expect(footerLinks(await shell())).toEqual(footerLinks(landing).filter((h) => h !== "/sign-in"));
+    expect(footerLinks(await shell())).toEqual(
+      footerLinks(landing).filter((h) => h !== "/sign-in"),
+    );
   });
 
   it("attack: the switcher lists only the signed-in user's own projects", async () => {
