@@ -1,90 +1,91 @@
 import { StatusBadge } from "@/components/ui/status-badge";
 import type { ReactNode } from "react";
+import { HERO_ASKED, HERO_CHECKS, HERO_EVIDENCE, HERO_ITEMS, type ReceiptLine } from "./content";
 
-// The landing page's sample receipt, printing out of a slot: the page's one bold element. Written the way the product
-// writes receipts (FEAT-013/015/018): every status is an icon and a word, paths are monospace, secrets are masked.
+// The receipt: white paper with a torn bottom edge and monospace text, the landing page's signature element. Every
+// status is an icon and a word (StatusBadge); paths are monospace; secrets are masked.
 
-// Torn paper: a zig-zag bottom edge as a clip-path polygon (no image, no extra markup).
-const TEETH = 28;
-const DEPTH = "8px";
-const ZIGZAG = `polygon(0 0, 100% 0, ${Array.from({ length: TEETH + 1 }, (_, n) => {
-  const i = TEETH - n;
-  const x = `${((i / TEETH) * 100).toFixed(3)}%`;
-  return `${x} ${i % 2 === 0 ? `calc(100% - ${DEPTH})` : "100%"}`;
-}).join(", ")})`;
+/** A sheet of receipt paper with a torn bottom edge (drawn in CSS); the content is monospace. */
+export function Paper({ children, className = "" }: { children: ReactNode; className?: string }) {
+  return <div className={`paper ${className}`.trim()}>{children}</div>;
+}
 
-function Line({ badge, children }: { badge: ReactNode; children: ReactNode }) {
+// A receipt line that explains itself: hover or focus shows the tip (CSS only, so it costs no JavaScript).
+function Explained({
+  id,
+  tip,
+  children,
+}: {
+  id: string;
+  tip: string;
+  children: ReactNode;
+}) {
   return (
-    <li className="lp-r-line">
-      {badge}
-      <span className="wrap">{children}</span>
+    <li className="rc-line">
+      <button type="button" className="rc-explain" aria-describedby={`tip-${id}`}>
+        {children}
+      </button>
+      <span role="tooltip" id={`tip-${id}`} className="rc-tip">
+        {tip}
+      </span>
     </li>
   );
 }
 
-export function Receipt() {
+function Item({ line }: { line: ReceiptLine }) {
   return (
-    <figure className="lp-receipt" id="receipt" aria-label="A sample receipt">
-      <div className="lp-printer" aria-hidden="true">
-        <span className="lp-slot" />
+    <Explained id={line.id} tip={line.tip}>
+      <StatusBadge status={line.status} label={line.label} />
+      <span className="rc-text">
+        {line.text}
+        {line.text && line.path ? " " : null}
+        {line.path ? <span className="rc-path">{line.path}</span> : null}
+      </span>
+    </Explained>
+  );
+}
+
+export function HeroReceipt() {
+  return (
+    <figure className="hero-receipt" aria-labelledby="hero-receipt-caption">
+      <div className="printer" aria-hidden="true">
+        <span className="printer-slot" />
       </div>
-      <div className="lp-paper-window">
-        <div className="lp-paper">
-          <div className="lp-paper-inner mono" style={{ clipPath: ZIGZAG }}>
-            <div className="lp-r-head">
-              <strong className="lp-r-title">Receipt</strong>
-              <span>salon-booking</span>
-              <span>Session ended 14:32</span>
+      <div className="print-window">
+        <div className="print-paper">
+          <Paper>
+            <div className="rc-head">
+              <strong>Receipt</strong>
+              <span>salon-booking · Claude Code</span>
             </div>
-            <div className="lp-r-block">
-              <span className="lp-r-label">Asked</span>
-              <p className="lp-r-text">
-                Add a reviews section to each salon page, sorted newest first.
-              </p>
-            </div>
-            <ul className="lp-r-list">
-              <Line badge={<StatusBadge status="done" />}>
-                Reviews list on the salon page{" "}
-                <span className="lp-r-path">src/pages/Salon.tsx:42</span>
-              </Line>
-              <Line badge={<StatusBadge status="done" />}>
-                Reused StarRating instead of creating a new one
-              </Line>
-              <Line badge={<StatusBadge status="missed" />}>Reviews are not sorted by newest</Line>
-              <Line badge={<StatusBadge status="warning" label="Outside scope" />}>
-                <span className="lp-r-path">src/lib/payments.ts</span> was changed
-              </Line>
+            <ul className="rc-list">
+              <Explained id="asked" tip={HERO_ASKED.tip}>
+                <span className="rc-label">Asked</span>
+                <span className="rc-text">“{HERO_ASKED.text}”</span>
+              </Explained>
             </ul>
-            <div className="lp-r-block">
-              <span className="lp-r-label">Checks</span>
-              <ul className="lp-r-list">
-                <Line badge={<StatusBadge status="missed" label="Secret" />}>
-                  Secret found: sb_s*** in <span className="lp-r-path">src/lib/supabase.ts:3</span>,
-                  move it to the server
-                </Line>
-                <Line badge={<StatusBadge status="missed" label="RLS" />}>
-                  Table reviews: RLS is off
-                </Line>
-                <Line badge={<StatusBadge status="warning" label="Tests" />}>
-                  1 test was skipped: <span className="lp-r-path">reviews.test.ts</span>
-                </Line>
-              </ul>
-            </div>
-            <div className="lp-r-block">
-              <ul className="lp-r-list">
-                <Line badge={<StatusBadge status="done_untested" />}>Sorting has no test</Line>
-              </ul>
-            </div>
-            <div className="lp-r-foot">
-              {/* Part of the illustration: in the app this copies a fix prompt for the agent. */}
-              <span className="btn btn-primary lp-r-action">Send fix to agent</span>
-            </div>
-          </div>
+            <ul className="rc-list">
+              {HERO_ITEMS.map((l) => (
+                <Item key={l.id} line={l} />
+              ))}
+            </ul>
+            <p className="rc-label rc-section">Checks</p>
+            <ul className="rc-list">
+              {HERO_CHECKS.map((l) => (
+                <Item key={l.id} line={l} />
+              ))}
+            </ul>
+            <p className="rc-label rc-section">Evidence (no source code)</p>
+            <ul className="rc-list">
+              <Explained id="evidence" tip={HERO_EVIDENCE.tip}>
+                <span className="rc-text">{HERO_EVIDENCE.text}</span>
+              </Explained>
+            </ul>
+          </Paper>
         </div>
       </div>
-      <figcaption className="lp-visually-hidden">
-        A sample receipt: two items done, one missed, one file changed outside the request, three
-        checks to fix, and one item not verified.
+      <figcaption id="hero-receipt-caption" className="lp-visually-hidden">
+        A sample receipt. Hover or focus a line to see what it means.
       </figcaption>
     </figure>
   );

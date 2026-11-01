@@ -79,9 +79,9 @@ describe("public pages", () => {
     expect(t).toContain("codeceipt receipt");
   });
 
-  it("the landing page: one `npx codeceipt` step, no session-end command, and footer links to the new pages", async () => {
+  it("the landing page: only `npx codeceipt` to copy (hero and final band), no session-end command, and footer links to the new pages", async () => {
     const html = render(await Home());
-    expect(copies(html)).toEqual(["npx codeceipt"]);
+    expect(copies(html)).toEqual(["npx codeceipt", "npx codeceipt"]);
     expect(html).not.toContain("hook session-end");
     const footer = html.slice(html.indexOf("<footer"));
     for (const href of ["/privacy", "/terms", "/docs/quickstart"]) {

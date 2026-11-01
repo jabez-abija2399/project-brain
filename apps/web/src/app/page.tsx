@@ -6,15 +6,16 @@ import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-const TITLE = "Codeceipt: A receipt for every AI change";
+const TITLE = "Codeceipt: a receipt for every AI change";
 const DESCRIPTION =
-  "A receipt for every AI change. Codeceipt remembers your app across every AI coding session and checks each change against what you asked for.";
+  "Codeceipt checks whether your AI agent did what you asked and gives you a receipt for every session, built from git, not the agent's word. Your code never leaves your machine.";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   openGraph: { title: TITLE, description: DESCRIPTION, type: "website", siteName: "Codeceipt" },
-  twitter: { card: "summary", title: TITLE, description: DESCRIPTION },
+  // The image is app/opengraph-image.tsx (the hero receipt); Next.js adds its og:image tags.
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 // Signed-in users go straight to their projects, as before; everyone else sees the landing page.

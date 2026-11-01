@@ -1,187 +1,210 @@
-import type { ReactNode } from "react";
-import { KeyIcon, PackageIcon, ScopeIcon, ShieldIcon, TestIcon } from "./icons";
-import { Receipt } from "./receipt";
+import SignInButton from "@/app/sign-in-button";
+import { AgentTabs } from "./agent-tabs";
+import { CommandBox } from "./command-box";
+import { CHECKS, COMMAND, COMPARISON, FAQ, NEVER_SENT, SENT, STUDY_URL } from "./content";
+import { HowTerminal } from "./how-terminal";
+import { InlineCode } from "./inline-code";
+import { PrivacyToggle } from "./privacy-toggle";
+import { HeroReceipt } from "./receipt";
+import { ReceiptStates } from "./receipt-states";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
-import { TerminalSnippet } from "./terminal-snippet";
-import { WaitlistForm } from "./waitlist-form";
 
-// The public landing page ("Calm ledger"): quiet type and spacing everywhere, the printing receipt as the one bold
-// element, the final call to action as the only dark band. No invented numbers, logos or testimonials.
+// The public landing page (2026-11-01 redesign): Codeceipt checks whether your AI agent did what you asked. Server
+// rendered; only the tabs, the terminal, the receipt states, the privacy toggle, the copy boxes and the menu are
+// client islands. Only what is built today; no invented numbers, logos or testimonials.
 
 const PROBLEMS = [
-  {
-    title: "It forgets.",
-    text: "Every new chat starts from zero. Your agent rebuilds context, guesses at decisions you already made, and burns tokens doing it.",
-  },
-  {
-    title: "It duplicates.",
-    text: "It can't see the Button you already have, so it writes another one. And another.",
-  },
-  {
-    title: "It says done.",
-    text: "It reports success, but it skipped part of your request, edited a file it shouldn't have, or deleted a test that was failing.",
-  },
+  "It says done when it isn't.",
+  "It changes files you didn't ask about.",
+  "It skips or deletes tests.",
 ];
 
-const STEPS: { title: string; command: string; text: string }[] = [
-  {
-    title: "Run one command in your project",
-    command: "npx codeceipt",
-    text: "Approve the short code in your browser and pick a project. Codeceipt indexes your code on your machine (only names, paths and hashes are uploaded) and sets up Claude Code and Cursor. From then on every session starts with a note about where you stopped, and when it ends Codeceipt checks the changed files from git, not from the agent's word, and writes the receipt.",
-  },
-];
-
-const CHECKS: { icon: ReactNode; title: string; text: string }[] = [
-  {
-    icon: <KeyIcon />,
-    title: "Leaked secrets",
-    text: "Your code is scanned on your machine; only masked values like sb_s*** ever leave it.",
-  },
-  {
-    icon: <ShieldIcon />,
-    title: "Supabase RLS",
-    text: 'Your migrations run in a sandboxed Postgres to see which tables are really protected; anything unclear is reported as "cannot confirm", never "safe".',
-  },
-  {
-    icon: <TestIcon />,
-    title: "Weakened tests",
-    text: "Deleted tests, skipped tests and removed assertions are flagged in the receipt.",
-  },
-  {
-    icon: <PackageIcon />,
-    title: "Risky packages",
-    text: "New dependencies are checked for brand-new, missing or made-up packages before you install them.",
-  },
-  {
-    icon: <ScopeIcon />,
-    title: "Scope creep",
-    text: "Files changed outside the feature you asked about are listed.",
-  },
-];
-
-const PRIVACY_FACTS = [
-  "Only file names, paths, hashes and short summaries are stored.",
-  "Secrets are masked before anything is sent.",
-  "Access tokens are stored as hashes and never written into your repo.",
-];
-
-const FAQ = [
-  {
-    q: "Do you store my code?",
-    a: "No. Your code is indexed on your machine; Codeceipt stores only metadata (file names, paths, hashes, symbol names) and short summaries.",
-  },
-  {
-    q: "Which agents does it work with?",
-    a: "Claude Code and Cursor, through MCP and session hooks. Lovable, Bolt and Replit projects connect through the GitHub App.",
-  },
-  {
-    q: "Do I need to change how I work?",
-    a: "No. Run one command in your project; your agent uses Codeceipt on its own.",
-  },
-  { q: "What does it cost?", a: "It's free during the beta." },
-  {
-    q: "Is it safe to connect GitHub?",
-    a: "The GitHub App gets read-only access to the repositories you choose, and nothing else.",
-  },
-];
+function Section({
+  id,
+  title,
+  lead,
+  children,
+}: {
+  id: string;
+  title: string;
+  lead?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="lp-section" id={id} aria-labelledby={`${id}-title`}>
+      <div className="lp-container">
+        <h2 id={`${id}-title`} className="lp-h2">
+          {title}
+        </h2>
+        {lead ? <p className="lp-lead">{lead}</p> : null}
+        {children}
+      </div>
+    </section>
+  );
+}
 
 export function Landing() {
   return (
     <div className="lp" id="top">
+      <a className="skip-link" href="#main">
+        Skip to content
+      </a>
       <SiteHeader />
-      <main>
-        <section className="lp-container lp-hero" aria-labelledby="lp-title">
-          <h1 id="lp-title">Your AI agent says it's done. Get the receipt.</h1>
-          <p className="lp-sub">
-            Codeceipt remembers your app across every AI session and checks each change against what
-            you asked for, so you can trust what Claude Code, Cursor and Lovable build.
-          </p>
-          <div className="lp-ctas">
-            <a className="btn btn-primary lp-btn-lg" href="#join">
-              Join the beta
-            </a>
-            <a className="btn lp-btn-lg" href="#receipt">
-              See a sample receipt
-            </a>
-          </div>
-          <Receipt />
-        </section>
-
-        <p className="lp-container lp-works-with">
-          Works with Claude Code and Cursor today. Lovable, Bolt and Replit projects connect through
-          GitHub.
-        </p>
-
-        <section className="lp-container lp-section" aria-labelledby="lp-problem">
-          <h2 id="lp-problem" className="lp-visually-hidden">
-            The problem
-          </h2>
-          <div className="lp-columns">
-            {PROBLEMS.map((p) => (
-              <div key={p.title} className="lp-column">
-                <h3>{p.title}</h3>
-                <p>{p.text}</p>
+      <main id="main">
+        <section className="lp-hero" aria-labelledby="hero-title">
+          <div className="lp-container lp-hero-grid">
+            <div className="lp-hero-copy">
+              <h1 id="hero-title" className="lp-display">
+                Your AI agent says it's done. Codeceipt checks.
+              </h1>
+              <p className="lp-sub">
+                Every session with Claude Code, Cursor, Codex or OpenCode ends with a receipt: what
+                you asked, what changed, what's missing. Built from git, not the agent's word. Your
+                code never leaves your machine.
+              </p>
+              <div className="lp-actions">
+                <CommandBox command={COMMAND} />
+                <SignInButton />
               </div>
-            ))}
+              <p className="lp-note">Free during the beta. Works in any git repository.</p>
+            </div>
+            <HeroReceipt />
           </div>
         </section>
 
-        <section className="lp-container lp-section" id="how" aria-labelledby="lp-how">
-          <h2 id="lp-how">How it works</h2>
-          <ol className="lp-steps">
-            {STEPS.map((s) => (
-              <li key={s.title} className="lp-step">
-                <h3>{s.title}</h3>
-                <p>{s.text}</p>
-                <TerminalSnippet command={s.command} />
-              </li>
-            ))}
-          </ol>
-        </section>
+        <Section id="agents" title="Works with your agent">
+          <AgentTabs />
+          <p className="lp-aside">Lovable, Bolt and Replit projects connect through GitHub.</p>
+        </Section>
 
-        <section className="lp-container lp-section" aria-labelledby="lp-checks">
-          <h2 id="lp-checks">Checks built in</h2>
-          <ul className="lp-checks">
-            {CHECKS.map((c) => (
-              <li key={c.title} className="lp-check">
-                <span className="lp-check-icon">{c.icon}</span>
-                <div>
-                  <h3>{c.title}</h3>
-                  <p>{c.text}</p>
-                </div>
-              </li>
+        <Section id="problem" title="Agents are fast. They are not careful.">
+          <ul className="problems">
+            {PROBLEMS.map((p) => (
+              <li key={p}>{p}</li>
             ))}
           </ul>
-        </section>
+          <p className="research" data-cited="true">
+            In a 2026 study of real coding-agent sessions, agents wrote over 99% of the committed
+            code in 41% of cases but asked a clarifying question in only 3% of turns.{" "}
+            <a href={STUDY_URL} rel="noopener noreferrer">
+              Source: arXiv 2604.20779
+            </a>
+          </p>
+        </Section>
 
-        <section className="lp-privacy" id="privacy" aria-labelledby="lp-privacy">
-          <div className="lp-container">
-            <h2 id="lp-privacy">Your source code never leaves your machine.</h2>
-            <ul className="lp-facts">
-              {PRIVACY_FACTS.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </ul>
+        <Section
+          id="how"
+          title="How it works"
+          lead="Three steps. Pick one to see what your terminal shows."
+        >
+          <HowTerminal />
+        </Section>
+
+        <Section
+          id="read"
+          title="Read a receipt"
+          lead="Every line has a state, an icon and a word. Pick a state to see what it means."
+        >
+          <ReceiptStates />
+        </Section>
+
+        <Section
+          id="privacy"
+          title="What leaves your machine"
+          lead="Receipts are built on your computer from git. Only code-free evidence is sent."
+        >
+          <div className="privacy-columns">
+            <div className="privacy-col" data-kind="sent">
+              <h3>Sent</h3>
+              <ul>
+                {SENT.map((s) => (
+                  <li key={s}>
+                    <span aria-hidden="true">✓</span> {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="privacy-col" data-kind="never">
+              <h3>Never sent</h3>
+              <ul>
+                {NEVER_SENT.map((s) => (
+                  <li key={s}>
+                    <span aria-hidden="true">✕</span> {s}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-        </section>
+          <PrivacyToggle />
+        </Section>
 
-        <section className="lp-container lp-section" id="faq" aria-labelledby="lp-faq">
-          <h2 id="lp-faq">FAQ</h2>
-          <div className="lp-faq">
-            {FAQ.map((f) => (
-              <details key={f.q}>
-                <summary>{f.q}</summary>
-                <p>{f.a}</p>
+        <Section id="checks" title="Checks built in" lead="Open a check to see an example line.">
+          <div className="checks">
+            {CHECKS.map((c) => (
+              <details key={c.id} className="check">
+                <summary>{c.title}</summary>
+                <div className="check-body">
+                  <p>{c.text}</p>
+                  <p className="check-example">
+                    <span className="lp-visually-hidden">Example receipt line: </span>
+                    <code>{c.example}</code>
+                  </p>
+                </div>
               </details>
             ))}
           </div>
-        </section>
+        </Section>
 
-        <section className="lp-final" id="join" aria-labelledby="lp-join">
+        <Section id="fit" title="Where it fits">
+          <p className="fit-line">
+            Tests check that code runs. Code review checks the code. Codeceipt checks that the agent
+            did what you asked.
+          </p>
+          <table className="fit-table">
+            <caption className="lp-visually-hidden">What each kind of check tells you</caption>
+            <thead>
+              <tr>
+                <th scope="col">Check</th>
+                <th scope="col">Tells you</th>
+                <th scope="col">Doesn't tell you</th>
+              </tr>
+            </thead>
+            <tbody>
+              {COMPARISON.map((r) => (
+                <tr key={r.name} data-ours={r.name === "Codeceipt"}>
+                  <th scope="row">{r.name}</th>
+                  <td>{r.checks}</td>
+                  <td>{r.misses}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+
+        <Section id="faq" title="Questions">
+          <div className="faq">
+            {FAQ.map((f) => (
+              <details key={f.q}>
+                <summary>{f.q}</summary>
+                <p>
+                  <InlineCode text={f.a} />
+                </p>
+              </details>
+            ))}
+          </div>
+        </Section>
+
+        <section className="lp-final" id="get-started" aria-labelledby="final-title">
           <div className="lp-container lp-final-inner">
-            <h2 id="lp-join">Build with AI. Keep the receipts.</h2>
-            <WaitlistForm />
+            <h2 id="final-title" className="lp-h2">
+              Build with AI. Keep the receipts.
+            </h2>
+            <p>Run one command in your app's folder. Free during the beta.</p>
+            <div className="lp-actions">
+              <CommandBox command={COMMAND} tone="ink" />
+              <SignInButton />
+            </div>
           </div>
         </section>
       </main>

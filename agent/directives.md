@@ -52,3 +52,5 @@
 - 2026-11-01: Make the project dashboard amazing, clear and interactive, informed by real inspiration (best-in-class dev dashboards); implement it.
 - 2026-11-01: Dashboard pages get clear loading states (skeletons shaped like the page) while data loads.
 - 2026-11-01: Features tab gets the same treatment as the dashboard: clear, interactive, with progress and loading states.
+- 2026-11-01: Landing page: Codeceipt checks whether the agent did what you asked (receipts from git and code-free evidence, code never leaves the machine); memory is not the headline; describe only what is built; free during the beta; no gradients, glows, all-caps eyebrows, emoji, coloured headline words or arrows on buttons.
+- 2026-11-01: Every other page gets the landing page's design quality (same tokens, type scale, components, receipt style); presentation and clarity only, no behaviour, data or API changes.
