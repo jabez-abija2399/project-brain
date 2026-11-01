@@ -1,17 +1,9 @@
 "use client";
 
+import { tabAfterKey } from "@/lib/ui-helpers";
 import { type KeyboardEvent, useRef, useState } from "react";
 import { AGENT_TABS } from "./content";
 import { InlineCode } from "./inline-code";
-
-/** The tab a key moves to (WAI-ARIA tabs: arrows wrap, Home and End jump), or null for other keys. */
-export function tabAfterKey(key: string, current: number, count: number): number | null {
-  if (key === "ArrowRight") return (current + 1) % count;
-  if (key === "ArrowLeft") return (current - 1 + count) % count;
-  if (key === "Home") return 0;
-  if (key === "End") return count - 1;
-  return null;
-}
 
 const Feature = ({ on, text }: { on: boolean; text: string }) => (
   <li className="agent-feature" data-on={on}>

@@ -1,15 +1,9 @@
 "use client";
 
+import { matchesFeature } from "@/lib/ui-helpers";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 type Filter = "all" | "open" | "todo" | "in_progress" | "done";
-
-/** Every word of the query appears in the feature's name, in any order, ignoring case. */
-export function matchesFeature(name: string, query: string): boolean {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const hay = name.toLowerCase();
-  return words.every((w) => hay.includes(w));
-}
 
 // Search and chips for the feature board. Each row carries a marker (data-feature, data-status, data-open) in its
 // first cell; rows that do not match get the hidden attribute, so typing re-renders nothing but this bar (INP).

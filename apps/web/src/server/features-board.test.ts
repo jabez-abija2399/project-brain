@@ -1,6 +1,6 @@
 import FeaturesLoading from "@/app/projects/[id]/features/loading";
 import FeatureBoardPage from "@/app/projects/[id]/features/page";
-import { matchesFeature } from "@/components/features-filter";
+import { matchesFeature } from "@/lib/ui-helpers";
 import { checklistItemsRepo, featuresRepo, projectsRepo, requestsRepo } from "@brain/db";
 import { type ReactElement, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";

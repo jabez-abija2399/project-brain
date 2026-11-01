@@ -1,8 +1,9 @@
 import { ReceiptCard } from "@/components/receipt-card";
-import { ReceiptsFilter, dayLabel } from "@/components/receipts-filter";
+import { ReceiptsFilter } from "@/components/receipts-filter";
 import { StateGuide } from "@/components/state-guide";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
+import { dayLabel } from "@/lib/ui-helpers";
 import { receiptsFeed } from "@/server/dashboard";
 import { type ListPageProps, loadListPage } from "@/server/dashboard-page";
 import { NO_REQUEST_NOTE, receiptNeedsAttention } from "@brain/core";

@@ -1,14 +1,10 @@
 "use client";
 
 import { StatusBadge } from "@/components/ui/status-badge";
+import { linesFor } from "@/lib/ui-helpers";
 import { useState } from "react";
 import { STATES, STATE_LINES, type StateKey } from "./content";
 import { Paper } from "./receipt";
-
-/** The receipt lines a state highlights. */
-export function linesFor(state: StateKey) {
-  return STATE_LINES.filter((l) => l.state === state);
-}
 
 // Read a receipt: pick a state and the matching lines light up, with one plain sentence about what it means.
 // Highlighting is a data attribute on the receipt (CSS does the rest), so a click re-renders almost nothing.

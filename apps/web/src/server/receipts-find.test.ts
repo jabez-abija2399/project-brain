@@ -1,5 +1,5 @@
 import ReceiptsPage from "@/app/projects/[id]/receipts/page";
-import { dayLabel, matchesSearch, nextIndex } from "@/components/receipts-filter";
+import { dayLabel, matchesSearch, nextIndex } from "@/lib/ui-helpers";
 import { projectsRepo, receiptsRepo, requestsRepo } from "@brain/db";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
