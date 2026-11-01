@@ -40,9 +40,11 @@ import {
 } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 import { onPath, runSetup } from "./setup-command";
+import { CLI_VERSION } from "./templates";
 
 export const PACKAGE = "@brain/cli";
-export const VERSION = "0.1.0";
+// Also the version the hooks' npx fallback is pinned to (templates.ts CLI_VERSION; a test keeps them equal).
+export const VERSION = CLI_VERSION;
 // The hosted Codeceipt; --api-url or CODECEIPT_API_URL points the CLI elsewhere (for example http://localhost:3000).
 export const DEFAULT_API_URL = "https://codeceipts.vercel.app";
 

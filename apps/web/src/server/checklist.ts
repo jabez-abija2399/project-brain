@@ -131,7 +131,12 @@ export async function createChecklist(
   }
   let items: Awaited<ReturnType<typeof splitRequest>>;
   try {
-    items = await splitRequest(llm, input.request);
+    // The one retry (an unreadable answer) is a second AI call: it needs its own unit of the daily budget.
+    items = await splitRequest(
+      llm,
+      input.request,
+      async () => (await reserveDaily(db, `ai:${pid}`, dailyAiBudget(), 1, now)) > 0,
+    );
   } catch (err) {
     console.error(
       "[mcp]",

@@ -152,9 +152,15 @@ export const RETRY_NOTE =
  * One llm.complete call, and one retry only when the answer has no usable item. If the retry has none either, the
  * whole request is kept as one task item: an unreadable answer never turns a request into a question.
  */
-export async function splitRequest(llm: Llm, request: string): Promise<ChecklistDraftItem[]> {
+export async function splitRequest(
+  llm: Llm,
+  request: string,
+  // Asked before the retry (the caller reserves AI budget for it); false skips the retry.
+  allowRetry: () => Promise<boolean> = async () => true,
+): Promise<ChecklistDraftItem[]> {
   const prompt = checklistPrompt(maskSecretsIn(request));
   for (const p of [prompt, prompt + RETRY_NOTE]) {
+    if (p !== prompt && !(await allowRetry())) break;
     const answer = await llm.complete({
       system: CHECKLIST_SYSTEM,
       prompt: p,

@@ -22,6 +22,16 @@ export const projectsRepo = {
     projectId: string,
     decide: (stored: string | null) => string | "mismatch",
   ): Promise<"ok" | "mismatch"> {
+    // Most requests change nothing: decided on a plain read, the row is locked only when it must be written.
+    const [seen] = await db
+      .select({ fp: projects.repoFingerprint })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    if (!seen) return "mismatch";
+    const first = decide(seen.fp);
+    if (first === "mismatch") return "mismatch";
+    if (first === seen.fp) return "ok";
     return db.transaction(async (tx) => {
       const [row] = await tx
         .select({ fp: projects.repoFingerprint })

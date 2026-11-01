@@ -35,9 +35,16 @@ export const LEGACY_END_HOOK = hook(LEGACY, "session-end");
 // package through npx. POSIX sh, the same on every machine that shares the committed settings file.
 const NODE_PATHS =
   '"$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.volta/bin:$HOME/.npm-global/bin:$HOME/.local/bin"';
-export const shellHook = (bare: string) => {
-  const args = bare.replace(/^codeceipt /, "");
-  return `PATH=${NODE_PATHS}; if command -v codeceipt >/dev/null 2>&1; then codeceipt ${args}; else npx -y codeceipt ${args}; fi`;
+// The npx fallback is pinned to the version that wrote the hook (security review 2026-11-01): a later publish of the
+// package never runs on a teammate's machine without a new `npx codeceipt`.
+export const CLI_VERSION = "0.1.0";
+const wrap = (args: string, version: string) =>
+  `PATH=${NODE_PATHS}; if command -v codeceipt >/dev/null 2>&1; then codeceipt ${args}; else npx -y codeceipt@${version} ${args}; fi`;
+export const shellHook = (bare: string) => wrap(bare.replace(/^codeceipt /, ""), CLI_VERSION);
+// The same wrapper written by any version (so an upgrade rewrites ours instead of adding a second hook).
+const isWrapped = (command: string, bare: string) => {
+  const m = /npx -y codeceipt@(\d{1,4}\.\d{1,4}\.\d{1,4}) /.exec(command);
+  return !!m?.[1] && command === wrap(bare.replace(/^codeceipt /, ""), m[1]);
 };
 
 // Our hook is the exact command for its event: bare, with an absolute path to the binary, or wrapped by shellHook. A
@@ -46,7 +53,7 @@ export const shellHook = (bare: string) => {
 export const isOurHook = (command: unknown, expected: string) =>
   typeof command === "string" &&
   (command.trim().replace(/^\/\S*\/(?=(?:codeceipt|projectbrain) )/, "") === expected ||
-    (expected.startsWith("codeceipt ") && command.trim() === shellHook(expected)));
+    (expected.startsWith("codeceipt ") && isWrapped(command.trim(), expected)));
 
 const WORKFLOW = [
   "1. At the start of a session call `where_did_we_stop` and follow its handoff note and the owner's instructions.",

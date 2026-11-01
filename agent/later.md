@@ -159,3 +159,5 @@
 - 2026-11-01 (real test): the npx fallback in hooks downloads the package on first use; pin the hook to the CLI's own version once the package is published.
 - 2026-11-01 (real test): "already present" for a receipt with no changed files only knows items done in earlier requests; checking the code itself would need an index lookup per item.
 - 2026-11-01 (real test): the request splitter's one retry is not counted against the daily AI budget (at most one extra small call per request).
+- 2026-11-01 (security review LOW): the Stop hook judges a receipt whenever the changed files change; debounce it (one judged receipt per few minutes per session) so a long session cannot use up the daily AI budget before SessionEnd.
+- 2026-11-01 (security review LOW): repo fingerprint hashes are unsalted, so a public repo's remote can be guessed from the database; salt with the project id. The fingerprint is a guard against mistakes (a copied .git), not access control: leaving the header out skips it and /rebuild adopts the caller's repo.

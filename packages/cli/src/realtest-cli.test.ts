@@ -235,6 +235,14 @@ describe("macOS/npx: hooks work without a global install", () => {
     expect(onPath("codeceipt", { PATH: [npxBin, global].join(delimiter) }, "linux")).toBe(true);
   });
 
+  it("attack (security review): the npx fallback is pinned to this CLI's version, never 'latest'", () => {
+    const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
+    expect(shellHook("codeceipt hook stop --agent claude")).toContain(
+      `npx -y codeceipt@${pkg.version} hook`,
+    );
+    expect(shellHook("codeceipt hook stop --agent claude")).not.toMatch(/npx -y codeceipt hook/);
+  });
+
   it("the hook command runs the installed codeceipt, else npx, with the usual Node folders on PATH (real sh)", () => {
     const dir = mkdtempSync(join(tmpdir(), "cc-shim-"));
     const bin = join(dir, "bin");
@@ -245,7 +253,7 @@ describe("macOS/npx: hooks work without a global install", () => {
       execFileSync("/bin/sh", ["-c", shellHook("codeceipt hook stop --agent claude")], {
         env: { PATH: path, HOME: dir },
       }).toString();
-    expect(run(`${bin}:/usr/bin:/bin`)).toBe("npx -y codeceipt hook stop --agent claude\n");
+    expect(run(`${bin}:/usr/bin:/bin`)).toBe("npx -y codeceipt@0.1.0 hook stop --agent claude\n");
     writeFileSync(join(bin, "codeceipt"), '#!/bin/sh\necho "codeceipt $*"\n', { mode: 0o755 });
     expect(run(`${bin}:/usr/bin:/bin`)).toBe("codeceipt hook stop --agent claude\n");
     // A GUI app's PATH without the user's folders: $HOME/.local/bin is added by the hook itself.

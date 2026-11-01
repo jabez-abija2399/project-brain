@@ -1,4 +1,5 @@
 import { lstat, readFile } from "node:fs/promises";
+import { maskSecretsIn } from "@brain/core";
 import type { Git } from "./scan-secrets";
 import { type StartBlobs, inside } from "./session-snapshot";
 
@@ -31,7 +32,8 @@ export function dependenciesOnly(text: string): string | null {
     const kept: Record<string, string> = {};
     for (const [name, range] of Object.entries(deps)) {
       if (n >= MAX_DEPS || name.length > MAX_NAME || typeof range !== "string") continue;
-      kept[name] = range.slice(0, MAX_RANGE);
+      // A range can carry credentials (git+https://user:token@host/…): masked before it leaves the machine.
+      kept[maskSecretsIn(name)] = maskSecretsIn(range).slice(0, MAX_RANGE);
       n++;
     }
     out[section] = kept;

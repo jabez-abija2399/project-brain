@@ -430,7 +430,14 @@ function refreshHook(list: unknown[], wanted: string): boolean {
   let changed = false;
   const fix = (h: unknown) => {
     // Only the exact bare command an older init wrote; a path the user chose (/usr/local/bin/codeceipt …) stays.
-    if (isObject(h) && typeof h.command === "string" && h.command.trim() === bare) {
+    // An older init's wrapper (another pinned version) is ours too and is brought to this version.
+    if (
+      isObject(h) &&
+      typeof h.command === "string" &&
+      h.command !== wanted &&
+      (h.command.trim() === bare ||
+        (h.command.includes("npx -y codeceipt@") && isOurHook(h.command, bare)))
+    ) {
       h.command = wanted;
       changed = true;
     }

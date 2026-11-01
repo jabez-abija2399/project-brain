@@ -62,10 +62,13 @@ export async function classifyRequest(
   llm: Llm,
   message: string,
   features: string[],
+  // Asked before the retry (the caller reserves AI budget for it); false skips the retry.
+  allowRetry: () => Promise<boolean> = async () => true,
 ): Promise<Captured> {
   const prompt = capturePrompt(maskSecretsIn(message), features);
   let feature: string | null = null;
   for (const p of [prompt, prompt + RETRY_NOTE]) {
+    if (p !== prompt && !(await allowRetry())) break;
     const answer = await llm.complete({
       system: CAPTURE_SYSTEM,
       prompt: p,
