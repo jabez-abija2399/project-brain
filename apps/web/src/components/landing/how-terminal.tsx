@@ -1,34 +1,8 @@
 "use client";
 
+import { TICK_MS, totalTicks, visibleLines } from "@/lib/ui-helpers";
 import { useEffect, useState } from "react";
 import { STEPS, type TermLine } from "./content";
-
-// Typing speed: what you type appears a character per tick; output lines appear whole, a few ticks apart.
-export const TICK_MS = 18;
-const OUTPUT_TICKS = 6;
-const typed = (l: TermLine) => l.kind === "cmd" || l.kind === "you";
-const cost = (l: TermLine) => (typed(l) ? l.text.length + OUTPUT_TICKS : OUTPUT_TICKS);
-
-/** Ticks until a step's sequence has fully played. */
-export function totalTicks(lines: TermLine[]): number {
-  return lines.reduce((n, l) => n + cost(l), 0);
-}
-
-/** The lines visible after `tick` ticks; a line being typed is cut at the characters typed so far. */
-export function visibleLines(lines: TermLine[], tick: number): TermLine[] {
-  const out: TermLine[] = [];
-  let left = tick;
-  for (const l of lines) {
-    if (left <= 0) break;
-    if (typed(l) && left < l.text.length) {
-      out.push({ ...l, text: l.text.slice(0, left) });
-      break;
-    }
-    out.push(l);
-    left -= cost(l);
-  }
-  return out;
-}
 
 const PREFIX: Record<TermLine["kind"], string> = { cmd: "$ ", you: "> ", agent: "  ", out: "" };
 

@@ -1,14 +1,7 @@
 "use client";
 
-import { copyText } from "@/components/ui/copy-button";
+import { type CopyState, copyLabel, copyText } from "@/lib/ui-helpers";
 import { useEffect, useState } from "react";
-
-export type CopyState = "idle" | "copied" | "failed";
-
-/** The copy button's word for each state. */
-export function copyLabel(state: CopyState): string {
-  return state === "copied" ? "Copied" : state === "failed" ? "Copy failed" : "Copy";
-}
 
 // A terminal command in a box with a copy button that says "Copied" (or how to copy by hand). Monospace inside only.
 export function CommandBox({

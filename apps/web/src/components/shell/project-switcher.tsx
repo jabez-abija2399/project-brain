@@ -1,16 +1,11 @@
 "use client";
 
+import { currentProjectId } from "@/lib/ui-helpers";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 export type SwitcherProject = { id: string; name: string };
-
-/** The project the address points at (/projects/<id>/...), or null. */
-export function currentProjectId(pathname: string | null): string | null {
-  const m = /^\/projects\/([\w-]{1,64})(?:\/|$)/.exec(pathname ?? "");
-  return m?.[1] ?? null;
-}
 
 // The header's project switcher: a native disclosure with a list of links (works without JavaScript; Escape and a
 // click outside close it).

@@ -1,33 +1,9 @@
 "use client";
 
+import { matchesSearch, nextIndex } from "@/lib/ui-helpers";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
 type Filter = "all" | "attention" | "good";
-
-const DAY_MS = 86_400_000;
-
-/** "Today", "Yesterday" or the UTC date of a receipt (the feed's day headings). */
-export function dayLabel(createdAt: string, now: Date): string {
-  const day = createdAt.slice(0, 10);
-  const today = now.toISOString().slice(0, 10);
-  if (day === today) return "Today";
-  if (day === new Date(now.getTime() - DAY_MS).toISOString().slice(0, 10)) return "Yesterday";
-  return day;
-}
-
-/** Every word of the query appears in the text, in any order, ignoring case. An empty query matches everything. */
-export function matchesSearch(text: string, query: string): boolean {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const hay = text.toLowerCase();
-  return words.every((w) => hay.includes(w));
-}
-
-/** The card j (dir 1) or k (dir -1) moves to, staying within the visible cards. */
-export function nextIndex(current: number, dir: 1 | -1, count: number): number {
-  if (count === 0) return -1;
-  if (current < 0) return 0;
-  return Math.min(count - 1, Math.max(0, current + dir));
-}
 
 const typing = (el: EventTarget | null) =>
   el instanceof HTMLElement &&

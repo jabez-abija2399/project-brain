@@ -1,36 +1,7 @@
 "use client";
 
+import { joinWaitlist } from "@/lib/ui-helpers";
 import { type FormEvent, useId, useState } from "react";
-import { normalizeWaitlistEmail } from "./waitlist-email";
-
-export const WAITLIST_THANKS = "You're on the list. We'll email you when your invite is ready.";
-const INVALID = "Enter an email address, for example you@example.com.";
-
-type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
-
-/** Sends the email to the beta waitlist (launch part 5) and returns what to show under the form. */
-export async function joinWaitlist(
-  email: string,
-  fetchImpl: Fetch = (url, init) => fetch(url, init),
-): Promise<{ ok: boolean; message: string }> {
-  const value = normalizeWaitlistEmail(email);
-  if (!value) return { ok: false, message: INVALID };
-  let res: Response;
-  try {
-    res = await fetchImpl("/api/waitlist", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: value }),
-    });
-  } catch {
-    return { ok: false, message: "Could not reach the server. Try again." };
-  }
-  if (res.ok) return { ok: true, message: WAITLIST_THANKS };
-  if (res.status === 429)
-    return { ok: false, message: "Too many tries: wait a minute and try again." };
-  if (res.status === 400) return { ok: false, message: INVALID };
-  return { ok: false, message: "Something went wrong on our side. Try again later." };
-}
 
 export function WaitlistForm() {
   const id = useId();
