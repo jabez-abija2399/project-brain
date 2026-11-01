@@ -13,6 +13,8 @@ export const projects = pgTable(
     repoFullName: text("repo_full_name"),
     // FEAT-009: the GitHub App installation the repo was linked through (null = not linked).
     installationId: bigint("installation_id", { mode: "number" }),
+    // Admin abuse control (0035): a suspended project's tokens and pages stop working.
+    suspendedAt: timestamp("suspended_at", { withTimezone: true, mode: "date" }),
     createdAt: createdAt(),
   },
   (t) => ({
@@ -36,6 +38,8 @@ export const projectTokens = pgTable(
     createdAt: createdAt(),
     revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "date" }),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: "date" }),
+    // What made it (0035): the repo folder from `npx codeceipt`, or null (the Tokens page). Never secret.
+    label: text("label"),
   },
   (t) => ({
     projectIdx: index("project_tokens_project_idx").on(t.projectId),

@@ -67,9 +67,9 @@ export function AppShell({
             <Link className="app-header-link" href="/docs/quickstart">
               Docs
             </Link>
-            <span className="app-user" title={user.email}>
+            <Link className="app-header-link app-user" href="/account" title={user.email}>
               {user.name}
-            </span>
+            </Link>
             <SignOutButton />
           </span>
         </div>

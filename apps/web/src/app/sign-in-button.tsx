@@ -1,5 +1,6 @@
 "use client";
 
+import { safeNextPath } from "@/lib/safe-path";
 import { useState } from "react";
 
 // "link": a quiet "Sign in" for the landing page header and footer; the default is the full GitHub button.
@@ -10,7 +11,7 @@ export default function SignInButton({
   callbackURL = "/projects",
   tone = "secondary",
 }: { variant?: "default" | "link"; callbackURL?: string; tone?: "primary" | "secondary" }) {
-  const target = /^\/(?!\/)[\w\-/?=&.%]*$/.test(callbackURL) ? callbackURL : "/projects";
+  const target = safeNextPath(callbackURL);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

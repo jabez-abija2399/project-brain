@@ -44,7 +44,7 @@ function Section({
   );
 }
 
-export function Landing() {
+export function Landing({ notice }: { notice?: string } = {}) {
   return (
     <div className="lp" id="top">
       <a className="skip-link" href="#main">
@@ -52,6 +52,11 @@ export function Landing() {
       </a>
       <SiteHeader />
       <main id="main">
+        {notice ? (
+          <div className="lp-container">
+            <output className="notice block">{notice}</output>
+          </div>
+        ) : null}
         <section className="lp-hero" aria-labelledby="hero-title">
           <div className="lp-container lp-hero-grid">
             <div className="lp-hero-copy">

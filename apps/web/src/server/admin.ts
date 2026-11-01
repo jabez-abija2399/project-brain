@@ -1,6 +1,10 @@
 import { usersRepo } from "@brain/db";
-import { type SessionUser, getAuth } from "./auth";
+import { headers } from "next/headers";
+import { notFound } from "next/navigation";
+import { type SessionUser, getAuth, getSessionUser, requireUser } from "./auth";
 import { getDb } from "./db";
+import { AppError } from "./errors";
+import { rateLimit } from "./rate-limit";
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
 type LoginResolver = (user: SessionUser, req: Request) => Promise<string | null>;
@@ -53,13 +57,56 @@ export function setGithubLoginResolverForTests(fn: LoginResolver | null) {
   resolver = fn ?? defaultResolver;
 }
 
-/** Launch part 5: owners are the GitHub logins in ADMIN_GITHUB_LOGINS (comma separated, any case). */
-export async function isAdmin(user: SessionUser, req: Request): Promise<boolean> {
+/** The admin's GitHub login when the user is an admin (in ADMIN_GITHUB_LOGINS, comma separated, any case), else null. */
+export async function adminLogin(user: SessionUser, req: Request): Promise<string | null> {
   const admins = (process.env.ADMIN_GITHUB_LOGINS ?? "")
     .split(",")
     .map((l) => l.trim().toLowerCase())
     .filter((l) => l.length > 0);
-  if (admins.length === 0) return false;
+  if (admins.length === 0) return null;
   const login = await resolver(user, req);
-  return login !== null && admins.includes(login.toLowerCase());
+  return login !== null && admins.includes(login.toLowerCase()) ? login : null;
+}
+
+/** Launch part 5: owners are the GitHub logins in ADMIN_GITHUB_LOGINS (comma separated, any case). */
+export async function isAdmin(user: SessionUser, req: Request): Promise<boolean> {
+  return (await adminLogin(user, req)) !== null;
+}
+
+export type Admin = { user: SessionUser; login: string };
+
+/**
+ * Every admin route and action (2026-11-01): a signed-in user whose GitHub login is in ADMIN_GITHUB_LOGINS. Anyone
+ * else gets 404, so the admin section does not reveal that it exists.
+ */
+export async function requireAdmin(req: Request): Promise<Admin> {
+  // Signed out is 404 too, so the admin API looks like any unknown path.
+  const user = await requireUser(req).catch((err: unknown) => {
+    if (err instanceof AppError && err.status === 401) throw new AppError(404, "not_found");
+    throw err;
+  });
+  const login = await checkedLogin(user, req);
+  if (!login) throw new AppError(404, "not_found");
+  return { user, login };
+}
+
+const ADMIN_CHECKS_PER_MINUTE = 30;
+
+// Each admin check asks GitHub, so it is rate limited per user first (no one can spend GitHub calls by reloading).
+async function checkedLogin(user: SessionUser, req: Request): Promise<string | null> {
+  try {
+    await rateLimit(getDb(), `admin:check:${user.id}`, ADMIN_CHECKS_PER_MINUTE);
+  } catch {
+    return null;
+  }
+  return adminLogin(user, req);
+}
+
+/** Admin pages: the admin, or the normal 404 page for everyone else (signed out included). */
+export async function pageAdmin(): Promise<Admin> {
+  const req = new Request("http://localhost/", { headers: await headers() });
+  const user = await getSessionUser(req);
+  const login = user ? await checkedLogin(user, req) : null;
+  if (!user || !login) notFound();
+  return { user, login };
 }

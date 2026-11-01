@@ -1,4 +1,3 @@
-import SignInButton from "@/app/sign-in-button";
 import { NPM_URL } from "./content";
 
 // The footer of every page, public and signed in (the app shell passes signedIn so it shows no Sign in).
@@ -17,7 +16,7 @@ export function SiteFooter({ signedIn = false }: { signedIn?: boolean }) {
           <a href={NPM_URL} rel="noopener noreferrer">
             npm package
           </a>
-          {signedIn ? null : <SignInButton variant="link" />}
+          {signedIn ? null : <a href="/sign-in">Sign in</a>}
           <span className="lp-footer-year">
             {"©"} {new Date().getFullYear()} Codeceipt
           </span>

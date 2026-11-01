@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { type NewProject, type Project, projects } from "../schema";
+import { type NewProject, type Project, projects, users } from "../schema";
 import { type Page, type PageOptions, pageBounds, toPage } from "./page";
 
 export const projectsRepo = {
@@ -11,6 +11,20 @@ export const projectsRepo = {
       .returning();
     if (!row) throw new Error("insert projects returned no row");
     return row;
+  },
+
+  /** Whether a project or its owner is suspended (token requests check this; one query). */
+  async suspensionOf(
+    db: BrainDb,
+    projectId: string,
+  ): Promise<{ project: boolean; owner: boolean } | null> {
+    const [row] = await db
+      .select({ p: projects.suspendedAt, u: users.suspendedAt })
+      .from(projects)
+      .innerJoin(users, eq(users.id, projects.ownerId))
+      .where(eq(projects.id, projectId))
+      .limit(1);
+    return row ? { project: Boolean(row.p), owner: Boolean(row.u) } : null;
   },
 
   async get(db: BrainDb, projectId: string, ownerId: string): Promise<Project | null> {

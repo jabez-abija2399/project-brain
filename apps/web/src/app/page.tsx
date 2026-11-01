@@ -19,8 +19,12 @@ export const metadata: Metadata = {
 };
 
 // Signed-in users go straight to their projects, as before; everyone else sees the landing page.
-export default async function HomePage() {
+// ?deleted=1: the account was just deleted, so the landing page says so once.
+export default async function HomePage(props?: {
+  searchParams?: Promise<{ deleted?: string | string[] }>;
+}) {
   const user = await getSessionUser(new Request("http://localhost/", { headers: await headers() }));
   if (user) redirect("/projects");
-  return <Landing />;
+  const deleted = (await props?.searchParams)?.deleted === "1";
+  return <Landing notice={deleted ? "Your account and all its data were deleted." : undefined} />;
 }

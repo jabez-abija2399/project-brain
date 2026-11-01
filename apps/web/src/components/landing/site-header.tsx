@@ -1,6 +1,5 @@
 "use client";
 
-import SignInButton from "@/app/sign-in-button";
 import { useEffect, useState } from "react";
 
 // The public header: wordmark, Docs, Privacy, Sign in and one primary button. Sticky and compact; on phones the
@@ -36,7 +35,7 @@ export function SiteHeader({ home = "" }: { home?: "" | "/" }) {
         <nav id="lp-nav" className="lp-nav" aria-label="Main" data-open={open ? "true" : "false"}>
           <a href="/docs/quickstart">Docs</a>
           <a href="/privacy">Privacy</a>
-          <SignInButton variant="link" />
+          <a href="/sign-in">Sign in</a>
           <a className="btn btn-primary" href={`${home}#get-started`}>
             Get started
           </a>

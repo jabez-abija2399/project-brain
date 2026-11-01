@@ -1,4 +1,4 @@
-import { type BrainDb, rateCountersRepo } from "@brain/db";
+import { type BrainDb, aiUsageRepo, rateCountersRepo } from "@brain/db";
 import { AppError } from "./errors";
 
 const MINUTE_MS = 60_000;
@@ -42,11 +42,22 @@ export async function reserveDaily(
 ): Promise<number> {
   if (want <= 0) return 0;
   const total = await rateCountersRepo.add(db, key, utcDayStart(now), want);
-  return Math.max(0, Math.min(want, limit - (total - want)));
+  const granted = Math.max(0, Math.min(want, limit - (total - want)));
+  await recordAi(db, key, granted, now);
+  return granted;
 }
 
 export async function releaseDaily(db: BrainDb, key: string, n: number, now: Date): Promise<void> {
-  if (n > 0) await rateCountersRepo.add(db, key, utcDayStart(now), -n);
+  if (n <= 0) return;
+  await rateCountersRepo.add(db, key, utcDayStart(now), -n);
+  await recordAi(db, key, -n, now);
+}
+
+// The admin AI usage page (2026-11-01): AI calls granted per project per day, kept after the counters are pruned.
+async function recordAi(db: BrainDb, key: string, n: number, now: Date): Promise<void> {
+  const m = /^ai:([\w-]{1,64})$/.exec(key);
+  if (!m?.[1] || n === 0) return;
+  await aiUsageRepo.add(db, m[1], now, n).catch(() => {});
 }
 
 export function nextUtcDay(now: Date): Date {

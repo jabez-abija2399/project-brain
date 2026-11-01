@@ -1,9 +1,8 @@
-import { getAuth } from "@/server/auth";
+import { requireProjectAccess } from "@/server/auth";
+import { orNotFound, pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { safeDisplay } from "@brain/core";
-import { projectTokensRepo, projectsRepo } from "@brain/db";
-import { headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { projectTokensRepo } from "@brain/db";
 import { ProjectNav } from "./project-nav";
 import ProjectTokensPanel from "./tokens-panel";
 
@@ -15,12 +14,9 @@ export default async function ProjectDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const session = await getAuth().api.getSession({ headers: await headers() });
-  if (!session?.user) redirect("/");
-
+  const user = await pageUser();
   const db = getDb();
-  const project = await projectsRepo.get(db, id, session.user.id);
-  if (!project) notFound();
+  const project = await orNotFound(() => requireProjectAccess(db, id, user));
 
   const { items: tokens } = await projectTokensRepo.listForProject(db, project.id);
 

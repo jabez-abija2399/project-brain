@@ -1,4 +1,5 @@
-import type { BrainDb } from "@brain/db";
+import { safeNextPath } from "@/lib/safe-path";
+import { type BrainDb, accountRepo } from "@brain/db";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { type SessionUser, getSessionUser } from "./auth";
@@ -7,10 +8,20 @@ import { getDb } from "./db";
 import { AppError } from "./errors";
 
 // Dashboard pages resolve the signed-in user the same way the API routes do (one session resolver).
-export async function pageUser(): Promise<SessionUser> {
-  const user = await getSessionUser(new Request("http://localhost/", { headers: await headers() }));
-  if (!user) redirect("/");
+// Signed out: the sign-in page, which brings the visitor back to the page they asked for. Suspended: one clear page.
+export async function pageUser(opts: { allowSuspended?: boolean } = {}): Promise<SessionUser> {
+  const h = await headers();
+  const user = await getSessionUser(new Request("http://localhost/", { headers: h }));
+  if (!user) redirect(signInHref(h.get("x-codeceipt-path")));
+  if (!opts.allowSuspended && (await accountRepo.suspension(getDb(), user.id)).user)
+    redirect("/suspended");
   return user;
+}
+
+/** The sign-in page, with the (checked) path to come back to. */
+export function signInHref(path: string | null): string {
+  const next = safeNextPath(path, "");
+  return next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in";
 }
 
 // A project the user may not see (another user's, or none) is the 404 page, never a different message (AC-017-04).
@@ -19,6 +30,7 @@ export async function orNotFound<T>(load: () => Promise<T>): Promise<T> {
     return await load();
   } catch (err) {
     if (err instanceof AppError && err.status === 404) notFound();
+    if (err instanceof AppError && err.code === "suspended") redirect("/suspended?what=project");
     throw err;
   }
 }

@@ -43,3 +43,13 @@ export type { BoardRow, FeedRow } from "./dashboard";
 export { type ApproveResult, planDraftsRepo } from "./plan-drafts";
 export { type PollResult, deviceCodesRepo } from "./device-codes";
 export { waitlistRepo } from "./waitlist";
+export { type ConnectedComputer, EXPORT_LIMITS, MAX_CONNECTED, accountRepo } from "./account";
+export {
+  ADMIN_PAGE,
+  type AdminUserRow,
+  MAX_AUDIT,
+  adminAuditRepo,
+  adminRepo,
+  aiUsageRepo,
+  lastDays,
+} from "./admin";

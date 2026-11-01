@@ -1,12 +1,10 @@
+import { AdminNav } from "@/components/admin/admin-nav";
 import { PageHeader } from "@/components/shell/page-header";
-import { isAdmin } from "@/server/admin";
-import { getSessionUser } from "@/server/auth";
+import { pageAdmin } from "@/server/admin";
 import { getDb } from "@/server/db";
 import { MAX_PAGE_SIZE, waitlistRepo } from "@brain/db";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Waitlist | Codeceipt", robots: { index: false } };
@@ -18,9 +16,7 @@ export default async function WaitlistAdminPage({
 }: {
   searchParams: Promise<{ page?: string | string[] }>;
 }) {
-  const req = new Request("http://localhost/", { headers: await headers() });
-  const user = await getSessionUser(req);
-  if (!user || !(await isAdmin(user, req))) notFound();
+  await pageAdmin();
 
   const raw = (await searchParams).page;
   const page = Math.min(
@@ -29,11 +25,18 @@ export default async function WaitlistAdminPage({
   );
   const list = await waitlistRepo.list(getDb(), { offset: (page - 1) * MAX_PAGE_SIZE });
   return (
-    <main className="page page-narrow stack stack-lg">
+    <main className="page stack stack-lg">
       <PageHeader
+        crumbs={[{ label: "Admin", href: "/admin" }, { label: "Waitlist" }]}
         title="Waitlist"
         purpose={`${list.total} ${list.total === 1 ? "email" : "emails"}, newest first.`}
+        action={
+          <a className="btn" href="/api/admin/waitlist" download>
+            Download CSV
+          </a>
+        }
       />
+      <AdminNav current="/admin/waitlist" />
       {list.items.length === 0 ? (
         <p className="muted">No emails on this page.</p>
       ) : (

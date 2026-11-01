@@ -30,9 +30,17 @@ export function retryAfterSeconds(header: string | null, now = Date.now()): numb
   return Math.min(MAX_WAIT_S, Math.max(1, Math.ceil(seconds)));
 }
 
+// The CLI's own words for a suspension (2026-11-01): the server's text is never printed (it is data, not ours).
+export const SUSPENDED_MESSAGE =
+  "This project or account is suspended by Codeceipt, so the CLI and MCP do not work. Open the dashboard for details and contact support to restore it.";
+
 function fromStatus(status: number, code: string | undefined): CliError {
+  if (status === 403 && code === "suspended") return new CliError(EXIT.auth, SUSPENDED_MESSAGE);
   if (status === 401 || status === 404) {
-    return new CliError(EXIT.auth, "The project token was rejected: run `codeceipt login` again.");
+    return new CliError(
+      EXIT.auth,
+      "The project token was rejected (revoked on the Account page, or the project was deleted): run `npx codeceipt` in this repo again.",
+    );
   }
   if (status === 413 && code === "project_storage_full")
     return new CliError(

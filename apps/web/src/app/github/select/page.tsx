@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/shell/page-header";
+import { pageUser } from "@/server/dashboard-page";
 import RepoPicker from "./repo-picker";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +10,8 @@ export default async function SelectRepoPage({
 }: {
   searchParams: Promise<{ state?: string }>;
 }) {
+  // Signed out: the sign-in page first (the picker's API needs a session anyway).
+  await pageUser();
   const { state = "" } = await searchParams;
   return (
     <main className="page page-narrow stack stack-lg">

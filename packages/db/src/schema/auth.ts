@@ -9,6 +9,8 @@ export const users = pgTable("user", {
   email: text("email").notNull().unique(),
   emailVerified: boolean("emailVerified").notNull().default(false),
   image: text("image"),
+  // Admin abuse control (0035): a suspended user cannot use the app, the CLI API or MCP.
+  suspendedAt: timestamp("suspendedAt", { withTimezone: true, mode: "date" }),
   createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
     .notNull()
     .default(sql`now()`),

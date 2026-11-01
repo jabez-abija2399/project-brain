@@ -126,7 +126,11 @@ export const deviceCodesRepo = {
       if (tooSoon) return { status: "slow_down" };
       if (row.status === "pending" || !row.projectId) return { status: "pending" };
       await tx.update(deviceCodes).set({ status: "used" }).where(eq(deviceCodes.id, row.id));
-      const { token } = await projectTokensRepo.create(tx as unknown as BrainDb, row.projectId);
+      const { token } = await projectTokensRepo.create(
+        tx as unknown as BrainDb,
+        row.projectId,
+        row.suggestedName,
+      );
       return { status: "approved", token, projectId: row.projectId };
     });
   },

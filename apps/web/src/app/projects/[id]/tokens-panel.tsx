@@ -20,6 +20,8 @@ export default function ProjectTokensPanel({
   const [tokens, setTokens] = useState<TokenRow[]>(initialTokens);
   const [plaintext, setPlaintext] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Revoking asks once to confirm (destructive actions need confirmation, docs/DESIGN.md).
+  const [confirming, setConfirming] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function createToken() {
@@ -136,11 +138,32 @@ export default function ProjectTokensPanel({
                   )}
                 </td>
                 <td data-label="">
-                  {t.revokedAt ? null : (
+                  {t.revokedAt ? null : confirming === t.id ? (
+                    <span className="row">
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        onClick={() => {
+                          setConfirming(null);
+                          void revoke(t.id);
+                        }}
+                        disabled={busy}
+                      >
+                        Yes, revoke
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setConfirming(null)}
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
                     <button
                       type="button"
                       className="btn btn-danger btn-sm"
-                      onClick={() => revoke(t.id)}
+                      onClick={() => setConfirming(t.id)}
                       disabled={busy}
                     >
                       Revoke
