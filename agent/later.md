@@ -156,3 +156,6 @@
 - 2026-11-01 (audit L-10): add /api/auth/sign-out to the Origin test (better-auth checks it itself today).
 - 2026-11-01 (security review): Inngest push jobs queued before a suspension still run once; check suspension inside the job too.
 - 2026-11-01 (security review): revoke UPDATE, DELETE, TRUNCATE on admin_audit from the app's database role (needs a separate owner role on Neon).
+- 2026-11-01 (real test): the npx fallback in hooks downloads the package on first use; pin the hook to the CLI's own version once the package is published.
+- 2026-11-01 (real test): "already present" for a receipt with no changed files only knows items done in earlier requests; checking the code itself would need an index lookup per item.
+- 2026-11-01 (real test): the request splitter's one retry is not counted against the daily AI budget (at most one extra small call per request).

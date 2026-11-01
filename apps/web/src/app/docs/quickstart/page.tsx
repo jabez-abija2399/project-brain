@@ -58,9 +58,23 @@ const TROUBLE: { q: string; a: React.ReactNode }[] = [
     q: "My agent does not see Codeceipt",
     a: (
       <>
-        Start a new Claude Code or Cursor session in the repo. The agents run the{" "}
-        <code>codeceipt</code> command, so it must be installed: if the summary says so, run{" "}
-        <code>npm install -g codeceipt</code> once. You never need to set a token yourself.
+        Start a new Claude Code or Cursor session in the repo. The hooks run the installed{" "}
+        <code>codeceipt</code> command, or the published one through <code>npx</code> when it is
+        not installed; <code>npm install -g codeceipt</code> makes them faster. If you set Codeceipt
+        up with an older version, run <code>npx codeceipt</code> again to update the hooks. You
+        never need to set a token yourself.
+      </>
+    ),
+  },
+  {
+    q: "“This repository is not the one connected to project …”",
+    a: (
+      <>
+        Each project belongs to one repository. A copied <code>.git</code> folder can carry
+        another repo&apos;s link: run <code>codeceipt unlink</code>, then <code>npx codeceipt</code>{" "}
+        to connect this repo to a new or existing project. If another repo&apos;s files already
+        reached a project, run <code>codeceipt index --rebuild</code> in the right repo to rebuild
+        the index from it alone.
       </>
     ),
   },
