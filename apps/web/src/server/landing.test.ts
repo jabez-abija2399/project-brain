@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import HomePage, { metadata } from "@/app/page";
-import { WAITLIST_THANKS, WaitlistForm, joinWaitlist } from "@/components/landing/waitlist-form";
-import { copyText } from "@/components/ui/copy-button";
+import { WaitlistForm } from "@/components/landing/waitlist-form";
+import { WAITLIST_THANKS, joinWaitlist } from "@/lib/ui-helpers";
+import { copyText } from "@/lib/ui-helpers";
 import { type ReactElement, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";

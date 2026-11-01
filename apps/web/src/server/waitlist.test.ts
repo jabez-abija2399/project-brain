@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import WaitlistAdminPage from "@/app/admin/waitlist/page";
 import { POST as joinRoute } from "@/app/api/waitlist/route";
-import { joinWaitlist } from "@/components/landing/waitlist-form";
+import { joinWaitlist } from "@/lib/ui-helpers";
 import { usersRepo, waitlistRepo } from "@brain/db";
 import * as schema from "@brain/db/schema";
 import { sql } from "drizzle-orm";

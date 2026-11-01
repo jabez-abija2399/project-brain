@@ -4,7 +4,7 @@ import { PURPOSE, ProjectNav } from "@/app/projects/[id]/project-nav";
 import ProjectsPage from "@/app/projects/page";
 import { ShellLayout } from "@/app/shell-layout";
 import { slug } from "@/components/landing/doc-page";
-import { currentProjectId } from "@/components/shell/project-switcher";
+import { currentProjectId } from "@/lib/ui-helpers";
 import { projectsRepo, receiptsRepo, requestsRepo } from "@brain/db";
 import { type ReactElement, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";

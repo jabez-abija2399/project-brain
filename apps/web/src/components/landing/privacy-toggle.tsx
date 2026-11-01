@@ -1,17 +1,7 @@
 "use client";
 
+import { EXAMPLE_CODE, EXAMPLE_EVIDENCE } from "@/lib/ui-helpers";
 import { useState } from "react";
-
-// The one example behind "What leaves your machine": a code change and the exact evidence line made from it.
-export const EXAMPLE_CODE = [
-  "// Payments are only called from checkout.",
-  "// Prices come from the server, never the browser.",
-  "// Refunds go through the dashboard for now.",
-  "// Keep UI code out of this file.",
-  "// Owner: billing.",
-];
-export const EXAMPLE_EVIDENCE =
-  "src/lib/payments.ts: +5 -0, comment only, top of file (outside the request's feature)";
 
 // A toggle that puts the code on your computer next to the evidence line that is sent instead.
 export function PrivacyToggle() {
