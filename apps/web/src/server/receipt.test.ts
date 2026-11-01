@@ -232,8 +232,8 @@ describe("generate_receipt (FEAT-013)", () => {
     // Owner, 2026-10-30: done without a changed test is its own state ("Done, no test proves it"); still listed in
     // not_verified with its reason and never called plain done.
     expect(receipt.items.map((i) => i.status)).toEqual(["done_untested", "not_verified"]);
-    // Not called done: both items keep their open status.
-    expect(await status(itemIds[0] as string)).toBe("open");
+    // Not called done: the untested one is stored as done_untested (owner, 2026-11-01, real-test H), the other stays open.
+    expect(await status(itemIds[0] as string)).toBe("done_untested");
     expect(await status(itemIds[1] as string)).toBe("open");
     const empty = await generateReceipt(world.db, token, {
       projectId,
