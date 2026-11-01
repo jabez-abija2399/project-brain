@@ -28,6 +28,7 @@ import {
 } from "./hooks";
 import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
+import { attentionLines } from "./last-attention";
 import { evidenceLines } from "./last-evidence";
 import { runMcpProxy } from "./mcp-proxy";
 import {
@@ -544,6 +545,7 @@ async function runLast(deps: CliDeps, path: string, evidence = false): Promise<n
   deps.stdout(`Latest receipt${at}:`);
   for (const line of receiptSummary(receipt as Record<string, unknown>, config, id))
     deps.stdout(line);
+  for (const line of attentionLines(receipt as Record<string, unknown>)) deps.stdout(line);
   if (evidence)
     for (const line of evidenceLines(receipt as Record<string, unknown>)) deps.stdout(line);
   return EXIT.ok;

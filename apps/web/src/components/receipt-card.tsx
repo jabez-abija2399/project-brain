@@ -40,6 +40,14 @@ export function ReceiptCard({
   const count = (s: string) => view.items.filter((i) => i.status === s).length;
   const missed = count("missed") + count("partial");
   const attention = receiptNeedsAttention(view);
+  // Real-test B: what the user asked for is listed and labelled, never counted as an alarm.
+  const askedFindings = view.findings.filter((f) => f.asked).length;
+  const askedChecks = view.testChecks.filter((c) => c.asked).length;
+  const alarms = {
+    findings: view.findings.length - askedFindings + view.findingsOmitted,
+    checks: view.testChecks.length - askedChecks,
+    asked: askedFindings + askedChecks + view.outsideScopeAsked.length,
+  };
   return (
     <article
       id={`receipt-${receipt.id}`}
@@ -77,7 +85,23 @@ export function ReceiptCard({
                 />
               )}
               <StatusBadge status="partial" label={`${count("partial")} partly done`} />
-              <StatusBadge status="missed" label={`${count("missed")} missed`} />
+              {view.noChanges ? (
+                <StatusBadge status="neutral" label="No files changed" />
+              ) : (
+                <StatusBadge status="missed" label={`${count("missed")} missed`} />
+              )}
+              {count("not_done") > 0 && (
+                <StatusBadge status="not_done" label={`${count("not_done")} not done`} />
+              )}
+              {count("already_present") > 0 && (
+                <StatusBadge
+                  status="already_present"
+                  label={`${count("already_present")} already present`}
+                />
+              )}
+              {count("postponed") > 0 && (
+                <StatusBadge status="postponed" label={`${count("postponed")} postponed`} />
+              )}
               {count("question") > 0 && (
                 <StatusBadge
                   status="question"
@@ -87,14 +111,20 @@ export function ReceiptCard({
               {view.outsideScope.length > 0 && (
                 <StatusBadge status="warning" label={`${view.outsideScope.length} outside scope`} />
               )}
-              {view.findings.length + view.findingsOmitted > 0 && (
-                <StatusBadge
-                  status="missed"
-                  label={`${view.findings.length + view.findingsOmitted} findings`}
-                />
+              {alarms.findings > 0 && (
+                <StatusBadge status="missed" label={`${alarms.findings} findings`} />
               )}
-              {view.testChecks.length > 0 && (
-                <StatusBadge status="missed" label={`${view.testChecks.length} test checks`} />
+              {alarms.checks > 0 && (
+                <StatusBadge status="missed" label={`${alarms.checks} test checks`} />
+              )}
+              {alarms.asked > 0 && (
+                <StatusBadge status="asked" label={`${alarms.asked} you asked for`} />
+              )}
+              {view.dependencies.length > 0 && (
+                <StatusBadge
+                  status="warning"
+                  label={`${view.dependencies.length} dependenc${view.dependencies.length === 1 ? "y" : "ies"}`}
+                />
               )}
               {view.notVerified.length > 0 && (
                 <StatusBadge
@@ -108,6 +138,12 @@ export function ReceiptCard({
       >
         <div className="stack receipt-body">
           {view.noSnapshot && <p className="muted wrap m0">{NO_SNAPSHOT_NOTE}</p>}
+          {view.noChanges && (
+            <p className="muted wrap m0">
+              No files changed in this session. Each item is marked not done, already present
+              (done in an earlier request) or not verified.
+            </p>
+          )}
           {view.filesByFeature.length > 0 && (
             <Section title="Changed files by feature">
               <ul className="stack m0 list-indent gap-4">
@@ -151,7 +187,10 @@ export function ReceiptCard({
             <Section title="Changed outside the request's feature">
               <span className="row">
                 {view.outsideScope.map((p) => (
-                  <CodeRef key={p} path={p} />
+                  <span key={p} className="row">
+                    <CodeRef path={p} />
+                    {view.outsideScopeAsked.includes(p) && <StatusBadge status="asked" />}
+                  </span>
                 ))}
               </span>
             </Section>
@@ -163,9 +202,13 @@ export function ReceiptCard({
                   // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id in a stored receipt
                   <li key={n} className="stack gap-2">
                     <span className="row">
-                      <StatusBadge status="missed" label={f.type.replaceAll("_", " ")} />
+                      <StatusBadge
+                        status={f.asked ? "asked" : "missed"}
+                        label={f.type.replaceAll("_", " ")}
+                      />
                       {f.file && <CodeRef path={f.file} line={f.line} />}
                       {f.maskedValue && <code>{f.maskedValue}</code>}
+                      {f.asked && <StatusBadge status="asked" />}
                     </span>
                     <span className="muted wrap">{f.hint}</span>
                   </li>
@@ -208,12 +251,45 @@ export function ReceiptCard({
                   // biome-ignore lint/suspicious/noArrayIndexKey: checks have no stable id in a stored receipt
                   <li key={n} className="stack gap-2">
                     <span className="row">
-                      <StatusBadge status="missed" label={`${c.label} (${c.count})`} />
+                      <StatusBadge
+                        status={c.asked ? "asked" : "missed"}
+                        label={`${c.label} (${c.count})`}
+                      />
                       {c.file && <CodeRef path={c.file} />}
+                      {c.asked && <StatusBadge status="asked" />}
                     </span>
                     {c.names.length > 0 && (
                       <span className="muted wrap">{c.names.join(" · ")}</span>
                     )}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+          {view.dependencies.length > 0 && (
+            <Section title="Dependencies added or changed">
+              <ul className="stack plain-list">
+                {view.dependencies.map((d) => (
+                  <li key={`${d.path}:${d.name}`} className="row">
+                    <StatusBadge
+                      status={
+                        d.recommendation === "ok_to_install"
+                          ? "done"
+                          : d.recommendation === "do_not_install"
+                            ? "missed"
+                            : "warning"
+                      }
+                      label={
+                        d.recommendation
+                          ? d.recommendation.replaceAll("_", " ")
+                          : (d.note ?? "not checked")
+                      }
+                    />
+                    <code>{d.name}</code>
+                    <span className="muted">
+                      {d.from ? `${d.from} → ${d.range}` : `added ${d.range}`}
+                    </span>
+                    <CodeRef path={d.path} />
                   </li>
                 ))}
               </ul>

@@ -10,17 +10,26 @@ export type ReceiptItemStatus =
   | "partial"
   | "missed"
   | "not_verified"
-  | "question";
+  | "question"
+  // Real-test G: deferred by the user; never missed.
+  | "postponed"
+  // Real-test F: a receipt with no changed file: done in an earlier request, or not done in this session.
+  | "already_present"
+  | "not_done";
 export type ReceiptView = {
   items: { text: string; status: ReceiptItemStatus; evidence: string[] }[];
   // The changed files by feature, and whether no request was recorded for the session (dogfooding).
   filesByFeature: { feature: string; files: string[] }[];
   noRequest: boolean;
+  // Real-test F: the session had a request but changed no file.
+  noChanges: boolean;
   // D-025: changed files that were already modified before the session (the agent edited them further), and whether
   // the session had no start snapshot (files changed before it may be counted).
   alreadyModified: string[];
   noSnapshot: boolean;
   outsideScope: string[];
+  // Real-test B: out-of-scope files the user's request named ("You asked for this").
+  outsideScopeAsked: string[];
   notVerified: { text: string; reason: string }[];
   findings: {
     type: string;
@@ -28,13 +37,24 @@ export type ReceiptView = {
     line: number | null;
     hint: string;
     maskedValue?: string;
+    // Real-test B: in a file the user's request asked to create or change.
+    asked?: true;
   }[];
   findingsOmitted: number;
   // Owner, 2026-10-31: secrets in files already changed before the session (never the agent's findings).
   findingsBeforeSession: ReceiptView["findings"];
   // FEAT-018: tests deleted, skipped or weakened, and the passing-test count before and after (null when unknown).
-  testChecks: { label: string; file: string; names: string[]; count: number }[];
+  testChecks: { label: string; file: string; names: string[]; count: number; asked?: true }[];
   passing: { before: number | null; after: number | null };
+  // Real-test I: dependencies added or with a changed range, with their check_package recommendation.
+  dependencies: {
+    name: string;
+    range: string;
+    from: string | null;
+    path: string;
+    recommendation: string | null;
+    note: string | null;
+  }[];
 };
 
 const CHECK_LABELS: Record<string, string> = {
@@ -61,6 +81,8 @@ const STATUSES = new Set([
   "missed",
   "not_verified",
   "question",
+  "postponed",
+  "already_present",
 ]);
 
 // Zero-width and direction marks that oneLineText keeps (U+200B-U+200F, U+2060, U+FEFF, U+061C).
@@ -90,6 +112,7 @@ const findingList = (value: unknown): ReceiptView["findings"] =>
       line: typeof f.line === "number" && Number.isInteger(f.line) && f.line > 0 ? f.line : null,
       hint: safeDisplay(f.hint),
       ...(/^[\x21-\x7e]{1,4}\*\*\*$/.test(masked) ? { maskedValue: masked } : {}),
+      ...(f.asked === true ? { asked: true as const } : {}),
     };
   });
 
@@ -101,6 +124,7 @@ const entry = (raw: unknown) => (typeof raw === "string" ? { text: raw } : obj(r
 
 export function receiptView(summary: unknown): ReceiptView {
   const s = obj(summary);
+  const noChanges = s.no_changes === true;
   // Done but no changed test: its own state. Receipts stored before the split have it as not_verified with that
   // reason; both show as "Done, no test proves it" and stay out of the Not verified list.
   const untested = new Set(
@@ -119,10 +143,16 @@ export function receiptView(summary: unknown): ReceiptView {
       if (text === "" || typeof status !== "string" || !STATUSES.has(status)) return [];
       const legacyUntested =
         status === "not_verified" && typeof i.id === "string" && untested.has(i.id);
+      // With no changed file, "missed" means not done in this session (real-test F).
+      const shown = legacyUntested
+        ? "done_untested"
+        : noChanges && status === "missed"
+          ? "not_done"
+          : status;
       return [
         {
           text,
-          status: (legacyUntested ? "done_untested" : status) as ReceiptItemStatus,
+          status: shown as ReceiptItemStatus,
           evidence: list(i.evidence).map(safePath).filter(Boolean).slice(0, 5),
         },
       ];
@@ -137,11 +167,13 @@ export function receiptView(summary: unknown): ReceiptView {
           : [];
       }),
     noRequest: s.no_request === true,
+    noChanges,
     alreadyModified: list(s.files_already_modified).map(safePath).filter(Boolean),
     noSnapshot: s.no_snapshot === true,
     outsideScope: list(either(s, "outside_scope", "outsideScope"))
       .map(safePath)
       .filter(Boolean),
+    outsideScopeAsked: list(s.outside_scope_asked).map(safePath).filter(Boolean),
     notVerified: list(either(s, "not_verified", "notVerified")).flatMap((raw) => {
       const n = entry(raw) as Record<string, unknown>;
       const text = safeDisplay(n.text);
@@ -167,6 +199,7 @@ export function receiptView(summary: unknown): ReceiptView {
             .filter(Boolean)
             .slice(0, 20),
           count: countOrNull(f.count) ?? 0,
+          ...(f.asked === true ? { asked: true as const } : {}),
         },
       ];
     }),
@@ -174,6 +207,22 @@ export function receiptView(summary: unknown): ReceiptView {
       before: countOrNull(obj(s.test_integrity).passing_before),
       after: countOrNull(obj(s.test_integrity).passing_after),
     },
+    dependencies: list(s.new_dependencies).flatMap((raw) => {
+      const d = obj(raw);
+      const name = safeDisplay(d.name, 214);
+      if (name === "") return [];
+      const rec = obj(d.check).recommendation;
+      return [
+        {
+          name,
+          range: safeDisplay(d.range, 100),
+          from: typeof d.changed_from === "string" ? safeDisplay(d.changed_from, 100) : null,
+          path: safePath(d.path),
+          recommendation: typeof rec === "string" && /^[a-z_]{1,40}$/.test(rec) ? rec : null,
+          note: typeof d.note === "string" ? safeDisplay(d.note, 120) : null,
+        },
+      ];
+    }),
   };
 }
 
@@ -183,11 +232,14 @@ export function receiptView(summary: unknown): ReceiptView {
  * Clarifying questions are never in it (D-025): they are for the user to answer, not work for the agent.
  */
 export function fixPrompt(asked: string | null, view: ReceiptView): string | null {
-  const open = view.items.filter((i) => i.status === "missed" || i.status === "partial");
+  const open = view.items.filter(
+    (i) => i.status === "missed" || i.status === "partial" || i.status === "not_done",
+  );
   if (open.length === 0) return null;
   const lines = open.slice(0, MAX_PROMPT_ITEMS).map((i, n) => {
     const where = i.evidence.length > 0 ? ` (started in ${i.evidence.join(", ")})` : "";
-    return `${n + 1}. [${i.status === "missed" ? "missed" : "partly done"}] ${i.text}${where}`;
+    const label = i.status === "partial" ? "partly done" : i.status === "missed" ? "missed" : "not done";
+    return `${n + 1}. [${label}] ${i.text}${where}`;
   });
   if (open.length > MAX_PROMPT_ITEMS)
     lines.push(`... and ${open.length - MAX_PROMPT_ITEMS} more in the receipt.`);

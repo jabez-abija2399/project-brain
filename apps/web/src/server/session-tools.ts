@@ -190,6 +190,29 @@ export async function saveDirective(db: BrainDb, token: ToolToken, raw: unknown)
   });
 }
 
+/**
+ * Real-test H (2026-11-01): the start note's items, newest request first. Open work (open, partly done, missed) and
+ * postponed items are "still open"; questions and items done without a test are listed apart; the same item from a
+ * repeated request is listed once. `open` is the open work alone, in order (the first is the next step).
+ */
+export function startNoteItems(rows: { text: string; status: string; needsClarification: boolean }[]) {
+  const seen = new Set<string>();
+  const out = { open: [] as string[], checklist: [] as string[], questions: [] as string[], untested: [] as string[] };
+  for (const r of rows) {
+    const key = r.text.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (r.status === "done_untested") out.untested.push(r.text);
+    else if (r.needsClarification) out.questions.push(r.text);
+    else if (r.status === "postponed") out.checklist.push(`(postponed) ${r.text}`);
+    else {
+      out.open.push(r.text);
+      out.checklist.push(r.text);
+    }
+  }
+  return out;
+}
+
 export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown): Promise<string> {
   return run("where_did_we_stop", token, async () => {
     const input = parseArgs(projectOnlySchema, raw);
@@ -198,7 +221,7 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
     // DB reads only, no LLM call (AGENTS.md). Seven small queries; each one is bounded.
     const [sessions, checklist, features, decisions, directives, all, next] = await Promise.all([
       agentSessionsRepo.listNewest(db, pid, 1),
-      checklistItemsRepo.listOpenForProject(db, pid, 20),
+      checklistItemsRepo.listOpenForProject(db, pid, 40),
       featuresRepo.listInProgress(db, pid, 10),
       decisionsRepo.listNewest(db, pid, 5),
       directivesRepo.listActive(db, pid),
@@ -206,16 +229,26 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
       featuresRepo.nextByBuildOrder(db, pid),
     ]);
     const last = sessions[0];
+    const items = startNoteItems(checklist);
+    // Real-test H: the next step is the first truly open item; a saved step naming finished work is not repeated.
+    const listed = new Set(
+      [...items.questions, ...items.untested].map((t) => t.toLowerCase()),
+    );
+    const saved = last?.nextStep ?? "";
+    const nextStep =
+      items.open[0] ?? (listed.has(saved.toLowerCase()) ? "Start the next request" : saved);
     return buildHandoffNote({
       session: last
         ? {
             goal: last.goal ?? "",
             done: last.done,
             unfinished: last.unfinished,
-            nextStep: last.nextStep ?? "",
+            nextStep,
           }
         : null,
-      checklist: checklist.map((c) => c.text),
+      checklist: items.checklist,
+      questions: items.questions,
+      untested: items.untested,
       featuresInProgress: features.map((f) => f.name),
       decisions: decisions.map((d) => ({ title: d.title, createdAt: d.createdAt })),
       directives: directives.map((d) => d.text),

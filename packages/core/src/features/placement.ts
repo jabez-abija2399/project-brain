@@ -145,7 +145,27 @@ export function placementOf(path: string, url: string | undefined): Placement {
       if (name) return { key: name };
     }
   }
+  // Real-test E (2026-11-01): a module file directly in lib/ or services/ (src/lib/permissions.ts) is its own module,
+  // like a folder (src/lib/permissions/); its test (permissions.test.ts) goes with it. Generic names (utils) do not.
+  const dir = segments.at(-2);
+  if (dir && MODULE_FILE_DIRS.has(dir)) {
+    const name = cleanName(moduleStem(segments.at(-1) ?? ""));
+    if (name) return { key: name };
+  }
   return null;
+}
+
+const MODULE_FILE_DIRS = new Set(["lib", "services"]);
+// "permissions.test.ts" -> "permissions"; "auth.server.ts" -> "auth".
+export const moduleStem = (file: string) =>
+  file.replace(/\.(test|spec|cy)(?=\.)/, "").replace(/\..*$/, "");
+
+/** The file a test file tests, by name (src/lib/permissions.test.ts -> src/lib/permissions.ts), or null. */
+export function testSubjects(path: string): string[] {
+  const m = /^(.*)\.(test|spec|cy)\.([cm]?[jt]sx?)$/.exec(path);
+  if (!m) return [];
+  const exts = ["ts", "tsx", "js", "jsx", "mts", "mjs"];
+  return [m[3] as string, ...exts.filter((e) => e !== m[3])].map((e) => `${m[1]}.${e}`);
 }
 
 // Child segment names per route prefix, built from page routes only (an API route never makes a container).

@@ -72,7 +72,7 @@ export type CreatedChecklist = {
   request_id: string;
   feature_id: string;
   feature: string;
-  items: { id: string; text: string; needs_clarification: boolean }[];
+  items: { id: string; text: string; needs_clarification: boolean; postponed?: true }[];
 };
 
 /**
@@ -114,6 +114,7 @@ export async function createChecklist(
         id: i.id,
         text: i.text,
         needs_clarification: i.needsClarification,
+        ...(i.status === "postponed" ? { postponed: true as const } : {}),
       })),
     };
   }
@@ -143,7 +144,12 @@ export async function createChecklist(
     db,
     pid,
     { featureId: feature.id, text: maskSecretsIn(input.request) },
-    items.map((i) => ({ text: i.text, needsClarification: i.needs_clarification })),
+    items.map((i) => ({
+      text: i.text,
+      needsClarification: i.needs_clarification,
+      // Real-test G: an item the user deferred is recorded as postponed, never dropped.
+      ...(i.postponed ? { status: "postponed" as const } : {}),
+    })),
   );
   console.info(
     "[mcp]",
@@ -166,6 +172,7 @@ export async function createChecklist(
       id: i.id,
       text: i.text,
       needs_clarification: i.needsClarification,
+      ...(i.status === "postponed" ? { postponed: true as const } : {}),
     })),
   };
 }

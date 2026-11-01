@@ -5,5 +5,6 @@ export {
   TESTS_KEY,
   featureFromPath,
   groupFeatures,
+  testSubjects,
 } from "./group";
 export type { FeatureGroup, FeatureMap, RouteInput, SharedFile } from "./group";

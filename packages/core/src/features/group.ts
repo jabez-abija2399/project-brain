@@ -11,7 +11,7 @@ import {
 } from "./placement";
 import { APP_ROOT_FILE, screenKey } from "./screens";
 
-export { FALLBACK_FEATURE, ROOT_FEATURE, TESTS_KEY, featureFromPath } from "./placement";
+export { FALLBACK_FEATURE, ROOT_FEATURE, TESTS_KEY, featureFromPath, testSubjects } from "./placement";
 export type { RouteInput } from "./placement";
 
 /** `key` is stable and path-derived (a re-index matches on it); `name` is the display name. */

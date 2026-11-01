@@ -8,8 +8,10 @@ import {
   requests,
 } from "../schema";
 
-// Items not done and not dismissed: open, partly done or missed by a receipt (FEAT-013 AC-013-04).
-const UNRESOLVED: ChecklistItem["status"][] = ["open", "partial", "missed"];
+// Items a receipt still judges: open, partly done, missed, or done without a test (FEAT-013 AC-013-04, AC-013-07).
+const UNRESOLVED: ChecklistItem["status"][] = ["open", "partial", "missed", "done_untested"];
+// What a receipt lists for its request: the items it judges, and the postponed ones it shows but never judges.
+const ON_RECEIPT: ChecklistItem["status"][] = [...UNRESOLVED, "postponed"];
 
 // The proposal the owner saw: when it was made and what it changes. Confirming or rejecting checks both, so a proposal
 // replaced between viewing and clicking is never applied by mistake.
@@ -49,19 +51,60 @@ export const checklistItemsRepo = {
   },
 
   // Open items of every request in the project (the handoff note shows them as unfinished work).
+  /**
+   * The start note's items from earlier sessions: everything not done and not dismissed (open, partial, missed, done
+   * without a test, postponed), newest request first, with the request's time so duplicates keep the newest.
+   */
   async listOpenForProject(
     db: BrainDb,
     projectId: string,
     limit: number,
   ): Promise<ChecklistItem[]> {
     return db
-      .select()
+      .select({ item: checklistItems })
+      .from(checklistItems)
+      .innerJoin(
+        requests,
+        and(
+          eq(requests.projectId, checklistItems.projectId),
+          eq(requests.id, checklistItems.requestId),
+        ),
+      )
+      .where(
+        and(eq(checklistItems.projectId, projectId), inArray(checklistItems.status, ON_RECEIPT)),
+      )
+      .orderBy(
+        desc(requests.createdAt),
+        desc(requests.id),
+        asc(checklistItems.position),
+        asc(checklistItems.id),
+      )
+      .limit(limit)
+      .then((rows) => rows.map((r) => r.item));
+  },
+
+  /** Lower-cased texts, among `texts`, of items already done in another request (a receipt with no changed files). */
+  async doneElsewhere(
+    db: BrainDb,
+    projectId: string,
+    requestId: string,
+    texts: string[],
+  ): Promise<Set<string>> {
+    if (texts.length === 0) return new Set();
+    const lowered = [...new Set(texts.map((t) => t.toLowerCase()))].slice(0, 50);
+    const rows = await db
+      .select({ text: checklistItems.text })
       .from(checklistItems)
       .where(
-        and(eq(checklistItems.projectId, projectId), inArray(checklistItems.status, UNRESOLVED)),
+        and(
+          eq(checklistItems.projectId, projectId),
+          ne(checklistItems.requestId, requestId),
+          inArray(checklistItems.status, ["done", "done_untested"]),
+          inArray(sql`lower(${checklistItems.text})`, lowered),
+        ),
       )
-      .orderBy(asc(checklistItems.requestId), asc(checklistItems.position), asc(checklistItems.id))
-      .limit(limit);
+      .limit(50);
+    return new Set(rows.map((r) => r.text.toLowerCase()));
   },
 
   async byId(db: BrainDb, projectId: string, itemId: string): Promise<ChecklistItem | null> {
@@ -233,11 +276,30 @@ export const checklistItemsRepo = {
       .orderBy(asc(checklistItems.position), asc(checklistItems.id));
   },
 
+  // The request's items a receipt lists: the ones it judges and the postponed ones (shown, never judged).
+  async listForReceipt(
+    db: BrainDb,
+    projectId: string,
+    requestId: string,
+  ): Promise<ChecklistItem[]> {
+    return db
+      .select()
+      .from(checklistItems)
+      .where(
+        and(
+          eq(checklistItems.projectId, projectId),
+          eq(checklistItems.requestId, requestId),
+          inArray(checklistItems.status, ON_RECEIPT),
+        ),
+      )
+      .orderBy(asc(checklistItems.position), asc(checklistItems.id));
+  },
+
   // One statement for every item of a receipt; items of another project are never touched.
   async setStatuses(
     db: BrainDb,
     projectId: string,
-    updates: { id: string; status: "done" | "partial" | "missed" }[],
+    updates: { id: string; status: "done" | "partial" | "missed" | "done_untested" }[],
   ): Promise<void> {
     if (updates.length === 0) return;
     const values = sql.join(
@@ -247,6 +309,6 @@ export const checklistItemsRepo = {
     await db.execute(sql`
       UPDATE checklist_items AS c SET status = v.status
       FROM (VALUES ${values}) AS v(id, status)
-      WHERE c.project_id = ${projectId} AND c.id = v.id AND c.status IN ('open', 'partial', 'missed')`);
+      WHERE c.project_id = ${projectId} AND c.id = v.id AND c.status IN ('open', 'partial', 'missed', 'done_untested')`);
   },
 };

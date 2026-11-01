@@ -75,7 +75,12 @@ export async function captureRequest(
     db,
     projectId,
     { featureId: feature?.id ?? null, text: stored, sessionId },
-    items.map((i) => ({ text: i.text, needsClarification: i.needs_clarification })),
+    items.map((i) => ({
+      text: i.text,
+      needsClarification: i.needs_clarification,
+      // Real-test G: an item the user deferred is recorded as postponed, never dropped.
+      ...(i.postponed ? { status: "postponed" as const } : {}),
+    })),
   );
   return {
     recorded: true,

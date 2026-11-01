@@ -34,6 +34,7 @@ export {
   TESTS_KEY,
   featureFromPath,
   groupFeatures,
+  testSubjects,
 } from "./features";
 export type { FeatureGroup, FeatureMap, RouteInput, SharedFile } from "./features";
 
@@ -76,6 +77,7 @@ export { rlsFindings, secretFinding } from "./receipt-findings";
 export type { Finding, FindingType, StoredTable } from "./receipt-findings";
 export {
   addedDependencies,
+  changedDependencies,
   assessPackage,
   isValidPackageName,
   isValidVersion,
@@ -179,3 +181,4 @@ export {
   sameRepo,
   tokenFromHashed,
 } from "./repo-fingerprint";
+export { askedForCheck, askedForFile, namesFile } from "./asked-for";

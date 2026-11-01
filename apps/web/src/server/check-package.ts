@@ -2,6 +2,7 @@ import {
   type AddedDependency,
   type PackageCheck,
   addedDependencies,
+  changedDependencies,
   isValidPackageName,
   isValidVersion,
   maskSecretsIn,
@@ -80,6 +81,8 @@ export type NewDependency = {
   path: string;
   check: PackageCheck | null;
   note?: string;
+  // Real-test I: the range before, when an existing dependency's range changed.
+  changed_from?: string;
 };
 
 const shown = (value: string) => maskSecretsIn(oneLineText(value)).slice(0, 214);
@@ -110,7 +113,11 @@ export async function prepareNewDependencies(
   changes.forEach((change, i) => {
     let added: AddedDependency[];
     try {
-      added = addedDependencies(change.before ?? null, change.after);
+      added = [
+        ...addedDependencies(change.before ?? null, change.after),
+        // Real-test I: a changed version range is listed (and checked) too.
+        ...changedDependencies(change.before ?? null, change.after),
+      ];
     } catch {
       throw new AppError(400, "invalid_input", "input validation failed", {
         [`packageJson.${i}`]: "before and after must be package.json text (a JSON object)",
@@ -128,6 +135,7 @@ export async function prepareNewDependencies(
         range: dep.range,
         path: change.path,
         check: null,
+        ...(dep.from !== undefined ? { changed_from: dep.from } : {}),
       };
       let target: string | null = null;
       if (!isValidPackageName(dep.name)) entry.note = "not a valid npm package name";

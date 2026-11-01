@@ -7,6 +7,9 @@ import { useEffect, useRef } from "react";
 
 export type SwitcherProject = { id: string; name: string };
 
+// Real-test D: a project with an empty name still shows (and is announced with) a label.
+const nameOf = (p: SwitcherProject | undefined) => p?.name.trim() || (p ? "Untitled project" : "Projects");
+
 // The header's project switcher: a native disclosure with a list of links (works without JavaScript; Escape and a
 // click outside close it).
 export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
@@ -31,21 +34,22 @@ export function ProjectSwitcher({ projects }: { projects: SwitcherProject[] }) {
   }, []);
   return (
     <details className="switcher" ref={menu}>
-      <summary aria-label={`Switch project. Current: ${active?.name ?? "none"}`}>
-        <span className="switcher-name">{active?.name ?? "Projects"}</span>
+      <summary aria-label={`Switch project. Current: ${active ? nameOf(active) : "none"}`}>
+        <span className="switcher-name">{nameOf(active)}</span>
       </summary>
       <div className="switcher-menu">
-        <ul>
+        <ul aria-label="Your projects">
           {projects.map((p) => (
             <li key={p.id}>
               <Link
                 href={`/projects/${p.id}/overview`}
+                aria-label={`Open project ${nameOf(p)}`}
                 aria-current={p.id === current ? "page" : undefined}
                 onClick={() => {
                   if (menu.current) menu.current.open = false;
                 }}
               >
-                {p.name}
+                {nameOf(p)}
               </Link>
             </li>
           ))}

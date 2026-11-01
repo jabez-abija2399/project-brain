@@ -35,6 +35,7 @@ import {
   validSnapshot,
   verifiedBlobs,
 } from "./session-snapshot";
+import { dependencyChanges } from "./dependency-changes";
 import { localIntegrity, passingTests } from "./test-integrity-local";
 
 // FEAT-016 agent hooks. They fail safe: whatever goes wrong (not logged in, server unreachable, git missing), the
@@ -244,13 +245,27 @@ export function receiptSummary(
   const done = status("done") + untested;
   const partial = status("partial");
   const missed = status("missed") + partial;
+  const postponed = status("postponed");
+  const present = status("already_present");
+  const questions = status("question");
   const integrity =
     typeof receipt.test_integrity === "object" && receipt.test_integrity !== null
       ? (receipt.test_integrity as Record<string, unknown>)
       : {};
-  const findings = count(receipt.findings) + number(receipt.findings_omitted);
-  const tests = count(integrity.flags) + number(integrity.omitted);
-  const outside = count(receipt.outside_scope);
+  // Real-test B: what the user asked for is counted apart, never as an alarm.
+  const isAsked = (v: unknown) =>
+    typeof v === "object" && v !== null && (v as { asked?: unknown }).asked === true;
+  const list = (v: unknown) => (Array.isArray(v) ? v : []);
+  const askedCount =
+    list(receipt.findings).filter(isAsked).length +
+    list(integrity.flags).filter(isAsked).length +
+    count(receipt.outside_scope_asked);
+  const findings =
+    count(receipt.findings) - list(receipt.findings).filter(isAsked).length +
+    number(receipt.findings_omitted);
+  const tests =
+    count(integrity.flags) - list(integrity.flags).filter(isAsked).length + number(integrity.omitted);
+  const outside = Math.max(0, count(receipt.outside_scope) - count(receipt.outside_scope_asked));
   // "no test changed" entries are the done-without-a-test items, counted above; the rest could not be checked.
   const unverified = (Array.isArray(receipt.not_verified) ? receipt.not_verified : []).filter(
     (n) =>
@@ -264,12 +279,25 @@ export function receiptSummary(
     untested > 0 ? `${untested} done with no test proving it` : "",
     outside > 0 ? `${plural(outside, "file")} outside the request` : "",
     unverified > 0 ? `${unverified} not verified` : "",
+    questions > 0 ? plural(questions, "question") : "",
+    postponed > 0 ? `${postponed} postponed` : "",
+  ].filter(Boolean);
+  const extra = [
+    askedCount > 0 ? `${askedCount} you asked for` : "",
+    present > 0 && receipt.no_changes !== true ? `${present} already present` : "",
+    count(receipt.new_dependencies) > 0
+      ? plural(count(receipt.new_dependencies), "dependency added or changed", "dependencies added or changed")
+      : "",
   ].filter(Boolean);
   const lines = [
     receipt.no_request === true
       ? `Codeceipt receipt: ${changed ? `${changed}. ` : ""}${NO_REQUEST_NOTE}`
-      : `Codeceipt receipt: ${changed ? `${changed}; ` : ""}${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
+      : receipt.no_changes === true
+        ? // Real-test F: a request but no changed file still gets a receipt.
+          `Codeceipt receipt: No files changed; ${status("missed")} not done${present > 0 ? `, ${present} already present` : ""}.`
+        : `Codeceipt receipt: ${changed ? `${changed}; ` : ""}${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
     `Checks needing attention: ${attention.length > 0 ? attention.join(", ") : "none"}.`,
+    ...(extra.length > 0 ? [`Also listed: ${extra.join(", ")}.`] : []),
   ];
   if (receiptId) {
     const base = config.apiUrl.replace(/\/+$/, "");
@@ -420,15 +448,21 @@ const wellFormed = (open: OpenItems) =>
       r.items.every((i) => typeof i?.text === "string" && typeof i.status === "string"),
   );
 
-// Items neither done nor parked, as clean short lines; anything of the wrong shape is dropped.
+// Work items neither done nor parked, as clean short lines; anything of the wrong shape is dropped. Real-test H:
+// questions are not work, and the same item from a repeated request is listed once (newest request first).
 function openList(open: OpenItems): { text: string; status: string }[] {
   const requests = Array.isArray(open?.requests) ? open.requests : [];
+  const seen = new Set<string>();
   return requests.flatMap((r) =>
-    (Array.isArray(r?.items) ? r.items : []).flatMap((i) =>
-      typeof i?.text === "string" && OPEN_STATUSES.has(i.status)
-        ? [{ text: line(i.text), status: i.status }]
-        : [],
-    ),
+    (Array.isArray(r?.items) ? r.items : []).flatMap((i) => {
+      if (typeof i?.text !== "string" || !OPEN_STATUSES.has(i.status)) return [];
+      if ((i as { question?: unknown }).question === true) return [];
+      const text = line(i.text);
+      const key = text.toLowerCase();
+      if (seen.has(key)) return [];
+      seen.add(key);
+      return [{ text, status: i.status }];
+    }),
   );
 }
 
@@ -515,6 +549,21 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
       : {},
   ).catch(() => []);
   const marked = preExisting.filter((f) => receiptFiles.includes(f));
+  // Real-test I: every package.json this session changed, reduced to dependency names and ranges, before and after.
+  const dependencies = await dependencyChanges(
+    deps.git,
+    root,
+    start ?? (commit ? "HEAD" : null),
+    receiptFiles,
+    snapshot
+      ? await verifiedBlobs(
+          deps.git,
+          root,
+          Object.fromEntries(Object.entries(blobs).filter(([path]) => preExisting.includes(path))),
+          snapshot,
+        ).catch(() => ({}))
+      : {},
+  ).catch(() => []);
   // Only this session's requests are checked by its receipt (requests are tied to sessions).
   const base = `/api/hooks/${encodeURIComponent(config.projectId)}/open-items?session=${encodeURIComponent(sessionId)}${startedAt ? `&since=${encodeURIComponent(startedAt)}` : ""}`;
   try {
@@ -536,7 +585,8 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
     const warnings: string[] = [];
     // A session that changed files always gets a receipt (dogfooding): one per request made in this session (newest
     // first, at most MAX_SESSION_RECEIPTS), or one without a request. Earlier sessions' open items are never judged.
-    if (receiptFiles.length > 0) {
+    // Real-test F: a session with a recorded request gets a receipt even when it changed no file ("No files changed").
+    if (receiptFiles.length > 0 || own.length > 0) {
       const receipts: Record<string, unknown>[] = [];
       for (const requestId of own.length > 0 ? own.map((r) => r.id) : [undefined]) {
         // A receipt that fails (AI budget used up, judging unavailable) does not stop progress from being saved.
@@ -551,6 +601,8 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
                 : {}),
               ...(noSnapshot ? { snapshot: "missing" } : {}),
               ...(commit && commit !== start ? { commitSha: commit } : {}),
+              // Real-test I: dependency names and version ranges only, never the rest of package.json.
+              ...(dependencies.length > 0 ? { packageJson: dependencies } : {}),
               ...(scan
                 ? {
                     secretFindings: sessionFindings,
@@ -605,7 +657,7 @@ export async function sessionEnd(_agent: Agent, deps: HookDeps): Promise<boolean
       }
     }
     const after =
-      own.length > 0 && receiptFiles.length > 0
+      own.length > 0
         ? await request<OpenItems>(timed(deps.fetch, OPEN_ITEMS_TIMEOUT_MS), config, "GET", base)
         : open;
     const loose = openList(after);

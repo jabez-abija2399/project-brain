@@ -27,7 +27,14 @@ export type FeedRow = {
   createdAt: Date;
 };
 
-export type ItemStatus = "open" | "done" | "partial" | "missed" | "dismissed";
+export type ItemStatus =
+  | "open"
+  | "done"
+  | "partial"
+  | "missed"
+  | "dismissed"
+  | "postponed"
+  | "done_untested";
 export type FeatureProgress = {
   id: string;
   name: string;
@@ -191,6 +198,8 @@ export const dashboardRepo = {
       partial: 0,
       missed: 0,
       dismissed: 0,
+      postponed: 0,
+      done_untested: 0,
     };
     for (const r of rows) out[r.status] = Number(r.n);
     return out;

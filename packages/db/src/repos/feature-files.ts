@@ -37,7 +37,13 @@ export const featureFilesRepo = {
     projectId: string,
     paths: string[],
   ): Promise<
-    { path: string; featureId: string; featureName: string; role: "primary" | "shared" }[]
+    {
+      path: string;
+      featureId: string;
+      featureName: string;
+      featureKey: string | null;
+      role: "primary" | "shared";
+    }[]
   > {
     if (paths.length === 0) return [];
     return db
@@ -45,6 +51,7 @@ export const featureFilesRepo = {
         path: files.path,
         featureId: features.id,
         featureName: features.name,
+        featureKey: features.key,
         role: featureFiles.role,
       })
       .from(featureFiles)

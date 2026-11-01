@@ -18,16 +18,17 @@ export function receiptNeedsAttention(view: ReceiptView): boolean {
 
 /** Why a receipt needs attention, most serious first ("1 security finding", "2 missed"). Empty when all is good. */
 export function attentionReasons(view: ReceiptView): string[] {
-  const findings = view.findings.length + view.findingsOmitted;
+  // Real-test B: what the user explicitly asked for is listed on the receipt, never an alarm.
+  const findings = view.findings.filter((f) => !f.asked).length + view.findingsOmitted;
+  const checks = view.testChecks.filter((c) => !c.asked).length;
+  const outside = view.outsideScope.filter((p) => !view.outsideScopeAsked.includes(p)).length;
   const reasons = [
     [findings, plural(findings, "security finding")],
-    [view.testChecks.length, plural(view.testChecks.length, "test check")],
+    [checks, plural(checks, "test check")],
     [count(view, "missed"), `${count(view, "missed")} missed`],
+    [count(view, "not_done"), `${count(view, "not_done")} not done`],
     [count(view, "partial"), `${count(view, "partial")} partly done`],
-    [
-      view.outsideScope.length,
-      plural(view.outsideScope.length, "file outside scope", "files outside scope"),
-    ],
+    [outside, plural(outside, "file outside scope", "files outside scope")],
   ] as const;
   return reasons.filter(([n]) => n > 0).map(([, text]) => text);
 }
