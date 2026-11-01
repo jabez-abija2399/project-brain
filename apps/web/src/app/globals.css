@@ -1118,3 +1118,344 @@ code {
 .lp-final input:focus-visible {
   outline: 2px solid var(--on-ink);
 }
+
+/* ---------------------------------------------------------------------------------------------------------------
+   Dashboard (2026-11-01): overview, stat cards, activity chart, attention list, feature progress, receipts toolbar,
+   day headings, shortcuts and loading skeletons.
+   --------------------------------------------------------------------------------------------------------------- */
+.section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.overview-hero {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.overview-headline {
+  margin: 0;
+  font-size: clamp(20px, 3vw, 26px);
+  letter-spacing: -0.02em;
+}
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+.stat-card {
+  position: relative;
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: transform 180ms var(--ease), box-shadow 180ms var(--ease), border-color 180ms
+    var(--ease);
+}
+.stat-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--border);
+}
+.stat-danger::before {
+  background: var(--danger);
+}
+.stat-warning::before {
+  background: var(--warning);
+}
+.stat-success::before {
+  background: var(--success);
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+}
+.stat-label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.stat-value {
+  font-size: 30px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-danger .stat-value {
+  color: var(--danger);
+}
+.stat-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+/* Activity chart: plain bars, a tooltip on hover or keyboard focus. */
+.chart {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.chart-bars {
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  align-items: end;
+  gap: 6px;
+  height: 140px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--border);
+}
+.chart-day {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  border-radius: 6px 6px 0 0;
+  cursor: default;
+}
+.chart-day:hover {
+  background: var(--surface-2);
+}
+.chart-stack {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+  border-radius: 6px 6px 0 0;
+  overflow: hidden;
+  animation: grow 500ms var(--ease) both;
+  transform-origin: bottom;
+}
+.chart-good {
+  background: color-mix(in srgb, var(--success) 70%, var(--surface));
+}
+.chart-attention {
+  background: var(--danger);
+}
+.chart-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: 12px;
+  white-space: nowrap;
+  box-shadow: var(--shadow-md);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms var(--ease);
+}
+.chart-day:hover .chart-tip {
+  opacity: 1;
+}
+.chart-day:first-child .chart-tip {
+  left: 0;
+  transform: none;
+}
+.chart-day:last-child .chart-tip {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.chart-axis {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.chart-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-left: 6px;
+}
+.legend-good {
+  background: color-mix(in srgb, var(--success) 70%, var(--surface));
+}
+.legend-attention {
+  background: var(--danger);
+}
+@keyframes grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* Attention list and feature progress. */
+.attention-list,
+.feature-progress {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.attention-item {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+  transition: background-color 140ms var(--ease), border-color 140ms var(--ease);
+}
+.attention-item:hover {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+}
+.attention-asked {
+  font-weight: 600;
+}
+.feature-progress li {
+  display: grid;
+  gap: 6px;
+}
+.progress {
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+  animation: grow-x 600ms var(--ease) both;
+  transform-origin: left;
+}
+.progress::-webkit-progress-bar {
+  background: var(--surface-2);
+  border-radius: 999px;
+}
+.progress::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 999px;
+}
+.progress::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  border-radius: 999px;
+}
+@keyframes grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* Receipts toolbar, day headings and shortcuts. */
+.feed-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.search {
+  flex: 1 1 220px;
+  max-width: 340px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  transition: border-color 160ms var(--ease);
+}
+.search:hover {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+.day-heading {
+  padding-top: 8px;
+}
+.shortcuts {
+  margin: -4px 0 0;
+}
+kbd {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--surface);
+  font: 12px / 18px "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: center;
+}
+summary:focus-visible {
+  border-radius: 8px;
+}
+@media (max-width: 640px) {
+  .shortcuts {
+    display: none;
+  }
+  .chart-bars {
+    gap: 3px;
+  }
+}
+
+/* Loading skeletons. */
+.skeleton {
+  display: block;
+  border-radius: 8px;
+  /* A solid block (visible without motion) with a light sweep over it. */
+  background-color: color-mix(in srgb, var(--border) 75%, var(--surface));
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, var(--surface) 55%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.4s linear infinite;
+}
+.skeleton-stat {
+  height: 104px;
+  border-radius: var(--radius);
+}
+.skeleton-panel {
+  height: 240px;
+  border-radius: var(--radius);
+}
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}

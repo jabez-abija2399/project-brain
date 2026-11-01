@@ -41,9 +41,18 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 12 px (cards), 10 p
 | CopyButton | apps/web/src/components/ui/copy-button | label, text; copied / failed feedback | receipts ("Send fix to agent"), CopyCommand |
 | Pagination | apps/web/src/components/ui/pagination | page, pages, basePath (?page=N, 50 per page) | features, receipts, proposals |
 | Disclosure | apps/web/src/components/ui/disclosure | open; summary; body rendered on first open (INP) | ReceiptCard |
-| ReceiptsFilter | apps/web/src/components/receipts-filter | All / Needs attention / All good chips with counts | receipts feed |
+| ReceiptsFilter | apps/web/src/components/receipts-filter | chips with counts, search, shortcuts (/ j k o), day headings | receipts feed |
+| StatCard | apps/web/src/components/ui/stat-card | label, value, hint, href; tone neutral/danger/warning/success | overview |
+| ActivityChart | apps/web/src/components/activity-chart | 14 days, stacked all good / needs attention, focusable bars | overview |
+| ProgressBar | apps/web/src/components/ui/progress-bar | done, total, label (role progressbar) | overview |
+| Skeleton | apps/web/src/components/ui/skeleton | block; ProjectHeaderSkeleton | loading.tsx pages |
 
 ## The screens that matter (max 3; polish these, everything else is plain components)
+0. Project overview (2026-11-01, the first tab): leads with the decision ("2 receipts need your attention this
+   week"), four numbers in priority order (needs attention, open missed items, done this week, security findings),
+   each a link to the next step; a 14-day activity chart; the newest receipts needing attention with why; progress
+   per feature. Inspiration: Vercel (filters, find, keyboard), Linear (few purposeful dashboards, keyboard-first),
+   dashboard practice "what needs attention, why, what next" and "summarize, then drill down".
 1. Receipts feed: newest receipts as ReceiptCards; asked / done / missed / outside scope / checks. Primary action:
    "Send fix to agent" (copies a prompt for missed items).
 2. Feature board: features with status, file count, open items, last receipt. Primary action: open a feature.
@@ -53,6 +62,8 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 12 px (cards), 10 p
 ## Rules
 - Status is never color alone: icon + label.
 - Every async action: loading, success feedback, error message that says what to do next.
+- Every page that loads data has a skeleton shaped like the page (aria-busy, "Loading …" for screen readers).
+- Lists users scan daily get search and keyboard shortcuts, shown on the page (receipts: / j k o).
 - Empty states have one clear button. Destructive actions need confirmation.
 - Check at 375 px and 1280 px. Keyboard: Tab order, visible focus ring, labels on all inputs.
 - Plain language for non-engineers: "Missed: reviews are not sorted by newest", not error codes.
