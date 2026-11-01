@@ -46,6 +46,7 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 12 px (cards), 10 p
 | ActivityChart | apps/web/src/components/activity-chart | 14 days, stacked all good / needs attention, focusable bars | overview |
 | ProgressBar | apps/web/src/components/ui/progress-bar | done, total, label (role progressbar) | overview |
 | Skeleton | apps/web/src/components/ui/skeleton | block; ProjectHeaderSkeleton | loading.tsx pages |
+| FeaturesFilter | apps/web/src/components/features-filter | search + chips over table rows (data-feature marker) | feature board |
 
 ## The screens that matter (max 3; polish these, everything else is plain components)
 0. Project overview (2026-11-01, the first tab): leads with the decision ("2 receipts need your attention this
@@ -55,7 +56,9 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 12 px (cards), 10 p
    dashboard practice "what needs attention, why, what next" and "summarize, then drill down".
 1. Receipts feed: newest receipts as ReceiptCards; asked / done / missed / outside scope / checks. Primary action:
    "Send fix to agent" (copies a prompt for missed items).
-2. Feature board: features with status, file count, open items, last receipt. Primary action: open a feature.
+2. Feature board: a summary over the whole project (to do, in progress, done, with open items), then each feature
+   with status, the next open item, progress (done of total), files, open items and the last receipt ("3 days ago").
+   Sort on the server (name, most open, recent receipt; kept across pages); search and chips filter the rows in place.
 3. Connect project (onboarding): sign in -> /start (or the Connect tab) -> copy `npx codeceipt` -> approve the code -> first index -> first receipt, each step ticking off by itself.
    Primary action: copy the command.
 

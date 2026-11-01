@@ -25,7 +25,7 @@ export async function orNotFound<T>(load: () => Promise<T>): Promise<T> {
 
 export type ListPageProps = {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ page?: string | string[] }>;
+  searchParams: Promise<{ page?: string | string[]; sort?: string | string[] }>;
 };
 
 /**

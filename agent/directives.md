@@ -51,3 +51,4 @@
 - 2026-10-31: Make the web more interactive and attractive: a new visual style across the landing page and the dashboard, applied lightly through the shared design (tokens, cards, badges, hover/focus, motion); reviewed by screenshots.
 - 2026-11-01: Make the project dashboard amazing, clear and interactive, informed by real inspiration (best-in-class dev dashboards); implement it.
 - 2026-11-01: Dashboard pages get clear loading states (skeletons shaped like the page) while data loads.
+- 2026-11-01: Features tab gets the same treatment as the dashboard: clear, interactive, with progress and loading states.

@@ -1,5 +1,5 @@
 import { fixPrompt, receiptView, safeDisplay } from "@brain/core";
-import { type BrainDb, checklistItemsRepo, dashboardRepo } from "@brain/db";
+import { type BoardSort, type BrainDb, checklistItemsRepo, dashboardRepo } from "@brain/db";
 import { type SessionUser, requireProjectAccess } from "./auth";
 
 // FEAT-017 dashboard data. Every function checks that the signed-in user owns the project first (404 otherwise) and
@@ -23,16 +23,27 @@ const paged = <T>(rows: T[], total: number, page: number): Paged<T> => ({
 });
 const offset = (page: number) => (page - 1) * PAGE_SIZE;
 
+/** The feature board's order from ?sort= (anything else is by name). */
+export function boardSort(raw: string | string[] | undefined): BoardSort {
+  return raw === "open" || raw === "recent" ? raw : "name";
+}
+
 export async function featureBoard(
   db: BrainDb,
   user: SessionUser,
   projectId: string,
   page: number,
+  sort: BoardSort = "name",
 ) {
   const project = await requireProjectAccess(db, projectId, user);
-  const { rows, total } = await dashboardRepo.featureBoard(db, project.id, PAGE_SIZE, offset(page));
+  const [{ rows, total }, counts] = await Promise.all([
+    dashboardRepo.featureBoard(db, project.id, PAGE_SIZE, offset(page), sort),
+    dashboardRepo.featureCounts(db, project.id),
+  ]);
   return {
     project: { id: project.id, name: safeDisplay(project.name, 100) },
+    sort,
+    counts,
     ...paged(
       rows.map((r) => ({
         id: r.id,
@@ -41,6 +52,9 @@ export async function featureBoard(
         status: ["todo", "in_progress", "done"].includes(r.status) ? r.status : "unknown",
         files: r.files,
         openItems: r.openItems,
+        doneItems: r.doneItems,
+        totalItems: r.totalItems,
+        nextItem: r.nextItem === null ? null : safeDisplay(r.nextItem) || null,
         lastReceiptAt: r.lastReceiptAt?.toISOString() ?? null,
       })),
       total,
