@@ -21,14 +21,15 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # PROJECT: a database for integration tests
-    # services:
-    #   postgres:
-    #     image: postgres:17
-    #     env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: app }
-    #     ports: ["5432:5432"]
-    #     options: >-
-    #       --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    # A disposable database for the e2e test (apps/web/e2e): it migrates it, builds the app and writes rows into it.
+    # Unit and integration tests keep using PGlite. Throwaway credentials: the container lives only for this job.
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: app }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -114,8 +115,8 @@ jobs:
         env:
           VERIFY_STRICT: "1"
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          # PROJECT: env the tests need (never real secrets; use GitHub secrets for anything sensitive)
-          # DATABASE_URL: "postgres://app:app@localhost:5432/app"
+          # The e2e test's disposable database (the service above; never a real one).
+          E2E_DATABASE_URL: "postgres://app:app@localhost:5432/app"
         run: |
           case "$BASE_SHA" in ""|0000000000000000000000000000000000000000) BASE_SHA=HEAD~1;; esac
           if git rev-parse -q --verify "$BASE_SHA^{commit}" >/dev/null; then export KIT_BASE="$BASE_SHA"; fi

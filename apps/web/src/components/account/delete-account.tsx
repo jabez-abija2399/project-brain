@@ -1,11 +1,7 @@
 "use client";
 
+import { confirmMatches } from "@/lib/ui-helpers";
 import { useId, useState } from "react";
-
-/** Whether the typed text matches the account name (what the delete button waits for). */
-export function confirmMatches(typed: string, name: string): boolean {
-  return typed.trim().length > 0 && typed.trim() === name.trim();
-}
 
 // Deleting the account: type the account name, then delete. The server checks the name again and deletes everything.
 export function DeleteAccount({ name }: { name: string }) {

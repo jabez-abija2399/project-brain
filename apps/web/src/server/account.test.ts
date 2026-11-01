@@ -4,8 +4,8 @@ import { DELETE as deleteAccountRoute } from "@/app/api/account/route";
 import { DELETE as endSessionsRoute } from "@/app/api/account/sessions/route";
 import { GET as whoami } from "@/app/api/token/whoami/route";
 import SignInPage from "@/app/sign-in/page";
-import { confirmMatches } from "@/components/account/delete-account";
 import { safeNextPath } from "@/lib/safe-path";
+import { confirmMatches } from "@/lib/ui-helpers";
 import {
   adminRepo,
   projectTokensRepo,
