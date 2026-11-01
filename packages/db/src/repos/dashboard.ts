@@ -1,6 +1,6 @@
-import { and, asc, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { checklistItems, features, files, receipts, requests } from "../schema";
+import { checklistItems, features, files, projects, receipts, requests } from "../schema";
 
 // FEAT-017 dashboard reads: one bounded query per page (no query per row), scoped by project.
 export type BoardRow = {
@@ -231,5 +231,35 @@ export const dashboardRepo = {
   async indexedFiles(db: BrainDb, projectId: string): Promise<number> {
     const [n] = await db.select({ n: count() }).from(files).where(eq(files.projectId, projectId));
     return n?.n ?? 0;
+  },
+
+  /**
+   * The newest receipt of each of the owner's listed projects (projects list), in one query. Only projects the owner
+   * owns count: an id of someone else's project returns nothing.
+   */
+  async latestReceipts(
+    db: BrainDb,
+    ownerId: string,
+    projectIds: string[],
+  ): Promise<(FeedRow & { projectId: string })[]> {
+    if (projectIds.length === 0) return [];
+    return db
+      .selectDistinctOn([receipts.projectId], {
+        projectId: receipts.projectId,
+        id: receipts.id,
+        requestId: receipts.requestId,
+        asked: requests.text,
+        commitSha: receipts.commitSha,
+        summaryJson: receipts.summaryJson,
+        createdAt: receipts.createdAt,
+      })
+      .from(receipts)
+      .innerJoin(projects, and(eq(projects.id, receipts.projectId), eq(projects.ownerId, ownerId)))
+      .leftJoin(
+        requests,
+        and(eq(requests.id, receipts.requestId), eq(requests.projectId, receipts.projectId)),
+      )
+      .where(inArray(receipts.projectId, projectIds.slice(0, 100)))
+      .orderBy(receipts.projectId, desc(receipts.createdAt), desc(receipts.id));
   },
 };

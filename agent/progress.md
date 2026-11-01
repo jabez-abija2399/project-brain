@@ -455,3 +455,8 @@ NOT VERIFIED: keyboard shortcuts and search in a live browser with hydration (lo
 Changed: summary strip over the whole project (featureCounts); rows show the next open item, progress (done of total), "N days ago"; server-side sort (name / most open / recent receipt, kept across pages, unknown values fall back to name); search and chips (All / Has open items / To do / In progress / Done) filter rows in place; table-shaped loading skeleton.
 Verified (ran this session): tests first (DB board fields, sorts and counts with a second project; page summary, rows, sort links, attack on the sort parameter, search helper, skeleton); existing dashboard and security tests unchanged and passing; screenshots light/dark, 1280/375; full suites; kit.py check; verify.sh (see PR).
 NOT VERIFIED: search and chips in a live browser with hydration.
+
+## 2026-11-01: Landing redesign and app pages redesign (presentation only)
+- Changed: new landing (receipt hero, agent tabs, terminal stepper, receipt states, privacy toggle, checks, fit table, FAQ, ink band, OG image); new tokens (warm ground, no gradients); shared app shell (header with project switcher and sign out, landing footer), PageHeader/breadcrumbs with a purpose line on every page, 404, docs layout with table of contents; projects list shows each project's newest receipt (one extra bounded query, owner-scoped).
+- Verified: verify.sh PASS, kit check 0 errors, next build OK, screenshots at 375/768/1280 light and dark with no sideways scroll, copy box and phone menu clicked in a hydrated static page.
+- NOT verified: landing islands clicked in a hydrated browser (needs the preview deploy).

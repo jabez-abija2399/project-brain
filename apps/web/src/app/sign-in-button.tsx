@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 // "link": a quiet "Sign in" for the landing page header and footer; the default is the full GitHub button.
-// callbackURL: where to land after GitHub (a path on this site only, never another host).
+// callbackURL: where to land after GitHub (a path on this site only, never another host). tone: the full button is
+// secondary next to the `npx codeceipt` box, primary where signing in is the page's one action (device approval).
 export default function SignInButton({
   variant = "default",
   callbackURL = "/projects",
-}: { variant?: "default" | "link"; callbackURL?: string }) {
+  tone = "secondary",
+}: { variant?: "default" | "link"; callbackURL?: string; tone?: "primary" | "secondary" }) {
   const target = /^\/(?!\/)[\w\-/?=&.%]*$/.test(callbackURL) ? callbackURL : "/projects";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,28 +56,20 @@ export default function SignInButton({
   }
 
   return (
-    <div style={{ marginTop: 32 }}>
+    <span className="signin">
       <button
         type="button"
+        className={`btn ${tone === "primary" ? "btn-primary" : "btn-secondary"} btn-lg`}
         onClick={signIn}
         disabled={busy}
-        style={{
-          background: "var(--text)",
-          color: "var(--surface)",
-          border: 0,
-          borderRadius: 8,
-          padding: "12px 20px",
-          fontSize: 15,
-          cursor: busy ? "not-allowed" : "pointer",
-        }}
       >
         {busy ? "Opening GitHub…" : "Sign in with GitHub"}
       </button>
       {error ? (
-        <p role="alert" style={{ marginTop: 12, color: "var(--danger)", fontSize: 13 }}>
+        <span role="alert" className="signin-error">
           {error}
-        </p>
+        </span>
       ) : null}
-    </div>
+    </span>
   );
 }

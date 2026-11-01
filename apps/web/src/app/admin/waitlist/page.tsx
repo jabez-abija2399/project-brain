@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/shell/page-header";
 import { isAdmin } from "@/server/admin";
 import { getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
@@ -28,15 +29,15 @@ export default async function WaitlistAdminPage({
   );
   const list = await waitlistRepo.list(getDb(), { offset: (page - 1) * MAX_PAGE_SIZE });
   return (
-    <main className="page stack" style={{ maxWidth: 800 }}>
-      <h1>Waitlist</h1>
-      <p style={{ margin: 0, color: "var(--muted)" }}>
-        {list.total} {list.total === 1 ? "email" : "emails"}, newest first.
-      </p>
+    <main className="page page-narrow stack stack-lg">
+      <PageHeader
+        title="Waitlist"
+        purpose={`${list.total} ${list.total === 1 ? "email" : "emails"}, newest first.`}
+      />
       {list.items.length === 0 ? (
-        <p>No emails on this page.</p>
+        <p className="muted">No emails on this page.</p>
       ) : (
-        <table>
+        <table className="table">
           <thead>
             <tr>
               <th scope="col">Email</th>
@@ -46,14 +47,16 @@ export default async function WaitlistAdminPage({
           <tbody>
             {list.items.map((row) => (
               <tr key={row.id}>
-                <td className="mono">{row.email}</td>
-                <td>{row.createdAt.toISOString().slice(0, 10)}</td>
+                <td data-label="Email" className="mono wrap">
+                  {row.email}
+                </td>
+                <td data-label="Joined">{row.createdAt.toISOString().slice(0, 10)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
-      <nav aria-label="Pages" style={{ display: "flex", gap: 16 }}>
+      <nav aria-label="Pages" className="row">
         {page > 1 ? <Link href={`/admin/waitlist?page=${page - 1}`}>Newer</Link> : null}
         {list.nextOffset !== null ? (
           <Link href={`/admin/waitlist?page=${page + 1}`}>Older</Link>

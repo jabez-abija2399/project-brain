@@ -1,7 +1,10 @@
+import { CommandBox } from "@/components/landing/command-box";
+import { PageHeader } from "@/components/shell/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { onboarding } from "@/server/onboarding";
-import { projectsRepo } from "@brain/db";
+import { projectsList } from "@/server/projects-list";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import CreateProjectForm from "./create-form";
@@ -9,7 +12,7 @@ import CreateProjectForm from "./create-form";
 export const dynamic = "force-dynamic";
 
 // Journey part 1: until the user's first receipt arrives, /projects (where sign-in lands) is the guided start page;
-// ?all=1 shows the list anyway.
+// ?all=1 shows the list anyway. Each project shows its newest receipt and whether it needs attention.
 export default async function ProjectsPage({
   searchParams,
 }: {
@@ -20,36 +23,58 @@ export default async function ProjectsPage({
   if ((await searchParams).all === undefined && !(await onboarding(db, user)).steps.receipt) {
     redirect("/start");
   }
-  const { items: projects } = await projectsRepo.listByOwner(db, user.id);
+  const projects = await projectsList(db, user);
 
   return (
-    <main style={{ padding: "48px 32px", maxWidth: 800, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 24, marginBottom: 16 }}>Projects</h1>
-      <CreateProjectForm />
+    <main className="page stack stack-lg">
+      <PageHeader
+        title="Projects"
+        purpose="Each project is one app. Open one to see its receipts, features and what needs your attention."
+      />
       {projects.length === 0 ? (
-        <p style={{ marginTop: 24, color: "var(--muted)" }}>No projects yet. Create one above.</p>
+        <div className="empty" data-testid="empty-state">
+          <h2 className="section-title">No projects yet</h2>
+          <p className="muted">
+            Run this in your app's folder: it connects the repository, creates the project and sets
+            up your agents.
+          </p>
+          <CommandBox command="npx codeceipt" />
+        </div>
       ) : (
-        <ul
-          data-testid="projects-list"
-          style={{ marginTop: 24, listStyle: "none", padding: 0, display: "grid", gap: 12 }}
-        >
+        <ul data-testid="projects-list" className="project-list plain-list">
           {projects.map((p) => (
-            <li
-              key={p.id}
-              style={{
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                padding: "12px 16px",
-              }}
-            >
-              <Link href={`/projects/${p.id}/overview`} style={{ textDecoration: "none" }}>
-                <strong>{p.name}</strong>
+            <li key={p.id}>
+              <Link href={`/projects/${p.id}/overview`} className="project-row">
+                <span className="project-row-main">
+                  <strong className="wrap">{p.name}</strong>
+                  <span className="muted wrap">
+                    {p.last
+                      ? (p.last.asked ?? "A session without a recorded request")
+                      : "No receipts yet: end an agent session in this repository."}
+                  </span>
+                </span>
+                <span className="project-row-side">
+                  {p.last ? (
+                    p.last.reasons.length > 0 ? (
+                      <StatusBadge status="missed" label={p.last.reasons[0] ?? "Needs attention"} />
+                    ) : (
+                      <StatusBadge status="done" label="All good" />
+                    )
+                  ) : (
+                    <StatusBadge status="open" label="Waiting" />
+                  )}
+                  {p.last ? (
+                    <time className="muted" dateTime={p.last.createdAt}>
+                      {p.last.createdAt.slice(0, 10)}
+                    </time>
+                  ) : null}
+                </span>
               </Link>
             </li>
           ))}
         </ul>
       )}
+      <CreateProjectForm />
     </main>
   );
 }

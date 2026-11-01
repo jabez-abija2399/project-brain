@@ -4,7 +4,7 @@ import { ProjectHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
 // the page does not jump when the data arrives. Screen readers hear "Loading project".
 export default function Loading() {
   return (
-    <main className="page stack" aria-busy="true" style={{ gap: 24 }}>
+    <main className="page stack gap-24" aria-busy="true">
       <span className="lp-visually-hidden">Loading project…</span>
       <ProjectHeaderSkeleton />
       <Skeleton style={{ width: "min(440px, 100%)", height: 28 }} />

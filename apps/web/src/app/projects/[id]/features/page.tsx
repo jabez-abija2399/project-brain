@@ -45,7 +45,7 @@ export default async function FeatureBoardPage(props: ListPageProps) {
   const now = new Date();
   const c = board.counts;
   return (
-    <main className="page stack" style={{ gap: 20 }}>
+    <main className="page stack gap-20">
       <div>
         <ProjectNav projectId={board.project.id} current="features" name={board.project.name} />
       </div>

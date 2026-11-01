@@ -20,22 +20,18 @@ export default async function ConnectPage({ params }: { params: Promise<{ id: st
   const done = steps.linked && steps.indexed && steps.receipt;
   const current = [steps.linked, steps.indexed, steps.receipt].map((d) => (d ? "1" : "0")).join("");
   return (
-    <main className="page stack">
+    <main className="page stack stack-lg">
       <div>
         <ProjectNav projectId={project.id} current="connect" name={project.name} />
       </div>
-      <p className="muted" style={{ margin: 0 }}>
+      <p className="muted m0">
         Connect a repository to this project: when the code page opens, pick this project. Its
         server is <code className="wrap">{appUrl()}</code>.
       </p>
       <JourneySteps steps={steps} />
       <LiveStatus on={!done} current={current} />
       {steps.receipt ? (
-        <Link
-          className="btn btn-primary"
-          href={`/projects/${project.id}/receipts`}
-          style={{ alignSelf: "flex-start" }}
-        >
+        <Link className="btn btn-primary self-start" href={`/projects/${project.id}/receipts`}>
           Open the receipts
         </Link>
       ) : null}

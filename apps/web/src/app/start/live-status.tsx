@@ -31,7 +31,7 @@ export function LiveStatus({ on, current }: { on: boolean; current: string }) {
     };
   }, [on, current]);
   return (
-    <p className="muted" data-live={on ? "on" : "off"} aria-live="polite" style={{ margin: 0 }}>
+    <p className="muted m0" data-live={on ? "on" : "off"} aria-live="polite">
       {on ? "This page updates by itself as each step finishes." : "All three steps are done."}
     </p>
   );

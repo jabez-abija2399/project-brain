@@ -13,7 +13,7 @@ export default async function ProposalsPage(props: ListPageProps) {
   const list = await loadListPage(props, pendingProposals);
   const base = `/projects/${list.project.id}`;
   return (
-    <main className="page">
+    <main className="page stack stack-lg">
       <ProjectNav projectId={list.project.id} current="proposals" name={list.project.name} />
       {list.total === 0 ? (
         <EmptyState
@@ -23,7 +23,7 @@ export default async function ProposalsPage(props: ListPageProps) {
         />
       ) : (
         <>
-          <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+          <ul className="stack plain-list">
             {list.rows.map((p) => (
               <li key={p.id} className="card stack">
                 <span className="row">

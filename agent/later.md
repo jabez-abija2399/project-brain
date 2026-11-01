@@ -142,3 +142,6 @@
 - 2026-10-31 D-026: an agent that can write .git could still forge both the snapshot hash and a matching blob; signing the session state with a key outside the repo would close it (see the D-025 entry).
 - 2026-10-31 D-026: the exact old receipt shape that showed empty bullets on edutech was not found in git history; the view now drops any entry without text. If it shows again, the receipt id would tell us the shape.
 - 2026-10-31 D-026 (owner): the empty bullets were on production receipts 6046ad1d-fbd1-4b4e-aaf4-321f11a120fa (2026-10-31 05:56 UTC) and f647d4eb-d3a4-4744-ad39-71e2693a9266 (2026-10-30 21:44 UTC). Check their stored summary_json shape (read-only query on receipts.id) and add that exact shape to receipt-legacy.test.ts.
+- 2026-11-01: Revoking a token has no confirmation step (DESIGN.md asks for one on destructive actions); add a ConfirmDialog in a behaviour change, not in the presentation-only redesign.
+- 2026-11-01: The landing islands (agent tabs, terminal stepper, receipt states, privacy toggle) are unit-tested and render server-side, but were not clicked in a hydrated browser (the production server needs real secrets); check them on the preview deploy.
+- 2026-11-01: Replace the [SCREENSHOT] placeholders in the quickstart with images from docs/screenshots/pages.

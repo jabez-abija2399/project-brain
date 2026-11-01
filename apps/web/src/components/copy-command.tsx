@@ -1,11 +1,6 @@
-import { CopyButton } from "./ui/copy-button";
+import { CommandBox } from "./landing/command-box";
 
-// A command to run in a terminal, shown in full with a copy button (onboarding).
-export function CopyCommand({ command, label = "Copy" }: { command: string; label?: string }) {
-  return (
-    <div className="card row" style={{ justifyContent: "space-between" }}>
-      <code className="wrap">{command}</code>
-      <CopyButton text={command} label={label} variant="primary" />
-    </div>
-  );
+// A command to run in a terminal with a copy button that says "Copied" (onboarding). Same box as the landing page.
+export function CopyCommand({ command }: { command: string; label?: string }) {
+  return <CommandBox command={command} />;
 }

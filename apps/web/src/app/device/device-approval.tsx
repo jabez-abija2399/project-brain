@@ -47,41 +47,60 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
 
   if (done === "approved") {
     return (
-      <output className="card" style={{ display: "block" }}>
-        Approved. Go back to your terminal: it finishes the setup on its own.
+      <output className="card block result result-done">
+        <strong>Approved.</strong> Go back to your terminal: it indexes your code and sets up your
+        agents on its own. Your first receipt arrives after your next agent session.
       </output>
     );
   }
   if (done === "denied") {
     return (
-      <output className="card" style={{ display: "block" }}>
-        Denied. Nothing was connected.
+      <output className="card block result">
+        <strong>Denied.</strong> Nothing was connected. You can close this page.
       </output>
     );
   }
   return (
     <form
-      className="card stack"
+      className="card stack stack-lg"
       onSubmit={(e) => {
         e.preventDefault();
         void send(false);
       }}
     >
-      <label className="stack" style={{ gap: 4 }}>
-        <span>Code shown in your terminal</span>
+      <label className="device-code-box">
+        <span className="muted">Code shown in your terminal (check that it matches)</span>
         <input
-          className="mono"
+          className="device-code mono"
           value={code}
           onChange={(e) => setCode(e.target.value.toUpperCase())}
           maxLength={9}
           autoComplete="off"
+          spellCheck={false}
           required
-          style={{ fontSize: 22, letterSpacing: 2, padding: 8 }}
         />
       </label>
-      <label className="stack" style={{ gap: 4 }}>
-        <span>Connect this repo to</span>
-        <select value={choice} onChange={(e) => setChoice(e.target.value)} style={{ padding: 8 }}>
+      <dl className="facts">
+        <div>
+          <dt>Which computer</dt>
+          <dd>
+            The terminal where you ran <code>npx codeceipt</code>
+            {view.suggestedName ? (
+              <>
+                , in the folder <strong className="wrap">{view.suggestedName}</strong>
+              </>
+            ) : null}
+            .
+          </dd>
+        </div>
+        <div>
+          <dt>What it gets</dt>
+          <dd>A key that lets it send code-free evidence and receipts to one project.</dd>
+        </div>
+      </dl>
+      <label className="field">
+        <span>Which project</span>
+        <select className="input" value={choice} onChange={(e) => setChoice(e.target.value)}>
           {view.projects.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -91,18 +110,26 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
         </select>
       </label>
       {choice === "new" ? (
-        <label className="stack" style={{ gap: 4 }}>
+        <label className="field">
           <span>New project name</span>
           <input
+            className="input"
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={80}
             required
-            style={{ padding: 8 }}
           />
         </label>
       ) : null}
-      <p className="muted" style={{ margin: 0 }}>
+      <div className="next-steps">
+        <strong>What happens next</strong>
+        <ol className="m0 list-indent">
+          <li>Your terminal indexes your code on your machine and sets up your agents.</li>
+          <li>Work with your agent as usual and end the session.</li>
+          <li>The receipt appears in the terminal and on the Receipts page.</li>
+        </ol>
+      </div>
+      <p className="muted m0">
         Only approve a code you started yourself with <code>npx codeceipt</code>.
       </p>
       <div className="row">
@@ -113,7 +140,7 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
           Deny
         </Button>
       </div>
-      <output aria-live="polite" className="muted">
+      <output aria-live="polite" className="error-text">
         {message}
       </output>
     </form>

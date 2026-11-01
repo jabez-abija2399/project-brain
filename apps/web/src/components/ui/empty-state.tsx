@@ -12,11 +12,9 @@ export function EmptyState({
   action: { label: string; href: string } | ReactNode;
 }) {
   return (
-    <div className="card" data-testid="empty-state" style={{ textAlign: "center", padding: 32 }}>
-      <h2 style={{ fontSize: 16, margin: "0 0 8px" }}>{title}</h2>
-      <p className="muted" style={{ margin: "0 0 16px" }}>
-        {text}
-      </p>
+    <div className="empty" data-testid="empty-state">
+      <h2 className="section-title">{title}</h2>
+      <p className="muted">{text}</p>
       {action && typeof action === "object" && "href" in action ? (
         <Link className="btn btn-primary" href={action.href}>
           {action.label}

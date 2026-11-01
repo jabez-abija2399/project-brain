@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import "./globals.css";
+import "./landing.css";
 
 export const metadata = {
   title: "Codeceipt",

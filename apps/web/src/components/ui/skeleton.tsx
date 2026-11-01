@@ -8,7 +8,7 @@ export function Skeleton({ className = "", style }: { className?: string; style?
 // The project header while a page loads: back link, name and tabs.
 export function ProjectHeaderSkeleton() {
   return (
-    <div className="stack" style={{ gap: 12 }}>
+    <div className="stack gap-12">
       <Skeleton style={{ width: 72, height: 14 }} />
       <Skeleton style={{ width: 180, height: 26 }} />
       <Skeleton style={{ width: "min(520px, 100%)", height: 40, borderRadius: 12 }} />

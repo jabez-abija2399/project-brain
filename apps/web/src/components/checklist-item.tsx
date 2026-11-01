@@ -12,7 +12,7 @@ export function ChecklistItem({
   evidence: string[];
 }) {
   return (
-    <li className="stack" style={{ gap: 4 }}>
+    <li className="stack gap-4">
       <span className="row">
         <StatusBadge status={status} />
         <span className="wrap">{text}</span>

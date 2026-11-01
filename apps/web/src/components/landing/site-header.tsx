@@ -3,20 +3,25 @@
 import SignInButton from "@/app/sign-in-button";
 import { useEffect, useState } from "react";
 
-// Landing page header. On phones the links fold into a menu button. Other public pages pass home="/" so the links
-// lead back to the landing page's sections.
+// The public header: wordmark, Docs, Privacy, Sign in and one primary button. Sticky and compact; on phones the
+// links fold into a menu button. Other public pages pass home="/" so the links lead back to the landing page.
 export function SiteHeader({ home = "" }: { home?: "" | "/" }) {
   const [open, setOpen] = useState(false);
-  // Following one of the page's links (a hash change) closes the menu.
+  // Following one of the page's links (a hash change) or pressing Escape closes the menu.
   useEffect(() => {
     const close = () => setOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("hashchange", close);
-    return () => window.removeEventListener("hashchange", close);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("hashchange", close);
+      window.removeEventListener("keydown", onKey);
+    };
   }, []);
   return (
     <header className="lp-header">
       <div className="lp-container lp-header-row">
-        <a className="lp-wordmark" href={`${home}#top`}>
+        <a className="lp-wordmark" href={home === "/" ? "/" : "#top"}>
           Codeceipt
         </a>
         <button
@@ -29,12 +34,11 @@ export function SiteHeader({ home = "" }: { home?: "" | "/" }) {
           {open ? "Close menu" : "Menu"}
         </button>
         <nav id="lp-nav" className="lp-nav" aria-label="Main" data-open={open ? "true" : "false"}>
-          <a href={`${home}#how`}>How it works</a>
-          <a href={`${home}#privacy`}>Privacy</a>
-          <a href={`${home}#faq`}>FAQ</a>
+          <a href="/docs/quickstart">Docs</a>
+          <a href="/privacy">Privacy</a>
           <SignInButton variant="link" />
-          <a className="btn btn-primary" href={`${home}#join`}>
-            Join the beta
+          <a className="btn btn-primary" href={`${home}#get-started`}>
+            Get started
           </a>
         </nav>
       </div>

@@ -25,10 +25,12 @@ export default async function ProjectDetailPage({
   const { items: tokens } = await projectTokensRepo.listForProject(db, project.id);
 
   return (
-    <main className="page">
+    <main className="page stack stack-lg">
       <ProjectNav projectId={project.id} current="" name={safeDisplay(project.name, 100)} />
-      <section style={{ marginTop: 32 }}>
-        <h2 style={{ fontSize: 16, marginBottom: 12 }}>Project tokens</h2>
+      <section className="stack" aria-labelledby="tokens-title">
+        <h2 id="tokens-title" className="section-title">
+          Project tokens
+        </h2>
         <ProjectTokensPanel
           projectId={project.id}
           initialTokens={tokens.map((t) => ({

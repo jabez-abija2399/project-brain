@@ -22,7 +22,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
   const base = `/projects/${o.project.id}`;
   const { week, attention, days } = o.stats;
   return (
-    <main className="page stack" style={{ gap: 24 }}>
+    <main className="page stack stack-lg">
       <div>
         <ProjectNav projectId={o.project.id} current="overview" name={o.project.name} />
       </div>
@@ -45,7 +45,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
               ? "Everything your agents did this week checks out"
               : "No receipts yet"}
         </h2>
-        <p className="muted" style={{ margin: 0 }}>
+        <p className="muted m0">
           {o.totalReceipts > 0
             ? `${plural(week.receipts, "receipt")} this week · ${plural(o.openItems, "open checklist item")}`
             : "Connect a repository and end an agent session: its receipt shows up here."}
@@ -108,7 +108,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
             Needs your attention
           </h3>
           {attention.length === 0 ? (
-            <p className="muted" style={{ margin: 0 }}>
+            <p className="muted m0">
               Nothing to fix. New receipts with missed items, findings or test checks show up here.
             </p>
           ) : (
@@ -117,7 +117,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
                 <li key={a.id}>
                   <Link href={`${base}/receipts#receipt-${a.id}`} className="attention-item">
                     <span className="attention-asked wrap">{a.asked ?? "No request recorded"}</span>
-                    <span className="row" style={{ gap: 6 }}>
+                    <span className="row gap-6">
                       {a.reasons.map((r) => (
                         <StatusBadge key={r} status="missed" label={r} />
                       ))}
@@ -141,7 +141,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
           <ul className="feature-progress">
             {o.features.map((f) => (
               <li key={f.id}>
-                <span className="row" style={{ justifyContent: "space-between" }}>
+                <span className="row between">
                   <strong className="wrap">{f.name}</strong>
                   <span className="muted">
                     {f.done} of {f.total} done

@@ -157,7 +157,7 @@ export default function QuickstartPage() {
       <Screenshot of="the first receipt on the start page, with one item missed" />
 
       <h2>Troubleshooting</h2>
-      <div className="lp-faq">
+      <div className="faq">
         {TROUBLE.map((t) => (
           <details key={t.q}>
             <summary>{t.q}</summary>
