@@ -56,10 +56,12 @@ export async function captureRequest(
   let captured: Awaited<ReturnType<typeof classifyRequest>> | null = null;
   if (llm && granted > 0) {
     try {
+      // The one retry (an unreadable answer) is a second AI call: it needs its own unit of the daily budget.
       captured = await classifyRequest(
         llm,
         text,
         features.map((f) => f.name),
+        async () => (await reserveDaily(db, `ai:${projectId}`, dailyAiBudget(), 1, now)) > 0,
       );
     } catch {
       await releaseDaily(db, `ai:${projectId}`, 1, now);
@@ -75,7 +77,12 @@ export async function captureRequest(
     db,
     projectId,
     { featureId: feature?.id ?? null, text: stored, sessionId },
-    items.map((i) => ({ text: i.text, needsClarification: i.needs_clarification })),
+    items.map((i) => ({
+      text: i.text,
+      needsClarification: i.needs_clarification,
+      // Real-test G: an item the user deferred is recorded as postponed, never dropped.
+      ...(i.postponed ? { status: "postponed" as const } : {}),
+    })),
   );
   return {
     recorded: true,

@@ -6,7 +6,15 @@ import { maskSecretsIn } from "./mask";
 import { oneLineText } from "./text";
 
 // question: a clarifying question from the splitter (needs_clarification). It is never judged and never missed.
-export type ReceiptItemInput = { id: string; text: string; question?: boolean };
+// postponed: the user deferred the item (real-test G): shown as postponed, never judged, never missed.
+// alreadyPresent: done in an earlier request; with no changed file it shows as already present (real-test F).
+export type ReceiptItemInput = {
+  id: string;
+  text: string;
+  question?: boolean;
+  postponed?: boolean;
+  alreadyPresent?: boolean;
+};
 // A changed file with the feature it belongs to (null = no feature known). shared = the file is shared by features
 // and linked to the request's feature, so it counts as in scope. summary: the CLI's code-free change summary (D-025).
 export type ReceiptFileInput = {
@@ -24,7 +32,13 @@ export type ReceiptItem = {
   id: string;
   text: string;
   // done_untested: judged done with file evidence, but no test changed (still listed in not_verified, AC-013-07).
-  status: ItemVerdict | "done_untested" | "not_verified" | "question";
+  status:
+    | ItemVerdict
+    | "done_untested"
+    | "not_verified"
+    | "question"
+    | "postponed"
+    | "already_present";
   evidence: string[];
 };
 export type Receipt = {
@@ -219,17 +233,25 @@ export async function buildReceipt(
 ): Promise<Receipt> {
   const grouped = groupFiles(files);
   const safeItems = items.map((i) => ({ id: i.id, text: safeText(i.text) }));
-  const tasks = items.flatMap((item, i) => (item.question ? [] : [i]));
-  const question = (i: number) => ({
-    ...(safeItems[i] as ReceiptItemInput),
-    status: "question" as const,
+  const tasks = items.flatMap((item, i) => (item.question || item.postponed ? [] : [i]));
+  // Questions and postponed items are never judged: they keep their own state.
+  const question = (i: number): ReceiptItem => ({
+    ...(safeItems[i] as { id: string; text: string }),
+    status: items[i]?.postponed ? "postponed" : "question",
     evidence: [],
   });
   if (files.length === 0 || tasks.length === 0 || llm === null) {
     return {
       ...grouped,
       items: safeItems.map((item, i) =>
-        items[i]?.question ? question(i) : { ...item, status: "missed", evidence: [] },
+        items[i]?.question || items[i]?.postponed
+          ? question(i)
+          : // Real-test F: with no changed file, an item done in an earlier request is already present.
+            {
+              ...item,
+              status: files.length === 0 && items[i]?.alreadyPresent ? "already_present" : "missed",
+              evidence: [],
+            },
       ),
       not_verified: [],
       llm_calls: 0,

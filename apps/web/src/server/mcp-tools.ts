@@ -341,6 +341,12 @@ export function registerBrainTools(server: McpServer): void {
             "The request the change was made for (from create_checklist); without one the receipt still lists the " +
               "changed files and checks, and says no request was recorded",
           ),
+        replacesReceiptId: z
+          .string()
+          .optional()
+          .describe(
+            "The session's earlier receipt this one replaces (same request, last 24 hours); the hooks send it",
+          ),
         changedFiles: z
           .array(z.string())
           .describe("Repo-relative paths of the changed files (max 200)"),

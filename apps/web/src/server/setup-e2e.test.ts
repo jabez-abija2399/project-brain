@@ -204,7 +204,7 @@ describe("npx codeceipt (no arguments) sets everything up", () => {
     expect(await c.run()).toBe(0);
     expect(c.out.slice(-6, -4)).toEqual([
       "  Agents:  Claude Code",
-      "  Install: npm install -g codeceipt (your agents run the codeceipt command)",
+      "  Install: optional. Your agents' hooks run codeceipt through npx when it is not installed; npm install -g codeceipt makes them faster.",
     ]);
     expect(c.out.at(-4)).toBe("What happens next:");
   });

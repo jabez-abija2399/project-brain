@@ -234,6 +234,8 @@ export type AddedDependency = {
   range: string;
   target: string | null;
   version: string | null;
+  // Real-test I: the range before, for a dependency whose version range changed (same package).
+  from?: string;
 };
 
 const SECTIONS = [
@@ -288,5 +290,26 @@ export function addedDependencies(before: string | null, after: string): AddedDe
     .map(([name, rawRange]) => {
       const range = maskSecretsIn(oneLineText(rawRange)).slice(0, MAX_RANGE_CHARS);
       return { name, range, ...lookupTarget(name, rawRange) };
+    });
+}
+
+/**
+ * Real-test I (2026-11-01): dependencies already in package.json whose version range changed to the same package
+ * (re-pointed ones are in addedDependencies), with the range before. Throws like addedDependencies on bad text.
+ */
+export function changedDependencies(before: string | null, after: string): AddedDependency[] {
+  if (before === null) return [];
+  const old = depsOf(JSON.parse(before));
+  const added = new Set(addedDependencies(before, after).map((d) => d.name));
+  return [...depsOf(JSON.parse(after))]
+    .filter(([name, range]) => old.has(name) && old.get(name) !== range && !added.has(name))
+    .map(([name, rawRange]) => {
+      const clean = (r: string) => maskSecretsIn(oneLineText(r)).slice(0, MAX_RANGE_CHARS);
+      return {
+        name,
+        range: clean(rawRange),
+        ...lookupTarget(name, rawRange),
+        from: clean(old.get(name) ?? ""),
+      };
     });
 }

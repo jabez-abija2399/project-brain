@@ -1,8 +1,14 @@
 import { existsSync, statSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { MAX_REQUEST_CHARS, brandEnv, maskSecretsIn } from "@brain/core";
-import { CliError, EXIT, request } from "./api";
+import {
+  MAX_REQUEST_CHARS,
+  brandEnv,
+  fingerprintToken,
+  maskSecretsIn,
+  sameRepo,
+} from "@brain/core";
+import { CliError, EXIT, REPO_MISMATCH_MESSAGE, request } from "./api";
 import {
   type CliConfig,
   configPath,
@@ -22,14 +28,23 @@ import {
 } from "./hooks";
 import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
+import { attentionLines } from "./last-attention";
 import { evidenceLines } from "./last-evidence";
 import { runMcpProxy } from "./mcp-proxy";
-import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
+import {
+  gitDirOf,
+  readRepoLink,
+  removeRepoLink,
+  repoFingerprint,
+  writeRepoLink,
+} from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 import { onPath, runSetup } from "./setup-command";
+import { CLI_VERSION } from "./templates";
 
 export const PACKAGE = "@brain/cli";
-export const VERSION = "0.1.0";
+// Also the version the hooks' npx fallback is pinned to (templates.ts CLI_VERSION; a test keeps them equal).
+export const VERSION = CLI_VERSION;
 // The hosted Codeceipt; --api-url or CODECEIPT_API_URL points the CLI elsewhere (for example http://localhost:3000).
 export const DEFAULT_API_URL = "https://codeceipts.vercel.app";
 
@@ -39,6 +54,8 @@ export function helpText(): string {
     "  codeceipt                           connects this repo: approve a code in your browser, then index and set up agents",
     "  codeceipt login [--api-url <url>]   reads the project token from stdin or CODECEIPT_TOKEN",
     "  codeceipt index [dir]               indexes the repo locally and uploads metadata only",
+    "  codeceipt index --rebuild [dir]     clears the project's stored index and rebuilds it from this repo only",
+    "  codeceipt unlink                    disconnects this repo from its project (run npx codeceipt to connect again)",
     "  codeceipt scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
     "  codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]",
     "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
@@ -148,10 +165,19 @@ export async function projectConfig(
   }
   const link = readRepoLink(gitDir);
   if (!link) throw new CliError(EXIT.auth, NOT_LINKED);
+  // Real-test bug J: the link must belong to this repository (a copied .git, or a folder inside another repo, carries
+  // another repo's link). A mismatch uploads nothing; an older link without a fingerprint gets this repo's once.
+  const fingerprint = await repoFingerprint(deps.git ?? runGit, dir);
+  if (link.fingerprint && !sameRepo(link.fingerprint, fingerprint)) {
+    throw new CliError(EXIT.auth, REPO_MISMATCH_MESSAGE);
+  }
+  if (!link.fingerprint && (fingerprint.root || fingerprint.remote)) {
+    writeRepoLink(gitDir, { ...link, fingerprint });
+  }
   // The token may still be in the config folder from before the rename (D-019).
   const config = readProjectToken(path, link) ?? readProjectToken(legacyConfigPath(path), link);
   if (!config) throw new CliError(EXIT.auth, NO_TOKEN);
-  return config;
+  return { ...config, repo: fingerprintToken(fingerprint) };
 }
 
 export const GIT_UNREADABLE =
@@ -208,22 +234,44 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
     }
     if (command === "login") {
       await login(args, deps, path);
+    } else if (command === "unlink") {
+      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt unlink");
+      const gitDir = await gitDirOf(deps.git ?? runGit, deps.cwd);
+      const link = gitDir ? readRepoLink(gitDir) : null;
+      if (!gitDir || !link || !removeRepoLink(gitDir)) {
+        deps.stdout("This repo is not connected to a Codeceipt project; nothing to unlink.");
+      } else {
+        deps.stdout(
+          `Disconnected this repo from project ${link.projectId}. Run \`npx codeceipt\` to connect it to a new or existing project.`,
+        );
+      }
+      return EXIT.ok;
     } else if (command === "index") {
-      if (args.length > 1) throw new CliError(EXIT.usage, "Usage: codeceipt index [dir]");
-      const config = await projectConfig(deps, path, resolve(deps.cwd, args[0] ?? "."));
+      // --rebuild: the stored index is cleared first, so files from another repo cannot survive (real-test bug J).
+      const rebuild = args.includes("--rebuild");
+      const rest = args.filter((a) => a !== "--rebuild");
+      if (rest.length > 1)
+        throw new CliError(EXIT.usage, "Usage: codeceipt index [--rebuild] [dir]");
+      const dir = resolve(deps.cwd, rest[0] ?? ".");
+      const config = await projectConfig(deps, path, dir);
       if (!isSafeApiUrl(config.apiUrl))
         throw new CliError(
           EXIT.usage,
           "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `codeceipt login` again.",
         );
-      await runIndex(
-        deps.fetch,
-        config,
-        resolve(deps.cwd, args[0] ?? "."),
-        deps.stdout,
-        deps.homedir ?? osHomedir(),
-        deps.sleep,
-      );
+      if (rebuild) {
+        const cleared = await request<{ removed: number }>(
+          deps.fetch,
+          config,
+          "POST",
+          `/api/index/${encodeURIComponent(config.projectId)}/rebuild`,
+          {},
+        );
+        deps.stdout(
+          `Cleared the stored index (${Number(cleared.removed) || 0} files); rebuilding it from this repo.`,
+        );
+      }
+      await runIndex(deps.fetch, config, dir, deps.stdout, deps.homedir ?? osHomedir(), deps.sleep);
     } else if (command === "init") {
       const config = await projectConfig(deps, path, deps.cwd);
       if (!isSafeApiUrl(config.apiUrl))
@@ -345,7 +393,11 @@ async function runHook(
       // way to show a SessionEnd message without that label. The summary stays on stderr and `codeceipt last`.
       await sessionEnd(agent, hookDeps);
       return EXIT.ok;
-    } else deps.stderr("Codeceipt: unknown hook (use session-start or session-end).");
+    } else if (event === "stop") {
+      // Owner, 2026-11-01: Claude finished responding (VS Code may never send SessionEnd): keep the receipt current.
+      await sessionEnd(agent, hookDeps, { stop: true });
+      return EXIT.ok;
+    } else deps.stderr("Codeceipt: unknown hook (use session-start, session-end or stop).");
   } catch {
     deps.stderr("Codeceipt: the hook failed; the session goes on without it.");
   }
@@ -499,6 +551,7 @@ async function runLast(deps: CliDeps, path: string, evidence = false): Promise<n
   deps.stdout(`Latest receipt${at}:`);
   for (const line of receiptSummary(receipt as Record<string, unknown>, config, id))
     deps.stdout(line);
+  for (const line of attentionLines(receipt as Record<string, unknown>)) deps.stdout(line);
   if (evidence)
     for (const line of evidenceLines(receipt as Record<string, unknown>)) deps.stdout(line);
   return EXIT.ok;

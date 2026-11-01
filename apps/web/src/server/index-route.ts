@@ -15,6 +15,7 @@ type Ctx = { params: Promise<{ projectId: string }> };
 export function indexRoute(
   name: string,
   handle: (db: BrainDb, projectId: string, req: Request) => Promise<Record<string, unknown>>,
+  opts: { replaceRepo?: boolean } = {},
 ) {
   return async (req: Request, { params }: Ctx): Promise<Response> => {
     const started = Date.now();
@@ -22,7 +23,7 @@ export function indexRoute(
     let status = 200;
     try {
       const db = getDb();
-      const token = await requireTokenProject(db, req, projectId);
+      const token = await requireTokenProject(db, req, projectId, opts);
       await rateLimit(db, `index:${token.id}`, INDEX_REQUESTS_PER_MINUTE);
       await rateLimit(db, `index-project:${projectId}`, INDEX_REQUESTS_PER_MINUTE);
       return NextResponse.json({ ok: true, ...(await handle(db, projectId, req)) });

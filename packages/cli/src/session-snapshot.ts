@@ -23,7 +23,7 @@ export const MAX_SNAPSHOT_FILES = 20_000;
 export const MAX_SNAPSHOT_BYTES = 256 * 1024 * 1024;
 const HASH = /^(deleted|[0-9a-f]{64}|link:[0-9a-f]{64}|other)$/;
 
-async function inside(root: string, file: string): Promise<string | null> {
+export async function inside(root: string, file: string): Promise<string | null> {
   if (file.startsWith("../") || isAbsolute(file) || file.includes("\0")) return null;
   const abs = join(root, file);
   const parent = await realpath(join(abs, "..")).catch(() => null);

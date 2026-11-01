@@ -3,6 +3,8 @@ import {
   MAX_SUMMARY_SYMBOLS,
   type ReceiptFileInput,
   TESTS_KEY,
+  askedForCheck,
+  askedForFile,
   buildReceipt,
   errorType,
   featureFromPath,
@@ -10,6 +12,7 @@ import {
   maskSecretsIn,
   safePath,
   secretFinding,
+  testSubjects,
 } from "@brain/core";
 import {
   type BrainDb,
@@ -64,6 +67,8 @@ const receiptSchema = z
     projectId: id.optional(),
     // Optional (dogfooding): a session that changed files without a recorded request still gets a receipt.
     requestId: id.optional(),
+    // Owner, 2026-11-01 (Stop hook): the receipt this one replaces (same session, same request, last 24 hours).
+    replacesReceiptId: id.optional(),
     changedFiles: z
       .array(repoPath)
       .max(MAX_RECEIPT_FILES, `at most ${MAX_RECEIPT_FILES} files per receipt`),
@@ -129,15 +134,31 @@ async function filesWithFeatures(
   paths: string[],
   requestFeatureId: string | null,
 ): Promise<ReceiptFileInput[]> {
-  const links = await featureFilesRepo.featuresForPaths(db, projectId, paths);
+  // Real-test E: a test file goes with the code it tests (permissions.test.ts with permissions.ts).
+  const subjects = new Map(paths.map((p) => [p, testSubjects(p)]));
+  const lookup = [...new Set([...paths, ...[...subjects.values()].flat()])].slice(0, 2_000);
+  const links = await featureFilesRepo.featuresForPaths(db, projectId, lookup);
   const byPath = new Map<string, typeof links>();
   for (const l of links) byPath.set(l.path, [...(byPath.get(l.path) ?? []), l]);
+  for (const p of paths) {
+    const own = byPath.get(p);
+    // Only a test file with no feature, or only the tests group, takes its subject's.
+    if (own?.some((l) => l.featureKey !== TESTS_KEY)) continue;
+    const subject = (subjects.get(p) ?? []).find((s) => byPath.has(s));
+    if (subject) byPath.set(p, byPath.get(subject) ?? []);
+  }
   const unlinkedKeys = new Map<string, string>();
   for (const p of paths) {
     if (byPath.has(p)) continue;
     const key = featureFromPath(p);
     if (key) unlinkedKeys.set(p, key);
   }
+  const folderOf = (p: string) => (p.includes("/") ? p.slice(0, p.lastIndexOf("/")) : "");
+  const byFolder = await featureFilesRepo.primaryFeatureByFolder(
+    db,
+    projectId,
+    paths.filter((p) => !byPath.has(p)).map(folderOf),
+  );
   const byKey = new Map(
     (await featuresRepo.byKeys(db, projectId, [...new Set(unlinkedKeys.values())])).map((f) => [
       f.key,
@@ -158,10 +179,22 @@ async function filesWithFeatures(
       };
     }
     const guess = byKey.get(unlinkedKeys.get(path) ?? "");
+    if (guess) {
+      return {
+        path,
+        feature: guess.name,
+        inScope: requestFeatureId === null || isTestCode(path) || guess.id === requestFeatureId,
+      };
+    }
+    // Real-test E: a file not indexed yet goes with its folder: the feature most of the folder's files belong to,
+    // else the folder itself, never "(no feature)" when it sits in a folder.
+    const dir = folderOf(path);
+    const sibling = byFolder.get(dir);
     return {
       path,
-      feature: guess?.name ?? null,
-      inScope: requestFeatureId === null || isTestCode(path) || guess?.id === requestFeatureId,
+      feature: sibling?.featureName ?? (dir ? `${dir}/` : null),
+      // Only for grouping: a guess from the folder never makes a file count as in scope.
+      inScope: requestFeatureId === null || isTestCode(path),
     };
   });
 }
@@ -186,9 +219,8 @@ export async function generateReceipt(
   if (input.requestId && !request) throw new AppError(404, "not_found");
   // Bad package.json text or a full per-minute limit fails here, before any AI budget is spent.
   const dependencies = await prepareNewDependencies(db, token, input.packageJson ?? [], now);
-  const items = request
-    ? await checklistItemsRepo.listUnresolvedForRequest(db, pid, request.id)
-    : [];
+  // The items it judges plus the postponed ones (shown, never judged; real-test G).
+  const items = request ? await checklistItemsRepo.listForReceipt(db, pid, request.id) : [];
   // Codeceipt's own setup files are never the user's change, even when an older CLI sends them.
   const paths = [...new Set(input.changedFiles)].filter((p) => !isCodeceiptSetupPath(p));
   const summaries = new Map((input.changeSummaries ?? []).map((s) => [s.path, s]));
@@ -203,7 +235,8 @@ export async function generateReceipt(
 
   let llm = null;
   // Clarifying questions are never judged (D-025): the AI call is only for tasks.
-  if (files.length > 0 && items.some((i) => !i.needsClarification)) {
+  const judgedItems = items.filter((i) => !i.needsClarification && i.status !== "postponed");
+  if (files.length > 0 && judgedItems.length > 0) {
     llm = getLlm();
     if (!llm) throw new AppError(503, "ai_not_configured", "receipt judging is not configured");
     if ((await reserveDaily(db, `ai:${pid}`, dailyAiBudget(), 1, now)) === 0) {
@@ -216,9 +249,25 @@ export async function generateReceipt(
   }
   let receipt: Awaited<ReturnType<typeof buildReceipt>>;
   try {
+    // Real-test F: with no changed file, an item already done in an earlier request is "already present".
+    const present =
+      files.length === 0 && request
+        ? await checklistItemsRepo.doneElsewhere(
+            db,
+            pid,
+            request.id,
+            judgedItems.map((i) => i.text),
+          )
+        : new Set<string>();
     receipt = await buildReceipt(
       llm,
-      items.map((i) => ({ id: i.id, text: i.text, question: i.needsClarification })),
+      items.map((i) => ({
+        id: i.id,
+        text: i.text,
+        question: i.needsClarification,
+        ...(i.status === "postponed" ? { postponed: true } : {}),
+        ...(present.has(i.text.toLowerCase()) ? { alreadyPresent: true } : {}),
+      })),
       files,
     );
   } catch (err) {
@@ -235,13 +284,25 @@ export async function generateReceipt(
   const omitted = dependencies.omitted;
   // Secrets (masked by the CLI) and RLS problems from the last index (FEAT-015).
   // FEAT-018: tests deleted, skipped or weakened, as found by the session-end hook on the user's machine.
-  const integrity = testIntegrity(input.testIntegrity);
-  const security = await receiptFindings(
+  // Real-test B: a check or finding in a file the user named, of a kind the user asked for, is labelled "asked".
+  const asked = request ? [request.text] : [];
+  const checked = testIntegrity(input.testIntegrity);
+  const integrity = checked && {
+    ...checked,
+    flags: checked.flags.map((f) => (askedForCheck(asked, f) ? { ...f, asked: true } : f)),
+  };
+  const found = await receiptFindings(
     db,
     pid,
     input.secretFindings ?? [],
     input.secretFindingsOmitted ?? 0,
   );
+  const security = {
+    ...found,
+    findings: found.findings.map((f) =>
+      !f.table && askedForFile(asked, f.file) ? { ...f, asked: true } : f,
+    ),
+  };
 
   // A receipt with no changed files reports every item missed (AC-013-05) but changes no stored status, so it
   // cannot downgrade work an earlier receipt judged partial.
@@ -250,11 +311,14 @@ export async function generateReceipt(
       db,
       pid,
       receipt.items.flatMap((i) =>
-        // Not verified and done without a test keep their stored status (never called done, AC-013-07); questions
-        // are never judged.
-        i.status === "not_verified" || i.status === "done_untested" || i.status === "question"
-          ? []
-          : [{ id: i.id, status: i.status }],
+        // Not verified keeps its stored status; done without a test is stored as done_untested, never done
+        // (AC-013-07); questions and postponed items are never judged.
+        i.status === "done" ||
+        i.status === "partial" ||
+        i.status === "missed" ||
+        i.status === "done_untested"
+          ? [{ id: i.id, status: i.status }]
+          : [],
       ),
     );
   }
@@ -278,6 +342,11 @@ export async function generateReceipt(
       : null,
   }));
   const baseline = {
+    // Real-test F: a session with a request but no changed file still gets a receipt that says so.
+    ...(files.length === 0 ? { no_changes: true } : {}),
+    ...(receipt.outside_scope.some((p) => askedForFile(asked, p))
+      ? { outside_scope_asked: receipt.outside_scope.filter((p) => askedForFile(asked, p)) }
+      : {}),
     ...(files.length > 0 ? { evidence } : {}),
     ...(files.length > 0 && !input.changeSummaries?.length ? { no_change_summaries: true } : {}),
     ...(input.secretFindingsBeforeSession?.length
@@ -299,6 +368,16 @@ export async function generateReceipt(
       test_integrity: integrity,
     },
   });
+  // One receipt per session: the one it replaces goes, only within this project, for the same request and if recent.
+  if (input.replacesReceiptId) {
+    await receiptsRepo.deleteReplaced(
+      db,
+      pid,
+      input.replacesReceiptId,
+      request?.id ?? null,
+      new Date(now.getTime() - 24 * 3600_000),
+    );
+  }
   console.info(
     "[mcp]",
     "generate_receipt",

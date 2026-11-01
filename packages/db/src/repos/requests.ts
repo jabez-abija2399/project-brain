@@ -36,7 +36,8 @@ export const requestsRepo = {
     db: BrainDb,
     projectId: string,
     data: { featureId: string | null; text: string; sessionId?: string | null },
-    items: { text: string; needsClarification: boolean }[],
+    // status "postponed": the user deferred the item (real-test G); every other item starts open.
+    items: { text: string; needsClarification: boolean; status?: "open" | "postponed" }[],
   ): Promise<{ request: RequestRow; items: ChecklistItem[] }> {
     return db.transaction(async (tx) => {
       const [request] = await tx

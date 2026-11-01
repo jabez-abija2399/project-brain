@@ -148,6 +148,14 @@ export function placementOf(path: string, url: string | undefined): Placement {
   return null;
 }
 
+/** Real-test E: the files a test file tests, by name (src/lib/permissions.test.ts -> src/lib/permissions.ts). */
+export function testSubjects(path: string): string[] {
+  const m = /^(.*)\.(test|spec|cy)\.([cm]?[jt]sx?)$/.exec(path);
+  if (!m) return [];
+  const exts = ["ts", "tsx", "js", "jsx", "mts", "mjs"];
+  return [m[3] as string, ...exts.filter((e) => e !== m[3])].map((e) => `${m[1]}.${e}`);
+}
+
 // Child segment names per route prefix, built from page routes only (an API route never makes a container).
 export type RouteTree = Map<string, Set<string>>;
 

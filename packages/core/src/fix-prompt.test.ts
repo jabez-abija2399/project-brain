@@ -72,6 +72,10 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
       findingsBeforeSession: [],
       testChecks: [],
       passing: { before: null, after: null },
+      // Real-test F, B and I (2026-11-01).
+      noChanges: false,
+      outsideScopeAsked: [],
+      dependencies: [],
     });
   });
 

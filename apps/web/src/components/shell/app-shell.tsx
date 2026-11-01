@@ -59,7 +59,7 @@ export function AppShell({
       </a>
       <header className="app-header">
         <div className="app-header-row">
-          <Link className="lp-wordmark" href="/projects?all=1">
+          <Link className="lp-wordmark" href="/projects?all=1" aria-label="Codeceipt: all projects">
             Codeceipt
           </Link>
           {projects.length > 0 ? <ProjectSwitcher projects={projects} /> : null}
@@ -67,8 +67,14 @@ export function AppShell({
             <Link className="app-header-link" href="/docs/quickstart">
               Docs
             </Link>
-            <Link className="app-header-link app-user" href="/account" title={user.email}>
-              {user.name}
+            {/* Real-test D: a GitHub account without a display name still gets a visible, named link. */}
+            <Link
+              className="app-header-link app-user"
+              href="/account"
+              title={user.email}
+              aria-label={`Account: ${user.name.trim() || user.email.trim() || "your account"}`}
+            >
+              {user.name.trim() || user.email.trim() || "Account"}
             </Link>
             <SignOutButton />
           </span>

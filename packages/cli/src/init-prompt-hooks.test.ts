@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type CliDeps, main } from "./index";
-import { OPENCODE_PLUGIN } from "./templates";
+import { OPENCODE_PLUGIN, shellHook } from "./templates";
 import { linkRepo } from "./test-support";
 
 // init installs each agent's prompt-submit hook, so requests are recorded without the agent having to remember.
@@ -43,14 +43,28 @@ describe("init installs prompt-submit hooks", () => {
     expect(await t.run()).toBe(0);
     expect(json(t.repo, ".claude/settings.json").hooks.UserPromptSubmit).toEqual([
       {
-        hooks: [{ type: "command", command: "codeceipt hook prompt --agent claude", timeout: 10 }],
+        hooks: [
+          {
+            type: "command",
+            command: shellHook("codeceipt hook prompt --agent claude"),
+            timeout: 10,
+          },
+        ],
       },
     ]);
     expect(json(t.repo, ".cursor/hooks.json").hooks.beforeSubmitPrompt).toEqual([
-      { command: "codeceipt hook prompt --agent cursor", timeout: 10 },
+      { command: shellHook("codeceipt hook prompt --agent cursor"), timeout: 10 },
     ]);
     expect(json(t.repo, ".codex/hooks.json").hooks.UserPromptSubmit).toEqual([
-      { hooks: [{ type: "command", command: "codeceipt hook prompt --agent codex", timeout: 10 }] },
+      {
+        hooks: [
+          {
+            type: "command",
+            command: shellHook("codeceipt hook prompt --agent codex"),
+            timeout: 10,
+          },
+        ],
+      },
     ]);
     const report = t.out.join("\n");
     expect(report).toContain("  added   .claude/settings.json: UserPromptSubmit hook");

@@ -22,6 +22,9 @@ export type HandoffInput = {
     nextStep: string;
   } | null;
   checklist: string[];
+  // Real-test H: questions for the user (never work) and items done without a test, listed apart from open work.
+  questions?: string[];
+  untested?: string[];
   featuresInProgress: string[];
   // FEAT-019: the first feature of the approved plan, by build order, that is not done yet.
   nextFeature?: string | null;
@@ -54,6 +57,8 @@ const HEADS = [
   "FEATURES IN PROGRESS:",
   "RECENT DECISIONS (newest first):",
   null,
+  "QUESTIONS FOR THE USER (not tasks; ask before building):",
+  "DONE, ADD A TEST LATER:",
 ] as const;
 const DIRECTIVES = 0;
 const GOAL = 1;
@@ -65,11 +70,28 @@ const CHECKLIST = 6;
 const FEATURES = 7;
 const DECISIONS = 8;
 const ALL_FEATURES = 9;
+const QUESTIONS = 10;
+const UNTESTED = 11;
+// Display order: the open work, then questions and untested items, then the rest.
+const ORDER = [
+  DIRECTIVES,
+  GOAL,
+  NEXT_FEATURE,
+  NEXT,
+  LAST,
+  UNFINISHED,
+  CHECKLIST,
+  QUESTIONS,
+  UNTESTED,
+  FEATURES,
+  DECISIONS,
+  ALL_FEATURES,
+];
 
 // Section words that the note itself prints. Saved text may not contain them in any case, so a value cannot pass
 // for a section (e.g. a fake standing instruction in a goal).
 const SECTION_WORDS =
-  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|STILL OPEN FROM EARLIER|FEATURES IN PROGRESS|PROJECT HANDOFF|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:|NEXT FEATURE)/gi;
+  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|STILL OPEN FROM EARLIER|FEATURES IN PROGRESS|PROJECT HANDOFF|QUESTIONS FOR THE USER|DONE, ADD A TEST LATER|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:|NEXT FEATURE)/gi;
 
 // Saved text is flattened to one line so a value cannot start a new section.
 function oneLine(value: string): string {
@@ -95,6 +117,8 @@ function pieces(input: HandoffInput): Piece[] {
   if (input.nextFeature)
     add(NEXT_FEATURE, `NEXT FEATURE (approved plan, build order): ${oneLine(input.nextFeature)}`);
   for (const item of input.checklist) add(CHECKLIST, `- ${oneLine(item)}`);
+  for (const q of input.questions ?? []) add(QUESTIONS, `- ${oneLine(q)}`);
+  for (const u of input.untested ?? []) add(UNTESTED, `- ${oneLine(u)}`);
   for (const f of input.featuresInProgress) add(FEATURES, `- ${oneLine(f)}`);
   for (const d of input.decisions.slice(0, DECISIONS_SHOWN)) {
     const day = d.createdAt.toISOString().slice(0, 10);
@@ -132,12 +156,13 @@ export function buildHandoffNote(input: HandoffInput): string {
   }
 
   const lines: string[] = [PREAMBLE];
-  HEADS.forEach((head, section) => {
+  for (const section of ORDER) {
+    const head = HEADS[section] ?? null;
     const kept = all.filter((p) => p.section === section && p.out !== undefined);
-    if (kept.length === 0) return;
+    if (kept.length === 0) continue;
     if (head) lines.push(head);
     for (const p of kept) lines.push(p.out as string);
-  });
+  }
   let note = lines.join("\n");
   // Last resort: the pieces above always fit, so this only matters if the caller broke the directive budget.
   if (note.length >= HANDOFF_LIMIT) note = `${note.slice(0, HANDOFF_LIMIT - 2)}…`;

@@ -1,7 +1,8 @@
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
 
-export type CliConfig = { apiUrl: string; projectId: string; token: string };
+// repo: the hashed fingerprint of the repository the command runs in (sent as x-codeceipt-repo; never a URL or commit).
+export type CliConfig = { apiUrl: string; projectId: string; token: string; repo?: string };
 
 // The OS config dir, never the repo: $XDG_CONFIG_HOME or ~/.config on Linux, ~/Library/Application Support on
 // macOS, %APPDATA% on Windows.

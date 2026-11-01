@@ -141,6 +141,9 @@ describe("codeceipt last", () => {
       "Codeceipt receipt: 1 done, 1 missed.",
       "Checks needing attention: none.",
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-7",
+      // Real-test C (2026-11-01): what needs attention is named, not only counted.
+      "Needs attention:",
+      "  - Missed: y",
     ]);
   });
 

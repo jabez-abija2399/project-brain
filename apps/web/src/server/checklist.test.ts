@@ -201,14 +201,17 @@ describe("create_checklist (FEAT-012)", () => {
         needs_clarification: true,
       },
     ]);
-    // Even when the model answers with prose instead of items, nothing is guessed.
+    // Owner, 2026-11-01 (real-test A): when the model answers with prose (twice), the request is kept as written as
+    // one task, never split by guessing and never turned into a "Clarify:" question.
     scripted("Sure, I will improve everything!");
     const fallback = await createChecklist(world.db, tokenRow, {
       projectId,
       featureId,
       request: "make it better",
     });
-    expect(fallback.items.map((i) => i.needs_clarification)).toEqual([true]);
+    expect(fallback.items.map((i) => [i.text, i.needs_clarification])).toEqual([
+      ["make it better", false],
+    ]);
   });
 
   it("AC-012-05 creating a checklist on another user's project or feature returns 404, with no AI call", async () => {

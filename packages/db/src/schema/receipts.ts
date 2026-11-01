@@ -51,7 +51,11 @@ export const checklistItems = pgTable(
       .references(() => projects.id, { onDelete: "cascade" }),
     requestId: text("request_id").notNull(),
     text: text("text").notNull(),
-    status: text("status", { enum: ["open", "done", "partial", "missed", "dismissed"] })
+    // postponed: the user deferred the item (real-test G); done_untested: a receipt found the change but no test
+    // (AC-013-07: never stored or shown as done; a later receipt can still judge it).
+    status: text("status", {
+      enum: ["open", "done", "partial", "missed", "dismissed", "postponed", "done_untested"],
+    })
       .notNull()
       .default("open"),
     // FEAT-012: flagged instead of guessed; an agent's change waits here until the owner confirms it.

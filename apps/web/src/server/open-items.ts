@@ -53,6 +53,8 @@ export async function openItems(
         id: i.id,
         text: safe(i.text, 300),
         status: i.status,
+        // Real-test H: a question for the user is never work, and never the next step.
+        ...(i.needsClarification ? { question: true } : {}),
       })),
       items_omitted: Math.max(0, r.items.length - ITEMS_PER_REQUEST),
     })),

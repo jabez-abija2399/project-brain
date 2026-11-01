@@ -1,11 +1,19 @@
 import { spawn } from "node:child_process";
 import { statSync } from "node:fs";
 import { basename, delimiter, join } from "node:path";
-import { CliError, EXIT, MAX_RESPONSE_BYTES, readCapped, request } from "./api";
+import { type RepoFingerprint, fingerprintToken, sameRepo } from "@brain/core";
+import {
+  CliError,
+  EXIT,
+  MAX_RESPONSE_BYTES,
+  REPO_MISMATCH_MESSAGE,
+  readCapped,
+  request,
+} from "./api";
 import { type CliConfig, readProjectToken, saveProjectToken } from "./config";
 import { runIndex } from "./index-command";
 import { agentList, runInit } from "./init-command";
-import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
+import { gitDirOf, readRepoLink, repoFingerprint, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot } from "./scan-secrets";
 
 // Launch part 1: `npx codeceipt` with no arguments. Gets a project token through the browser (device approval: a short
@@ -38,18 +46,23 @@ export function onPath(
   const path = env.PATH ?? env.Path ?? "";
   const exts =
     platform === "win32" ? (env.PATHEXT ?? ".COM;.EXE;.BAT;.CMD").split(";").filter(Boolean) : [""];
-  return path
-    .split(platform === "win32" ? ";" : delimiter)
-    .filter(Boolean)
-    .some((dir) =>
-      exts.some((ext) => {
-        try {
-          return statSync(join(dir, name + ext.toLowerCase())).isFile();
-        } catch {
-          return false;
-        }
-      }),
-    );
+  return (
+    path
+      .split(platform === "win32" ? ";" : delimiter)
+      .filter(Boolean)
+      // Owner, 2026-11-01: `npx codeceipt` puts its temporary install on PATH (…/_npx/<hash>/node_modules/.bin); that copy
+      // is gone after the run, so it does not count as installed.
+      .filter((dir) => !/[\\/]_npx[\\/]/.test(dir))
+      .some((dir) =>
+        exts.some((ext) => {
+          try {
+            return statSync(join(dir, name + ext.toLowerCase())).isFile();
+          } catch {
+            return false;
+          }
+        }),
+      )
+  );
 }
 
 /** Opens the address in the default browser; false when no browser could be started. */
@@ -184,15 +197,31 @@ async function existingConfig(
   gitDir: string,
   apiUrl: string,
   fetchImpl: Fetch,
+  fingerprint: RepoFingerprint,
+  stdout: (line: string) => void,
 ): Promise<CliConfig | null> {
   const link = readRepoLink(gitDir);
   if (!link || new URL(link.apiUrl).origin !== new URL(apiUrl).origin) return null;
+  // Real-test bug J: a link that belongs to another repository (a copied .git) is never reused.
+  if (link.fingerprint && !sameRepo(link.fingerprint, fingerprint)) {
+    stdout(
+      `This repo carries a link to project ${link.projectId}, which was connected from a different repository. Connect this repo to a new or existing project:`,
+    );
+    return null;
+  }
   const config = readProjectToken(path, link);
   if (!config) return null;
+  const withRepo = { ...config, repo: fingerprintToken(fingerprint) };
   try {
-    await request<{ project_id: string }>(fetchImpl, config, "GET", "/api/token/whoami");
-    return config;
-  } catch {
+    // The server checks the repository too (409 when the project belongs to another repo).
+    await request<{ project_id: string }>(fetchImpl, withRepo, "GET", "/api/token/whoami");
+    return withRepo;
+  } catch (err) {
+    if (err instanceof CliError && err.message === REPO_MISMATCH_MESSAGE) {
+      stdout(
+        `Project ${link.projectId} belongs to a different repository. Connect this repo to a new or existing project:`,
+      );
+    }
     return null;
   }
 }
@@ -206,13 +235,33 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
       "Run `npx codeceipt` inside your app's git repository (run `git init` there first if it has none).",
     );
   }
-  let config = await existingConfig(configFile, gitDir, apiUrl, deps.fetch);
+  const fingerprint = await repoFingerprint(deps.git, root);
+  const known = fingerprint.root !== null || fingerprint.remote !== null;
+  let config = await existingConfig(
+    configFile,
+    gitDir,
+    apiUrl,
+    deps.fetch,
+    fingerprint,
+    deps.stdout,
+  );
   if (config) {
     deps.stdout(`This repo is already connected to project ${config.projectId}.`);
+    // An older link learns its repository's fingerprint.
+    const link = readRepoLink(gitDir);
+    if (link && !link.fingerprint && known) writeRepoLink(gitDir, { ...link, fingerprint });
   } else {
-    config = await approveInBrowser(apiUrl, root, deps);
-    saveProjectToken(configFile, config);
-    if (!writeRepoLink(gitDir, { apiUrl, projectId: config.projectId })) {
+    const approved = await approveInBrowser(apiUrl, root, deps);
+    saveProjectToken(configFile, approved);
+    config = { ...approved, repo: fingerprintToken(fingerprint) };
+    // A repo with no commit and no remote yet has nothing to fingerprint: it learns it on its first upload.
+    if (
+      !writeRepoLink(gitDir, {
+        apiUrl,
+        projectId: config.projectId,
+        ...(known ? { fingerprint } : {}),
+      })
+    ) {
       throw new CliError(
         EXIT.failure,
         "Could not link this repo: its .git/codeceipt folder or link file is a symlink.",
@@ -242,7 +291,9 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
   );
   deps.stdout(`  Agents:  ${agents}`);
   if (deps.hasCommand && !deps.hasCommand("codeceipt")) {
-    deps.stdout("  Install: npm install -g codeceipt (your agents run the codeceipt command)");
+    deps.stdout(
+      "  Install: optional. Your agents' hooks run codeceipt through npx when it is not installed; npm install -g codeceipt makes them faster.",
+    );
   }
   // Journey part 3: what to do next, ending with where the receipt will be.
   deps.stdout("What happens next:");
