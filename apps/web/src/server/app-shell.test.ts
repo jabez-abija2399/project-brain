@@ -71,7 +71,8 @@ describe("app shell", () => {
   it("the footer is the same as the landing page's (same links, same order)", async () => {
     const { Landing } = await import("@/components/landing/landing");
     const landing = renderToStaticMarkup(createElement(Landing));
-    expect(footerLinks(await shell())).toEqual(footerLinks(landing));
+    // Signed in, the footer is the landing page's without its Sign in link.
+    expect(footerLinks(await shell())).toEqual(footerLinks(landing).filter((h) => h !== "/sign-in"));
   });
 
   it("attack: the switcher lists only the signed-in user's own projects", async () => {
@@ -88,7 +89,7 @@ describe("app shell", () => {
     const html = await shell();
     expect(html).toContain('class="lp-header"');
     expect(html).not.toContain("switcher");
-    expect(html).toContain(">Sign in</button>");
+    expect(html).toContain('href="/sign-in">Sign in</a>');
   });
 
   it("the switcher knows the current project from the address", () => {

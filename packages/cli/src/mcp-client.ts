@@ -1,4 +1,4 @@
-import { CliError, EXIT, readCapped } from "./api";
+import { CliError, EXIT, SUSPENDED_MESSAGE, readCapped } from "./api";
 import type { CliConfig } from "./config";
 
 type Fetch = (url: string, init?: RequestInit) => Promise<Response>;
@@ -37,8 +37,12 @@ export async function callTool(
   } catch {
     throw new CliError(EXIT.server, `Cannot reach ${config.apiUrl}.`);
   }
+  if (res.status === 403) throw new CliError(EXIT.auth, SUSPENDED_MESSAGE);
   if (res.status === 401 || res.status === 404) {
-    throw new CliError(EXIT.auth, "The project token was rejected: run `codeceipt login` again.");
+    throw new CliError(
+      EXIT.auth,
+      "The project token was rejected (revoked on the Account page, or the project was deleted): run `npx codeceipt` in this repo again.",
+    );
   }
   const body = await readCapped(res, MAX_ANSWER_BYTES).catch(() => null);
   if (!res.ok || body === null) {
@@ -59,9 +63,14 @@ export async function callTool(
     let code = "error";
     try {
       const parsed = JSON.parse(text) as { message?: unknown };
+      // A suspension gets the CLI's own words (the server's text is never printed).
+      if (typeof parsed.message === "string" && /\bsuspended\b/i.test(parsed.message.slice(0, 300)))
+        throw new CliError(EXIT.auth, SUSPENDED_MESSAGE);
       if (typeof parsed.message === "string" && /^[\w ."-]{1,80}$/.test(parsed.message))
         code = parsed.message;
-    } catch {}
+    } catch (err) {
+      if (err instanceof CliError) throw err;
+    }
     throw new CliError(EXIT.rejected, `${name} failed: ${code}`);
   }
   return text;

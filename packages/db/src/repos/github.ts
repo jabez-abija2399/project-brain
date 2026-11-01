@@ -4,6 +4,7 @@ import {
   type GithubInstallState,
   githubInstallStates,
   projects,
+  users,
   webhookDeliveries,
 } from "../schema";
 import { isUniqueViolation } from "./features";
@@ -41,7 +42,8 @@ export const githubRepo = {
     }
   },
 
-  // Projects linked to this installation's repo (the signed webhook names both).
+  // Projects linked to this installation's repo (the signed webhook names both). Suspended projects, and projects of
+  // suspended users, are left out (2026-11-01): a push to them makes no receipt and spends no AI budget.
   async linkedProjects(
     db: BrainDb,
     installationId: number,
@@ -50,8 +52,14 @@ export const githubRepo = {
     return db
       .select({ id: projects.id })
       .from(projects)
+      .innerJoin(users, eq(users.id, projects.ownerId))
       .where(
-        and(eq(projects.installationId, installationId), eq(projects.repoFullName, repoFullName)),
+        and(
+          eq(projects.installationId, installationId),
+          eq(projects.repoFullName, repoFullName),
+          isNull(projects.suspendedAt),
+          isNull(users.suspendedAt),
+        ),
       )
       .orderBy(projects.id)
       .limit(MAX_LINKED_PROJECTS);

@@ -1384,6 +1384,88 @@ a.stat-card:hover {
   letter-spacing: 0.1em;
 }
 
+/* ---------- Sign-in, account and admin (2026-11-01) ---------- */
+.signin-card {
+  display: grid;
+  gap: 20px;
+  justify-items: start;
+  max-width: 560px;
+  padding: 32px 0;
+}
+.signin-card h1 {
+  font-size: var(--fs-section);
+  margin: 0;
+}
+.facts-list {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+}
+.account-id {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.avatar {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+}
+.avatar-initial {
+  display: inline-grid;
+  place-items: center;
+  background: var(--surface-2);
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+.danger-zone {
+  padding: 20px;
+  border: 1px solid color-mix(in srgb, var(--danger) 45%, var(--border));
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger-soft) 50%, var(--surface));
+}
+.btn-danger-solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--bg);
+}
+.btn-danger-solid:hover {
+  background: color-mix(in srgb, var(--danger) 85%, var(--text));
+}
+.mini-bars {
+  display: grid;
+  grid-template-columns: repeat(30, 1fr);
+  align-items: end;
+  gap: 2px;
+  height: 120px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--border);
+}
+.mini-bars li {
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.mini-bars span {
+  display: block;
+  width: 100%;
+  min-height: 1px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+}
+.notice {
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--success-soft);
+  color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
+}
+
 @media (max-width: 640px) {
   .shortcuts {
     display: none;
@@ -1401,4 +1483,12 @@ a.stat-card:hover {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+.skeleton-title {
+  width: min(280px, 70%);
+  height: 30px;
+}
+.skeleton-line {
+  width: min(520px, 100%);
+  height: 16px;
 }

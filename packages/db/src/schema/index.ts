@@ -10,3 +10,4 @@ export * from "./github";
 export * from "./plans";
 export * from "./device";
 export * from "./waitlist";
+export * from "./admin";

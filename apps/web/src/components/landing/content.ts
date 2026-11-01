@@ -344,10 +344,10 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "What happens to my token?",
-    a: "`npx codeceipt` saves it in your user config folder, never in your repo. The server keeps only a hash of it, and you can revoke it on the project's Tokens page at any time.",
+    a: "`npx codeceipt` saves it in your user config folder, never in your repo. The server keeps only a hash of it, and you can revoke it on your Account page at any time.",
   },
   {
     q: "How do I remove it?",
-    a: "Revoke the token on the Tokens page, then delete the .git/codeceipt folder in your repo and the codeceipt folder in your user config folder. The Privacy page lists every step.",
+    a: "On your Account page, revoke the computer's key or delete your account (that removes every project and all its data). On your computer, delete the .git/codeceipt folder in your repo and the codeceipt folder in your user config folder. The Privacy page lists every step.",
   },
 ];

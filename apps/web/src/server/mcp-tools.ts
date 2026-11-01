@@ -1,4 +1,4 @@
-import { projectTokensRepo } from "@brain/db";
+import { projectTokensRepo, projectsRepo } from "@brain/db";
 import { type AuthInfo, type McpServer, ProtocolError } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { checkPackage } from "./check-package";
@@ -19,6 +19,7 @@ import {
   saveProgress,
   whereDidWeStop,
 } from "./session-tools";
+import { SUSPENDED_PROJECT, SUSPENDED_USER } from "./suspension";
 
 // JSON-RPC error codes of the MCP route (docs/specs/FEAT-011.md section 7).
 // One masked secret finding as the CLI sends it (validated strictly in the receipt service).
@@ -49,7 +50,15 @@ export async function verifyProjectToken(
   const row = await projectTokensRepo.findActiveByValue(db, value);
   if (!row) return undefined;
   await projectTokensRepo.touchLastUsed(db, row.projectId, row.id).catch(() => {});
-  return { token: value, clientId: row.id, scopes: [], extra: { projectId: row.projectId } };
+  // Suspension (2026-11-01) is carried to the tools, which answer with the clear message instead of a bare 401.
+  const s = await projectsRepo.suspensionOf(db, row.projectId);
+  const suspended = s?.owner ? "user" : s?.project ? "project" : "";
+  return {
+    token: value,
+    clientId: row.id,
+    scopes: [],
+    extra: { projectId: row.projectId, suspended },
+  };
 }
 
 function tokenOf(authInfo: AuthInfo | undefined): ToolToken {
@@ -57,6 +66,9 @@ function tokenOf(authInfo: AuthInfo | undefined): ToolToken {
   if (!authInfo || typeof projectId !== "string") {
     throw new ProtocolError(MCP_ERROR.unauthorized, "unauthorized");
   }
+  const suspended = authInfo.extra?.suspended;
+  if (suspended === "user") throw new AppError(403, "suspended", SUSPENDED_USER);
+  if (suspended === "project") throw new AppError(403, "suspended", SUSPENDED_PROJECT);
   return { id: authInfo.clientId, projectId };
 }
 
@@ -81,6 +93,7 @@ function toProtocolError(err: unknown): ProtocolError {
       });
     }
     if (err.status === 401) return new ProtocolError(MCP_ERROR.unauthorized, "unauthorized");
+    if (err.code === "suspended") return new ProtocolError(MCP_ERROR.unauthorized, err.message);
     if (err.status === 404) return new ProtocolError(MCP_ERROR.notFound, "not_found");
     // A fixed state code (plan_not_open): the call cannot apply to the current state.
     if (err.status === 409) return new ProtocolError(MCP_ERROR.invalidParams, err.code);

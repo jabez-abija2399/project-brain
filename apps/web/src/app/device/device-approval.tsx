@@ -36,6 +36,8 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
       else if (res.status === 404)
         setMessage("This code is wrong, used or expired. Run `npx codeceipt` again for a new one.");
       else if (res.status === 429) setMessage("Too many tries. Wait a minute and try again.");
+      else if (res.status === 403)
+        setMessage("Your account is suspended, so it cannot connect computers. See your Account page.");
       else if (res.status === 400) setMessage("Check the code (8 letters) and the project name.");
       else setMessage("That did not work. Reload the page and try again.");
     } catch {

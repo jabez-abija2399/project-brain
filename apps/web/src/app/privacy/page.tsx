@@ -93,13 +93,16 @@ export default function PrivacyPage() {
       <h2>Deleting your data</h2>
       <ul>
         <li>
-          <strong>Tokens:</strong> revoke any project token from the project&apos;s page in the
-          dashboard; it stops working at once.
+          <strong>Tokens:</strong> revoke any computer&apos;s key on your{" "}
+          <a href="/account#computers">Account page</a> (or a project&apos;s Tokens tab); it stops
+          working at once.
         </li>
         <li>
-          <strong>Your account and projects:</strong> there is no delete button yet. Email us from
-          the address on your GitHub account and we delete your account, its projects and everything
-          in them. [REVIEW] Contact address and how many days we promise?
+          <strong>Your account and projects:</strong> on your{" "}
+          <a href="/account#delete">Account page</a>, choose <q>Delete my account</q> and type your
+          account name. That at once and for good deletes your account, every project and everything
+          in them (receipts, features, requests, decisions, tokens, sign-in sessions) and your
+          waitlist entry. You can download all of it first with <q>Export my data</q>.
         </li>
         <li>
           <strong>GitHub:</strong> revoke Codeceipt under GitHub Settings, Applications, and
@@ -111,7 +114,8 @@ export default function PrivacyPage() {
           <code>~/.config/codeceipt</code>).
         </li>
         <li>
-          <strong>Waitlist:</strong> email us and we remove your address. [REVIEW] Contact address?
+          <strong>Waitlist:</strong> deleting your account removes your waitlist entry too. If you
+          only joined the waitlist, email us and we remove your address. [REVIEW] Contact address?
         </li>
       </ul>
       <p>

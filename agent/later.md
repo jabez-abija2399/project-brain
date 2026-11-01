@@ -145,3 +145,12 @@
 - 2026-11-01: Revoking a token has no confirmation step (DESIGN.md asks for one on destructive actions); add a ConfirmDialog in a behaviour change, not in the presentation-only redesign.
 - 2026-11-01: The landing islands (agent tabs, terminal stepper, receipt states, privacy toggle) are unit-tested and render server-side, but were not clicked in a hydrated browser (the production server needs real secrets); check them on the preview deploy.
 - 2026-11-01: Replace the [SCREENSHOT] placeholders in the quickstart with images from docs/screenshots/pages.
+- 2026-11-01 (audit L-1): show an Admin link in the header for admins without a GitHub call on every page (cache the login per session).
+- 2026-11-01 (audit L-2): the landing subline says OpenCode sessions end with a receipt; there it takes `codeceipt receipt` (owner's copy, tabs explain it).
+- 2026-11-01 (audit L-4): a "Delete project" button (DELETE /api/projects/[id] exists; only account deletion has a page).
+- 2026-11-01 (audit L-5): let a waitlist-only email remove itself (signed link), instead of "email us".
+- 2026-11-01 (audit L-6): list active sign-in sessions per browser on /account, with sign-out for each.
+- 2026-11-01 (audit L-7): record real token counts per AI call so the admin cost is measured, not estimated.
+- 2026-11-01 (audit L-8): have the CLI send a computer name (hostname, masked) with the device start, for the approval page and /account.
+- 2026-11-01 (audit L-9): split apps/web/src/server/mcp-tools.ts (485 lines) by responsibility.
+- 2026-11-01 (audit L-10): add /api/auth/sign-out to the Origin test (better-auth checks it itself today).

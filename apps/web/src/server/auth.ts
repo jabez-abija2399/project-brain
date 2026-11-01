@@ -6,6 +6,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { getDb } from "./db";
 import { AppError } from "./errors";
+import { SUSPENDED_PROJECT, assertNotSuspended } from "./suspension";
 
 export type SessionUser = { id: string; email: string; name: string };
 
@@ -24,6 +25,25 @@ export function resolveAuthSecret(env: Record<string, string | undefined>): stri
   return DEV_SECRET;
 }
 
+const DAY_S = 24 * 60 * 60;
+
+/**
+ * Session safety (2026-11-01): sessions expire after 7 days (renewed at most daily while in use), and the session
+ * cookie is httpOnly, sameSite=lax and secure whenever the site is served over https (always in production).
+ */
+export function sessionSafety(env: Record<string, string | undefined>) {
+  const https =
+    env.NODE_ENV === "production" ||
+    (env.BETTER_AUTH_URL ?? "").toLowerCase().startsWith("https://");
+  return {
+    session: { expiresIn: 7 * DAY_S, updateAge: DAY_S },
+    advanced: {
+      useSecureCookies: https,
+      defaultCookieAttributes: { httpOnly: true, secure: https, sameSite: "lax" as const },
+    },
+  };
+}
+
 function buildAuth() {
   const db = getDb();
   return betterAuth({
@@ -36,6 +56,7 @@ function buildAuth() {
     // GitHub access tokens are encrypted with the auth secret before they
     // reach the account table, so a database leak does not expose them.
     account: { encryptOAuthTokens: true },
+    ...sessionSafety(process.env),
     socialProviders: {
       github: {
         clientId: process.env.GITHUB_CLIENT_ID || "",
@@ -131,10 +152,15 @@ export function assertSameOrigin(req: Request) {
   if (refererOrigin !== expected) throw new AppError(403, "bad_origin");
 }
 
-export async function requireUser(req: Request): Promise<SessionUser> {
+// allowSuspended: the account page's own actions (sign out everywhere, export, delete) still work while suspended.
+export async function requireUser(
+  req: Request,
+  opts: { allowSuspended?: boolean } = {},
+): Promise<SessionUser> {
   assertSameOrigin(req);
   const user = await getSessionUser(req);
   if (!user) throw new AppError(401, "unauthenticated");
+  if (!opts.allowSuspended) await assertNotSuspended(getDb(), user.id);
   return user;
 }
 
@@ -149,6 +175,8 @@ export async function requireProjectAccess(
   if (!isPlausibleId(projectId)) throw new AppError(404, "not_found");
   const project = await projectsRepo.get(db, projectId, user.id);
   if (!project) throw new AppError(404, "not_found");
+  // Only after ownership is known, so a suspended project is never revealed to anyone else.
+  if (project.suspendedAt) throw new AppError(403, "suspended", SUSPENDED_PROJECT);
   return project;
 }
 

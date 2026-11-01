@@ -60,7 +60,8 @@ describe("landing page", () => {
     const header = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
     expect(header).toContain('href="/docs/quickstart">Docs</a>');
     expect(header).toContain('href="/privacy">Privacy</a>');
-    expect(header).toContain(">Sign in</button>");
+    // Sign in opens the sign-in page (what GitHub access means, and a way back), not GitHub directly.
+    expect(header).toContain('href="/sign-in">Sign in</a>');
     expect(header.match(/btn-primary/g)).toHaveLength(1);
     expect(header).toContain('href="#get-started">Get started</a>');
     expect(header).toContain('aria-expanded="false"');

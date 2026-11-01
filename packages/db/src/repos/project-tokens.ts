@@ -26,7 +26,12 @@ export function generateToken(): { value: string; hash: string } {
 
 export const projectTokensRepo = {
   // Throws TokenLimitError when the project already has MAX_ACTIVE_TOKENS active tokens.
-  async create(db: BrainDb, projectId: string): Promise<{ token: string; row: ProjectToken }> {
+  // label: what made it (the repo folder from `npx codeceipt`); never secret, shown on the account page.
+  async create(
+    db: BrainDb,
+    projectId: string,
+    label: string | null = null,
+  ): Promise<{ token: string; row: ProjectToken }> {
     const { value, hash } = generateToken();
     const row = await db.transaction(async (tx) => {
       // Lock the project row so concurrent creates cannot both pass the count check.
@@ -40,7 +45,10 @@ export const projectTokensRepo = {
         .from(projectTokens)
         .where(and(eq(projectTokens.projectId, projectId), isNull(projectTokens.revokedAt)));
       if ((active?.n ?? 0) >= MAX_ACTIVE_TOKENS) throw new TokenLimitError();
-      const [inserted] = await tx.insert(projectTokens).values({ projectId, hash }).returning();
+      const [inserted] = await tx
+        .insert(projectTokens)
+        .values({ projectId, hash, label: label?.slice(0, 100) ?? null })
+        .returning();
       return inserted;
     });
     if (!row) throw new Error("insert project_tokens returned no row");
