@@ -23,12 +23,12 @@ afterAll(() => {
 const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
 describe("publish-ready CLI", () => {
-  it("the package is codeceipt 0.1.0 with one command, codeceipt, and no workspace dependencies", () => {
+  it("the package is codeceipt 0.1.1 with one command, codeceipt, and no workspace dependencies", () => {
     const manifest = json(join(outDir, "package.json"));
     expect(manifest.name).toBe("codeceipt");
-    expect(manifest.version).toBe("0.1.0");
-    expect(VERSION).toBe("0.1.0");
-    expect(json(join(pkgDir, "package.json")).version).toBe("0.1.0");
+    expect(manifest.version).toBe("0.1.1");
+    expect(VERSION).toBe("0.1.1");
+    expect(json(join(pkgDir, "package.json")).version).toBe("0.1.1");
     expect(manifest.bin).toEqual({ codeceipt: "./codeceipt.mjs" });
     expect(manifest.files).toEqual(["codeceipt.mjs", "child.mjs", "README.md"]);
     expect(Object.keys(manifest.dependencies).filter((d) => d.startsWith("@brain/"))).toEqual([]);
@@ -53,7 +53,7 @@ describe("publish-ready CLI", () => {
       version: string;
       files: { path: string }[];
     }[];
-    expect([pack?.name, pack?.version]).toEqual(["codeceipt", "0.1.0"]);
+    expect([pack?.name, pack?.version]).toEqual(["codeceipt", "0.1.1"]);
     expect(pack?.files.map((f) => f.path).sort()).toEqual(
       ["README.md", "child.mjs", "codeceipt.mjs", "package.json"].sort(),
     );

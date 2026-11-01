@@ -15,7 +15,8 @@ On 2026-10-30 the name `codeceipt` was still free on npm (`npm view codeceipt` a
 ## Every release
 
 1. On an up-to-date `main` with a green CI run, set the version in **both** `packages/cli/package.json` (`version`)
-   and `packages/cli/src/index.ts` (`VERSION`). A test fails if they differ. Merge that change first.
+   and `packages/cli/src/templates.ts` (`CLI_VERSION`; `VERSION` in `packages/cli/src/index.ts` follows it, and the
+   hooks' npx fallback is pinned to it). A test fails if they differ. Merge that change first.
 2. Build and run the checks:
 
    ```bash

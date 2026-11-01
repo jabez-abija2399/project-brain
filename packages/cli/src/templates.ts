@@ -37,7 +37,7 @@ const NODE_PATHS =
   '"$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.volta/bin:$HOME/.npm-global/bin:$HOME/.local/bin"';
 // The npx fallback is pinned to the version that wrote the hook (security review 2026-11-01): a later publish of the
 // package never runs on a teammate's machine without a new `npx codeceipt`.
-export const CLI_VERSION = "0.1.0";
+export const CLI_VERSION = "0.1.1";
 const wrap = (args: string, version: string) =>
   `PATH=${NODE_PATHS}; if command -v codeceipt >/dev/null 2>&1; then codeceipt ${args}; else npx -y codeceipt@${version} ${args}; fi`;
 export const shellHook = (bare: string) => wrap(bare.replace(/^codeceipt /, ""), CLI_VERSION);
