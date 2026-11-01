@@ -15,6 +15,8 @@ export const projects = pgTable(
     installationId: bigint("installation_id", { mode: "number" }),
     // Admin abuse control (0035): a suspended project's tokens and pages stop working.
     suspendedAt: timestamp("suspended_at", { withTimezone: true, mode: "date" }),
+    // Real-test bug J (0038): which repository the project belongs to, as hashed parts "r=<hash>;o=<hash>".
+    repoFingerprint: text("repo_fingerprint"),
     createdAt: createdAt(),
   },
   (t) => ({

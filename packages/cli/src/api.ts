@@ -34,7 +34,13 @@ export function retryAfterSeconds(header: string | null, now = Date.now()): numb
 export const SUSPENDED_MESSAGE =
   "This project or account is suspended by Codeceipt, so the CLI and MCP do not work. Open the dashboard for details and contact support to restore it.";
 
+// Real-test bug J: this repository is not the one the project was connected from (fixed CLI words, never the server's).
+export const REPO_MISMATCH_MESSAGE =
+  "This repository is not the one connected to this Codeceipt project, so nothing was uploaded. Run `codeceipt unlink`, then `npx codeceipt` to connect this repo to a new or existing project. To rebuild a project's index from the right repo, run `codeceipt index --rebuild` there.";
+
 function fromStatus(status: number, code: string | undefined): CliError {
+  if (status === 409 && code === "repo_mismatch")
+    return new CliError(EXIT.auth, REPO_MISMATCH_MESSAGE);
   if (status === 403 && code === "suspended") return new CliError(EXIT.auth, SUSPENDED_MESSAGE);
   if (status === 401 || status === 404) {
     return new CliError(
@@ -86,7 +92,7 @@ export async function readCapped(res: Response, max: number): Promise<string | n
 // The token goes only in the Authorization header; error messages never include it or a response body.
 export async function request<T>(
   fetchImpl: Fetch,
-  config: Pick<CliConfig, "apiUrl" | "token">,
+  config: Pick<CliConfig, "apiUrl" | "token" | "repo">,
   method: "GET" | "POST",
   path: string,
   body?: unknown,
@@ -110,7 +116,7 @@ export async function request<T>(
 
 async function send(
   fetchImpl: Fetch,
-  config: Pick<CliConfig, "apiUrl" | "token">,
+  config: Pick<CliConfig, "apiUrl" | "token" | "repo">,
   method: "GET" | "POST",
   path: string,
   body?: unknown,
@@ -122,6 +128,8 @@ async function send(
       redirect: "error",
       headers: {
         authorization: `Bearer ${config.token}`,
+        // Real-test bug J: which repository this is (hashed); the server refuses another repo's uploads.
+        ...(config.repo ? { "x-codeceipt-repo": config.repo } : {}),
         ...(body === undefined ? {} : { "content-type": "application/json" }),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),

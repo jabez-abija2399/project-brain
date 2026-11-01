@@ -1,6 +1,6 @@
 import { and, count, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { type NewSymbol, featureFiles, files, symbols } from "../schema";
+import { type NewSymbol, dbTables, featureFiles, files, symbols } from "../schema";
 
 export type IndexedSymbol = Omit<NewSymbol, "id" | "projectId" | "fileId" | "createdAt">;
 export type IndexedFile = {
@@ -262,6 +262,29 @@ export const codeIndexRepo = {
         deleted: byteSorted(doomed.map((f) => f.path)),
         held: range.final ? [] : byteSorted(placed.map((f) => f.path)),
       };
+    });
+  },
+
+  /**
+   * `codeceipt index --rebuild` (real-test bug J): removes every indexed file of the project (their symbols and feature
+   * placements go with them), its Supabase tables (their policies go with them), and the automatic features nothing refers to, so the
+   * next index rebuilds everything from one repository. Requests, receipts and features the user named are kept.
+   */
+  async clearForRebuild(db: BrainDb, projectId: string): Promise<{ removed: number }> {
+    return db.transaction(async (tx) => {
+      const removed = await tx
+        .delete(files)
+        .where(eq(files.projectId, projectId))
+        .returning({ id: files.id });
+      await tx.delete(dbTables).where(eq(dbTables.projectId, projectId));
+      await tx.execute(sql`
+        delete from features f
+        where f.project_id = ${projectId}
+          and f.key is not null
+          and f.name_set_by_user = false
+          and f.build_order is null
+          and not exists (select 1 from requests r where r.project_id = f.project_id and r.feature_id = f.id)`);
+      return { removed: removed.length };
     });
   },
 };

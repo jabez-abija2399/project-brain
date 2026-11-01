@@ -1,8 +1,14 @@
 import { existsSync, statSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
-import { MAX_REQUEST_CHARS, brandEnv, maskSecretsIn } from "@brain/core";
-import { CliError, EXIT, request } from "./api";
+import {
+  MAX_REQUEST_CHARS,
+  brandEnv,
+  fingerprintToken,
+  maskSecretsIn,
+  sameRepo,
+} from "@brain/core";
+import { CliError, EXIT, REPO_MISMATCH_MESSAGE, request } from "./api";
 import {
   type CliConfig,
   configPath,
@@ -24,7 +30,13 @@ import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { evidenceLines } from "./last-evidence";
 import { runMcpProxy } from "./mcp-proxy";
-import { gitDirOf, readRepoLink, writeRepoLink } from "./repo-link";
+import {
+  gitDirOf,
+  readRepoLink,
+  removeRepoLink,
+  repoFingerprint,
+  writeRepoLink,
+} from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 import { onPath, runSetup } from "./setup-command";
 
@@ -39,6 +51,8 @@ export function helpText(): string {
     "  codeceipt                           connects this repo: approve a code in your browser, then index and set up agents",
     "  codeceipt login [--api-url <url>]   reads the project token from stdin or CODECEIPT_TOKEN",
     "  codeceipt index [dir]               indexes the repo locally and uploads metadata only",
+    "  codeceipt index --rebuild [dir]     clears the project's stored index and rebuilds it from this repo only",
+    "  codeceipt unlink                    disconnects this repo from its project (run npx codeceipt to connect again)",
     "  codeceipt scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
     "  codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]",
     "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
@@ -148,10 +162,19 @@ export async function projectConfig(
   }
   const link = readRepoLink(gitDir);
   if (!link) throw new CliError(EXIT.auth, NOT_LINKED);
+  // Real-test bug J: the link must belong to this repository (a copied .git, or a folder inside another repo, carries
+  // another repo's link). A mismatch uploads nothing; an older link without a fingerprint gets this repo's once.
+  const fingerprint = await repoFingerprint(deps.git ?? runGit, dir);
+  if (link.fingerprint && !sameRepo(link.fingerprint, fingerprint)) {
+    throw new CliError(EXIT.auth, REPO_MISMATCH_MESSAGE);
+  }
+  if (!link.fingerprint && (fingerprint.root || fingerprint.remote)) {
+    writeRepoLink(gitDir, { ...link, fingerprint });
+  }
   // The token may still be in the config folder from before the rename (D-019).
   const config = readProjectToken(path, link) ?? readProjectToken(legacyConfigPath(path), link);
   if (!config) throw new CliError(EXIT.auth, NO_TOKEN);
-  return config;
+  return { ...config, repo: fingerprintToken(fingerprint) };
 }
 
 export const GIT_UNREADABLE =
@@ -208,22 +231,44 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
     }
     if (command === "login") {
       await login(args, deps, path);
+    } else if (command === "unlink") {
+      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt unlink");
+      const gitDir = await gitDirOf(deps.git ?? runGit, deps.cwd);
+      const link = gitDir ? readRepoLink(gitDir) : null;
+      if (!gitDir || !link || !removeRepoLink(gitDir)) {
+        deps.stdout("This repo is not connected to a Codeceipt project; nothing to unlink.");
+      } else {
+        deps.stdout(
+          `Disconnected this repo from project ${link.projectId}. Run \`npx codeceipt\` to connect it to a new or existing project.`,
+        );
+      }
+      return EXIT.ok;
     } else if (command === "index") {
-      if (args.length > 1) throw new CliError(EXIT.usage, "Usage: codeceipt index [dir]");
-      const config = await projectConfig(deps, path, resolve(deps.cwd, args[0] ?? "."));
+      // --rebuild: the stored index is cleared first, so files from another repo cannot survive (real-test bug J).
+      const rebuild = args.includes("--rebuild");
+      const rest = args.filter((a) => a !== "--rebuild");
+      if (rest.length > 1)
+        throw new CliError(EXIT.usage, "Usage: codeceipt index [--rebuild] [dir]");
+      const dir = resolve(deps.cwd, rest[0] ?? ".");
+      const config = await projectConfig(deps, path, dir);
       if (!isSafeApiUrl(config.apiUrl))
         throw new CliError(
           EXIT.usage,
           "Saved server address must be https (plain http only for localhost, 127.0.0.1 or [::1]): run `codeceipt login` again.",
         );
-      await runIndex(
-        deps.fetch,
-        config,
-        resolve(deps.cwd, args[0] ?? "."),
-        deps.stdout,
-        deps.homedir ?? osHomedir(),
-        deps.sleep,
-      );
+      if (rebuild) {
+        const cleared = await request<{ removed: number }>(
+          deps.fetch,
+          config,
+          "POST",
+          `/api/index/${encodeURIComponent(config.projectId)}/rebuild`,
+          {},
+        );
+        deps.stdout(
+          `Cleared the stored index (${Number(cleared.removed) || 0} files); rebuilding it from this repo.`,
+        );
+      }
+      await runIndex(deps.fetch, config, dir, deps.stdout, deps.homedir ?? osHomedir(), deps.sleep);
     } else if (command === "init") {
       const config = await projectConfig(deps, path, deps.cwd);
       if (!isSafeApiUrl(config.apiUrl))

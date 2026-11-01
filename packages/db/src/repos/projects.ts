@@ -13,6 +13,31 @@ export const projectsRepo = {
     return row;
   },
 
+  /**
+   * Real-test bug J: reads the project's repository fingerprint under a row lock and lets `decide` answer with the
+   * value to store (or "mismatch", which changes nothing). The rule itself lives in the caller (core).
+   */
+  async updateRepoFingerprint(
+    db: BrainDb,
+    projectId: string,
+    decide: (stored: string | null) => string | "mismatch",
+  ): Promise<"ok" | "mismatch"> {
+    return db.transaction(async (tx) => {
+      const [row] = await tx
+        .select({ fp: projects.repoFingerprint })
+        .from(projects)
+        .where(eq(projects.id, projectId))
+        .for("update");
+      if (!row) return "mismatch";
+      const next = decide(row.fp);
+      if (next === "mismatch") return "mismatch";
+      if (next !== row.fp) {
+        await tx.update(projects).set({ repoFingerprint: next }).where(eq(projects.id, projectId));
+      }
+      return "ok";
+    });
+  },
+
   /** Whether a project or its owner is suspended (token requests check this; one query). */
   async suspensionOf(
     db: BrainDb,

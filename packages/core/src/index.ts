@@ -169,3 +169,13 @@ export {
   type OverviewRow,
   type OverviewStats,
 } from "./overview";
+export {
+  type RepoFingerprint,
+  fingerprintOf,
+  fingerprintToken,
+  mergeFingerprints,
+  normalizeRemote,
+  parseFingerprintToken,
+  sameRepo,
+  tokenFromHashed,
+} from "./repo-fingerprint";
