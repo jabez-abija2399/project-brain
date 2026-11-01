@@ -22,8 +22,8 @@ export type ReceiptCardData = {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="stack" style={{ gap: 6 }}>
-      <h3 style={{ fontSize: 13, margin: 0 }}>{title}</h3>
+    <section className="stack gap-6">
+      <h3 className="muted m0">{title}</h3>
       {children}
     </section>
   );
@@ -43,14 +43,14 @@ export function ReceiptCard({
   return (
     <article
       id={`receipt-${receipt.id}`}
-      className={`card${attention ? " card-highlighted" : ""}`}
+      className={`card receipt-card${attention ? " card-highlighted" : ""}`}
       data-testid="receipt-card"
     >
       <Disclosure
         open={expanded}
         summary={
-          <div className="stack" style={{ gap: 6 }}>
-            <span className="muted">
+          <div className="stack gap-6">
+            <span className="muted receipt-meta">
               <time dateTime={receipt.createdAt}>
                 {receipt.createdAt.slice(0, 16).replace("T", " ")} UTC
               </time>
@@ -106,15 +106,11 @@ export function ReceiptCard({
           </div>
         }
       >
-        <div className="stack" style={{ marginTop: 16 }}>
-          {view.noSnapshot && (
-            <p className="muted wrap" style={{ margin: 0 }}>
-              {NO_SNAPSHOT_NOTE}
-            </p>
-          )}
+        <div className="stack receipt-body">
+          {view.noSnapshot && <p className="muted wrap m0">{NO_SNAPSHOT_NOTE}</p>}
           {view.filesByFeature.length > 0 && (
             <Section title="Changed files by feature">
-              <ul className="stack" style={{ margin: 0, paddingLeft: 18, gap: 4 }}>
+              <ul className="stack m0 list-indent gap-4">
                 {view.filesByFeature.map((g) => (
                   <li key={g.feature}>
                     <span>{g.feature}: </span>
@@ -143,7 +139,7 @@ export function ReceiptCard({
                   : "No checklist items were open for this request."}
               </p>
             ) : (
-              <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <ul className="stack plain-list">
                 {view.items.map((i, n) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: items have no stable id in a stored receipt
                   <ChecklistItem key={n} {...i} />
@@ -162,10 +158,10 @@ export function ReceiptCard({
           )}
           {view.findings.length > 0 && (
             <Section title="Security findings">
-              <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <ul className="stack plain-list">
                 {view.findings.map((f, n) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id in a stored receipt
-                  <li key={n} className="stack" style={{ gap: 2 }}>
+                  <li key={n} className="stack gap-2">
                     <span className="row">
                       <StatusBadge status="missed" label={f.type.replaceAll("_", " ")} />
                       {f.file && <CodeRef path={f.file} line={f.line} />}
@@ -182,13 +178,13 @@ export function ReceiptCard({
           )}
           {view.findingsBeforeSession.length > 0 && (
             <Section title="Already in your working tree before this session">
-              <p className="muted" style={{ margin: 0 }}>
+              <p className="muted m0">
                 Found in files you had already changed before this session: not the agent's change.
               </p>
-              <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <ul className="stack plain-list">
                 {view.findingsBeforeSession.map((f, n) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: findings have no stable id in a stored receipt
-                  <li key={n} className="stack" style={{ gap: 2 }}>
+                  <li key={n} className="stack gap-2">
                     <span className="row">
                       <StatusBadge status="warning" label={f.type.replaceAll("_", " ")} />
                       {f.file && <CodeRef path={f.file} line={f.line} />}
@@ -203,14 +199,14 @@ export function ReceiptCard({
           {(view.testChecks.length > 0 || view.passing.before !== null) && (
             <Section title="Test checks">
               {view.passing.before !== null && view.passing.after !== null && (
-                <p className="muted" style={{ margin: 0 }}>
+                <p className="muted m0">
                   Passing tests: {view.passing.before} before, {view.passing.after} after
                 </p>
               )}
-              <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <ul className="stack plain-list">
                 {view.testChecks.map((c, n) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: checks have no stable id in a stored receipt
-                  <li key={n} className="stack" style={{ gap: 2 }}>
+                  <li key={n} className="stack gap-2">
                     <span className="row">
                       <StatusBadge status="missed" label={`${c.label} (${c.count})`} />
                       {c.file && <CodeRef path={c.file} />}
@@ -225,7 +221,7 @@ export function ReceiptCard({
           )}
           {view.notVerified.length > 0 && (
             <Section title="Not verified">
-              <ul className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              <ul className="stack plain-list">
                 {view.notVerified.map((n, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: entries have no stable id in a stored receipt
                   <li key={i} className="row">

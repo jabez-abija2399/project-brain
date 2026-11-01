@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 
 type TokenRow = {
@@ -73,95 +74,83 @@ export default function ProjectTokensPanel({
   }
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={createToken}
-        disabled={busy}
-        style={{
-          background: "var(--accent)",
-          color: "var(--surface)",
-          border: 0,
-          borderRadius: 8,
-          padding: "10px 16px",
-          fontSize: 14,
-          cursor: busy ? "not-allowed" : "pointer",
-        }}
-      >
-        {busy ? "Working…" : "Create token"}
-      </button>
+    <div className="stack stack-lg">
+      <div>
+        <button type="button" className="btn btn-primary" onClick={createToken} disabled={busy}>
+          {busy ? "Working…" : "Create token"}
+        </button>
+      </div>
 
       {plaintext ? (
-        <output
-          style={{
-            display: "block",
-            marginTop: 12,
-            padding: 12,
-            background: "var(--surface)",
-            border: "1px solid var(--warning)",
-            borderRadius: 8,
-            fontFamily: "JetBrains Mono, monospace",
-            wordBreak: "break-all",
-          }}
-        >
-          <strong>Copy this now — you won't see it again:</strong>
-          <div style={{ marginTop: 8 }}>{plaintext}</div>
+        <output className="token-once">
+          <strong>Copy this now: you won't see it again.</strong>
+          <code className="wrap">{plaintext}</code>
         </output>
       ) : null}
 
       {error ? (
-        <p role="alert" style={{ marginTop: 12, color: "var(--danger)", fontSize: 13 }}>
+        <p role="alert" className="error-text m0">
           {error}
         </p>
       ) : null}
 
       {tokens.length === 0 ? (
-        <p style={{ marginTop: 16, color: "var(--muted)" }}>No tokens yet.</p>
+        <div className="empty" data-testid="empty-state">
+          <h2 className="section-title">No tokens yet</h2>
+          <p className="muted">
+            Running npx codeceipt creates one for you; create one here only to connect by hand.
+          </p>
+        </div>
       ) : (
-        <ul style={{ marginTop: 16, listStyle: "none", padding: 0, display: "grid", gap: 8 }}>
-          {tokens.map((t) => (
-            <li
-              key={t.id}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-                padding: "10px 14px",
-                fontSize: 13,
-              }}
-            >
-              <span style={{ fontFamily: "JetBrains Mono, monospace" }}>
-                {t.id.slice(0, 8)} · created {new Date(t.createdAt).toLocaleDateString()} ·{" "}
-                {t.revokedAt
-                  ? "revoked"
-                  : t.lastUsedAt
-                    ? `last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
-                    : "never used"}
-              </span>
-              {t.revokedAt ? null : (
-                <button
-                  type="button"
-                  onClick={() => revoke(t.id)}
-                  disabled={busy}
-                  style={{
-                    background: "transparent",
-                    color: "var(--danger)",
-                    border: "1px solid var(--danger)",
-                    borderRadius: 6,
-                    padding: "4px 10px",
-                    fontSize: 12,
-                    cursor: busy ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Revoke
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <table className="table">
+          <caption>Tokens for this project, newest first</caption>
+          <thead>
+            <tr>
+              <th scope="col">Token</th>
+              <th scope="col">Created</th>
+              <th scope="col">Status</th>
+              <th scope="col">
+                <span className="lp-visually-hidden">Action</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {tokens.map((t) => (
+              <tr key={t.id}>
+                <td data-label="Token">
+                  <span className="mono">{t.id.slice(0, 8)}</span>
+                </td>
+                <td data-label="Created">{new Date(t.createdAt).toLocaleDateString()}</td>
+                <td data-label="Status">
+                  {t.revokedAt ? (
+                    <StatusBadge status="missed" label="Revoked" />
+                  ) : (
+                    <StatusBadge
+                      status="done"
+                      label={
+                        t.lastUsedAt
+                          ? `Active, last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
+                          : "Active, never used"
+                      }
+                    />
+                  )}
+                </td>
+                <td data-label="">
+                  {t.revokedAt ? null : (
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      onClick={() => revoke(t.id)}
+                      disabled={busy}
+                    >
+                      Revoke
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );

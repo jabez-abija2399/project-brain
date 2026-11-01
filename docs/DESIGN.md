@@ -1,12 +1,20 @@
 # Design contract: Codeceipt
 Short on purpose: use one component library as-is; spend design effort only on the key screens.
 
-## Direction: "Bright ledger" (owner, 2026-10-31; replaces "Calm ledger")
-The calm ledger made brighter and more interactive: cool neutrals, one indigo accent (with a violet second stop for
-primary buttons and the landing glow), soft tinted status colors, 12 px cards with layered shadows that lift on
-hover, filled status badges, pill tabs, a turning chevron and fade when a receipt opens, filter chips on the
-receipts feed, and an automatic dark mode. Motion is short (120-300 ms) and stops under prefers-reduced-motion.
-Screenshots: docs/screenshots/ (landing, receipts light and dark).
+## Direction: "Receipt" (owner, 2026-11-01; replaces "Bright ledger")
+A warm off-white ground, ink text, one indigo accent and status colours (green done, amber partial or untested, red
+missed), always with an icon and a word. The signature element is the receipt: white paper (in both themes), a torn
+bottom edge, monospace text. Monospace only for receipts, terminals and code; everything else uses the UI font.
+Generous spacing, max content width 1120 px, one display size (landing hero), one section size, one body size.
+No gradients, glows, all-caps labels, emoji, coloured words inside headlines, identical card grids with soft shadows,
+or arrows on buttons. Motion: the landing receipt prints once on load; terminal sequences play only when clicked;
+prefers-reduced-motion shows the final state. Every page starts with breadcrumbs (where useful), a title, one purpose
+sentence and at most one primary action, inside the shared shell (header with project switcher and sign out, the
+landing page's footer). Screenshots: docs/screenshots/ (landing-*, pages/*).
+
+## Earlier direction: "Bright ledger" (2026-10-31)
+Cool neutrals with gradient primary buttons, a landing glow and lifting cards. Replaced: too decorative for a
+verification product.
 
 ## Earlier direction: "Calm ledger"
 Feels like a trustworthy receipt or bank statement: quiet, precise, readable by non-engineers; status is obvious at a
@@ -16,13 +24,17 @@ Alternative: "Friendly coach": warmer colors, illustrated empty states, more enc
 Rejected for v1: trust and clarity matter more than delight for a verification product.
 
 ## Tokens (CSS variables / theme file: apps/web/src/app/globals.css; never hard-code colors)
---bg · --surface · --surface-2 · --border · --text · --muted · --accent · --accent-2 · --accent-soft ·
---success(-soft) · --warning(-soft) · --danger(-soft) · --radius · --shadow-sm · --shadow-md · --ring · --ease ·
---ink / --on-ink (always dark: the receipt printer and the final call to action)
-Light: bg #F6F7FB, surface #FFFFFF, surface-2 #F1F3F9, border #E3E6EF, text #0B1020, muted #5B6478, accent #5146E5,
-accent-2 #7C3AED, success #047857, warning #B45309, danger #C81E1E (each with a soft tint for badge backgrounds).
-Dark mode: automatic (prefers-color-scheme), same token names, components unchanged.
-Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 12 px (cards), 10 px (buttons). Spacing 4/8/12/16/24/32.
+--bg · --surface · --surface-2 · --border · --border-strong · --text · --muted · --accent · --accent-soft ·
+--on-accent · --success(-soft) · --warning(-soft) · --danger(-soft) · --ink / --on-ink / --on-ink-muted (always dark:
+printer, terminals, tooltips, the final band) · --paper / --paper-text / --paper-muted / --paper-line (receipts,
+white in both themes) · --radius · --radius-sm · --shadow-sm · --shadow-md · --ring · --ease · --fs-display ·
+--fs-section · --fs-title · --fs-body · --fs-small · --font-ui · --font-mono · --content (1120 px)
+Light: bg #F7F5F0, surface #FFFFFF, surface-2 #F1EEE7, border #E6E2D8, text #17181C, muted #5C5850, accent #4F46E5,
+success #047857, warning #9A4508, danger #C11F1F (each with a soft tint for badge backgrounds). Every text colour is
+at least 4.5:1 on the backgrounds it sits on, in both themes. Dark mode: automatic (prefers-color-scheme), same token
+names; receipts keep the light status colours on white paper.
+Font: Inter (UI) + JetBrains Mono (receipts, terminals, code). Radius 12 px (cards), 10 px (buttons).
+Spacing 4/8/12/16/24/32/48. Landing-only styles: apps/web/src/app/landing.css; everything else: globals.css.
 
 ## Component inventory (build each once, reuse everywhere; add a row before creating a new shared component)
 | Component | Path | Variants / props | Used by |
@@ -47,6 +59,14 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 12 px (cards), 10 p
 | ProgressBar | apps/web/src/components/ui/progress-bar | done, total, label (role progressbar) | overview |
 | Skeleton | apps/web/src/components/ui/skeleton | block; ProjectHeaderSkeleton | loading.tsx pages |
 | FeaturesFilter | apps/web/src/components/features-filter | search + chips over table rows (data-feature marker) | feature board |
+| AppShell | apps/web/src/components/shell/app-shell | header (project switcher, sign out), footer; public header signed out | layouts, 404 |
+| PageHeader / Breadcrumbs | apps/web/src/components/shell/page-header | crumbs, title, purpose sentence, one action | every page |
+| ProjectSwitcher | apps/web/src/components/shell/project-switcher | native details menu of the user's projects | AppShell |
+| CommandBox | apps/web/src/components/landing/command-box | command + copy button (Copy / Copied / Copy failed); light or ink | landing, CopyCommand, docs |
+| Paper | apps/web/src/components/landing/receipt | receipt paper with torn edge, mono | landing receipts |
+| AgentTabs / HowTerminal / ReceiptStates / PrivacyToggle | apps/web/src/components/landing | WAI-ARIA tabs; step buttons + typed terminal; state buttons; toggle | landing |
+| StateGuide | apps/web/src/components/state-guide | what each receipt state means; open on first view | receipts feed |
+| DocPage | apps/web/src/components/landing/doc-page | title, table of contents from h2s, 68ch text | docs, privacy, terms |
 
 ## The screens that matter (max 3; polish these, everything else is plain components)
 0. Project overview (2026-11-01, the first tab): leads with the decision ("2 receipts need your attention this
@@ -71,4 +91,4 @@ Font: Inter (UI) + JetBrains Mono (paths, code refs). Radius 12 px (cards), 10 p
 - Check at 375 px and 1280 px. Keyboard: Tab order, visible focus ring, labels on all inputs.
 - Plain language for non-engineers: "Missed: reviews are not sorted by newest", not error codes.
 - Anti-patterns: more than one primary button per view, red everywhere, raw JSON in the UI, motion that ignores
-  prefers-reduced-motion. Gradients only on the primary button, the landing hero glow and the final call to action.
+  prefers-reduced-motion, gradients or glows anywhere.

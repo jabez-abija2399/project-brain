@@ -1,4 +1,5 @@
 import SignInButton from "@/app/sign-in-button";
+import { PageHeader } from "@/components/shell/page-header";
 import { type SessionUser, getSessionUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { deviceView } from "@/server/device";
@@ -24,20 +25,28 @@ export default async function DevicePage({
       .slice(0, 9) ?? "";
   const user = await getSessionUser(new Request("http://localhost/", { headers: await headers() }));
   return (
-    <main className="page stack" style={{ maxWidth: 560 }}>
-      <h1>Connect your terminal</h1>
+    <main className="page page-narrow stack stack-lg">
+      <PageHeader
+        title="Connect your terminal"
+        purpose={
+          <>
+            Approve the code from <code>npx codeceipt</code> so this computer can send receipts to
+            your project.
+          </>
+        }
+      />
       {!user ? (
-        <div className="card stack">
-          <p style={{ margin: 0 }}>
-            Sign in to approve the code shown in your terminal
-            {code ? (
-              <>
-                : <strong className="mono">{code}</strong>
-              </>
-            ) : null}
-            .
+        <div className="card stack stack-lg">
+          {code ? (
+            <div className="device-code-box">
+              <span className="muted">Code in your terminal</span>
+              <strong className="device-code mono">{code}</strong>
+            </div>
+          ) : null}
+          <p className="m0">
+            Sign in with GitHub to approve it. You come back to this page with the same code.
           </p>
-          <SignInButton callbackURL={`/device${code ? `?code=${code}` : ""}`} />
+          <SignInButton tone="primary" callbackURL={`/device${code ? `?code=${code}` : ""}`} />
         </div>
       ) : (
         await approval(user, code)

@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/shell/page-header";
 import RepoPicker from "./repo-picker";
 
 export const dynamic = "force-dynamic";
@@ -10,13 +11,14 @@ export default async function SelectRepoPage({
 }) {
   const { state = "" } = await searchParams;
   return (
-    <main style={{ padding: "48px 32px", maxWidth: 640, margin: "0 auto" }}>
-      <h1 style={{ fontSize: 24, marginBottom: 8 }}>Choose the repository</h1>
-      <p style={{ color: "var(--muted)", marginBottom: 24 }}>
-        The GitHub App can see several repositories. Pick the one this project tracks; pushes to its
-        default branch update the project.
-      </p>
-      <RepoPicker state={state} />
+    <main className="page page-narrow stack stack-lg">
+      <PageHeader
+        title="Choose the repository"
+        purpose="The GitHub App can see several repositories. Pick the one this project tracks; pushes to its default branch update the project."
+      />
+      <div className="card">
+        <RepoPicker state={state} />
+      </div>
     </main>
   );
 }

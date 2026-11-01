@@ -16,7 +16,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
   const base = `/projects/${view.project.id}`;
   const draft = view.draft;
   return (
-    <main className="page stack">
+    <main className="page stack stack-lg">
       <div>
         <ProjectNav projectId={view.project.id} current="plan" name={view.project.name} />
       </div>
@@ -50,21 +50,21 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
                 </time>
               </span>
             </span>
-            <h2 id="draft-title" style={{ fontSize: 16, margin: 0 }}>
+            <h2 className="section-title" id="draft-title">
               Draft plan: {draft.features.length} features
             </h2>
             {draft.restated.map((line, n) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: model-written lines may repeat; the order is fixed
-              <p key={n} className="wrap" style={{ margin: 0 }}>
+              <p key={n} className="wrap m0">
                 {line}
               </p>
             ))}
-            <p className="muted" style={{ margin: 0 }}>
+            <p className="muted m0">
               Approving adds the new features in this order with their checklists. Agents can then
               build them but cannot change the plan.
             </p>
           </div>
-          <ol className="stack" style={{ padding: 0, margin: 0, listStyle: "none" }}>
+          <ol className="stack plain-list">
             {draft.features.map((f, n) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: names may look alike; the build order is the identity
               <li key={n} className="card stack">
@@ -82,7 +82,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
                   <span className="muted wrap">Needs: {f.dependsOn.join(", ")}</span>
                 )}
                 {f.items.length > 0 && (
-                  <ul className="stack" style={{ margin: 0, paddingLeft: 20 }}>
+                  <ul className="stack m0 list-indent">
                     {f.items.map((i, k) => (
                       // biome-ignore lint/suspicious/noArrayIndexKey: item texts may repeat; the order is fixed
                       <li key={k} className="wrap">

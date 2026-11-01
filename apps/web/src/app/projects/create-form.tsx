@@ -32,45 +32,25 @@ export default function CreateProjectForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      <label htmlFor="project-name" style={{ position: "absolute", left: -9999 }}>
-        Project name
-      </label>
-      <input
-        id="project-name"
-        name="name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="demo"
-        maxLength={80}
-        required
-        style={{
-          flex: 1,
-          padding: "10px 12px",
-          borderRadius: 8,
-          border: "1px solid var(--border)",
-          background: "var(--surface)",
-          color: "var(--text)",
-          fontSize: 14,
-        }}
-      />
-      <button
-        type="submit"
-        disabled={submitting}
-        style={{
-          background: "var(--accent)",
-          color: "var(--surface)",
-          border: 0,
-          borderRadius: 8,
-          padding: "10px 16px",
-          fontSize: 14,
-          cursor: submitting ? "not-allowed" : "pointer",
-        }}
-      >
-        {submitting ? "Creating…" : "Create project"}
-      </button>
+    <form onSubmit={onSubmit} className="inline-form">
+      <label htmlFor="project-name">Or create an empty project</label>
+      <div className="row">
+        <input
+          id="project-name"
+          className="input"
+          name="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Project name"
+          maxLength={80}
+          required
+        />
+        <button type="submit" className="btn" disabled={submitting}>
+          {submitting ? "Creating…" : "Create project"}
+        </button>
+      </div>
       {error ? (
-        <span role="alert" style={{ color: "var(--danger)", fontSize: 13 }}>
+        <span className="error-text" role="alert">
           {error}
         </span>
       ) : null}

@@ -1,5 +1,8 @@
 import { JourneySteps } from "@/components/journey-steps";
 import { ReceiptCard } from "@/components/receipt-card";
+import { PageHeader } from "@/components/shell/page-header";
+import { ProgressBar } from "@/components/ui/progress-bar";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { onboarding } from "@/server/onboarding";
@@ -38,35 +41,60 @@ export default async function StartPage() {
   const allDone = steps.linked && steps.indexed && steps.receipt;
   const current = [steps.linked, steps.indexed, steps.receipt].map((d) => (d ? "1" : "0")).join("");
   const receipts = project ? `/projects/${project.id}/receipts` : null;
+  const doneCount = [steps.linked, steps.indexed, steps.receipt].filter(Boolean).length;
   return (
-    <main className="page stack" style={{ maxWidth: 760 }}>
-      <h1>Get your first receipt</h1>
-      <p className="muted" style={{ margin: 0 }}>
-        Three steps, about five minutes. Your code stays on your machine.
-      </p>
+    <main className="page page-narrow stack stack-lg">
+      <PageHeader
+        title={allDone ? "Your first receipt is here" : "Get your first receipt"}
+        purpose={
+          allDone
+            ? "Every agent session from now on ends with a receipt like this one."
+            : "Three steps, about five minutes. Your code stays on your machine."
+        }
+        action={
+          receipts ? (
+            <Link className="btn btn-primary" href={receipts}>
+              Open all receipts
+            </Link>
+          ) : undefined
+        }
+      />
+      {allDone ? (
+        <output className="celebrate">
+          <StatusBadge status="done" label="All 3 steps done" />
+          <p className="m0">
+            Codeceipt checked your agent's work against your request, from git. Read the receipt
+            below; each part is explained under it.
+          </p>
+        </output>
+      ) : (
+        <div className="journey-progress">
+          <ProgressBar done={doneCount} total={3} label={`${doneCount} of 3 steps done`} />
+          <span className="muted">{doneCount} of 3 steps done</span>
+        </div>
+      )}
       <JourneySteps steps={steps} />
       <LiveStatus on={!allDone} current={current} />
       {receipt && receipts ? (
         <section className="stack" aria-labelledby="first-receipt">
-          <h2 id="first-receipt" style={{ fontSize: 18, margin: 0 }}>
+          <h2 className="section-title" id="first-receipt">
             Your first receipt
           </h2>
           <ReceiptCard receipt={receipt} expanded />
-          <h3 style={{ fontSize: 14, margin: 0 }}>How to read it</h3>
-          <dl className="stack" style={{ margin: 0, gap: 6 }}>
+          <h3 className="subhead">How to read it</h3>
+          <dl className="guide">
             {RECEIPT_GUIDE.map(([term, meaning]) => (
               <div key={term}>
-                <dt style={{ display: "inline", fontWeight: 600 }}>{term}: </dt>
-                <dd style={{ display: "inline", margin: 0 }}>{meaning}</dd>
+                <dt>{term}:</dt>
+                <dd>{meaning}</dd>
               </div>
             ))}
           </dl>
-          <Link className="btn btn-primary" href={receipts} style={{ alignSelf: "flex-start" }}>
-            Open all receipts
-          </Link>
         </section>
       ) : null}
-      <Link href="/projects?all=1">Skip to your projects</Link>
+      <Link className="self-start" href="/projects?all=1">
+        Skip to your projects
+      </Link>
     </main>
   );
 }

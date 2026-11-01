@@ -17,9 +17,7 @@ export function DataTable<T>({
 }) {
   return (
     <table className="table">
-      <caption className="muted" style={{ textAlign: "left", padding: "0 0 8px" }}>
-        {caption}
-      </caption>
+      <caption>{caption}</caption>
       <thead>
         <tr>
           {columns.map((c) => (

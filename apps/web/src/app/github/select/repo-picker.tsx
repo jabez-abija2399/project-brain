@@ -1,5 +1,6 @@
 "use client";
 
+import { StatusBadge } from "@/components/ui/status-badge";
 import { useEffect, useState } from "react";
 
 type Load =
@@ -51,31 +52,32 @@ export default function RepoPicker({ state }: { state: string }) {
   if (load.kind === "loading") return <output>Loading repositories…</output>;
   if (load.kind === "error") {
     return (
-      <p role="alert" style={{ color: "var(--danger)" }}>
+      <p className="error-text" role="alert">
         {load.message} <a href="/projects">Back to projects</a>
       </p>
     );
   }
   if (linked) {
     return (
-      <output style={{ display: "block", color: "var(--success)" }}>
-        ✓ Linked {linked}. <a href="/projects">Back to projects</a>
+      <output className="block result result-done">
+        <StatusBadge status="done" label="Linked" /> {linked}.{" "}
+        <a href="/projects">Back to projects</a>
       </output>
     );
   }
   if (load.repos.length === 0) {
     return (
-      <p style={{ color: "var(--muted)" }}>
+      <p className="muted">
         The installation has no repositories. Add one in GitHub, then start again from your project.
       </p>
     );
   }
   return (
-    <form onSubmit={onSubmit}>
-      <fieldset style={{ border: "1px solid var(--border)", borderRadius: 8, padding: 16 }}>
+    <form onSubmit={onSubmit} className="stack stack-lg">
+      <fieldset className="choice-list">
         <legend>Repository</legend>
         {load.repos.map((name) => (
-          <label key={name} style={{ display: "block", padding: "6px 0" }}>
+          <label key={name} className="choice">
             <input
               type="radio"
               name="repo"
@@ -89,24 +91,11 @@ export default function RepoPicker({ state }: { state: string }) {
         ))}
       </fieldset>
       {error && (
-        <p role="alert" style={{ color: "var(--danger)", marginTop: 12 }}>
+        <p role="alert" className="error-text m0">
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={saving || repo === ""}
-        style={{
-          marginTop: 16,
-          background: "var(--accent)",
-          color: "var(--surface)",
-          border: 0,
-          borderRadius: 8,
-          padding: "10px 16px",
-          fontSize: 14,
-          cursor: saving || repo === "" ? "not-allowed" : "pointer",
-        }}
-      >
+      <button type="submit" className="btn btn-primary self-start" disabled={saving || repo === ""}>
         {saving ? "Linking…" : "Link repository"}
       </button>
     </form>

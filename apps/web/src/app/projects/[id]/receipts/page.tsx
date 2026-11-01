@@ -1,5 +1,6 @@
 import { ReceiptCard } from "@/components/receipt-card";
 import { ReceiptsFilter, dayLabel } from "@/components/receipts-filter";
+import { StateGuide } from "@/components/state-guide";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { receiptsFeed } from "@/server/dashboard";
@@ -17,7 +18,7 @@ export default async function ReceiptsPage(props: ListPageProps) {
   const now = new Date();
   let lastDay = "";
   return (
-    <main className="page stack">
+    <main className="page stack stack-lg">
       <ProjectNav projectId={feed.project.id} current="receipts" name={feed.project.name} />
       {feed.total === 0 ? (
         <EmptyState
@@ -27,11 +28,12 @@ export default async function ReceiptsPage(props: ListPageProps) {
         />
       ) : (
         <>
+          <StateGuide />
           <ReceiptsFilter
             total={feed.rows.length}
             attention={feed.rows.filter((r) => receiptNeedsAttention(r.view)).length}
           >
-            <ol className="stack" style={{ listStyle: "none", padding: 0, margin: 0 }}>
+            <ol className="stack plain-list">
               {feed.rows.flatMap((r, n) => {
                 const day = dayLabel(r.createdAt, now);
                 const heading =
