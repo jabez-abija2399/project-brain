@@ -182,3 +182,15 @@ export {
   tokenFromHashed,
 } from "./repo-fingerprint";
 export { askedForCheck, askedForFile, namesFile } from "./asked-for";
+
+// H1/H2 (2026-11-02): near-duplicate checklist items and the one-time open-items cleanup plan (pure).
+export {
+  DUPLICATE_SIMILARITY,
+  findNearDuplicate,
+  isNearDuplicate,
+  itemKey,
+  itemSimilarity,
+  planOpenItemCleanup,
+  type CleanupChange,
+  type CleanupItem,
+} from "./item-dedup";

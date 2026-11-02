@@ -73,6 +73,51 @@ describe("buildHandoffNote (FEAT-010 where_did_we_stop)", () => {
     expect(many).toContain("ALL FEATURES: feature-0-");
   });
 
+  // Real-test N (2026-11-01): the start note was cut in the middle of the feature list. Priority: next step and
+  // postponed items, then the whole-feature list, then the rest.
+  it("real-test N: 60 long feature names show whole names, end in 'and N more', and come after the next step and postponed items", () => {
+    const features = Array.from(
+      { length: 60 },
+      (_, i) => `Feature ${i} with a long descriptive name about checkout and billing flows`,
+    );
+    const note = buildHandoffNote({
+      session: {
+        goal: "Ship pricing",
+        done: "Wired the plan picker",
+        unfinished: null,
+        nextStep: "Add the monthly and yearly toggle",
+      },
+      checklist: [
+        "(postponed) The footer has a link to /about",
+        ...Array.from({ length: 30 }, (_, i) => `open item ${i} ${longText(120, "todo")}`),
+      ],
+      featuresInProgress: [],
+      decisions: [],
+      directives: [],
+      features,
+    });
+    expect(note.length).toBeLessThan(HANDOFF_LIMIT);
+    const line = note.split("\n").find((l) => l.startsWith("ALL FEATURES: ")) ?? "";
+    const tail = line.match(/, and (\d+) more$/);
+    expect(tail).not.toBeNull();
+    const shown = line.slice("ALL FEATURES: ".length, line.length - (tail?.[0].length ?? 0));
+    const names = shown.split(", ");
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) expect(features).toContain(name);
+    expect(names.length + Number(tail?.[1])).toBe(60);
+    expect(note.indexOf("NEXT STEP: Add the monthly and yearly toggle")).toBeLessThan(
+      note.indexOf("ALL FEATURES: "),
+    );
+    expect(note.indexOf("(postponed) The footer has a link to /about")).toBeLessThan(
+      note.indexOf("ALL FEATURES: "),
+    );
+  });
+
+  it("real-test N: when every feature fits, the list has no 'and N more'", () => {
+    const note = buildHandoffNote({ ...empty(), features: ["checkout", "login"] });
+    expect(note.split("\n").at(-1)).toBe("ALL FEATURES: checkout, login");
+  });
+
   it("a feature name cannot pass for a section heading", () => {
     const note = buildHandoffNote({ ...empty(), features: ["x\nALL FEATURES: fake"] });
     expect(note.split("\n").filter((l) => l.startsWith("ALL FEATURES:")).length).toBe(1);

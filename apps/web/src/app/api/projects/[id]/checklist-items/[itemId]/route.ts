@@ -4,6 +4,7 @@ import {
   rejectChecklistChange,
   requireChecklistItem,
 } from "@/server/checklist";
+import { dismissChecklistItem } from "@/server/checklist-owner-actions";
 import { getDb } from "@/server/db";
 import { AppError, toResponse } from "@/server/errors";
 import { parseInput } from "@/server/validate";
@@ -35,6 +36,8 @@ const patchSchema = z.union([
     .object({ confirm: z.literal(true), proposal: shown })
     .strict(),
   z.object({ reject: z.literal(true), proposal: shown }).strict(),
+  // H3 (2026-11-02): the owner dismisses the item itself (kept, never deleted; the start note stops listing it).
+  z.object({ dismiss: z.literal(true) }).strict(),
 ]);
 
 export async function PATCH(req: Request, { params }: Ctx) {
@@ -48,6 +51,10 @@ export async function PATCH(req: Request, { params }: Ctx) {
       throw new AppError(413, "payload_too_large", "request body too large");
     }
     const body = await parseInput(req, patchSchema);
+    if ("dismiss" in body) {
+      const item = await dismissChecklistItem(getDb(), user, id, itemId);
+      return NextResponse.json({ ok: true, item });
+    }
     const proposal = {
       proposedAt: new Date(body.proposal.proposedAt),
       change: body.proposal.change,

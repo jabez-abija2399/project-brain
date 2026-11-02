@@ -301,3 +301,55 @@ describe("KI-020 plural forms and word rarity", () => {
     expect(matches[0]?.component.name).toBe("SidebarInvoiceRow");
   });
 });
+
+// Real-test Q (find_similar_component too narrow): "PrimaryButton" must find ui/button.tsx with a primary variant.
+describe("Q find_similar_component: distinctive words in path and props, generic names, top 3 with reasons", () => {
+  const primaryButton = { name: "PrimaryButton", path: "src/components/PrimaryButton.tsx", signature: null };
+  const uiButton = {
+    name: "Button",
+    path: "src/components/ui/button.tsx",
+    signature: '({ variant = "primary", children }) => JSX',
+  };
+
+  it("the exact case: 'PrimaryButton' returns ui/button.tsx (primary variant) with a reason", () => {
+    const matches = findSimilarComponent("PrimaryButton", [primaryButton, uiButton]);
+    const button = matches.find((m) => m.component.path === "src/components/ui/button.tsx");
+    expect(button).toBeDefined();
+    expect(button?.reason).toBe("name shares 'button'; props include 'primary'");
+    expect(matches[0]?.component.name).toBe("PrimaryButton");
+    expect(matches.every((m) => m.reason.length > 0)).toBe(true);
+  });
+
+  it("a common word like Button does not hide the match when the project has many Buttons", () => {
+    const others = Array.from({ length: 30 }, (_, i) => ({
+      name: `Action${i}Button`,
+      path: `src/components/actions/Action${i}Button.tsx`,
+      signature: "({ label }) => JSX",
+    }));
+    const matches = findSimilarComponent("PrimaryButton", [...others, primaryButton, uiButton]);
+    expect(matches.map((m) => m.component.path)).toContain("src/components/ui/button.tsx");
+  });
+
+  it("returns at most the top 3 matches, best score first, ties by name", () => {
+    const candidates = [
+      { name: "PrimaryButton", path: "src/a/PrimaryButton.tsx", signature: null },
+      { name: "PrimaryButtonLink", path: "src/b/PrimaryButtonLink.tsx", signature: null },
+      { name: "PrimaryAction", path: "src/c/PrimaryAction.tsx", signature: null },
+      { name: "PrimaryBadge", path: "src/d/PrimaryBadge.tsx", signature: null },
+      uiButton,
+    ];
+    const matches = findSimilarComponent("PrimaryButton", candidates);
+    expect(matches).toHaveLength(3);
+    for (let i = 1; i < matches.length; i++) {
+      const prev = matches[i - 1];
+      const cur = matches[i];
+      expect(prev && cur && (prev.score > cur.score || (prev.score === cur.score && prev.component.name <= cur.component.name))).toBe(true);
+    }
+  });
+
+  it("nothing similar returns []", () => {
+    expect(findSimilarComponent("ZzzUnknownThing", [primaryButton, uiButton])).toEqual([]);
+    // A generic word alone does not match a component that only shares it and says nothing else the query says.
+    expect(findSimilarComponent("PasswordStrengthInputField", [{ name: "TextInput", path: "src/forms/TextInput.tsx", signature: null }])).toEqual([]);
+  });
+});

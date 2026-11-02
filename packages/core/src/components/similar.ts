@@ -3,12 +3,15 @@
 
 export type SimilarCandidate = { name: string; path: string; signature?: string | null };
 
-export type SimilarMatch<T extends SimilarCandidate> = { component: T; score: number };
+// reason: one line saying why it matched, e.g. "name shares 'button'; props include 'primary'".
+export type SimilarMatch<T extends SimilarCandidate> = { component: T; score: number; reason: string };
 
 export type SimilarOptions = { threshold?: number; limit?: number };
 
-export const SIMILARITY_THRESHOLD = 0.3;
-export const DEFAULT_SIMILAR_LIMIT = 5;
+// Lowered from 0.3 (real-test Q): a component that shares a common word such as "Button" and a distinctive word in
+// its path or props ("primary") scores about 0.29 in a project with many Buttons.
+export const SIMILARITY_THRESHOLD = 0.15;
+export const DEFAULT_SIMILAR_LIMIT = 3;
 const MAX_QUERY = 200;
 // The database name pre-filter takes at most 20 words (symbolsRepo MAX_NAME_TOKENS); scoring uses the same ones.
 const MAX_QUERY_TOKENS = 20;
@@ -114,13 +117,19 @@ export function rarityWeights(query: readonly string[], names: readonly string[]
 
 const equalWeights: WordWeight = (t) => (GENERIC.has(t) ? GENERIC_FACTOR : 1);
 
-export function similarityScore(
+type Scored = { score: number; reason: string };
+
+// Scores one candidate. `strict` (the default lookup, threshold > 0) requires a shared name token. A shared word
+// that is common (GENERIC, e.g. "button") is not enough on its own: the candidate must also be the query's whole name
+// ("Button" for "PrimaryButton" is covered), or the query must hold no distinctive word, or a distinctive query word
+// must be in its path or props ("primary" in ui/button.tsx). So "TextInput" does not match "PasswordStrengthInput".
+function scoreCandidate(
   query: string[],
   c: SimilarCandidate,
-  skipWithoutNameMatch = false,
-  weight: WordWeight = equalWeights,
-): number {
-  if (query.length === 0) return 0;
+  strict: boolean,
+  weight: WordWeight,
+): Scored | null {
+  if (query.length === 0) return null;
   const sum = (tokens: Iterable<string>) => {
     let total = 0;
     for (const t of tokens) total += weight(t);
@@ -128,29 +137,58 @@ export function similarityScore(
   };
   const name = new Set(nameTokens(c.name));
   const shared = query.filter((t) => name.has(t));
-  if (shared.length === 0 && skipWithoutNameMatch) return 0;
+  if (shared.length === 0 && strict) return null;
   const union = new Set([...query, ...name]);
   const context = contextTokens(c);
   const inContext = query.filter((t) => context.has(t));
-  const score =
+  if (strict && shared.length > 0 && shared.every((t) => GENERIC.has(t))) {
+    const queryIsGeneric = query.every((t) => GENERIC.has(t));
+    const nameIsCovered = [...name].every((t) => query.includes(t));
+    const contextIsDistinctive = inContext.some((t) => !GENERIC.has(t));
+    if (!queryIsGeneric && !nameIsCovered && !contextIsDistinctive) return null;
+  }
+  const raw =
     NAME_WEIGHT * (sum(shared) / sum(union)) + CONTEXT_WEIGHT * (sum(inContext) / sum(query));
-  return Math.round(score * 1000) / 1000;
+  const score = Math.round(raw * 1000) / 1000;
+  if (score <= 0) return null;
+
+  const path = new Set(nameTokens(c.path).filter((t) => !NOISE.has(t)));
+  const props = new Set(nameTokens(c.signature ?? "").filter((t) => !NOISE.has(t)));
+  const quoted = (words: string[]) => words.map((t) => `'${t}'`).join(", ");
+  const inPath = query.filter((t) => !name.has(t) && path.has(t));
+  const inProps = query.filter((t) => !name.has(t) && !path.has(t) && props.has(t));
+  const parts: string[] = [];
+  if (shared.length > 0) parts.push(`name shares ${quoted(shared)}`);
+  if (inPath.length > 0) parts.push(`path has ${quoted(inPath)}`);
+  if (inProps.length > 0) parts.push(`props include ${quoted(inProps)}`);
+  return { score, reason: parts.join("; ") };
+}
+
+export function similarityScore(
+  query: string[],
+  c: SimilarCandidate,
+  skipWithoutNameMatch = false,
+  weight: WordWeight = equalWeights,
+): number {
+  return scoreCandidate(query, c, skipWithoutNameMatch, weight)?.score ?? 0;
 }
 
 /**
  * Words a candidate's name must contain (case-insensitive substring) to possibly match, for a database prefilter.
- * A word ending in y is sent without it, so "category" also finds "Categories".
+ * A word ending in y is sent without it, so "category" also finds "Categories". Nothing is sent when the threshold is
+ * 0 (a raw ranking that also looks at path and props alone).
  */
 export function similarNameFilter(
   query: string,
   options: SimilarOptions = {},
 ): string[] | undefined {
   const threshold = options.threshold ?? SIMILARITY_THRESHOLD;
-  if (threshold <= CONTEXT_WEIGHT) return undefined;
+  if (threshold <= 0) return undefined;
   return queryTokens(query).map((t) => (t.length > 3 && t.endsWith("y") ? t.slice(0, -1) : t));
 }
 
-// Best matches at or above the threshold, best first. Nothing similar enough -> [] (never the closest unrelated one).
+// Best matches at or above the threshold, best first, at most `limit` (3 by default). Ties by name. Nothing similar
+// enough -> [] (never the closest unrelated one).
 export function findSimilarComponent<T extends SimilarCandidate>(
   query: string,
   components: readonly T[],
@@ -159,16 +197,15 @@ export function findSimilarComponent<T extends SimilarCandidate>(
   const threshold = options.threshold ?? SIMILARITY_THRESHOLD;
   const limit = options.limit ?? DEFAULT_SIMILAR_LIMIT;
   const q = queryTokens(query);
-  // Path and props alone can never reach the threshold: a candidate must share a name token.
-  const needsName = threshold > CONTEXT_WEIGHT;
+  const strict = threshold > 0;
   const weight = rarityWeights(
     q,
     components.map((c) => c.name),
   );
   const matches: SimilarMatch<T>[] = [];
   for (const component of components) {
-    const score = similarityScore(q, component, needsName, weight);
-    if (score > 0 && score >= threshold) matches.push({ component, score });
+    const hit = scoreCandidate(q, component, strict, weight);
+    if (hit && hit.score >= threshold) matches.push({ component, score: hit.score, reason: hit.reason });
   }
   matches.sort((a, b) => b.score - a.score || a.component.name.localeCompare(b.component.name));
   return matches.slice(0, limit);

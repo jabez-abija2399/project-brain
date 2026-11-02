@@ -235,7 +235,7 @@ describe("the real test session, replayed in order", () => {
     );
     judge = "1 | done | src/lib/permissions.test.ts";
     expect(await c.run(app.dir, ["hook", "session-end", "--agent", "claude"], s1)).toBe(0);
-    expect(c.err[0]).toBe("Codeceipt receipt: 1 file changed; 1 done, 0 missed.");
+    expect(c.err[0]).toBe("Codeceipt receipt: 1 file changed; 1 done.");
     expect(c.err[1]).toBe("Checks needing attention: none.");
     expect(c.err[2]).toBe("Also listed: 1 you asked for.");
     expect(await c.run(app.dir, ["last"])).toBe(0);

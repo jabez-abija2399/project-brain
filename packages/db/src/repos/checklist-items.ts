@@ -311,4 +311,77 @@ export const checklistItemsRepo = {
       FROM (VALUES ${values}) AS v(id, status)
       WHERE c.project_id = ${projectId} AND c.id = v.id AND c.status IN ('open', 'partial', 'missed', 'done_untested')`);
   },
+
+  // H1/H2: every item of the project with its request's time and feature, newest request first. Used to merge near
+  // duplicates and by the one-time cleanup; a read only.
+  async listWithRequests(
+    db: BrainDb,
+    projectId: string,
+    limit: number,
+  ): Promise<{ item: ChecklistItem; requestCreatedAt: Date; requestFeatureId: string | null }[]> {
+    const rows = await db
+      .select({
+        item: checklistItems,
+        requestCreatedAt: requests.createdAt,
+        requestFeatureId: requests.featureId,
+      })
+      .from(checklistItems)
+      .innerJoin(
+        requests,
+        and(
+          eq(requests.projectId, checklistItems.projectId),
+          eq(requests.id, checklistItems.requestId),
+        ),
+      )
+      .where(eq(checklistItems.projectId, projectId))
+      .orderBy(desc(requests.createdAt), desc(requests.id), asc(checklistItems.position), asc(checklistItems.id))
+      .limit(limit);
+    return rows;
+  },
+
+  // H3 (owner): the item is kept and marked dismissed, never deleted; its pending proposal is dropped with it. Null
+  // when the item is not in the project or is already dismissed.
+  async dismiss(db: BrainDb, projectId: string, itemId: string): Promise<ChecklistItem | null> {
+    const [row] = await db
+      .update(checklistItems)
+      .set({ status: "dismissed", proposedChange: null, proposedAt: null })
+      .where(
+        and(
+          eq(checklistItems.projectId, projectId),
+          eq(checklistItems.id, itemId),
+          ne(checklistItems.status, "dismissed"),
+        ),
+      )
+      .returning();
+    return row ?? null;
+  },
+
+  // H2/H3: closes unresolved items (open, partial, missed, postponed) as done, done without a test, or dismissed, in
+  // one transaction. An item already done (or done without a test, which only a later receipt judges) is never
+  // touched here. Returns how many items changed.
+  async closeItems(
+    db: BrainDb,
+    projectId: string,
+    updates: { id: string; status: "done" | "done_untested" | "dismissed" }[],
+  ): Promise<number> {
+    if (updates.length === 0) return 0;
+    return db.transaction(async (tx) => {
+      let changed = 0;
+      for (const u of updates) {
+        const rows = await tx
+          .update(checklistItems)
+          .set({ status: u.status, proposedChange: null, proposedAt: null })
+          .where(
+            and(
+              eq(checklistItems.projectId, projectId),
+              eq(checklistItems.id, u.id),
+              inArray(checklistItems.status, ["open", "partial", "missed", "postponed"]),
+            ),
+          )
+          .returning({ id: checklistItems.id });
+        changed += rows.length;
+      }
+      return changed;
+    });
+  },
 };

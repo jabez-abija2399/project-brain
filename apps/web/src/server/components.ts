@@ -12,6 +12,8 @@ export type SimilarComponent = {
   signature: string | null;
   summary: string | null;
   score: number;
+  // One line saying why it matched (names, path and props words). Masked like the other values.
+  reason: string;
 };
 
 // DB read + lexical scoring only, never an LLM (MCP read-tool rule). The caller has already run
@@ -27,11 +29,12 @@ export async function findSimilarComponents(
   });
   // Masked before it leaves the server (AGENTS.md): a stored path or summary may carry a secret.
   const mask = (value: string | null) => (value === null ? null : maskSecretsIn(value));
-  return findSimilarComponent(query, components, options).map(({ component, score }) => ({
+  return findSimilarComponent(query, components, options).map(({ component, score, reason }) => ({
     name: maskSecretsIn(component.name),
     path: maskSecretsIn(component.path),
     signature: mask(component.signature),
     summary: mask(component.summary),
     score,
+    reason: maskSecretsIn(reason),
   }));
 }

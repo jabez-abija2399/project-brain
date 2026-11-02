@@ -36,13 +36,29 @@ export type HandoffInput = {
   directives: string[];
 };
 
+type ListPiece = { prefix: string; items: string[] };
+
 type Piece = {
   section: number;
   head: string | null;
   full: string;
   must: boolean;
+  // A list of names that is cut to whole names when it does not fit (the feature list).
+  list?: ListPiece;
   out?: string;
 };
+
+// Placement priority (lower first): directives; goal and the next step; postponed items; the whole feature list;
+// then the rest in the order it was added (real-test N).
+function rankOf(p: Piece): number {
+  if (p.must) return 0;
+  if (p.section === GOAL) return 1;
+  if (p.section === NEXT_FEATURE) return 2;
+  if (p.section === NEXT) return 3;
+  if (p.section === CHECKLIST && p.full.startsWith("- (postponed) ")) return 4;
+  if (p.list) return 5;
+  return 6;
+}
 
 // Display order of the sections. Directives come first so the agent reads them before anything else.
 const HEADS = [
@@ -125,8 +141,32 @@ function pieces(input: HandoffInput): Piece[] {
     add(DECISIONS, `- ${day} ${oneLine(d.title)}`);
   }
   const names = input.features ?? [];
-  if (names.length > 0) add(ALL_FEATURES, `ALL FEATURES: ${names.map(oneLine).join(", ")}`);
+  if (names.length > 0)
+    out.push({
+      section: ALL_FEATURES,
+      head: null,
+      full: "",
+      must: false,
+      list: { prefix: "ALL FEATURES: ", items: names.map(oneLine) },
+    });
   return out;
+}
+
+// The feature list as whole names only: as many as fit, then "and N more" (real-test N). Null when not even that fits.
+function fitList(list: ListPiece, room: number): string | null {
+  for (let k = list.items.length; k >= 0; k--) {
+    const text = listText(list, k);
+    if (text.length <= room) return text;
+  }
+  return null;
+}
+
+function listText(list: ListPiece, k: number): string {
+  const head = list.items.slice(0, k).join(", ");
+  const rest = list.items.length - k;
+  if (rest === 0) return `${list.prefix}${head}`;
+  const tail = `and ${rest} more`;
+  return `${list.prefix}${k === 0 ? tail : `${head}, ${tail}`}`;
 }
 
 // Keeps pieces in priority order (the order they were added, with directives first) until the note is full. A piece
@@ -135,10 +175,18 @@ export function buildHandoffNote(input: HandoffInput): string {
   const all = pieces(input);
   let remaining = HANDOFF_LIMIT - 1 - PREAMBLE.length - 1;
   const headPrinted = new Set<number>();
-  // Priority is the order of `all`: a stable sort keeps directives first and the rest in insertion order.
-  const byPriority = [...all].sort((a, b) => Number(b.must) - Number(a.must));
+  // A stable sort by rank keeps the insertion order within each rank.
+  const byPriority = [...all].sort((a, b) => rankOf(a) - rankOf(b));
   for (const p of byPriority) {
     const headCost = p.head && !headPrinted.has(p.section) ? p.head.length + 1 : 0;
+    if (p.list) {
+      const text = fitList(p.list, remaining - headCost - 1);
+      if (text === null) continue;
+      p.out = text;
+      remaining -= headCost + text.length + 1;
+      if (p.head) headPrinted.add(p.section);
+      continue;
+    }
     const cost = headCost + p.full.length + 1;
     if (p.must || cost <= remaining) {
       p.out = p.full;

@@ -1,6 +1,7 @@
 import {
   MAX_REQUEST_CHARS,
   classifyRequest,
+  findNearDuplicate,
   isAcknowledgement,
   maskSecretsIn,
   requestForStorage,
@@ -10,6 +11,7 @@ import { z } from "zod";
 import { dailyAiBudget, dailyCaptureCap } from "./code-index-limits";
 import { AppError } from "./errors";
 import { getLlm } from "./llm";
+import { openItemsForFeature } from "./open-item-merge";
 import { releaseDaily, reserveDaily } from "./rate-limit";
 
 // Requests captured by the agents' prompt-submit hooks (`codeceipt hook prompt`), tied to the agent session. One AI
@@ -72,7 +74,11 @@ export async function captureRequest(
     return { recorded: false };
   }
   const feature = captured?.feature ? features.find((f) => f.name === captured.feature) : undefined;
-  const items = captured?.kind === "request" ? captured.items : [];
+  // H1 (2026-11-02): an item that repeats an open item of the same feature is not stored a second time.
+  const pool = await openItemsForFeature(db, projectId, feature?.id ?? null);
+  const items = (captured?.kind === "request" ? captured.items : []).filter(
+    (i) => !findNearDuplicate(i.text, pool, (o) => o.text),
+  );
   const created = await requestsRepo.createWithItems(
     db,
     projectId,

@@ -55,34 +55,52 @@ async function beforeText(
   return text !== null && text.length <= MAX_SCAN_BYTES ? text : null;
 }
 
-/** Integrity flags for the session's changed files, compared with `base` (the session's starting commit or HEAD). */
+/**
+ * Integrity flags for the session's changed files, compared with `base` (the session's starting commit or HEAD). A file
+ * already modified at the session start (`startTexts`: its verified start content) is compared with that content, so
+ * only the session's own edits are counted; what was there before is returned apart as `beforeSession` (not counted).
+ */
 export async function localIntegrity(
   git: Git,
   root: string,
   base: string | null,
   files: string[],
-): Promise<{ flags: IntegrityFlag[]; omitted: number }> {
+  startTexts: Record<string, string> = {},
+): Promise<{ flags: IntegrityFlag[]; omitted: number; beforeSession: IntegrityFlag[] }> {
   const relevant = files.filter((f) => isTestFile(f) || isTestConfig(f)).slice(0, MAX_FILES);
   const changes: FileChange[] = [];
+  const earlier: FileChange[] = [];
   for (const path of relevant) {
     const [before, after] = await Promise.all([
       base ? beforeText(git, root, base, path) : Promise.resolve(null),
       afterText(root, path),
     ]);
+    const start = Object.hasOwn(startTexts, path) ? startTexts[path] : undefined;
+    if (start !== undefined) {
+      changes.push({ path, before: start, after });
+      earlier.push({ path, before, after: start });
+      continue;
+    }
     // A file that exists in neither version (or could not be read) says nothing.
     if (before === null && after === null) continue;
     changes.push({ path, before, after });
   }
   // Names and paths are cleaned and masked here, so a secret used as a test name never leaves the machine.
-  const flags = checkTestIntegrity(changes)
-    .sort((a, b) => PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind))
-    .map((f) => ({
-      ...f,
-      file: safePath(f.file),
-      names: f.names.map((n) => safeDisplay(n, 200)).filter(Boolean),
-      count: Math.min(f.count, MAX_COUNT),
-    }));
-  return { flags: flags.slice(0, MAX_FLAGS), omitted: Math.max(0, flags.length - MAX_FLAGS) };
+  const clean = (list: IntegrityFlag[]) =>
+    list
+      .sort((a, b) => PRIORITY.indexOf(a.kind) - PRIORITY.indexOf(b.kind))
+      .map((f) => ({
+        ...f,
+        file: safePath(f.file),
+        names: f.names.map((n) => safeDisplay(n, 200)).filter(Boolean),
+        count: Math.min(f.count, MAX_COUNT),
+      }));
+  const flags = clean(checkTestIntegrity(changes));
+  return {
+    flags: flags.slice(0, MAX_FLAGS),
+    omitted: Math.max(0, flags.length - MAX_FLAGS),
+    beforeSession: clean(checkTestIntegrity(earlier)),
+  };
 }
 
 /**

@@ -70,15 +70,17 @@ describe("A: requests with file paths, quotes or code become proper items", () =
   });
 
   it("an unparseable answer is retried once; the retry's items are used", async () => {
+    // The retry answers with a split of the request (A): one line per thing, not a single item for all of it.
     const { llm, calls } = answers(
       "I can't help with modifying tests.",
-      "- dayjs is listed in package.json",
+      "- dayjs is listed in package.json\n- npm install is not run",
     );
     const items = await splitRequest(llm, PACKAGES);
     expect(calls).toHaveLength(2);
     expect(calls[1]?.prompt).toContain(calls[0]?.prompt as string);
     expect(items).toEqual([
       { text: "dayjs is listed in package.json", needs_clarification: false },
+      { text: "npm install is not run", needs_clarification: false },
     ]);
   });
 
@@ -91,12 +93,17 @@ describe("A: requests with file paths, quotes or code become proper items", () =
     expect(items[0]?.text).not.toMatch(/^Clarify/);
     expect(items[0]?.text).toContain("src/lib/demo-config.ts");
     expect(items[0]?.text).not.toContain(KEY.slice(4));
-    for (const request of [SKIP, PACKAGES]) {
-      const again = await splitRequest(answers("no lines").llm, request);
-      expect(again).toEqual([
-        { text: expect.stringContaining(request.slice(0, 30)), needs_clarification: false },
-      ]);
-    }
+    const skipAgain = await splitRequest(answers("no lines").llm, SKIP);
+    expect(skipAgain).toEqual([
+      { text: expect.stringContaining(SKIP.slice(0, 30)), needs_clarification: false },
+    ]);
+    // A request that asks for several things is not kept as one whole-request item either (A).
+    const packagesAgain = await splitRequest(answers("no lines").llm, PACKAGES);
+    expect(packagesAgain.map((i) => i.text)).toEqual([
+      "Use Codeceipt's check_package tool to check \"zod\" before we install anything, and tell me the results",
+      "Use Codeceipt's check_package tool to check \"react-super-hooks-xyz\" before we install anything, and tell me the results",
+      "Add \"dayjs\" to the dependencies in package.json, but don't run npm install",
+    ]);
   });
 
   it("request capture (prompt-submit hook): the same retry and task fallback, feature kept", async () => {

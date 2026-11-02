@@ -13,6 +13,7 @@ import { AppError } from "./errors";
 import {
   type ToolToken,
   addDecision,
+  startNoteItems,
   confirmDirective,
   listDecisions,
   listProgress,
@@ -287,5 +288,32 @@ describe("session continuity tools (FEAT-010)", () => {
     const logged = info.mock.calls.map((c) => c.join(" ")).join("\n");
     expect(logged).toContain("[mcp] save_directive");
     expect(logged).not.toContain("SECRET-PHRASE-42");
+  });
+});
+
+// Real-test H: the start note repeats near-duplicate open items across sessions. One line, counted "(xN)".
+describe("H start note: near-duplicate open items collapse into one line", () => {
+  const row = (text: string, status = "open") => ({ text, status, needsClarification: false });
+
+  it("'Add a short comment at the top of the main page' and 'Add a comment at the top of the main page' are one line (x2)", () => {
+    const items = startNoteItems([
+      row("Add a short comment at the top of the main page"),
+      row("Add a comment at the top of the main page"),
+    ]);
+    expect(items.open).toEqual(["Add a short comment at the top of the main page (x2)"]);
+    expect(items.checklist).toEqual(["Add a short comment at the top of the main page (x2)"]);
+  });
+
+  it("items that differ in a word that matters stay on separate lines, and a single item has no count", () => {
+    const items = startNoteItems([
+      row("Add a link to /about in the footer"),
+      row("Add a link to /contact in the footer"),
+      row("Add a pricing page"),
+    ]);
+    expect(items.open).toEqual([
+      "Add a link to /about in the footer",
+      "Add a link to /contact in the footer",
+      "Add a pricing page",
+    ]);
   });
 });
