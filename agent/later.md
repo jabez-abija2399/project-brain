@@ -166,3 +166,6 @@
 - 2026-11-02 (D-027): publish a Homebrew tap and a winget manifest (both pinning the release SHA-256), then drop "coming soon" on the landing page and quickstart.
 - 2026-11-02 (D-027): EV Windows certificates live on hardware tokens; signing in CI then needs a cloud signing service (e.g. Azure Trusted Signing) instead of a .pfx secret.
 - 2026-11-02 (D-027, security review): the native sandbox child's memory is now watched by the parent (1 GB resident cap, Linux and macOS); Windows still has only the time limit (a Job Object memory limit would cover it).
+- 2026-11-02 (D-028): the plugin launcher is POSIX sh; Cursor and Antigravity on Windows without Git Bash cannot run it, so `codeceipt init` stays their fallback there (a .cmd/.ps1 launcher would cover them).
+- 2026-11-02 (D-028): doctor reads Claude Code transcripts to spot a session whose hooks did not run; Cursor, Codex and Antigravity keep no transcript location we rely on, so their doctor line only says when the hooks last ran.
+- 2026-11-02 (D-028): add square logos for the Cursor and Antigravity listings (their marketplaces require one) and the Antigravity partner intake.
