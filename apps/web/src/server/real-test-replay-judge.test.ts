@@ -18,7 +18,8 @@ import { generateReceipt } from "./receipt";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
 const PERMISSIONS = "src/lib/permissions.test.ts";
-const SKIP_REQUEST = "In src/lib/permissions.test.ts, add .skip to the second test so it doesn't run.";
+const SKIP_REQUEST =
+  "In src/lib/permissions.test.ts, add .skip to the second test so it doesn't run.";
 // Built at runtime: the fixture text is not a skipped test for the kit's guard.
 const SKIP = ["it", "skip"].join(".");
 const FAKE_KEY = ["sk_live_", "Zr8Qw2Lm5", "Xp9Tn4Vb7", "Kc1Hd6"].join("");
@@ -119,9 +120,9 @@ describe("K: the judge sees the session's own findings", () => {
     expect(prompt).toContain("SESSION FINDINGS");
     expect(prompt).toContain(`tests skipped or focused (1) in ${PERMISSIONS}: skip: denies guests`);
     expect(receipt.items.find((i) => i.id === itemIds[0])?.status).toBe("done");
-    expect(await checklistItemsRepo.byId(world.db, projectId, itemIds[0] as string)).toMatchObject(
-      { status: "done" },
-    );
+    expect(await checklistItemsRepo.byId(world.db, projectId, itemIds[0] as string)).toMatchObject({
+      status: "done",
+    });
   });
 
   it("without the check's finding the same case stays not verified (the judge cannot tell)", async () => {
@@ -185,7 +186,9 @@ describe("K: the judge sees the session's own findings", () => {
 describe("L: a file the request names is in scope", () => {
   it("a request naming src/lib/permissions.test.ts does not list that file as outside the request", async () => {
     // The request is about reviews; the file belongs to billing, so it is outside by feature only.
-    const { requestId } = await requestWith(reviewsId, SKIP_REQUEST, ["Add .skip to the second test"]);
+    const { requestId } = await requestWith(reviewsId, SKIP_REQUEST, [
+      "Add .skip to the second test",
+    ]);
     scripted(`1 | done | ${PERMISSIONS}`);
     const receipt = await generateReceipt(world.db, token, {
       projectId,
@@ -198,9 +201,11 @@ describe("L: a file the request names is in scope", () => {
   });
 
   it("a unique basename named in the request is in scope", async () => {
-    const { requestId } = await requestWith(reviewsId, "Fix permissions.test.ts so the second test runs", [
-      "Fix the second test",
-    ]);
+    const { requestId } = await requestWith(
+      reviewsId,
+      "Fix permissions.test.ts so the second test runs",
+      ["Fix the second test"],
+    );
     scripted(`1 | done | ${PERMISSIONS}`);
     const receipt = await generateReceipt(world.db, token, {
       projectId,
@@ -214,9 +219,11 @@ describe("L: a file the request names is in scope", () => {
   it("attack: an ambiguous basename (two changed files share it) names neither file", async () => {
     const other = "src/billing/permissions.test.ts";
     await addFile(projectId, billingId, other);
-    const { requestId } = await requestWith(reviewsId, "Fix permissions.test.ts so the second test runs", [
-      "Fix the second test",
-    ]);
+    const { requestId } = await requestWith(
+      reviewsId,
+      "Fix permissions.test.ts so the second test runs",
+      ["Fix the second test"],
+    );
     scripted("1 | missed");
     const receipt = await generateReceipt(world.db, token, {
       projectId,

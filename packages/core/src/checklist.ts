@@ -129,7 +129,12 @@ const QUOTED_NAME = /"[^"\n]{1,200}"/g;
 function sentencesOf(request: string): string[] {
   return oneLineText(request)
     .split(/(?<=[.!?])\s+/)
-    .map((s) => s.replace(/^then\s+/i, "").replace(/[.!?\s]+$/, "").trim())
+    .map((s) =>
+      s
+        .replace(/^then\s+/i, "")
+        .replace(/[.!?\s]+$/, "")
+        .trim(),
+    )
     .filter((s) => s.length > 0);
 }
 
@@ -174,7 +179,8 @@ function partItems(request: string): ChecklistDraftItem[] {
 
 // A check or a report with no change to make: "check zod", "tell me the result", "...and report back". Only when no
 // change verb is in the item, so "add a check" is still a change.
-const CHECK_OR_REPORT = /^(check|verify|look up|find out|compare)\b|\b(tell me|let me know|report back|reported)\b/i;
+const CHECK_OR_REPORT =
+  /^(check|verify|look up|find out|compare)\b|\b(tell me|let me know|report back|reported)\b/i;
 const CHANGE_VERB =
   /\b(add|adds|added|create|make|change|update|remove|delete|write|fix|rename|edit|move|replace|import|implement|build|refactor|upgrade|set|store|commit|publish)\b/i;
 
@@ -185,7 +191,9 @@ function noFileChange(text: string): boolean {
 /** Marks the checks and reports the user asked for (O). Questions and postponed items are never marked. */
 function classify(items: ChecklistDraftItem[]): ChecklistDraftItem[] {
   return items.map((i) =>
-    !i.needs_clarification && !i.postponed && noFileChange(i.text) ? { ...i, no_file_change: true } : i,
+    !i.needs_clarification && !i.postponed && noFileChange(i.text)
+      ? { ...i, no_file_change: true }
+      : i,
   );
 }
 

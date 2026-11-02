@@ -4,7 +4,11 @@
 export type SimilarCandidate = { name: string; path: string; signature?: string | null };
 
 // reason: one line saying why it matched, e.g. "name shares 'button'; props include 'primary'".
-export type SimilarMatch<T extends SimilarCandidate> = { component: T; score: number; reason: string };
+export type SimilarMatch<T extends SimilarCandidate> = {
+  component: T;
+  score: number;
+  reason: string;
+};
 
 export type SimilarOptions = { threshold?: number; limit?: number };
 
@@ -205,7 +209,8 @@ export function findSimilarComponent<T extends SimilarCandidate>(
   const matches: SimilarMatch<T>[] = [];
   for (const component of components) {
     const hit = scoreCandidate(q, component, strict, weight);
-    if (hit && hit.score >= threshold) matches.push({ component, score: hit.score, reason: hit.reason });
+    if (hit && hit.score >= threshold)
+      matches.push({ component, score: hit.score, reason: hit.reason });
   }
   matches.sort((a, b) => b.score - a.score || a.component.name.localeCompare(b.component.name));
   return matches.slice(0, limit);

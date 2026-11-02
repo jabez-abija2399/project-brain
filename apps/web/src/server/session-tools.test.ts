@@ -13,12 +13,12 @@ import { AppError } from "./errors";
 import {
   type ToolToken,
   addDecision,
-  startNoteItems,
   confirmDirective,
   listDecisions,
   listProgress,
   saveDirective,
   saveProgress,
+  startNoteItems,
   whereDidWeStop,
 } from "./session-tools";
 import { type TestWorld, createTestWorld } from "./test-helpers";

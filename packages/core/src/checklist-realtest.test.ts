@@ -100,9 +100,9 @@ describe("A: requests with file paths, quotes or code become proper items", () =
     // A request that asks for several things is not kept as one whole-request item either (A).
     const packagesAgain = await splitRequest(answers("no lines").llm, PACKAGES);
     expect(packagesAgain.map((i) => i.text)).toEqual([
-      "Use Codeceipt's check_package tool to check \"zod\" before we install anything, and tell me the results",
-      "Use Codeceipt's check_package tool to check \"react-super-hooks-xyz\" before we install anything, and tell me the results",
-      "Add \"dayjs\" to the dependencies in package.json, but don't run npm install",
+      'Use Codeceipt\'s check_package tool to check "zod" before we install anything, and tell me the results',
+      'Use Codeceipt\'s check_package tool to check "react-super-hooks-xyz" before we install anything, and tell me the results',
+      'Add "dayjs" to the dependencies in package.json, but don\'t run npm install',
     ]);
   });
 

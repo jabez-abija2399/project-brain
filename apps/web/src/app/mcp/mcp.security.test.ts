@@ -703,9 +703,16 @@ describe("FEAT-011 security pass: outputs (secrets, injection, size, no source)"
     });
     const res = await callTool("find_similar_component", { projectId, query: "Card" }, token);
     const parsed = JSON.parse(res.text) as { matches: Record<string, unknown>[] };
+    // reason: one line built only from the name and props tokens this tool already returns (Q)
     for (const m of parsed.matches)
-      // reason: one line built only from the name and props tokens this tool already returns (Q)
-      expect(Object.keys(m).sort()).toEqual(["name", "path", "reason", "score", "signature", "summary"]);
+      expect(Object.keys(m).sort()).toEqual([
+        "name",
+        "path",
+        "reason",
+        "score",
+        "signature",
+        "summary",
+      ]);
     expect(res.body).not.toContain("deadbeefhash");
     await callTool("get_context_pack", { projectId, feature: "missing" }, token);
     await callTool("where_did_we_stop", { projectId: otherProjectId }, token);

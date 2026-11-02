@@ -48,11 +48,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const { id, itemId } = await params;
     // Access and the item first: a stranger or a wrong item id gets the same 404 whatever the body says.
     await requireChecklistItem(getDb(), user, id, itemId);
-    // The body is a few hundred bytes; anything far larger is refused before it is parsed.
-    if (Number(req.headers.get("content-length") ?? "0") > MAX_BODY_BYTES) {
-      throw new AppError(413, "payload_too_large", "request body too large");
-    }
-    const body = await parseInput(req, patchSchema);
+    // The body is a few hundred bytes; the capped reader refuses anything larger, with or without Content-Length.
+    const body = await parseInput(req, patchSchema, MAX_BODY_BYTES);
     if ("dismiss" in body) {
       const item = await dismissChecklistItem(getDb(), user, id, itemId);
       return NextResponse.json({ ok: true, item });

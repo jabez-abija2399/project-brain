@@ -28,9 +28,9 @@ function scripted(answer: string) {
 }
 
 const CORRECT_SPLIT = [
-  "- Use Codeceipt's check_package tool to check \"zod\" and tell me the results",
-  "- Use Codeceipt's check_package tool to check \"react-super-hooks-xyz\" and tell me the results",
-  "- Add \"date-fns\" to the dependencies in package.json, and npm install is not run",
+  '- Use Codeceipt\'s check_package tool to check "zod" and tell me the results',
+  '- Use Codeceipt\'s check_package tool to check "react-super-hooks-xyz" and tell me the results',
+  '- Add "date-fns" to the dependencies in package.json, and npm install is not run',
 ].join("\n");
 
 describe("real-test A: a multi-part request is split into separate items", () => {
@@ -40,9 +40,9 @@ describe("real-test A: a multi-part request is split into separate items", () =>
     expect(calls).toHaveLength(1);
     expect(calls[0]?.prompt).toBe(checklistPrompt(PACKAGES));
     expect(items.map((i) => i.text)).toEqual([
-      "Use Codeceipt's check_package tool to check \"zod\" and tell me the results",
-      "Use Codeceipt's check_package tool to check \"react-super-hooks-xyz\" and tell me the results",
-      "Add \"date-fns\" to the dependencies in package.json, and npm install is not run",
+      'Use Codeceipt\'s check_package tool to check "zod" and tell me the results',
+      'Use Codeceipt\'s check_package tool to check "react-super-hooks-xyz" and tell me the results',
+      'Add "date-fns" to the dependencies in package.json, and npm install is not run',
     ]);
   });
 
@@ -58,9 +58,9 @@ describe("real-test A: a multi-part request is split into separate items", () =>
     );
     const items = await splitRequest(llm, PACKAGES);
     expect(items.map((i) => i.text)).toEqual([
-      "Use Codeceipt's check_package tool to check \"zod\" and tell me the results",
-      "Use Codeceipt's check_package tool to check \"react-super-hooks-xyz\" and tell me the results",
-      "Add \"date-fns\" to the dependencies in package.json, but don't run npm install",
+      'Use Codeceipt\'s check_package tool to check "zod" and tell me the results',
+      'Use Codeceipt\'s check_package tool to check "react-super-hooks-xyz" and tell me the results',
+      'Add "date-fns" to the dependencies in package.json, but don\'t run npm install',
     ]);
   });
 
@@ -71,9 +71,9 @@ describe("real-test A: a multi-part request is split into separate items", () =>
       'Check "zod" and "react-super-hooks-xyz" with check_package and tell me the results.',
     );
     expect(items.length).toBeGreaterThanOrEqual(2);
-    expect(items.some((i) => i.text.includes('"zod"') && i.text.includes('"react-super-hooks-xyz"'))).toBe(
-      false,
-    );
+    expect(
+      items.some((i) => i.text.includes('"zod"') && i.text.includes('"react-super-hooks-xyz"')),
+    ).toBe(false);
   });
 });
 
@@ -83,10 +83,12 @@ describe("real-test O: a task that changes no files is Not verified, never done,
   });
 
   it("a check-and-report item is marked no_file_change; a change item is not", () => {
-    expect(
-      parseChecklist("- Check zod and tell me the result\n- Add a pricing page"),
-    ).toEqual([
-      { text: "Check zod and tell me the result", needs_clarification: false, no_file_change: true },
+    expect(parseChecklist("- Check zod and tell me the result\n- Add a pricing page")).toEqual([
+      {
+        text: "Check zod and tell me the result",
+        needs_clarification: false,
+        no_file_change: true,
+      },
       { text: "Add a pricing page", needs_clarification: false },
     ]);
   });
@@ -95,14 +97,22 @@ describe("real-test O: a task that changes no files is Not verified, never done,
     const { llm } = scripted("- Check zod and tell me the result");
     const items = await splitRequest(llm, "Check zod and tell me the result.");
     expect(items).toEqual([
-      { text: "Check zod and tell me the result", needs_clarification: false, no_file_change: true },
+      {
+        text: "Check zod and tell me the result",
+        needs_clarification: false,
+        no_file_change: true,
+      },
     ]);
   });
 
   it("only items judged from files are judged: questions, postponed and no-file-change items are not", () => {
     expect(judgedByFiles({ text: "Add a pricing page", needs_clarification: false })).toBe(true);
-    expect(judgedByFiles({ text: "Check zod", needs_clarification: false, no_file_change: true })).toBe(false);
-    expect(judgedByFiles({ text: "Add a footer", needs_clarification: false, postponed: true })).toBe(false);
+    expect(
+      judgedByFiles({ text: "Check zod", needs_clarification: false, no_file_change: true }),
+    ).toBe(false);
+    expect(
+      judgedByFiles({ text: "Add a footer", needs_clarification: false, postponed: true }),
+    ).toBe(false);
     expect(judgedByFiles({ text: "Which currency?", needs_clarification: true })).toBe(false);
   });
 });
@@ -141,9 +151,7 @@ describe("real-test P: the receipt summary line counts each item once", () => {
         },
         2,
       ),
-    ).toBe(
-      "Codeceipt receipt: 2 files changed; 2 done, 1 partly done, 1 missed, 1 not verified.",
-    );
+    ).toBe("Codeceipt receipt: 2 files changed; 2 done, 1 partly done, 1 missed, 1 not verified.");
   });
 
   it("a not verified item is not counted as done or missed", () => {

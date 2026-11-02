@@ -304,7 +304,11 @@ describe("KI-020 plural forms and word rarity", () => {
 
 // Real-test Q (find_similar_component too narrow): "PrimaryButton" must find ui/button.tsx with a primary variant.
 describe("Q find_similar_component: distinctive words in path and props, generic names, top 3 with reasons", () => {
-  const primaryButton = { name: "PrimaryButton", path: "src/components/PrimaryButton.tsx", signature: null };
+  const primaryButton = {
+    name: "PrimaryButton",
+    path: "src/components/PrimaryButton.tsx",
+    signature: null,
+  };
   const uiButton = {
     name: "Button",
     path: "src/components/ui/button.tsx",
@@ -343,13 +347,22 @@ describe("Q find_similar_component: distinctive words in path and props, generic
     for (let i = 1; i < matches.length; i++) {
       const prev = matches[i - 1];
       const cur = matches[i];
-      expect(prev && cur && (prev.score > cur.score || (prev.score === cur.score && prev.component.name <= cur.component.name))).toBe(true);
+      expect(
+        prev &&
+          cur &&
+          (prev.score > cur.score ||
+            (prev.score === cur.score && prev.component.name <= cur.component.name)),
+      ).toBe(true);
     }
   });
 
   it("nothing similar returns []", () => {
     expect(findSimilarComponent("ZzzUnknownThing", [primaryButton, uiButton])).toEqual([]);
     // A generic word alone does not match a component that only shares it and says nothing else the query says.
-    expect(findSimilarComponent("PasswordStrengthInputField", [{ name: "TextInput", path: "src/forms/TextInput.tsx", signature: null }])).toEqual([]);
+    expect(
+      findSimilarComponent("PasswordStrengthInputField", [
+        { name: "TextInput", path: "src/forms/TextInput.tsx", signature: null },
+      ]),
+    ).toEqual([]);
   });
 });

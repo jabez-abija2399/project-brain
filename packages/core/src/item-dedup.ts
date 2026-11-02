@@ -68,15 +68,23 @@ export function planOpenItemCleanup(items: readonly CleanupItem[]): CleanupChang
   const newestFirst = [...items].sort(
     (a, b) => b.requestCreatedAt.getTime() - a.requestCreatedAt.getTime() || (a.id < b.id ? 1 : -1),
   );
+  // Each item's words are read once here, not once per comparison (the owner's cleanup can cover thousands of items).
+  const words = new Map(newestFirst.map((i) => [i.id, new Set(tokens(i.text))] as const));
+  const near = (a: string, b: string) => {
+    const wa = words.get(a) as Set<string>;
+    const wb = words.get(b) as Set<string>;
+    if (wa.size === 0 || wb.size === 0) return false;
+    let shared = 0;
+    for (const t of wa) if (wb.has(t)) shared++;
+    return shared / (wa.size + wb.size - shared) >= DUPLICATE_SIMILARITY;
+  };
   const done = newestFirst.filter((i) => DONE_STATUSES.has(i.status));
   const changes: CleanupChange[] = [];
   const stillOpen: CleanupItem[] = [];
   for (const item of newestFirst) {
     if (!OPEN_STATUSES.has(item.status)) continue;
     const shown = done.find(
-      (d) =>
-        d.requestCreatedAt.getTime() > item.requestCreatedAt.getTime() &&
-        isNearDuplicate(d.text, item.text),
+      (d) => d.requestCreatedAt.getTime() > item.requestCreatedAt.getTime() && near(d.id, item.id),
     );
     if (shown) {
       changes.push({ id: item.id, status: shown.status as "done" | "done_untested" });
@@ -86,7 +94,7 @@ export function planOpenItemCleanup(items: readonly CleanupItem[]): CleanupChang
   }
   const kept: CleanupItem[] = [];
   for (const item of stillOpen) {
-    if (findNearDuplicate(item.text, kept, (k) => k.text)) {
+    if (kept.some((k) => near(k.id, item.id))) {
       changes.push({ id: item.id, status: "dismissed" });
     } else {
       kept.push(item);

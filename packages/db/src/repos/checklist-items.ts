@@ -371,6 +371,13 @@ export const checklistItemsRepo = {
   ): Promise<number> {
     if (moves.length === 0) return 0;
     return db.transaction(async (tx) => {
+      // The request must be one of this project's: an id from another project moves nothing.
+      const [owned] = await tx
+        .select({ id: requests.id })
+        .from(requests)
+        .where(and(eq(requests.id, requestId), eq(requests.projectId, projectId)))
+        .limit(1);
+      if (!owned) return 0;
       let moved = 0;
       for (const m of moves) {
         const rows = await tx

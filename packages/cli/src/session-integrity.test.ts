@@ -132,7 +132,10 @@ describe("M: test checks count only this session's skips", () => {
     const t = setup();
     t.write(TEST_FILE, BASE_TEST.replace('it("allows admins"', `${SKIP}("allows admins"`));
     await t.run("session-start");
-    t.write("src/app/page.tsx", "// Main page\nexport default function Home() {\n  return <main />;\n}\n");
+    t.write(
+      "src/app/page.tsx",
+      "// Main page\nexport default function Home() {\n  return <main />;\n}\n",
+    );
     await t.run("session-end");
     const [r] = t.receipts;
     expect(r?.changedFiles).toEqual(["src/app/page.tsx"]);
