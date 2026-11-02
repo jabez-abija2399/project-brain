@@ -115,8 +115,7 @@ describe("last-receipt: owner-closed and dismissed items", () => {
   it("with no receipt, nothing is named", async () => {
     const f = await fixture();
     const body = await call(f.project.id, f.token);
-    expect(body.owner_closed_ids).toEqual([]);
-    expect(body.dismissed_ids).toEqual([]);
-    expect(checklistItemsRepo).toBeDefined();
+    expect(body.owner_closed_ids).toBeUndefined();
+    expect(body.dismissed_ids).toBeUndefined();
   });
 });

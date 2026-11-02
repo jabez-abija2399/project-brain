@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 // already got from generate_receipt; the CLI prints only counts from it.
 export const GET = indexRoute("hooks.last-receipt", async (db, projectId) => {
   const [row] = await receiptsRepo.list(db, projectId, 1);
-  if (!row) return { receipt: null, owner_closed_ids: [], dismissed_ids: [] };
+  // No receipt: the answer stays { receipt: null } (the CLI reads missing id lists as none).
+  if (!row) return { receipt: null };
   // The owner may have closed or dismissed an item after the receipt was written; the CLI labels those items.
   // Only plain ids of this project's items are looked up (ids of other projects never match).
   const states = await checklistItemsRepo.ownerStatesAmong(
