@@ -295,7 +295,8 @@ export const checklistItemsRepo = {
       .orderBy(asc(checklistItems.position), asc(checklistItems.id));
   },
 
-  // One statement for every item of a receipt; items of another project are never touched.
+  // One statement for every item of a receipt; items of another project are never touched. An item the owner closed
+  // (closed_by_owner) is never overwritten by a receipt's judgement (owner item 3, 2026-11-02).
   async setStatuses(
     db: BrainDb,
     projectId: string,
@@ -309,7 +310,30 @@ export const checklistItemsRepo = {
     await db.execute(sql`
       UPDATE checklist_items AS c SET status = v.status
       FROM (VALUES ${values}) AS v(id, status)
-      WHERE c.project_id = ${projectId} AND c.id = v.id AND c.status IN ('open', 'partial', 'missed', 'done_untested')`);
+      WHERE c.project_id = ${projectId} AND c.id = v.id AND c.closed_by_owner = false AND c.status IN ('open', 'partial', 'missed', 'done_untested')`);
+  },
+
+  /** The ids, among `ids`, of this project's items the owner closed (closed_by_owner). Ids of other projects are ignored. */
+  async closedByOwnerAmong(db: BrainDb, projectId: string, ids: string[]): Promise<Set<string>> {
+    return this.closedByOwnerIn(db, [projectId], ids);
+  },
+
+  /** The same over several projects (the caller passes projects the signed-in owner owns): one query. */
+  async closedByOwnerIn(db: BrainDb, projectIds: string[], ids: string[]): Promise<Set<string>> {
+    const wanted = [...new Set(ids)].slice(0, 2000);
+    const projects = [...new Set(projectIds)].slice(0, 200);
+    if (wanted.length === 0 || projects.length === 0) return new Set();
+    const rows = await db
+      .select({ id: checklistItems.id })
+      .from(checklistItems)
+      .where(
+        and(
+          inArray(checklistItems.projectId, projects),
+          eq(checklistItems.closedByOwner, true),
+          inArray(checklistItems.id, wanted),
+        ),
+      );
+    return new Set(rows.map((r) => r.id));
   },
 
   // H1/H2: every item of the project with its request's time and feature, newest request first. Used to merge near
@@ -399,11 +423,13 @@ export const checklistItemsRepo = {
 
   // H2/H3: closes unresolved items (open, partial, missed, postponed) as done, done without a test, or dismissed, in
   // one transaction. An item already done (or done without a test, which only a later receipt judges) is never
-  // touched here. Returns how many items changed.
+  // touched here. `byOwner` is set only by the owner's own Close (owner item 3): it marks the item "Closed by you".
+  // Returns how many items changed.
   async closeItems(
     db: BrainDb,
     projectId: string,
     updates: { id: string; status: "done" | "done_untested" | "dismissed" }[],
+    options: { byOwner?: boolean } = {},
   ): Promise<number> {
     if (updates.length === 0) return 0;
     return db.transaction(async (tx) => {
@@ -411,7 +437,12 @@ export const checklistItemsRepo = {
       for (const u of updates) {
         const rows = await tx
           .update(checklistItems)
-          .set({ status: u.status, proposedChange: null, proposedAt: null })
+          .set({
+            status: u.status,
+            proposedChange: null,
+            proposedAt: null,
+            closedByOwner: options.byOwner === true,
+          })
           .where(
             and(
               eq(checklistItems.projectId, projectId),

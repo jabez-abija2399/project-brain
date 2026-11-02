@@ -168,3 +168,26 @@ describe("H1 near-duplicate checklist items", () => {
     expect(planOpenItemCleanup(applied)).toEqual([]);
   });
 });
+
+// 2026-11-02 (owner item 3): an item the owner closed is never a "done" the agent showed, so it closes no older open
+// item in the cleanup.
+describe("planOpenItemCleanup and owner-closed items (2026-11-02)", () => {
+  it("attack: an item the owner closed does not close an older open item as done", () => {
+    const plan = planOpenItemCleanup([
+      {
+        id: "old",
+        text: "Add a pricing page",
+        status: "open",
+        requestCreatedAt: new Date("2026-10-01T10:00:00Z"),
+      },
+      {
+        id: "owner",
+        text: "Add a pricing page",
+        status: "done",
+        closedByOwner: true,
+        requestCreatedAt: new Date("2026-10-02T10:00:00Z"),
+      },
+    ]);
+    expect(plan).toEqual([]);
+  });
+});

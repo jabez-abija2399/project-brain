@@ -2,7 +2,13 @@ import { ReceiptCard } from "@/components/receipt-card";
 import { receiptView } from "@brain/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The card's Close and Dismiss buttons use the router; a static render has none, so the test supplies one.
+vi.mock("next/navigation", async (orig) => ({
+  ...(await orig<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh() {}, push() {} }),
+}));
 
 // First-receipt fix 2: "Done", "Done, no test proves it" and "Not verified" are three states, each with an icon
 // and a label.
@@ -10,6 +16,7 @@ const card = (summary: unknown) =>
   renderToStaticMarkup(
     createElement(ReceiptCard, {
       receipt: {
+        projectId: "proj-1",
         id: "rc-1",
         createdAt: "2026-10-30T12:00:00.000Z",
         asked: "Add reviews",

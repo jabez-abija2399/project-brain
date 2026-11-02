@@ -29,7 +29,10 @@ export async function closeChecklistItem(
   itemId: string,
 ) {
   await requireChecklistItem(db, user, projectId, itemId);
-  await checklistItemsRepo.closeItems(db, projectId, [{ id: itemId, status: "done" }]);
+  // Owner item 3: marked closed by the owner, so every view says "Closed by you" and no receipt overwrites it.
+  await checklistItemsRepo.closeItems(db, projectId, [{ id: itemId, status: "done" }], {
+    byOwner: true,
+  });
   const row = await checklistItemsRepo.byId(db, projectId, itemId);
   if (!row) throw new AppError(404, "not_found");
   return { id: row.id, text: row.text, status: row.status };

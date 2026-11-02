@@ -27,6 +27,7 @@ export const MIGRATION_IDS = [
   "0032_request_sessions",
   "0035_account_admin",
   "0038_real_test_fixes",
+  "0041_closed_by_owner",
 ] as const;
 
 // The runner's tracking table (migrations-core.mjs); read only, never part of the app schema.

@@ -1,5 +1,5 @@
-import { attentionReasons, receiptView, safeDisplay } from "@brain/core";
-import { type BrainDb, dashboardRepo, projectsRepo } from "@brain/db";
+import { attentionReasons, itemIdsOf, receiptView, safeDisplay } from "@brain/core";
+import { type BrainDb, checklistItemsRepo, dashboardRepo, projectsRepo } from "@brain/db";
 import type { SessionUser } from "./auth";
 
 const MAX_PROJECTS = 50;
@@ -14,9 +14,15 @@ export async function projectsList(db: BrainDb, user: SessionUser) {
     items.map((p) => p.id),
   );
   const byProject = new Map(latest.map((r) => [r.projectId, r]));
+  // Owner item 3: owner-closed items do not count as attention. One query for every project's newest receipt.
+  const closed = await checklistItemsRepo.closedByOwnerIn(
+    db,
+    items.map((p) => p.id),
+    latest.flatMap((r) => itemIdsOf(r.summaryJson)),
+  );
   return items.map((p) => {
     const r = byProject.get(p.id);
-    const view = r ? receiptView(r.summaryJson) : null;
+    const view = r ? receiptView(r.summaryJson, closed) : null;
     return {
       id: p.id,
       name: safeDisplay(p.name, 100),

@@ -1,4 +1,4 @@
-import { fixPrompt, receiptView, safeDisplay } from "@brain/core";
+import { fixPrompt, itemIdsOf, receiptView, safeDisplay } from "@brain/core";
 import { type BoardSort, type BrainDb, checklistItemsRepo, dashboardRepo } from "@brain/db";
 import { type SessionUser, requireProjectAccess } from "./auth";
 
@@ -71,14 +71,21 @@ export async function receiptsFeed(
 ) {
   const project = await requireProjectAccess(db, projectId, user);
   const { rows, total } = await dashboardRepo.receiptsFeed(db, project.id, PAGE_SIZE, offset(page));
+  // Owner item 3: items the owner closed since the receipt was written read "Closed by you".
+  const closed = await checklistItemsRepo.closedByOwnerAmong(
+    db,
+    project.id,
+    rows.flatMap((r) => itemIdsOf(r.summaryJson)),
+  );
   return {
     project: { id: project.id, name: safeDisplay(project.name, 100) },
     ...paged(
       rows.map((r) => {
-        const view = receiptView(r.summaryJson);
+        const view = receiptView(r.summaryJson, closed);
         const asked = r.asked === null ? null : safeDisplay(r.asked);
         return {
           id: r.id,
+          projectId: project.id,
           createdAt: r.createdAt.toISOString(),
           asked,
           commitSha:

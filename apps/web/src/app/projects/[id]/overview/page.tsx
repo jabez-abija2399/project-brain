@@ -1,4 +1,6 @@
 import { ActivityChart } from "@/components/activity-chart";
+import { ChecklistItem } from "@/components/checklist-item";
+import { OpenItemsCleanup } from "@/components/open-items-cleanup";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatCard } from "@/components/ui/stat-card";
@@ -132,6 +134,30 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
           )}
         </section>
       </div>
+
+      <section className="card stack" aria-labelledby="open-items">
+        <div className="row between">
+          <h3 id="open-items" className="section-title">
+            Open items
+          </h3>
+          <OpenItemsCleanup projectId={o.project.id} />
+        </div>
+        {o.openList.length === 0 ? (
+          <p className="muted m0">No open items. Dismissed and closed items are not listed.</p>
+        ) : (
+          <ul className="stack plain-list">
+            {o.openList.map((i) => (
+              <ChecklistItem
+                key={i.id}
+                text={i.text}
+                status={i.status}
+                evidence={[]}
+                action={{ projectId: o.project.id, itemId: i.id }}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
 
       {o.features.length > 0 && (
         <section className="card stack" aria-labelledby="progress">
