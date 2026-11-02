@@ -313,6 +313,29 @@ export const checklistItemsRepo = {
       WHERE c.project_id = ${projectId} AND c.id = v.id AND c.closed_by_owner = false AND c.status IN ('open', 'partial', 'missed', 'done_untested')`);
   },
 
+  /**
+   * Among `ids`, this project's items the owner closed or dismissed (dismissed wins over closed). Other projects' ids
+   * are ignored. Used by `codeceipt last` so it can label them "Closed by you" or "Dismissed", never "missed".
+   */
+  async ownerStatesAmong(
+    db: BrainDb,
+    projectId: string,
+    ids: string[],
+  ): Promise<{ closed: string[]; dismissed: string[] }> {
+    if (ids.length === 0) return { closed: [], dismissed: [] };
+    const rows = await db
+      .select({
+        id: checklistItems.id,
+        status: checklistItems.status,
+        closedByOwner: checklistItems.closedByOwner,
+      })
+      .from(checklistItems)
+      .where(and(eq(checklistItems.projectId, projectId), inArray(checklistItems.id, ids)));
+    const dismissed = rows.filter((r) => r.status === "dismissed").map((r) => r.id);
+    const closed = rows.filter((r) => r.closedByOwner && r.status !== "dismissed").map((r) => r.id);
+    return { closed, dismissed };
+  },
+
   /** The ids, among `ids`, of this project's items the owner closed (closed_by_owner). Ids of other projects are ignored. */
   async closedByOwnerAmong(db: BrainDb, projectId: string, ids: string[]): Promise<Set<string>> {
     return this.closedByOwnerIn(db, [projectId], ids);

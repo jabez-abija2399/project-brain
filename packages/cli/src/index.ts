@@ -35,6 +35,7 @@ import { runMcpProxy } from "./mcp-proxy";
 import { configCommand, updateCommand } from "./native/commands";
 import { codeceiptsOnPath, runDoctor } from "./native/doctor";
 import { installKind } from "./native/install-info";
+import { applyOwnerStates, ownerStateLines } from "./owner-states";
 import {
   gitDirOf,
   readRepoLink,
@@ -599,17 +600,24 @@ async function runLast(deps: CliDeps, path: string, evidence = false): Promise<n
       "Saved server address must be https: run `npx codeceipt` again.",
     );
   }
-  const answer = await request<{ receipt_id?: unknown; created_at?: unknown; receipt?: unknown }>(
-    deps.fetch,
-    config,
-    "GET",
-    `/api/hooks/${encodeURIComponent(config.projectId)}/last-receipt`,
-  );
-  const receipt = answer.receipt;
-  if (typeof receipt !== "object" || receipt === null) {
+  const answer = await request<{
+    receipt_id?: unknown;
+    created_at?: unknown;
+    receipt?: unknown;
+    owner_closed_ids?: unknown;
+    dismissed_ids?: unknown;
+  }>(deps.fetch, config, "GET", `/api/hooks/${encodeURIComponent(config.projectId)}/last-receipt`);
+  const stored = answer.receipt;
+  if (typeof stored !== "object" || stored === null) {
     deps.stdout("No receipt yet: make a change with your agent and end the session.");
     return EXIT.ok;
   }
+  // The owner's closes and dismissals since the receipt was written: labelled, never counted as missed.
+  const receipt = applyOwnerStates(
+    stored as Record<string, unknown>,
+    answer.owner_closed_ids,
+    answer.dismissed_ids,
+  );
   const id =
     typeof answer.receipt_id === "string" && /^[\w-]{1,64}$/.test(answer.receipt_id)
       ? answer.receipt_id
@@ -620,11 +628,10 @@ async function runLast(deps: CliDeps, path: string, evidence = false): Promise<n
       ? ` (${answer.created_at.slice(0, 16).replace("T", " ")} UTC)`
       : "";
   deps.stdout(`Latest receipt${at}:`);
-  for (const line of receiptSummary(receipt as Record<string, unknown>, config, id))
-    deps.stdout(line);
-  for (const line of attentionLines(receipt as Record<string, unknown>)) deps.stdout(line);
-  if (evidence)
-    for (const line of evidenceLines(receipt as Record<string, unknown>)) deps.stdout(line);
+  for (const line of receiptSummary(receipt, config, id)) deps.stdout(line);
+  for (const line of ownerStateLines(receipt)) deps.stdout(line);
+  for (const line of attentionLines(receipt)) deps.stdout(line);
+  if (evidence) for (const line of evidenceLines(receipt)) deps.stdout(line);
   return EXIT.ok;
 }
 
