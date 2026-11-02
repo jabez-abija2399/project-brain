@@ -2,6 +2,7 @@ import QuickstartPage, { metadata as quickstartMeta } from "@/app/docs/quickstar
 import Home from "@/app/page";
 import PrivacyPage, { metadata as privacyMeta } from "@/app/privacy/page";
 import TermsPage, { metadata as termsMeta } from "@/app/terms/page";
+import { INSTALL_PS1, INSTALL_SH, nativeReleased } from "@/components/install-options";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -54,7 +55,10 @@ describe("public pages", () => {
   it("/docs/quickstart shows just `npx codeceipt`, plus troubleshooting", async () => {
     const html = await render(QuickstartPage());
     expect(quickstartMeta.title).toBe("Quickstart | Codeceipt");
-    expect(copies(html)).toEqual(["npx codeceipt"]);
+    // D-027 (owner, 2026-11-02): the one-line installers come first once a native release is pinned.
+    expect(copies(html)).toEqual(
+      nativeReleased() ? [INSTALL_SH, INSTALL_PS1, "npx codeceipt"] : ["npx codeceipt"],
+    );
     expect(html).toMatch(/<h2[^>]*>Troubleshooting<\/h2>/);
     const t = text(html);
     expect(t).toContain("Open this address in your browser");
@@ -67,7 +71,7 @@ describe("public pages", () => {
     const t = text(html);
     const order = [
       "Sign in with GitHub",
-      "Run npx codeceipt in your project",
+      "Install and run codeceipt in your project",
       "Approve in the browser",
       "What happens next",
       "Open Claude Code or Cursor and make a change",

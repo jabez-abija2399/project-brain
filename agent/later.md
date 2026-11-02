@@ -162,3 +162,6 @@
 - 2026-11-01 (security review LOW): the Stop hook judges a receipt whenever the changed files change; debounce it (one judged receipt per few minutes per session) so a long session cannot use up the daily AI budget before SessionEnd.
 - 2026-11-01 (security review LOW): repo fingerprint hashes are unsalted, so a public repo's remote can be guessed from the database; salt with the project id. The fingerprint is a guard against mistakes (a copied .git), not access control: leaving the header out skips it and /rebuild adopts the caller's repo.
 - 2026-11-02 (D-027): the native sandbox child has no Node memory caps under Bun (time limit, empty env and kill stay); find an equivalent (Bun has no per-process heap flag yet) or run the sandbox under ulimit on POSIX.
+- 2026-11-02 (D-027): the OpenCode plugin and the MCP server entries in agent configs still call `codeceipt` by name (with npx fallback), not by its full installed path like the shell hooks.
+- 2026-11-02 (D-027): publish a Homebrew tap and a winget manifest (both pinning the release SHA-256), then drop "coming soon" on the landing page and quickstart.
+- 2026-11-02 (D-027): EV Windows certificates live on hardware tokens; signing in CI then needs a cloud signing service (e.g. Azure Trusted Signing) instead of a .pfx secret.

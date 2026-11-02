@@ -1,3 +1,4 @@
+import { INSTALL_SH, nativeReleased } from "@/components/install-options";
 import { Landing } from "@/components/landing/landing";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -64,9 +65,8 @@ describe("landing: how to use Codeceipt", () => {
   it("keeps the terminal demo for each step, and still only `npx codeceipt` has copy buttons on the page", () => {
     const h = page();
     expect(section(h)).toContain('id="how-terminal"');
-    expect([...h.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1])).toEqual([
-      "npx codeceipt",
-      "npx codeceipt",
-    ]);
+    // D-027 (owner, 2026-11-02): the one-line installer goes first once a native release is pinned.
+    const first = nativeReleased() ? INSTALL_SH : "npx codeceipt";
+    expect([...h.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1])).toEqual([first, first]);
   });
 });

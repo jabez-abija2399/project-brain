@@ -86,9 +86,7 @@ export function codeceiptsOnPath(
   }
   return found;
 }
-const isNpmCopy = (p: string) =>
-  /[\\/]node_modules[\\/]codeceipt[\\/]/.test(real(p).replace(/\\/g, "/") + "/") ||
-  /[\\/]node_modules[\\/]codeceipt[\\/]/.test(real(p));
+const isNpmCopy = (p: string) => /\/node_modules\/codeceipt\//.test(real(p).replace(/\\/g, "/"));
 
 // Every command string in an agent's hooks file, whatever its layout (lists of hooks, or groups of hooks).
 function hookCommands(file: string): string[] | null {

@@ -1,5 +1,5 @@
+import { InstallOptions } from "@/components/install-options";
 import { DocPage } from "@/components/landing/doc-page";
-import { TerminalSnippet } from "@/components/landing/terminal-snippet";
 import { isSignedIn } from "@/server/signed-in";
 import type { Metadata } from "next";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Quickstart | Codeceipt",
-  description: "Set up Codeceipt with one command: npx codeceipt.",
+  description: "Install Codeceipt with one line, then set it up with one command: codeceipt.",
 };
 
 // Launch part 6: the whole setup is one command. The troubleshooting answers quote the CLI's own messages.
@@ -63,10 +63,10 @@ const TROUBLE: { q: string; a: React.ReactNode }[] = [
     a: (
       <>
         Start a new Claude Code or Cursor session in the repo. The hooks run the installed{" "}
-        <code>codeceipt</code> command, or the published one through <code>npx</code> when it is not
-        installed; <code>npm install -g codeceipt</code> makes them faster. If you set Codeceipt up
-        with an older version, run <code>npx codeceipt</code> again to update the hooks. You never
-        need to set a token yourself.
+        <code>codeceipt</code> app by its full path, or the published one through <code>npx</code>{" "}
+        when it is not installed; the one-line installer makes them faster. If you set Codeceipt up
+        with an older version, run <code>codeceipt init</code> in the repo to update the hooks, and{" "}
+        <code>codeceipt doctor</code> to check everything. You never need to set a token yourself.
       </>
     ),
   },
@@ -110,9 +110,12 @@ export default async function QuickstartPage() {
       </p>
       <Screenshot of="the Get your first receipt page with three waiting steps" />
 
-      <h2>2. Run npx codeceipt in your project</h2>
-      <p>In your app&apos;s folder (a git repository), run:</p>
-      <TerminalSnippet command="npx codeceipt" />
+      <h2>2. Install and run codeceipt in your project</h2>
+      <p>
+        Install the Codeceipt app with one line (no Node.js needed; it updates itself), then run{" "}
+        <code>codeceipt</code> in your app&apos;s folder (a git repository).
+      </p>
+      <InstallOptions />
       <p>The terminal shows a short code, like BCDF-GHJK, and opens your browser.</p>
       <Screenshot of="the terminal showing the code and Waiting for approval" />
 
