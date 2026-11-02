@@ -27,6 +27,12 @@ import { setLlmForTests } from "./llm";
 import { captureRequest } from "./request-capture";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
+// The item's buttons refresh the page through the router; the static render has no router, so the test supplies one.
+vi.mock("next/navigation", async (orig) => ({
+  ...(await orig<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh() {}, push() {} }),
+}));
+
 let world: TestWorld;
 let owner: SessionUser;
 let stranger: SessionUser;
@@ -79,9 +85,8 @@ async function openKeyCount(key: string, pid = projectId): Promise<number> {
   return open.filter((i) => itemKey(i.text) === key).length;
 }
 
-const ctx = (id: string, itemId?: string) => ({
-  params: Promise.resolve(itemId ? { id, itemId } : { id }),
-});
+const itemCtx = (id: string, itemId: string) => ({ params: Promise.resolve({ id, itemId }) });
+const projectCtx = (id: string) => ({ params: Promise.resolve({ id }) });
 
 const patch = (pid: string, itemId: string, body: unknown) =>
   itemRoute(
@@ -90,19 +95,19 @@ const patch = (pid: string, itemId: string, body: unknown) =>
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
     }),
-    ctx(pid, itemId),
+    itemCtx(pid, itemId),
   );
 
 const close = (pid: string, itemId: string) =>
   closeRoute(
     new Request(`http://x/api/projects/${pid}/checklist-items/${itemId}/close`, { method: "POST" }),
-    ctx(pid, itemId),
+    itemCtx(pid, itemId),
   );
 
 const cleanup = (pid: string) =>
   cleanupRoute(
     new Request(`http://x/api/projects/${pid}/open-items/cleanup`, { method: "POST" }),
-    ctx(pid),
+    projectCtx(pid),
   );
 
 const startNote = (pid: string, pidToken: string) =>
@@ -321,7 +326,7 @@ describe("H3 the item component offers Close and Dismiss", () => {
     const html = renderToStaticMarkup(
       ChecklistItem({
         text: MAIN,
-        status: "open",
+        status: "partial",
         evidence: [],
         action: { projectId: "p1", itemId: "i1" },
       }),
@@ -332,7 +337,7 @@ describe("H3 the item component offers Close and Dismiss", () => {
 
   it("without an item id (a receipt row) the component renders no action buttons", () => {
     const html = renderToStaticMarkup(
-      ChecklistItem({ text: MAIN, status: "open", evidence: [] }),
+      ChecklistItem({ text: MAIN, status: "partial", evidence: [] }),
     );
     expect(html).not.toContain("<button");
   });
