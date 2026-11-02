@@ -17,7 +17,15 @@ export type ReceiptItemStatus =
   | "already_present"
   | "not_done";
 export type ReceiptView = {
-  items: { text: string; status: ReceiptItemStatus; evidence: string[] }[];
+  items: {
+    text: string;
+    status: ReceiptItemStatus;
+    evidence: string[];
+    // The checklist item's id, when it is a plain id (the owner's Close and Dismiss act on it).
+    itemId?: string;
+    // Owner item 3 (2026-11-02): closed by the owner's own Close; shown as "Closed by you", never as the agent's done.
+    closedByOwner?: true;
+  }[];
   // The changed files by feature, and whether no request was recorded for the session (dogfooding).
   filesByFeature: { feature: string; files: string[] }[];
   noRequest: boolean;
@@ -122,7 +130,27 @@ const either = (s: Record<string, unknown>, key: string, legacy: string) =>
 // An entry stored as plain text (older receipts) reads as { text }.
 const entry = (raw: unknown) => (typeof raw === "string" ? { text: raw } : obj(raw));
 
-export function receiptView(summary: unknown): ReceiptView {
+// A checklist item id as the view may show and act on it: plain characters only, at most 64.
+const ITEM_ID = /^[\w-]{1,64}$/;
+const itemIdOf = (raw: unknown): string | undefined =>
+  typeof raw === "string" && ITEM_ID.test(raw) ? raw : undefined;
+
+/** The checklist item ids a stored receipt names (plain ids only). The loaders use them to look up owner-closed items. */
+export function itemIdsOf(summary: unknown): string[] {
+  return list(obj(summary).items).flatMap((raw) => {
+    const id = itemIdOf(obj(raw).id);
+    return id === undefined ? [] : [id];
+  });
+}
+
+/**
+ * The dashboard's view of a stored receipt. `closedByOwner` holds the ids of this project's items the owner closed:
+ * such an item reads as done and closed by the owner, whatever the receipt stored (the receipt was written before).
+ */
+export function receiptView(
+  summary: unknown,
+  closedByOwner: ReadonlySet<string> = new Set(),
+): ReceiptView {
   const s = obj(summary);
   const noChanges = s.no_changes === true;
   // Done but no changed test: its own state. Receipts stored before the split have it as not_verified with that
@@ -149,11 +177,15 @@ export function receiptView(summary: unknown): ReceiptView {
         : noChanges && status === "missed"
           ? "not_done"
           : status;
+      const itemId = itemIdOf(i.id);
+      const closed = itemId !== undefined && closedByOwner.has(itemId);
       return [
         {
           text,
-          status: shown as ReceiptItemStatus,
+          status: (closed ? "done" : shown) as ReceiptItemStatus,
           evidence: list(i.evidence).map(safePath).filter(Boolean).slice(0, 5),
+          ...(itemId !== undefined ? { itemId } : {}),
+          ...(closed ? { closedByOwner: true as const } : {}),
         },
       ];
     }),

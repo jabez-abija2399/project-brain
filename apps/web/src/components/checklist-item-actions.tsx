@@ -3,9 +3,11 @@
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { nextDismissStep } from "./dismiss-step";
 
 // H3 (2026-11-02): the owner's Close (done) and Dismiss buttons for one open item. Each accessible name includes the
 // item's text, so a screen reader says which item it acts on. Owner only: the server answers 401/404 otherwise.
+// Owner item 1 (2026-11-02): Dismiss asks first ("Confirm dismiss" or "Cancel"); Close needs no confirm.
 const CLOSABLE = new Set(["open", "partial", "missed", "postponed"]);
 
 export function ChecklistItemActions({
@@ -21,6 +23,7 @@ export function ChecklistItemActions({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"close" | "dismiss" | null>(null);
+  const [step, setStep] = useState<"idle" | "confirming">("idle");
   const [message, setMessage] = useState("");
   const url = `/api/projects/${encodeURIComponent(projectId)}/checklist-items/${encodeURIComponent(itemId)}`;
   async function act(action: "close" | "dismiss") {
@@ -44,7 +47,13 @@ export function ChecklistItemActions({
       setMessage("Could not reach the server. Check your connection and try again.");
     } finally {
       setBusy(null);
+      setStep("idle");
     }
+  }
+  function onDismiss(event: "dismiss" | "confirm" | "cancel") {
+    const next = nextDismissStep(step, event);
+    setStep(next.step);
+    if (next.send) void act("dismiss");
   }
   return (
     <span className="row">
@@ -59,15 +68,30 @@ export function ChecklistItemActions({
           Close
         </Button>
       )}
-      <Button
-        variant="ghost"
-        aria-label={`Dismiss: ${text}`}
-        loading={busy === "dismiss"}
-        disabled={busy !== null}
-        onClick={() => act("dismiss")}
-      >
-        Dismiss
-      </Button>
+      {step === "idle" && busy !== "dismiss" ? (
+        <Button
+          variant="ghost"
+          aria-label={`Dismiss: ${text}`}
+          disabled={busy !== null}
+          onClick={() => onDismiss("dismiss")}
+        >
+          Dismiss
+        </Button>
+      ) : (
+        <>
+          <Button
+            variant="ghost"
+            loading={busy === "dismiss"}
+            disabled={busy !== null}
+            onClick={() => onDismiss("confirm")}
+          >
+            Confirm dismiss
+          </Button>
+          <Button variant="ghost" disabled={busy !== null} onClick={() => onDismiss("cancel")}>
+            Cancel
+          </Button>
+        </>
+      )}
       <output aria-live="polite" className="muted">
         {message}
       </output>

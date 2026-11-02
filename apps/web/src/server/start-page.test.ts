@@ -9,6 +9,12 @@ import { deviceCodesRepo, filesRepo, projectsRepo, receiptsRepo, requestsRepo } 
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// The receipt card's Close and Dismiss buttons use the router; a static render has none, so the test supplies one.
+vi.mock("next/navigation", async (orig) => ({
+  ...(await orig<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh() {}, push() {} }),
+}));
 import type { SessionUser } from "./auth";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 

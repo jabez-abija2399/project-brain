@@ -2,7 +2,13 @@ import { ReceiptCard } from "@/components/receipt-card";
 import { fixPrompt, receiptView } from "@brain/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The card's Close and Dismiss buttons use the router; a static render has none, so the test supplies one.
+vi.mock("next/navigation", async (orig) => ({
+  ...(await orig<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh() {}, push() {} }),
+}));
 
 // Edutech: a click on the receipts page blocked the UI for 416 ms (INP). Measured in Chromium (4x CPU slowdown): 50
 // receipts put 54,000 nodes on the page, because every closed card carried its whole body, and a click on a summary
@@ -24,6 +30,7 @@ const card = (expanded: boolean) => {
   return renderToStaticMarkup(
     createElement(ReceiptCard, {
       receipt: {
+        projectId: "proj-1",
         id: "r1",
         createdAt: "2026-10-31T12:00:00.000Z",
         asked: "Add widgets",

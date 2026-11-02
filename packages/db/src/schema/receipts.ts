@@ -64,6 +64,8 @@ export const checklistItems = pgTable(
     position: integer("position").notNull().default(0),
     proposedChange: jsonb("proposed_change").$type<ChecklistChange>(),
     proposedAt: timestamp("proposed_at", { withTimezone: true, mode: "date" }),
+    // Owner item 3 (2026-11-02): closed by the owner's own Close, shown as "Closed by you"; never overwritten by a judge.
+    closedByOwner: boolean("closed_by_owner").notNull().default(false),
   },
   (t) => ({
     requestIdx: index("checklist_items_request_idx").on(t.requestId),

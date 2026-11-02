@@ -11,14 +11,20 @@ import { CopyButton } from "./ui/copy-button";
 import { Disclosure } from "./ui/disclosure";
 import { StatusBadge } from "./ui/status-badge";
 
+// The receipt's project: the owner's Close and Dismiss act on its items (owner item 1, 2026-11-02).
 export type ReceiptCardData = {
   id: string;
+  projectId: string;
   createdAt: string;
   asked: string | null;
   commitSha: string | null;
   view: ReceiptView;
   fixPrompt: string | null;
 };
+
+// The statuses a receipt still judges: the owner can close or dismiss these (the server's UNRESOLVED list, plus done
+// without a test, which only a later receipt judges).
+const UNRESOLVED = new Set(["open", "partial", "missed", "done_untested"]);
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -37,7 +43,9 @@ export function ReceiptCard({
   expanded = false,
 }: { receipt: ReceiptCardData; expanded?: boolean }) {
   const { view } = receipt;
-  const count = (s: string) => view.items.filter((i) => i.status === s).length;
+  // Owner item 3: an item the owner closed is counted apart, never as the agent's done.
+  const count = (s: string) => view.items.filter((i) => i.status === s && !i.closedByOwner).length;
+  const closedByOwner = view.items.filter((i) => i.closedByOwner).length;
   const missed = count("missed") + count("partial");
   const attention = receiptNeedsAttention(view);
   // Real-test B: what the user asked for is listed and labelled, never counted as an alarm.
@@ -78,6 +86,9 @@ export function ReceiptCard({
             </strong>
             <span className="row">
               <StatusBadge status="done" label={`${count("done")} done`} />
+              {closedByOwner > 0 && (
+                <StatusBadge status="closed_by_owner" label={`${closedByOwner} closed by you`} />
+              )}
               {count("done_untested") > 0 && (
                 <StatusBadge
                   status="done_untested"
@@ -177,8 +188,20 @@ export function ReceiptCard({
             ) : (
               <ul className="stack plain-list">
                 {view.items.map((i, n) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: items have no stable id in a stored receipt
-                  <ChecklistItem key={n} {...i} />
+                  <ChecklistItem
+                    // biome-ignore lint/suspicious/noArrayIndexKey: items have no stable id in a stored receipt
+                    key={n}
+                    text={i.text}
+                    status={i.status}
+                    evidence={i.evidence}
+                    closedByOwner={i.closedByOwner}
+                    // Owner item 1: an unresolved item with a plain id can be closed or dismissed by the owner.
+                    action={
+                      i.itemId !== undefined && UNRESOLVED.has(i.status) && !i.closedByOwner
+                        ? { projectId: receipt.projectId, itemId: i.itemId }
+                        : undefined
+                    }
+                  />
                 ))}
               </ul>
             )}

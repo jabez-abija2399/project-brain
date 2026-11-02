@@ -95,3 +95,43 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
     expect(view.findings[0]?.maskedValue).toBe("sk_l***");
   });
 });
+
+// 2026-11-02 (owner items 1 and 3): the view keeps the stored item id for the owner's actions (only when it is a plain
+// id), and an item the owner closed reads as closed by the owner, whatever the stored receipt said.
+describe("receiptView item ids and owner-closed items (2026-11-02)", () => {
+  it("keeps a plain stored item id for the owner's actions", () => {
+    const view = receiptView({
+      items: [{ id: "abc-123_X", text: "Add x", status: "missed", evidence: [] }],
+    });
+    expect(view.items[0]?.itemId).toBe("abc-123_X");
+  });
+
+  it("attack: an item id with markup, spaces or more than 64 characters is dropped, never shown or used", () => {
+    const view = receiptView({
+      items: [
+        { id: "<img src=x onerror=1>", text: "Add x", status: "missed", evidence: [] },
+        { id: "a".repeat(65), text: "Add y", status: "missed", evidence: [] },
+        { id: "bad id", text: "Add z", status: "missed", evidence: [] },
+      ],
+    });
+    expect(view.items.map((i) => i.itemId)).toEqual([undefined, undefined, undefined]);
+    expect(view.items.map((i) => i.text)).toEqual(["Add x", "Add y", "Add z"]);
+  });
+
+  it("an item the owner closed reads as done, closed by the owner, whatever the receipt said", () => {
+    const view = receiptView(
+      { items: [{ id: "c1", text: "Add a pricing page", status: "missed", evidence: [] }] },
+      new Set(["c1"]),
+    );
+    expect(view.items[0]).toMatchObject({ status: "done", closedByOwner: true, itemId: "c1" });
+  });
+
+  it("an item the owner did not close is not marked closed by the owner", () => {
+    const view = receiptView(
+      { items: [{ id: "c1", text: "Add a pricing page", status: "missed", evidence: [] }] },
+      new Set(["other"]),
+    );
+    expect(view.items[0]?.status).toBe("missed");
+    expect(view.items[0]?.closedByOwner).toBeUndefined();
+  });
+});

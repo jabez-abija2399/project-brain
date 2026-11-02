@@ -49,6 +49,8 @@ export type CleanupItem = {
   id: string;
   text: string;
   status: string;
+  // Owner item 3: the owner's own Close. Not the agent's evidence, so it never closes another item as "done".
+  closedByOwner?: boolean;
   // When the item's request was made: "later" means a receipt made after the open item was requested.
   requestCreatedAt: Date;
 };
@@ -78,7 +80,7 @@ export function planOpenItemCleanup(items: readonly CleanupItem[]): CleanupChang
     for (const t of wa) if (wb.has(t)) shared++;
     return shared / (wa.size + wb.size - shared) >= DUPLICATE_SIMILARITY;
   };
-  const done = newestFirst.filter((i) => DONE_STATUSES.has(i.status));
+  const done = newestFirst.filter((i) => DONE_STATUSES.has(i.status) && i.closedByOwner !== true);
   const changes: CleanupChange[] = [];
   const stillOpen: CleanupItem[] = [];
   for (const item of newestFirst) {

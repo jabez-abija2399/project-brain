@@ -16,6 +16,11 @@ import { type TestWorld, createTestWorld } from "./test-helpers";
 // The project overview (2026-11-01): the dashboard's front door. It leads with what needs attention, shows the week
 // at a glance (attention first), a 14-day activity chart and per-feature progress, each with a next step.
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+// The overview's clean up control and open items use the router; a static render has none, so the test supplies one.
+vi.mock("next/navigation", async (orig) => ({
+  ...(await orig<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh() {}, push() {} }),
+}));
 
 let world: TestWorld;
 let projectId: string;

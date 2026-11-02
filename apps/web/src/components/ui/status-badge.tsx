@@ -12,6 +12,7 @@ export type Status =
   | "already_present"
   | "not_done"
   | "asked"
+  | "closed_by_owner"
   | "neutral";
 
 const LOOK: Record<Status, { icon: string; label: string; tone: string }> = {
@@ -32,6 +33,8 @@ const LOOK: Record<Status, { icon: string; label: string; tone: string }> = {
   not_done: { icon: "○", label: "Not done", tone: "open" },
   // Real-test B: listed, but the user explicitly asked for it, so it is not an alarm.
   asked: { icon: "↩", label: "You asked for this", tone: "neutral" },
+  // Owner item 3 (2026-11-02): the owner closed it; never shown as the agent's "Done".
+  closed_by_owner: { icon: "✓", label: "Closed by you", tone: "done" },
   neutral: { icon: "•", label: "Unknown", tone: "neutral" },
 };
 
