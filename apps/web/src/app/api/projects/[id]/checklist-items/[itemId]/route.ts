@@ -37,7 +37,9 @@ const patchSchema = z.union([
     .strict(),
   z.object({ reject: z.literal(true), proposal: shown }).strict(),
   // H3 (2026-11-02): the owner dismisses the item itself (kept, never deleted; the start note stops listing it).
-  z.object({ dismiss: z.literal(true) }).strict(),
+  z
+    .object({ dismiss: z.literal(true) })
+    .strict(),
 ]);
 
 export async function PATCH(req: Request, { params }: Ctx) {

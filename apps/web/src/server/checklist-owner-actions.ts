@@ -1,6 +1,6 @@
+import { type BrainDb, checklistItemsRepo } from "@brain/db";
 import type { SessionUser } from "./auth";
 import { requireChecklistItem } from "./checklist";
-import { type BrainDb, checklistItemsRepo } from "@brain/db";
 import { AppError } from "./errors";
 
 // H3 (2026-11-02): the owner's own actions on one open item. Owner only: requireChecklistItem checks the project is

@@ -1,13 +1,13 @@
+import { GET as openItemsHook } from "@/app/api/hooks/[projectId]/open-items/route";
+import { POST as closeRoute } from "@/app/api/projects/[id]/checklist-items/[itemId]/close/route";
+import { PATCH as itemRoute } from "@/app/api/projects/[id]/checklist-items/[itemId]/route";
+import { POST as cleanupRoute } from "@/app/api/projects/[id]/open-items/cleanup/route";
 // 2026-11-02: open checklist items. The start note listed one request about the main page's top comment about eight times
 // (H1: merged at creation), old open items stayed open after later receipts showed them done (H2: one-time cleanup),
 // the owner could not close or dismiss an item (H3), and the dashboard header must have no empty list items (D).
 // Attacker tests are named "attack: ..."; every other test is a case the user's real session needed.
 import { ChecklistItem } from "@/components/checklist-item";
 import { AppShell } from "@/components/shell/app-shell";
-import { GET as openItemsHook } from "@/app/api/hooks/[projectId]/open-items/route";
-import { POST as cleanupRoute } from "@/app/api/projects/[id]/open-items/cleanup/route";
-import { PATCH as itemRoute } from "@/app/api/projects/[id]/checklist-items/[itemId]/route";
-import { POST as closeRoute } from "@/app/api/projects/[id]/checklist-items/[itemId]/close/route";
 import { itemKey } from "@brain/core";
 import type { CompleteRequest, Llm } from "@brain/core";
 import {
@@ -70,7 +70,10 @@ async function seed(
     { featureId, text: `request: ${text}` },
     [{ text, needsClarification: false }],
   );
-  await world.db.update(requests).set({ createdAt: when }).where(eq(requests.id, created.request.id));
+  await world.db
+    .update(requests)
+    .set({ createdAt: when })
+    .where(eq(requests.id, created.request.id));
   const id = created.items[0]?.id as string;
   if (status) await checklistItemsRepo.setStatuses(world.db, pid, [{ id, status }]);
   return id;
@@ -144,7 +147,12 @@ afterEach(async () => {
 
 describe("H1 near-duplicate open items are merged at creation", () => {
   it("the exact example: a new item that repeats an open item of the same feature reuses it", async () => {
-    const existing = await seed(projectId, pricingId, "Add a comment at the top of the main page", new Date("2026-10-01"));
+    const existing = await seed(
+      projectId,
+      pricingId,
+      "Add a comment at the top of the main page",
+      new Date("2026-10-01"),
+    );
     scripted("- Add a short comment at the top of the main page\n- Add a pricing page");
     const out = await createChecklist(world.db, tokenRow, {
       projectId,
@@ -154,6 +162,9 @@ describe("H1 near-duplicate open items are merged at creation", () => {
     expect(out.items.map((i) => i.id)).toContain(existing);
     expect(out.items.map((i) => i.text)).toContain("Add a pricing page");
     expect(await openKeyCount(itemKey(MAIN))).toBe(1);
+    // The reused item moves onto the request that repeats it, so that request's receipt judges it (real-test G).
+    const onNew = await checklistItemsRepo.listForRequest(world.db, projectId, out.request_id);
+    expect(onNew.map((i) => i.id)).toContain(existing);
   });
 
   it("a feature's open item is not reused for a different feature", async () => {
@@ -195,7 +206,12 @@ describe("H1 near-duplicate open items are merged at creation", () => {
   });
 
   it("a prompt-submit capture that repeats an open item of the same feature adds no second item", async () => {
-    await seed(projectId, reviewsId, "Add a comment at the top of the main page", new Date("2026-10-01"));
+    await seed(
+      projectId,
+      reviewsId,
+      "Add a comment at the top of the main page",
+      new Date("2026-10-01"),
+    );
     scripted("FEATURE: Reviews\n- Add a short comment at the top of the main page");
     const result = await captureRequest(world.db, projectId, {
       text: "Please add a comment to the main page",
@@ -203,6 +219,10 @@ describe("H1 near-duplicate open items are merged at creation", () => {
     });
     expect(result).toMatchObject({ recorded: true, items: 0 });
     expect(await openKeyCount(itemKey(MAIN))).toBe(1);
+    const requestId = (result as { request_id?: string }).request_id as string;
+    expect((await checklistItemsRepo.listForRequest(world.db, projectId, requestId)).length).toBe(
+      1,
+    );
   });
 });
 
@@ -356,7 +376,12 @@ describe("D the dashboard header has no empty list items", () => {
     );
 
   it("a project with an empty name is labelled, not an empty list item", () => {
-    const texts = itemTexts(headerOf([{ id: "p1", name: "" }, { id: "p2", name: "app" }]));
+    const texts = itemTexts(
+      headerOf([
+        { id: "p1", name: "" },
+        { id: "p2", name: "app" },
+      ]),
+    );
     expect(texts).toEqual(["Untitled project", "app"]);
     expect(texts.every((t) => t !== "")).toBe(true);
   });

@@ -334,7 +334,12 @@ export const checklistItemsRepo = {
         ),
       )
       .where(eq(checklistItems.projectId, projectId))
-      .orderBy(desc(requests.createdAt), desc(requests.id), asc(checklistItems.position), asc(checklistItems.id))
+      .orderBy(
+        desc(requests.createdAt),
+        desc(requests.id),
+        asc(checklistItems.position),
+        asc(checklistItems.id),
+      )
       .limit(limit);
     return rows;
   },
@@ -354,6 +359,35 @@ export const checklistItemsRepo = {
       )
       .returning();
     return row ?? null;
+  },
+
+  // H1 (2026-11-02): an open item a new request repeats is reused: it moves onto that request (so the request's receipt
+  // judges it) at the given position. Only open items of this project move; anything else is left where it is.
+  async moveToRequest(
+    db: BrainDb,
+    projectId: string,
+    requestId: string,
+    moves: { id: string; position: number }[],
+  ): Promise<number> {
+    if (moves.length === 0) return 0;
+    return db.transaction(async (tx) => {
+      let moved = 0;
+      for (const m of moves) {
+        const rows = await tx
+          .update(checklistItems)
+          .set({ requestId, position: m.position })
+          .where(
+            and(
+              eq(checklistItems.projectId, projectId),
+              eq(checklistItems.id, m.id),
+              inArray(checklistItems.status, ["open", "partial", "missed", "postponed"]),
+            ),
+          )
+          .returning({ id: checklistItems.id });
+        moved += rows.length;
+      }
+      return moved;
+    });
   },
 
   // H2/H3: closes unresolved items (open, partial, missed, postponed) as done, done without a test, or dismissed, in

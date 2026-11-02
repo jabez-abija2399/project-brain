@@ -66,8 +66,7 @@ const DONE_STATUSES = new Set(["done", "done_untested"]);
  */
 export function planOpenItemCleanup(items: readonly CleanupItem[]): CleanupChange[] {
   const newestFirst = [...items].sort(
-    (a, b) =>
-      b.requestCreatedAt.getTime() - a.requestCreatedAt.getTime() || (a.id < b.id ? 1 : -1),
+    (a, b) => b.requestCreatedAt.getTime() - a.requestCreatedAt.getTime() || (a.id < b.id ? 1 : -1),
   );
   const done = newestFirst.filter((i) => DONE_STATUSES.has(i.status));
   const changes: CleanupChange[] = [];

@@ -3,7 +3,6 @@ import {
   MAX_ITEM_CHARS,
   MAX_REQUEST_CHARS,
   errorType,
-  findNearDuplicate,
   maskSecretsIn,
   oneLineText,
   requestForStorage,
@@ -23,7 +22,7 @@ import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
 import { resolveFeature } from "./feature-ref";
 import { getLlm } from "./llm";
-import { openItemsForFeature } from "./open-item-merge";
+import { attachRepeats, matchRepeats, openItemsForFeature } from "./open-item-merge";
 import { reserveDaily } from "./rate-limit";
 import { type ToolToken, bindToken } from "./session-tools";
 
@@ -148,15 +147,16 @@ export async function createChecklist(
     );
     throw new AppError(502, "ai_unavailable", "the checklist could not be made; try again");
   }
-  // H1 (2026-11-02): an item that repeats an open item of this feature reuses that item; only the others are stored.
+  // H1 (2026-11-02): an item that repeats an open item of this feature reuses that item (it moves onto this request);
+  // only the others are stored as new items.
   const pool = await openItemsForFeature(db, pid, feature.id);
-  const reused = items.map((i) => findNearDuplicate(i.text, pool, (o) => o.text));
+  const repeats = matchRepeats(items, pool);
   const stored = await requestsRepo.createWithItems(
     db,
     pid,
     { featureId: feature.id, text: maskSecretsIn(input.request) },
     items.flatMap((i, n) =>
-      reused[n]
+      repeats[n]
         ? []
         : [
             {
@@ -168,11 +168,12 @@ export async function createChecklist(
           ],
     ),
   );
+  await attachRepeats(db, pid, stored.request.id, repeats);
   // In the order the request was split: a reused item is the existing one, the others are the stored rows.
   const out: ChecklistItem[] = [];
   let next = 0;
   items.forEach((_, n) => {
-    const existing = reused[n];
+    const existing = repeats[n];
     if (existing) out.push(existing);
     else {
       const row = stored.items[next++];
