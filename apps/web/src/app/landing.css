@@ -554,6 +554,81 @@
   color: var(--muted);
 }
 
+/* ---------- How to use: the written guide (owner, 2026-11-02) ---------- */
+/* .use-guide, not .guide: globals.css already styles .guide (the state guide) and every div inside it. */
+.use-guide {
+  display: grid;
+  gap: 24px;
+}
+.guide-h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 1.125rem;
+}
+.guide-before {
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.guide-before ul {
+  margin: 8px 0 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 4px;
+}
+.guide-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 960px) {
+  .guide-steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.guide-step {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.guide-caption {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+.guide-do {
+  margin: 4px 0 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 8px;
+}
+.guide-do code,
+.guide-before code {
+  font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+.guide-tip {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+.guide-help {
+  margin: 0;
+  color: var(--muted);
+}
+.guide-demo-title {
+  margin-top: 8px;
+}
+
 /* ---------- How it works: steps and terminal ---------- */
 .how {
   display: grid;

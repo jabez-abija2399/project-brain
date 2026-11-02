@@ -132,7 +132,23 @@ export const AGENT_TABS: AgentTab[] = [
 ];
 
 export type TermLine = { kind: "cmd" | "out" | "you" | "agent"; text: string };
-export type Step = { id: string; title: string; caption: string; lines: TermLine[] };
+// Owner, 2026-11-02: each step is also a written guide (what to do, in order); `code` in backticks is shown as code.
+export type Step = {
+  id: string;
+  title: string;
+  caption: string;
+  does: string[];
+  tip?: string;
+  lines: TermLine[];
+};
+
+// What a visitor needs before step 1.
+export const BEFORE_YOU_START: string[] = [
+  "Node.js 20 or newer (check with `node -v`).",
+  "Your app in a git repository: receipts are built from git.",
+  "Claude Code, Cursor, Codex, OpenCode or Antigravity.",
+  "A GitHub account to sign in. Codeceipt asks for no repository access.",
+];
 
 const SITE = "https://codeceipts.vercel.app";
 const PROJECT = `${SITE}/projects/7c1e4b2a`;
@@ -141,7 +157,13 @@ export const STEPS: Step[] = [
   {
     id: "setup",
     title: "Set up",
-    caption: "Run one command in your app's folder and approve the code in your browser.",
+    caption: "Once per repository, about two minutes.",
+    does: [
+      "Open a terminal in your app's folder and run `npx codeceipt`.",
+      "Your browser opens a page with a code. Check it is the same code your terminal shows, sign in with GitHub and click Approve.",
+      "Wait for `Codeceipt is set up for this repo.` It indexes your code on your machine and sets up the agents it finds.",
+    ],
+    tip: "Your source code never leaves your machine: only names, paths and short summaries are sent.",
     lines: [
       { kind: "cmd", text: COMMAND },
       { kind: "out", text: "Your code: WDJB-MJHT" },
@@ -165,8 +187,13 @@ export const STEPS: Step[] = [
   },
   {
     id: "work",
-    title: "Work",
-    caption: "Use Claude Code as you always do. Codeceipt records the request and watches git.",
+    title: "Work as usual",
+    caption: "Codeceipt records your request and watches git.",
+    does: [
+      "Start your agent in the same folder (for example `claude`).",
+      "Ask for a change in your own words, as you always do.",
+      "End the session when the work is done: type `/exit` in Claude Code, or end the chat in Cursor. In VS Code the receipt also updates each time Claude finishes answering.",
+    ],
     lines: [
       { kind: "cmd", text: "claude" },
       { kind: "you", text: "Add reviews to the salon page, sorted newest first" },
@@ -180,7 +207,12 @@ export const STEPS: Step[] = [
   {
     id: "receipt",
     title: "Get your receipt",
-    caption: "Read the receipt in the terminal or on the Receipts page.",
+    caption: "What you asked, what changed and what is missing.",
+    does: [
+      "Run `codeceipt last` in the same folder: done, missed and every item that needs attention, by name.",
+      "Or open the Receipts page on your dashboard for the full receipt and its evidence.",
+      "Something missed? Click Send fix to agent on the receipt and paste the prompt into your agent.",
+    ],
     lines: [
       { kind: "cmd", text: "codeceipt last --evidence" },
       { kind: "out", text: "Latest receipt (2026-11-01 14:32 UTC):" },
