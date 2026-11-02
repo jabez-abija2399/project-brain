@@ -131,3 +131,59 @@ describe("GET /oauth/authorize (page)", () => {
     expect(html).toContain("Deny");
   });
 });
+
+describe("GET /oauth/authorize: the consent heading names where the client sends the owner", () => {
+  async function consentFor(opts: { clientName: string; redirect: string; projectName?: string }) {
+    const owner = await world.createUser({ name: "Owner" });
+    const p = await projectsRepo.create(world.db, owner.id, { name: opts.projectName ?? "Shop" });
+    const reg = await registerClient(
+      world.db,
+      jsonRequest(`${ORIGIN}/oauth/register`, {
+        client_name: opts.clientName,
+        redirect_uris: [opts.redirect],
+      }),
+      new Date("2026-11-02T10:00:00Z"),
+    );
+    const id = (reg.body as { client_id: string }).client_id;
+    world.signInAs(owner);
+    return render(params({ client_id: id, redirect_uri: opts.redirect, project_id: p.id }));
+  }
+  const headingOf = (html: string) =>
+    html.match(/<h2[^>]*id="consent"[^>]*>([\s\S]*?)<\/h2>/)?.[1] ?? "";
+
+  it("attack: a client that redirects to evil.test shows evil.test in the heading, not only in the small print", async () => {
+    const html = await consentFor({
+      clientName: "Claude Desktop",
+      redirect: "https://evil.test/cb",
+    });
+    const heading = headingOf(html);
+    expect(heading).toContain("evil.test");
+    expect(heading).toContain("Claude Desktop");
+    expect(heading).toContain("Shop");
+  });
+
+  it("attack: a client name with markup is shown as escaped text, never as a tag", async () => {
+    const html = await consentFor({
+      clientName: "<script>alert(1)</script>",
+      redirect: "https://evil.test/cb",
+    });
+    expect(html).not.toContain("<script>alert(1)</script>");
+    expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+  });
+
+  it("attack: a very long redirect host is capped in the heading", async () => {
+    const host = `${"a".repeat(60)}.${"b".repeat(60)}.${"c".repeat(60)}.test`;
+    const html = await consentFor({ clientName: "Client", redirect: `https://${host}/cb` });
+    const heading = headingOf(html);
+    expect(heading).not.toContain("c".repeat(60));
+    expect(heading).toContain("...");
+  });
+
+  it("the Allow button names the project", async () => {
+    const html = await consentFor({
+      clientName: "Claude Desktop",
+      redirect: "https://claude.ai/cb",
+    });
+    expect(html).toContain("Allow access to Shop");
+  });
+});

@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type OAuthClient,
@@ -19,6 +19,15 @@ export const MAX_CONNECTIONS = 200;
 
 export type TokenKind = "access" | "refresh";
 export type NewToken = { hash: string; grantId: string; kind: TokenKind; expiresAt: Date };
+
+/** What a code says about itself, read without spending it (the checks in /oauth/token run before it is spent). */
+export type CodeInfo = {
+  grantId: string;
+  redirectUri: string;
+  codeChallenge: string;
+  expiresAt: Date;
+  usedAt: Date | null;
+};
 
 export type ConsumeCodeResult =
   | { status: "ok"; grantId: string; redirectUri: string; codeChallenge: string }
@@ -62,6 +71,12 @@ export const oauthRepo = {
     return row;
   },
 
+  /** How many clients are registered: the global cap in registration counts them. */
+  async countClients(db: BrainDb): Promise<number> {
+    const [row] = await db.select({ n: count() }).from(oauthClients);
+    return Number(row?.n ?? 0);
+  },
+
   async getClient(db: BrainDb, clientId: string): Promise<OAuthClient | null> {
     const [row] = await db
       .select()
@@ -96,6 +111,22 @@ export const oauthRepo = {
     },
   ): Promise<void> {
     await db.insert(oauthCodes).values(data);
+  },
+
+  /** Reads a code without spending it. Null when there is no such code. */
+  async peekCode(db: BrainDb, hash: string): Promise<CodeInfo | null> {
+    const [row] = await db
+      .select({
+        grantId: oauthCodes.grantId,
+        redirectUri: oauthCodes.redirectUri,
+        codeChallenge: oauthCodes.codeChallenge,
+        expiresAt: oauthCodes.expiresAt,
+        usedAt: oauthCodes.usedAt,
+      })
+      .from(oauthCodes)
+      .where(eq(oauthCodes.hash, hash))
+      .limit(1);
+    return row ?? null;
   },
 
   /**
@@ -135,12 +166,26 @@ export const oauthRepo = {
   /**
    * Refresh rotation (one transaction): the presented refresh token is retired (rotated_to names its successor) and the
    * new pair is stored. A token that was already rotated is "reused"; the caller revokes the grant then.
+   * The grant row is locked first, in the same order revokeGrant takes its locks, so a revoke and a rotation cannot
+   * interleave: a grant revoked before this runs is "invalid" and nothing is inserted.
    */
   async rotateRefresh(
     db: BrainDb,
     data: { oldHash: string; next: NewToken[]; now: Date },
   ): Promise<RotateResult> {
     return db.transaction(async (tx) => {
+      const [found] = await tx
+        .select({ grantId: oauthTokens.grantId })
+        .from(oauthTokens)
+        .where(and(eq(oauthTokens.hash, data.oldHash), eq(oauthTokens.kind, "refresh")))
+        .limit(1);
+      if (!found) return { status: "invalid" } as const;
+      const [grant] = await tx
+        .select({ revokedAt: oauthGrants.revokedAt })
+        .from(oauthGrants)
+        .where(eq(oauthGrants.id, found.grantId))
+        .for("update");
+      if (!grant || grant.revokedAt !== null) return { status: "invalid" } as const;
       const [row] = await tx
         .select()
         .from(oauthTokens)

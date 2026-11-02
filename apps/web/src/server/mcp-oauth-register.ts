@@ -9,6 +9,12 @@ import { UNSAFE_NAME_CHARS } from "./validate";
 
 const REGISTER_PER_MINUTE = 10;
 
+/**
+ * The most public clients the server keeps. The per-address limit above does not bound the table across many addresses;
+ * this does. A registration past the cap is refused (503) and nothing is inserted.
+ */
+export const MAX_OAUTH_CLIENTS = 10_000;
+
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 // Control, bidirectional and invisible characters (the same set as UNSAFE_NAME_CHARS, without its global flag).
@@ -41,7 +47,12 @@ const registerSchema = z.object({
 });
 
 /** POST /oauth/register: a public client (no secret), per address rate limited, bodies capped. */
-export async function registerClient(db: BrainDb, req: Request, now = new Date()): Promise<Json> {
+export async function registerClient(
+  db: BrainDb,
+  req: Request,
+  now = new Date(),
+  opts: { maxClients?: number } = {},
+): Promise<Json> {
   await rateLimit(db, `oauth:register:${clientKey(req)}`, REGISTER_PER_MINUTE, now);
   const raw = await readCapped(req, BODY_LIMIT);
   if (raw === null) return fail(413, "invalid_client_metadata", "the request is too large");
@@ -71,6 +82,13 @@ export async function registerClient(db: BrainDb, req: Request, now = new Date()
   const name =
     (parsed.data.client_name ?? "").replace(UNSAFE_NAME_CHARS, "").trim().slice(0, 100) ||
     "Unnamed MCP client";
+  if ((await oauthRepo.countClients(db)) >= (opts.maxClients ?? MAX_OAUTH_CLIENTS)) {
+    return fail(
+      503,
+      "temporarily_unavailable",
+      "this server is not taking new client registrations right now; try again later",
+    );
+  }
   const client = await oauthRepo.createClient(db, { name, redirectUris: uris });
   return {
     status: 201,

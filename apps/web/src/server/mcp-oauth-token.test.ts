@@ -88,7 +88,7 @@ describe("POST /oauth/token: authorization code", () => {
     expect(expiry.refresh).toBe(T0.getTime() + 30 * DAY);
   });
 
-  it("attack: a wrong PKCE verifier is refused, and the code is spent", async () => {
+  it("attack: a wrong PKCE verifier is refused and does not spend the code; the right verifier still gets a token", async () => {
     const c = await connect(world, owner, shopId, { now: T0 });
     const bad = await exchange(
       world,
@@ -97,12 +97,58 @@ describe("POST /oauth/token: authorization code", () => {
     );
     expect(bad.status).toBe(400);
     expect((bad.body as { error: string }).error).toBe("invalid_grant");
-    const again = await exchange(
+    const good = await exchange(
       world,
       { clientId: c.clientId, code: c.code, verifier: c.verifier },
       T0,
     );
-    expect(again.status).toBe(400);
+    expect(good.status).toBe(200);
+    const token = (good.body as { access_token: string }).access_token;
+    expect(await verifyOAuthAccessToken(world.db, token, RESOURCE, T0)).not.toBeNull();
+  });
+
+  it("attack: a wrong client or a wrong redirect address does not spend the code; the right request still gets a token", async () => {
+    const c = await connect(world, owner, shopId, { now: T0 });
+    const wrongClient = await exchange(
+      world,
+      { clientId: "someone-else", code: c.code, verifier: c.verifier },
+      T0,
+    );
+    expect(wrongClient.status).toBe(400);
+    const wrongRedirect = await exchange(
+      world,
+      {
+        clientId: c.clientId,
+        code: c.code,
+        verifier: c.verifier,
+        redirect: "http://localhost:1/other",
+      },
+      T0,
+    );
+    expect(wrongRedirect.status).toBe(400);
+    const good = await exchange(
+      world,
+      { clientId: c.clientId, code: c.code, verifier: c.verifier },
+      T0,
+    );
+    expect(good.status).toBe(200);
+  });
+
+  it("attack: a replay of a used code by another client, or with a wrong verifier, does not revoke the grant", async () => {
+    const t = await fresh();
+    const otherClient = await exchange(
+      world,
+      { clientId: "someone-else", code: t.code, verifier: t.verifier },
+      T0,
+    );
+    expect(otherClient.status).toBe(400);
+    const badVerifier = await exchange(
+      world,
+      { clientId: t.clientId, code: t.code, verifier: "x".repeat(43) },
+      T0,
+    );
+    expect(badVerifier.status).toBe(400);
+    expect(await verifyOAuthAccessToken(world.db, t.access_token, RESOURCE, T0)).not.toBeNull();
   });
 
   it("attack: a code can be used once; the second use revokes the grant and its first tokens", async () => {
@@ -212,6 +258,31 @@ describe("POST /oauth/token: refresh rotation", () => {
       await verifyOAuthAccessToken(world.db, rotated.access_token, RESOURCE, later),
     ).toBeNull();
     expect((await refreshWith(rotated.refresh_token, t.clientId, later)).status).toBe(400);
+  });
+
+  it("attack: a refresh on a revoked grant is refused and issues no tokens, even when the refresh token itself is still unmarked", async () => {
+    const t = await fresh();
+    // The state a revoke that races a refresh can leave: the grant is revoked, its tokens are not marked yet.
+    await world.db.update(oauthGrants).set({ revokedAt: T0 });
+    const before = (await world.db.select().from(oauthTokens)).length;
+    const r = await refreshWith(t.refresh_token, t.clientId, new Date(T0.getTime() + HOUR));
+    expect(r.status).toBe(400);
+    expect((r.body as { error: string }).error).toBe("invalid_grant");
+    expect((await world.db.select().from(oauthTokens)).length).toBe(before);
+  });
+
+  it("a revoke that happens first makes the refresh fail, and no new tokens are issued", async () => {
+    const t = await fresh();
+    await revokeToken(
+      world.db,
+      formRequest(`${ORIGIN}/oauth/revoke`, { token: t.access_token }),
+      T0,
+    );
+    const before = (await world.db.select().from(oauthTokens)).length;
+    const r = await refreshWith(t.refresh_token, t.clientId, new Date(T0.getTime() + HOUR));
+    expect(r.status).toBe(400);
+    expect((r.body as { error: string }).error).toBe("invalid_grant");
+    expect((await world.db.select().from(oauthTokens)).length).toBe(before);
   });
 
   it("attack: a refresh token presented by another client is refused and does not revoke the grant", async () => {

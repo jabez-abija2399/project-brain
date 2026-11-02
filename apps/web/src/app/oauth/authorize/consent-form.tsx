@@ -15,7 +15,15 @@ type Params = {
 
 // Allow or Deny for one project. The server checks the CSRF value against these exact fields and the signed-in user;
 // the answer is the redirect back to the app (with a code, or with access_denied).
-export function ConsentForm({ params, csrf }: { params: Params; csrf: string }) {
+export function ConsentForm({
+  params,
+  csrf,
+  projectName,
+}: {
+  params: Params;
+  csrf: string;
+  projectName: string;
+}) {
   const [busy, setBusy] = useState<"allow" | "deny" | null>(null);
   const [message, setMessage] = useState("");
 
@@ -54,7 +62,7 @@ export function ConsentForm({ params, csrf }: { params: Params; csrf: string }) 
           disabled={busy !== null}
           onClick={() => send("allow")}
         >
-          Allow
+          Allow access to {projectName}
         </Button>
         <Button
           variant="secondary"

@@ -118,7 +118,7 @@ function ViewBody({
   return (
     <section className="card stack stack-lg" aria-labelledby="consent">
       <h2 id="consent" className="section-title">
-        Connect {view.client.name} to {view.project.name}?
+        Connect {view.client.name} (redirects to {view.client.host}) to {view.project.name}?
       </h2>
       <p className="m0">{view.client.name} will be able to:</p>
       <ul className="facts-list">
@@ -136,7 +136,7 @@ function ViewBody({
         <code>{view.client.host}</code>, and the app chose its own name, so check where you started
         this connection. You can revoke it any time on your Account page.
       </p>
-      <ConsentForm params={view.params} csrf={view.csrf} />
+      <ConsentForm params={view.params} csrf={view.csrf} projectName={view.project.name} />
     </section>
   );
 }

@@ -94,21 +94,17 @@ async function codeGrant(
       "code, redirect_uri, client_id and code_verifier are required",
     );
   }
-  const spent = await oauthRepo.consumeCode(db, hashToken(code), now);
-  if (spent.status === "invalid")
-    return fail(400, "invalid_grant", "the code is wrong, used or expired");
-  if (spent.status === "reused") {
-    // A code used twice means it leaked: the grant it made is ended (RFC 6749 section 4.1.2).
-    await oauthRepo.revokeGrant(db, spent.grantId, now);
-    return fail(400, "invalid_grant", "the code was already used; the connection was ended");
-  }
-  const grant = await oauthRepo.getGrant(db, spent.grantId);
+  // Every check runs before the code is spent: a request that fails one of them (a wrong client, redirect address or
+  // verifier) changes nothing, so a stolen code cannot be burned, and the legitimate exchange still works.
+  const info = await oauthRepo.peekCode(db, hashToken(code));
+  if (!info) return fail(400, "invalid_grant", "the code is wrong, used or expired");
+  const grant = await oauthRepo.getGrant(db, info.grantId);
   if (
     !grant ||
     grant.revokedAt !== null ||
     grant.clientId !== clientId ||
-    spent.redirectUri !== redirect ||
-    !pkceMatches(verifier, spent.codeChallenge)
+    info.redirectUri !== redirect ||
+    !pkceMatches(verifier, info.codeChallenge)
   ) {
     return fail(
       400,
@@ -116,7 +112,23 @@ async function codeGrant(
       "the code does not match this client, redirect address or verifier",
     );
   }
+  if (info.usedAt !== null) {
+    // The right client, redirect address and verifier, and a code used before: it leaked, so its grant is ended
+    // (RFC 6749 section 4.1.2). Only a request that passed the checks above can end a grant this way.
+    await oauthRepo.revokeGrant(db, grant.id, now);
+    return fail(400, "invalid_grant", "the code was already used; the connection was ended");
+  }
+  if (info.expiresAt.getTime() <= now.getTime())
+    return fail(400, "invalid_grant", "the code is wrong, used or expired");
   if (grant.resource !== mcpResource(origin)) return fail(400, "invalid_target", "wrong resource");
+  // The single-use step itself: a concurrent exchange that spent the code first is a reuse.
+  const spent = await oauthRepo.consumeCode(db, hashToken(code), now);
+  if (spent.status === "invalid")
+    return fail(400, "invalid_grant", "the code is wrong, used or expired");
+  if (spent.status === "reused") {
+    await oauthRepo.revokeGrant(db, grant.id, now);
+    return fail(400, "invalid_grant", "the code was already used; the connection was ended");
+  }
   const tokens = newTokens(grant.id, now);
   await oauthRepo.insertTokens(db, tokens.rows);
   return tokenBody(tokens.access, tokens.refresh);
@@ -138,6 +150,11 @@ async function refreshGrant(
   const grant = await oauthRepo.getGrant(db, row.grantId);
   if (!grant || grant.clientId !== clientId) {
     return fail(400, "invalid_grant", "the refresh token does not belong to this client");
+  }
+  // A revoked grant refreshes nothing (a revoke that landed first must stay effective; rotateRefresh checks it again
+  // under the grant's row lock).
+  if (grant.revokedAt !== null) {
+    return fail(400, "invalid_grant", "the connection was ended");
   }
   if (grant.resource !== mcpResource(origin)) return fail(400, "invalid_target", "wrong resource");
   const tokens = newTokens(grant.id, now);

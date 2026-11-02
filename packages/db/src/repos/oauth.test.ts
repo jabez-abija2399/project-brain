@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { PGlite } from "@electric-sql/pglite";
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BrainDb } from "../db";
 import { fromPglite } from "../pglite";
+import { oauthTokens } from "../schema";
 import { createTestDb } from "../testing";
 import { oauthRepo } from "./oauth";
 import { projectsRepo } from "./projects";
@@ -252,5 +254,62 @@ describe("oauthRepo", () => {
     expect(
       await oauthRepo.activeAccess(db, "at-old", new Date(now.getTime() + 2 * HOUR)),
     ).toBeNull();
+  });
+});
+
+describe("oauthRepo: review fixes", () => {
+  it("attack: a refresh rotation on a revoked grant is refused and inserts no tokens", async () => {
+    const owner = await person("owner");
+    const p = await project(owner, "Shop");
+    const client = await oauthRepo.createClient(db, { name: "c", redirectUris: [] });
+    const grant = await oauthRepo.createGrant(db, {
+      clientId: client.id,
+      projectId: p,
+      userId: owner,
+      resource: RESOURCE,
+    });
+    const now = new Date();
+    await oauthRepo.insertTokens(db, [
+      {
+        hash: "rt-revoked-grant",
+        grantId: grant.id,
+        kind: "refresh",
+        expiresAt: new Date(now.getTime() + HOUR),
+      },
+    ]);
+    // Only the grant is revoked here: the racing revoke has not reached this refresh token yet.
+    await oauthRepo.revokeGrant(db, grant.id, now);
+    await db
+      .update(oauthTokens)
+      .set({ revokedAt: null })
+      .where(eq(oauthTokens.hash, "rt-revoked-grant"));
+    const result = await oauthRepo.rotateRefresh(db, {
+      oldHash: "rt-revoked-grant",
+      next: [
+        {
+          hash: "at-after-revoke",
+          grantId: grant.id,
+          kind: "access",
+          expiresAt: new Date(now.getTime() + HOUR),
+        },
+        {
+          hash: "rt-after-revoke",
+          grantId: grant.id,
+          kind: "refresh",
+          expiresAt: new Date(now.getTime() + HOUR),
+        },
+      ],
+      now,
+    });
+    expect(result).toEqual({ status: "invalid" });
+    expect(await oauthRepo.findToken(db, "rt-after-revoke")).toBeNull();
+    expect(await oauthRepo.findToken(db, "rt-revoked-grant")).toMatchObject({ rotatedTo: null });
+  });
+
+  it("countClients counts every registered client", async () => {
+    expect(await oauthRepo.countClients(db)).toBe(0);
+    await oauthRepo.createClient(db, { name: "a", redirectUris: [] });
+    await oauthRepo.createClient(db, { name: "b", redirectUris: [] });
+    expect(await oauthRepo.countClients(db)).toBe(2);
   });
 });

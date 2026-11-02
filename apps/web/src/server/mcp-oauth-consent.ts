@@ -25,6 +25,11 @@ const NOT_YOURS = "No project of yours has this id.";
 
 const CHALLENGE = /^[A-Za-z0-9._~-]{43,128}$/;
 
+// The redirect host the consent page shows is capped: it is the part of the request the owner must check.
+const HOST_SHOWN_MAX = 100;
+const shownHost = (host: string): string =>
+  host.length > HOST_SHOWN_MAX ? `${host.slice(0, HOST_SHOWN_MAX - 3)}...` : host;
+
 // --- Consent (GET /oauth/authorize, POST /oauth/consent) ---------------------------------------------------------
 
 export type ConsentFields = {
@@ -154,7 +159,7 @@ export async function authorizeView(
   };
   return {
     kind: "consent",
-    client: { name: safeDisplay(client.name, 100), host: new URL(redirect).host },
+    client: { name: safeDisplay(client.name, 100), host: shownHost(new URL(redirect).host) },
     project,
     params,
     csrf: consentCsrf(user.id, params),

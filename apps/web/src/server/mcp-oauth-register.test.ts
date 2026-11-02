@@ -3,7 +3,7 @@ import { POST as register } from "@/app/oauth/register/route";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
 import { oauthRepo } from "@brain/db";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { registerClient } from "./mcp-oauth";
+import { MAX_OAUTH_CLIENTS, registerClient } from "./mcp-oauth";
 import { jsonRequest, useLocalOrigin } from "./mcp-oauth-test-helpers";
 
 const URL_ = "http://localhost/oauth/register";
@@ -129,5 +129,22 @@ describe("POST /oauth/register", () => {
       "x-forwarded-for": "198.51.100.10",
     });
     expect((await registerClient(world.db, other, now)).status).toBe(201);
+  });
+
+  it("attack: with the client cap reached, registration is refused with 503 and nothing is inserted", async () => {
+    const now = new Date("2026-11-02T10:00:30Z");
+    const req = (ip: string) =>
+      jsonRequest(URL_, ok("https://claude.ai/cb"), { "x-forwarded-for": ip });
+    const cap = { maxClients: 2 };
+    expect((await registerClient(world.db, req("198.51.100.20"), now, cap)).status).toBe(201);
+    expect((await registerClient(world.db, req("198.51.100.21"), now, cap)).status).toBe(201);
+    const refused = await registerClient(world.db, req("198.51.100.22"), now, cap);
+    expect(refused.status).toBe(503);
+    expect((refused.body as { error: string }).error).toBe("temporarily_unavailable");
+    expect(await oauthRepo.countClients(world.db)).toBe(2);
+  });
+
+  it("the global cap on registered clients is 10,000", () => {
+    expect(MAX_OAUTH_CLIENTS).toBe(10_000);
   });
 });

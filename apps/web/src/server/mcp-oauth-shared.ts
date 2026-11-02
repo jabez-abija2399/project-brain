@@ -56,8 +56,13 @@ export function protectedResourceMetadata(origin: string) {
   };
 }
 
-/** A missing or invalid token: 401, the challenge that points at the metadata, and the text that says what to do. */
+/**
+ * A missing or invalid token: 401, the challenge that points at the metadata, and the text that says what to do. RFC 6750
+ * section 3: a token that was presented and is not usable (unknown, expired, revoked, another resource) gets
+ * error="invalid_token"; a request with no token gets the challenge without an error parameter.
+ */
 export function unauthorizedResponse(origin: string, presented: boolean): Response {
+  const error = presented ? ' error="invalid_token",' : "";
   return new Response(
     JSON.stringify({
       error: presented ? "invalid_token" : "unauthorized",
@@ -68,7 +73,7 @@ export function unauthorizedResponse(origin: string, presented: boolean): Respon
       headers: {
         "content-type": "application/json",
         "cache-control": "no-store",
-        "www-authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+        "www-authenticate": `Bearer${error} resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
       },
     },
   );
