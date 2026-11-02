@@ -161,3 +161,4 @@
 - 2026-11-01 (real test): the request splitter's one retry is not counted against the daily AI budget (at most one extra small call per request).
 - 2026-11-01 (security review LOW): the Stop hook judges a receipt whenever the changed files change; debounce it (one judged receipt per few minutes per session) so a long session cannot use up the daily AI budget before SessionEnd.
 - 2026-11-01 (security review LOW): repo fingerprint hashes are unsalted, so a public repo's remote can be guessed from the database; salt with the project id. The fingerprint is a guard against mistakes (a copied .git), not access control: leaving the header out skips it and /rebuild adopts the caller's repo.
+- 2026-11-02 (D-027): the native sandbox child has no Node memory caps under Bun (time limit, empty env and kill stay); find an equivalent (Bun has no per-process heap flag yet) or run the sandbox under ulimit on POSIX.

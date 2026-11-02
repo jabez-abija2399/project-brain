@@ -15,7 +15,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "tsc --noEmit && node build.mjs"
+    "build": "tsc --noEmit && node build.mjs",
+    "build:native": "node build-native.mjs"
   },
   "dependencies": {
     "@brain/core": "workspace:*",

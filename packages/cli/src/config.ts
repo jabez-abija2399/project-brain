@@ -99,8 +99,10 @@ export function readProjectToken(
 
 // Owner-only: the folder 0700 and the file 0600 (also when the file already existed with wider permissions).
 function write(path: string, file: ConfigFile): void {
+  // D-027: a login never drops the user's settings.
+  const merged = { ...readSettings(path), ...file };
   mkdirSync(join(path, ".."), { recursive: true, mode: 0o700 });
-  writeFileSync(path, `${JSON.stringify(file, null, 2)}\n`, { mode: 0o600 });
+  writeFileSync(path, `${JSON.stringify(merged, null, 2)}\n`, { mode: 0o600 });
   chmodSync(path, 0o600);
 }
 
@@ -119,4 +121,18 @@ export function saveProjectToken(path: string, config: CliConfig): void {
     (c) => !(c.projectId === config.projectId && originOf(c.apiUrl) === origin),
   );
   write(path, { ...(top ?? {}), projects: [...others, config].slice(-MAX_PROJECT_TOKENS) });
+}
+
+// D-027: user settings kept in the same file, beside the logins. Only known keys are read and written; everything
+// else in the file is kept as it is.
+export type UserSettings = { autoUpdate?: boolean };
+export function readSettings(path: string): UserSettings {
+  const file = readFile(path) as (ConfigFile & { autoUpdate?: unknown }) | null;
+  return typeof file?.autoUpdate === "boolean" ? { autoUpdate: file.autoUpdate } : {};
+}
+export function writeSettings(path: string, settings: UserSettings): void {
+  const file = (readFile(path) ?? {}) as Record<string, unknown>;
+  mkdirSync(join(path, ".."), { recursive: true, mode: 0o700 });
+  writeFileSync(path, `${JSON.stringify({ ...file, ...settings }, null, 2)}\n`, { mode: 0o600 });
+  chmodSync(path, 0o600);
 }

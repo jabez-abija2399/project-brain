@@ -31,6 +31,7 @@ import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { attentionLines } from "./last-attention";
 import { evidenceLines } from "./last-evidence";
 import { runMcpProxy } from "./mcp-proxy";
+import { configCommand, updateCommand } from "./native/commands";
 import {
   gitDirOf,
   readRepoLink,
@@ -62,6 +63,10 @@ export function helpText(): string {
     "  codeceipt receipt                   saves a receipt and progress now (for agents with no session-end event)",
     "  codeceipt last                      prints the latest receipt's summary and link again",
     "  codeceipt last --evidence           also prints the code-free evidence the judge was given, per file",
+    "  codeceipt doctor                    checks the install, login, repo link, hooks and network, with the fix for each problem",
+    "  codeceipt update                    updates the native app now (it also checks by itself once a day)",
+    "  codeceipt config auto-update on|off turns the daily automatic update on or off",
+    "  codeceipt --version                 prints the version",
   ].join("\n");
 }
 
@@ -83,6 +88,9 @@ export type CliDeps = {
   hasCommand?: (name: string) => boolean;
   // Starts this CLI again with `args` in the background, `input` on its stdin (Codex's 3-second session end).
   spawnBackground?: (args: string[], input: string, cwd: string) => void;
+  // D-027: where this copy runs from (the native binary, or node + the bundled script); tests inject them.
+  execPath?: string;
+  scriptPath?: string;
   git?: Git;
 };
 
@@ -206,6 +214,24 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
     if (command === "help" || command === "--help" || command === "-h") {
       deps.stdout(helpText());
       return EXIT.ok;
+    }
+    // D-027: exactly `codeceipt <version>` (the self-updater runs a new file with --version to check it).
+    if (command === "--version" || command === "-v" || command === "version") {
+      deps.stdout(`codeceipt ${VERSION}`);
+      return EXIT.ok;
+    }
+    if (command === "config") {
+      configCommand(args, path, deps);
+      return EXIT.ok;
+    }
+    if (command === "update") {
+      return await updateCommand(args, path, deps, {
+        fetch: deps.fetch,
+        platform: deps.platform ?? process.platform,
+        scriptPath: deps.scriptPath ?? process.argv[1],
+        execPath: deps.execPath ?? process.execPath,
+        version: VERSION,
+      });
     }
     // No command (flags only): the one-command setup.
     if (command === undefined || command.startsWith("--")) {

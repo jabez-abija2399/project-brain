@@ -61,3 +61,4 @@
 - 2026-11-02: Once a user is signed in, no header, footer or page shows Sign in anywhere.
 - 2026-11-02: Owner items: Dismiss asks to confirm first; an item the owner closes reads "Closed by you" (checklist_items.closed_by_owner, migration 0041_closed_by_owner) and no receipt overwrites it; Overview lists open items and offers Clean up open items (preview, then Run cleanup); CLI bumped to 0.1.2.
 - 2026-11-02: The landing page's how-to section is a clear step-by-step guide (what you need, what to do in each step, where the receipt is), readable without clicking.
+- 2026-11-02: Codeceipt installs like Claude Code: native self-updating binaries (no Node.js needed), one-line installers from the site, codeceipt update / doctor / config auto-update off, hooks call the full installed path, npm stays supported.
