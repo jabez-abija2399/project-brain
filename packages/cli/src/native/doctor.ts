@@ -1,8 +1,18 @@
-import { constants, accessSync, existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import {
+  constants,
+  accessSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  statSync,
+} from "node:fs";
 import { delimiter, join } from "node:path";
 import { CliError, request } from "../api";
 import type { CliConfig } from "../config";
 import { readSettings } from "../config";
+import { hookRunsFile, lastHookRun } from "../hook-runs";
+import { claudeTranscriptDir, pluginInstalled } from "../plugins";
 import { END_HOOK, START_HOOK, hookCommandPath, isOurHook } from "../templates";
 import { INSTALL_PS1, INSTALL_SH, installKind } from "./install-info";
 
@@ -26,6 +36,8 @@ export type DoctorDeps = {
   repoProject: () => Promise<CliConfig>;
   inGitRepo: () => Promise<boolean>;
   hasLogin: () => boolean;
+  // The repo's top folder (the key for hook runs and Claude Code transcripts), or null outside a repo.
+  repoRoot: () => Promise<string | null>;
 };
 
 type Line = { ok: boolean | null; text: string; fix?: string[] };
@@ -110,6 +122,51 @@ function hookCommands(file: string): string[] | null {
   };
   walk(doc, 0);
   return out;
+}
+
+const utc = (ms: number) => `${new Date(ms).toISOString().slice(0, 16).replace("T", " ")} UTC`;
+// How long after a session's transcript was last written its hooks may have run (hooks run before the last write).
+const SLACK_MS = 2 * 60_000;
+const NOT_RUN: Record<string, string> = {
+  cursor: "start a local Cursor agent here; cloud agents do not run hooks",
+  codex: "Codex runs plugin hooks only after you trust them in /hooks",
+  antigravity: "Antigravity documents plugin hooks for its CLI only",
+};
+
+// D-028: whether the plugin's hooks ran in this repo's last session. For Claude Code the last session is its newest
+// transcript for this folder; a transcript newer than the last hook run means that session ran no Codeceipt hooks
+// (claude.ai/code cloud sessions, or a surface with hooks turned off). Other agents keep no transcript we can read
+// reliably, so their line says when the hooks last ran.
+function hookRunLine(agent: string, name: string, root: string, deps: DoctorDeps): Line {
+  const run = lastHookRun(hookRunsFile(deps.configFile), agent, root);
+  const ranAt = run ? Date.parse(run.at) : null;
+  if (agent === "claude") {
+    const dir = join(deps.home, ".claude", "projects", claudeTranscriptDir(root));
+    let newest: number | null = null;
+    try {
+      for (const f of readdirSync(dir).slice(0, 2000)) {
+        if (!f.endsWith(".jsonl")) continue;
+        const m = statSync(join(dir, f)).mtimeMs;
+        if (newest === null || m > newest) newest = m;
+      }
+    } catch {}
+    if (newest !== null && (ranAt === null || newest > ranAt + SLACK_MS)) {
+      return {
+        ok: false,
+        text: `Claude Code's last session here (${utc(newest)}) ran no Codeceipt hooks`,
+        fix: [
+          "use Claude Code in a terminal or an IDE for receipts (cloud sessions on claude.ai/code do not run plugin hooks), or run `codeceipt receipt` after the session",
+        ],
+      };
+    }
+    if (ranAt !== null) return { ok: true, text: `${name} hooks ran in the last session here` };
+    return { ok: null, text: `No ${name} session here yet` };
+  }
+  if (ranAt !== null) return { ok: true, text: `${name} hooks last ran here ${utc(ranAt)}` };
+  return {
+    ok: null,
+    text: `${name} plugin installed; its hooks have not run in this repo yet (${NOT_RUN[agent] ?? "start the agent here"})`,
+  };
 }
 
 export async function runDoctor(deps: DoctorDeps): Promise<number> {
@@ -217,13 +274,28 @@ export async function runDoctor(deps: DoctorDeps): Promise<number> {
       );
     }
 
-    // 5. Hooks, per agent found in the repo.
+    // 5. Hooks, per agent: from its plugin (D-028), or from the repo's own files.
+    const root = (await deps.repoRoot()) ?? deps.cwd;
     for (const a of AGENTS) {
-      if (!existsSync(join(deps.cwd, a.dir))) continue;
+      const plugin = pluginInstalled(deps.home, a.agent);
+      if (!plugin && !existsSync(join(deps.cwd, a.dir))) continue;
       const commands = hookCommands(join(deps.cwd, a.file)) ?? [];
       const ours = commands.filter(
         (c) => isOurHook(c, START_HOOK(a.agent)) || isOurHook(c, END_HOOK(a.agent)),
       );
+      if (plugin) {
+        lines.push(
+          ours.length > 0
+            ? {
+                ok: false,
+                text: `${a.name} has the plugin and this repo's own hooks, so every hook runs twice`,
+                fix: ["codeceipt init --remove-repo-files"],
+              }
+            : { ok: true, text: `${a.name} plugin installed (hooks come from the plugin)` },
+        );
+        lines.push(hookRunLine(a.agent, a.name, root, deps));
+        continue;
+      }
       if (ours.length === 0) {
         lines.push({
           ok: false,

@@ -55,6 +55,26 @@ const code = await main(process.argv.slice(2), {
   stdinLines: () => createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY }),
   // Codex's session end (D-021): this same CLI again, detached, so it outlives the hook's 3 seconds. No shell: the
   // arguments are passed as a list.
+  // D-028: setup offers an agent's plugin only when someone can answer in the terminal.
+  ...(process.stdin.isTTY && process.stdout.isTTY
+    ? {
+        ask: (question: string) =>
+          new Promise<boolean>((resolve) => {
+            const rl = createInterface({ input: process.stdin, output: process.stdout });
+            rl.question(`${question} `, (answer) => {
+              rl.close();
+              resolve(/^(y|yes)?$/i.test(answer.trim()));
+            });
+          }),
+      }
+    : {}),
+  // An agent's own command (claude plugin install ...), with the arguments as a list: no shell.
+  runCommand: (command: string, args: string[]) =>
+    new Promise<boolean>((resolve) => {
+      const child = spawn(command, args, { stdio: "inherit", windowsHide: true });
+      child.on("error", () => resolve(false));
+      child.on("close", (code) => resolve(code === 0));
+    }),
   spawnBackground: (args, input, cwd) => {
     // The native binary is itself the program; under Node the bundled script is argv[1] (D-027).
     const argv = nativeBuild() ? args : [process.argv[1] ?? "", ...args];
