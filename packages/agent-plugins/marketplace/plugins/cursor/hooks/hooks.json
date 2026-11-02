@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "sh \"${CURSOR_PLUGIN_ROOT}/scripts/codeceipt.sh\" hook session-start cursor",
+        "timeout": 30
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "sh \"${CURSOR_PLUGIN_ROOT}/scripts/codeceipt.sh\" hook prompt cursor",
+        "timeout": 10
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "sh \"${CURSOR_PLUGIN_ROOT}/scripts/codeceipt.sh\" hook session-end cursor",
+        "timeout": 60
+      }
+    ]
+  }
+}

@@ -10,6 +10,7 @@
       "**/node_modules/**",
       "**/drizzle/**",
       "tests/fixtures/**",
+      "packages/agent-plugins/marketplace/**",
       "**/*.tsbuildinfo",
       "agent/**",
       "scripts/kit.py",

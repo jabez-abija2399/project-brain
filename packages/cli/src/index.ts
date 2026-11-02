@@ -19,6 +19,7 @@ import {
   saveProjectToken,
   writeConfig,
 } from "./config";
+import { hookRunsFile, recordHookRun } from "./hook-runs";
 import {
   latestSession,
   mcpHeaders,
@@ -36,6 +37,8 @@ import { configCommand, updateCommand } from "./native/commands";
 import { codeceiptsOnPath, runDoctor } from "./native/doctor";
 import { installKind } from "./native/install-info";
 import { applyOwnerStates, ownerStateLines } from "./owner-states";
+import { PLUGIN_MARKETPLACE } from "./plugins";
+import { removeRepoFiles } from "./remove-repo-files";
 import {
   gitDirOf,
   readRepoLink,
@@ -57,6 +60,7 @@ export function helpText(): string {
   return [
     `codeceipt ${VERSION}: A receipt for every AI change.`,
     "  codeceipt                           connects this repo: approve a code in your browser, then index and set up agents",
+    "  codeceipt connect                   the same, by name (agents with the Codeceipt plugin get nothing written into the repo)",
     "  codeceipt login [--api-url <url>]   reads the project token from stdin or CODECEIPT_TOKEN",
     "  codeceipt index [dir]               indexes the repo locally and uploads metadata only",
     "  codeceipt index --rebuild [dir]     clears the project's stored index and rebuilds it from this repo only",
@@ -64,6 +68,7 @@ export function helpText(): string {
     "  codeceipt scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
     "  codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]",
     "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
+    "  codeceipt init --remove-repo-files  removes those files for agents whose Codeceipt plugin is installed",
     "  codeceipt receipt                   saves a receipt and progress now (for agents with no session-end event)",
     "  codeceipt last                      prints the latest receipt's summary and link again",
     "  codeceipt last --evidence           also prints the code-free evidence the judge was given, per file",
@@ -96,6 +101,9 @@ export type CliDeps = {
   execPath?: string;
   scriptPath?: string;
   git?: Git;
+  // D-028: a yes/no question in the terminal (absent without one), and an agent's own command run without a shell.
+  ask?: (question: string) => Promise<boolean>;
+  runCommand?: (command: string, args: string[]) => Promise<boolean>;
 };
 
 function flag(args: string[], name: string): string | undefined {
@@ -258,6 +266,7 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         repoProject: () => projectConfig(deps, path, deps.cwd),
         inGitRepo: async () => (await gitDirOf(deps.git ?? runGit, deps.cwd)) !== null,
         hasLogin: () => hasAnyLogin(path),
+        repoRoot: () => repoRoot(deps.git ?? runGit, deps.cwd).catch(() => null),
       });
     }
     // D-027: exactly `codeceipt <version>` (the self-updater runs a new file with --version to check it).
@@ -279,8 +288,9 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       });
     }
     // No command (flags only): the one-command setup.
-    if (command === undefined || command.startsWith("--")) {
-      const args = argv.slice();
+    // D-028: `codeceipt connect` is the same setup by name.
+    if (command === undefined || command.startsWith("--") || command === "connect") {
+      const args = command === "connect" ? argv.slice(1) : argv.slice();
       const apiUrl = flag(args, "--api-url") ?? brandEnv(deps.env, "API_URL") ?? DEFAULT_API_URL;
       if (args.length > 0) throw new CliError(EXIT.usage, `Unknown argument: ${args[0]}`);
       if (!isSafeApiUrl(apiUrl)) {
@@ -301,6 +311,9 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         hasCommand:
           deps.hasCommand ?? ((name) => onPath(name, deps.env, deps.platform ?? process.platform)),
         native: installKind(deps.scriptPath ?? process.argv[1]) === "native",
+        marketplace: PLUGIN_MARKETPLACE,
+        ...(deps.ask ? { ask: deps.ask } : {}),
+        ...(deps.runCommand ? { run: deps.runCommand } : {}),
       });
       return EXIT.ok;
     }
@@ -352,6 +365,13 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
           "Saved server address must be https: run `codeceipt login` again.",
         );
       const root = await repoRoot(deps.git ?? runGit, deps.cwd).catch(() => deps.cwd);
+      // D-028: once an agent's plugin is installed, the repo's own files for it can go.
+      if (args.includes("--remove-repo-files")) {
+        if (args.length > 1)
+          throw new CliError(EXIT.usage, "Usage: codeceipt init --remove-repo-files");
+        for (const line of removeRepoFiles(root, deps.homedir ?? osHomedir())) deps.stdout(line);
+        return EXIT.ok;
+      }
       const result = runInit(
         root,
         deps.homedir ?? osHomedir(),
@@ -389,12 +409,15 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
     } else if (command === "receipt") {
       if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt receipt");
       return await runReceipt(deps, path);
-    } else if (command === "hook" && args[0] === "prompt") {
-      return await runPromptHook(args, deps, path);
-    } else if (command === "hook" && hookAgent(args) !== "claude" && hookAgent(args) !== "cursor") {
-      return await runAgentHook(args, deps, path);
-    } else if (command === "hook" || command === "mcp-headers") {
-      // Hooks and the helper never fail: a repo without a project link gets one warning line instead.
+    } else if (command === "hook") {
+      // D-028: --plugin marks a plugin's hook (installed for every repo on the machine).
+      return await runAnyHook(
+        args.filter((a) => a !== "--plugin"),
+        deps,
+        path,
+        args.includes("--plugin"),
+      );
+    } else if (command === "mcp-headers") {
       const resolved = await projectConfig(deps, path, deps.cwd).then(
         (config) => ({ config, problem: undefined }),
         (err: unknown) => ({
@@ -419,6 +442,58 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
     deps.stderr(`Unexpected error: ${err instanceof Error ? err.name : "unknown"}`);
     return EXIT.failure;
   }
+}
+
+// Every hook: records the run for `codeceipt doctor` (D-028), then runs it. A plugin's hook in a repo that is not
+// linked to a project ends here without a word: the plugin runs in every repo on the computer.
+async function runAnyHook(
+  args: string[],
+  deps: CliDeps,
+  path: string,
+  plugin: boolean,
+): Promise<number> {
+  const agent = hookAgent(args);
+  const [event] = args;
+  let stdin: string | null = null;
+  const input = async () => {
+    if (stdin === null) {
+      try {
+        stdin = await deps.readStdin();
+      } catch {
+        stdin = "";
+      }
+    }
+    return stdin;
+  };
+  const folder =
+    agent === "claude" || agent === "cursor" ? deps.cwd : sessionFolder(await input(), deps.cwd);
+  const hookDeps: CliDeps = { ...deps, readStdin: input };
+  if (plugin) {
+    const linked = await projectConfig(deps, path, folder, { linkedOnly: true }).then(
+      () => true,
+      // Linked, but this computer has no token for its project: that one warning is worth showing.
+      (err: unknown) => err instanceof CliError && err.message === NO_TOKEN,
+    );
+    if (!linked) {
+      if (event === "prompt" && agent === "cursor") deps.stdout(JSON.stringify({ continue: true }));
+      return EXIT.ok;
+    }
+  }
+  if (event && !args.includes("--worker")) {
+    const git = deps.git ?? runGit;
+    const root = await repoRoot(git, folder).catch(() => folder);
+    recordHookRun(hookRunsFile(path), agent, event, root, plugin);
+  }
+  if (event === "prompt") return await runPromptHook(args, hookDeps, path);
+  if (agent !== "claude" && agent !== "cursor") return await runAgentHook(args, hookDeps, path);
+  const resolved = await projectConfig(hookDeps, path, deps.cwd).then(
+    (config) => ({ config, problem: undefined }),
+    (err: unknown) => ({
+      config: null,
+      problem: err instanceof CliError ? hookProblem(err.message) : undefined,
+    }),
+  );
+  return await runHook("hook", args, hookDeps, resolved.config, resolved.problem);
 }
 
 // Hooks and the headers helper never fail the agent's session: any error ends as one warning line and exit 0. A

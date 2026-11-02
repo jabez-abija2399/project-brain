@@ -412,3 +412,49 @@ kill. The npm build keeps the Node caps. Recorded in agent/later.md.
 written from the release manifest by a human PR); the self-updater fetches the release manifest, verifies its Ed25519
 signature with the public key built into the binary, only moves to a newer version, checks the SHA-256 and replaces
 itself atomically. macOS notarisation and Windows Authenticode need paid accounts (docs/native-release.md).
+
+## D-028 | 2026-11-02 | Native agent plugins, installed once per machine
+**Decision:** Codeceipt ships as a plugin for Claude Code and Cursor, then Codex and Antigravity, generated from one
+source (packages/agent-plugins, shared text from packages/cli/src/templates.ts) into a marketplace folder
+(packages/agent-plugins/marketplace) that is published as its own repository. A repo then only needs its project link
+(inside .git); `codeceipt init` stays as the fallback and can remove the old per-repo files once a plugin is installed.
+
+**What each agent supports (official docs read 2026-11-02):**
+
+| | Claude Code | Cursor | Codex CLI | Antigravity |
+|---|---|---|---|---|
+| Manifest | `.claude-plugin/plugin.json` (`name` only required) | `.cursor-plugin/plugin.json` (`name` required) | `.codex-plugin/plugin.json` or root `plugin.json` | `.antigravity-plugin/plugin.json` or root `plugin.json` (Marketplace also needs displayName, description, version, logo, author) |
+| Hooks file | `hooks/hooks.json`, `{"hooks":{Event:[{matcher,hooks:[{type,command,timeout}]}]}}` | `hooks/hooks.json`, `{"version":1,"hooks":{event:[{command,timeout}]}}`, command hooks only | `hooks/hooks.json`, Claude Code shape | `hooks.json` at the root, keyed by hook name, then event |
+| Our events | SessionStart, UserPromptSubmit, Stop, SessionEnd | sessionStart, beforeSubmitPrompt, sessionEnd | SessionStart, UserPromptSubmit, SessionEnd (3 s max) | SessionStart only (no prompt or session-end event) |
+| Plugin folder in a hook | `CLAUDE_PLUGIN_ROOT` env; cwd = session dir | runs from the plugin folder; `CURSOR_PLUGIN_ROOT` | `PLUGIN_ROOT` (and `CLAUDE_PLUGIN_ROOT`) | runs from the plugin folder; env not documented |
+| A failing hook | only exit 2 blocks (never on SessionStart/End) | exit 2 blocks; other codes fail open | exit 2 blocks some events | blocks only through stdout `decision` JSON |
+| MCP in a plugin | `.mcp.json`; `${CLAUDE_PLUGIN_ROOT}`, `${CLAUDE_PROJECT_DIR}` expand in command/args | `mcp.json`; `${CURSOR_PLUGIN_ROOT}` expands; `${VAR}` means manifest variables | `.mcp.json`; expansion not documented | `mcp_config.json`; `${PLUGIN_ROOT}` expands in args |
+| Header helper for HTTP MCP | `headersHelper` (runs in the plugin folder, not the repo) | not documented | `http_headers_helper` in config.toml only | none |
+| Instructions | `skills/<name>/SKILL.md` | `rules/*.mdc` (description, globs, alwaysApply), skills | `skills/<name>/SKILL.md`, AGENTS.md | `rules/*.md` with required `trigger`, skills |
+| Marketplace file | `.claude-plugin/marketplace.json` (`/plugin marketplace add owner/repo`) | `.cursor-plugin/marketplace.json`; public listing via cursor.com/marketplace/publish (reviewed) | `.agents/plugins/marketplace.json` (`codex plugin marketplace add owner/repo`) | not documented; partner intake form, `agy plugin validate --strict` |
+| Where hooks do not run | claude.ai/code cloud sessions (only org-managed plugins); `allowManagedHooksOnly` | cloud agents | hooks must be trusted in `/hooks` first; plugins with hooks cannot be in the public directory | plugin hooks documented for the CLI only |
+
+**Design:**
+- One launcher script per plugin (`scripts/codeceipt.sh`, POSIX sh, also run by Git Bash on Windows) finds the
+  installed codeceipt (native install folder, then PATH with the usual install folders) and runs it with fixed
+  arguments; stdin passes through. If codeceipt is not installed, a session-start hook prints one line with the
+  one-line installer for the platform, every other event prints nothing, and it always exits 0: a plugin never blocks
+  or breaks a session. Hooks pass `--plugin`: in a repo that is not linked to a project they stay silent (a plugin
+  runs in every repo on the machine), and every hook run is recorded locally for `codeceipt doctor`.
+- MCP: every agent starts the CLI's stdio proxy (`mcp-proxy --linked-only`), through the launcher where the agent
+  expands the plugin folder in MCP arguments (Claude Code, Cursor, Antigravity) and through a one-line `sh -c` for
+  Codex (which does not document that expansion), both running only an absolute codeceipt path; the proxy sends the
+  linked repo's project token from the user config.
+- Security review (2026-11-02): no hook or MCP command uses a relative script path (Antigravity's hook uses
+  `${PLUGIN_ROOT}`; without it the hook fails harmlessly), the plugin text treats the handoff note as context and not
+  as instructions (a repo can ship its own server named codeceipt), and setup runs `claude` only from an absolute
+  PATH folder, from the home folder. Claude Code's `headersHelper` is not used in the plugin because it
+  runs in the plugin folder, so it could not tell which repo's project to use. No token is in any plugin file.
+- Codex: hooks in plugins need trust in `/hooks` and keep the plugin out of the public directory; the Codex plugin is
+  for its marketplace command (`codex plugin marketplace add`). Antigravity: SessionStart only, as with `init`.
+- A plugin that is installed is detected per agent (Claude Code `enabledPlugins`, Codex `[plugins."codeceipt@…"]`,
+  Cursor and Antigravity plugin folders); setup then writes no per-repo files for that agent.
+
+**Trade-off:** four manifest formats and three hook shapes to keep in step; one generator and a test that the committed
+marketplace equals the generated one keep them from drifting. Windows needs Git Bash for the sh launcher (Claude Code
+and Codex use it already); Cursor and Antigravity on Windows without it fall back to `codeceipt init` (later.md).

@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "codeceipt": {
+      "command": "sh",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/codeceipt.sh",
+        "mcp",
+        "claude",
+        "${CLAUDE_PROJECT_DIR}"
+      ]
+    }
+  }
+}

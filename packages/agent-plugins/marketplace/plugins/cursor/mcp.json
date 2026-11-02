@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "codeceipt": {
+      "command": "sh",
+      "args": [
+        "${CURSOR_PLUGIN_ROOT}/scripts/codeceipt.sh",
+        "mcp",
+        "cursor",
+        "${workspaceFolder}"
+      ]
+    }
+  }
+}

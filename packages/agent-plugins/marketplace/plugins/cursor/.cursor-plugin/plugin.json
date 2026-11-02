@@ -1,0 +1,17 @@
+{
+  "name": "codeceipt",
+  "description": "A receipt for every AI change: what you asked, what changed and what is missing, built from git. Picks up where the last session stopped.",
+  "version": "0.1.2",
+  "author": {
+    "name": "Codeceipt",
+    "url": "https://codeceipts.vercel.app"
+  },
+  "homepage": "https://codeceipts.vercel.app",
+  "keywords": [
+    "receipts",
+    "checklist",
+    "handoff",
+    "code-review",
+    "mcp"
+  ]
+}

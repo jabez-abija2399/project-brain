@@ -12,8 +12,8 @@ import {
 } from "./api";
 import { type CliConfig, readProjectToken, saveProjectToken } from "./config";
 import { runIndex } from "./index-command";
-import { agentList, runInit } from "./init-command";
 import { INSTALL_PS1, INSTALL_SH } from "./native/install-info";
+import { setupAgents } from "./plugins";
 import { gitDirOf, readRepoLink, repoFingerprint, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot } from "./scan-secrets";
 
@@ -34,6 +34,10 @@ export type SetupDeps = {
   hasCommand?: (name: string) => boolean;
   // D-027: this is the native binary (then it does not recommend installing itself).
   native?: boolean;
+  // D-028: the published plugin marketplace (null until published), a terminal question and an agent's command.
+  marketplace?: string | null;
+  ask?: (question: string) => Promise<boolean>;
+  run?: (command: string, args: string[]) => Promise<boolean>;
 };
 
 const MAX_WAIT_S = 600;
@@ -41,6 +45,31 @@ const MIN_INTERVAL_S = 5;
 const USER_CODE = /^[A-Z]{4}-[A-Z]{4}$/;
 
 /** Whether `name` is a file in one of the PATH folders (with a PATHEXT extension on Windows). */
+/**
+ * D-028 (security review): the absolute path of a program to run without a shell, from absolute PATH folders only
+ * (Windows also looks in the current folder for a bare name, which a cloned repo could fill). Windows: .exe or .com
+ * only, since a .cmd needs a shell. Null when there is none.
+ */
+export function findProgram(
+  name: string,
+  env: Record<string, string | undefined>,
+  platform: NodeJS.Platform,
+): string | null {
+  const exts = platform === "win32" ? [".exe", ".com"] : [""];
+  const dirs = (env.PATH ?? env.Path ?? "")
+    .split(platform === "win32" ? ";" : delimiter)
+    .filter((dir) => (platform === "win32" ? /^[A-Za-z]:[\\/]/.test(dir) : dir.startsWith("/")));
+  for (const dir of dirs) {
+    for (const ext of exts) {
+      const p = join(dir, name + ext);
+      try {
+        if (statSync(p).isFile()) return p;
+      } catch {}
+    }
+  }
+  return null;
+}
+
 export function onPath(
   name: string,
   env: Record<string, string | undefined>,
@@ -279,10 +308,19 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
   const features = detail.join("\n").match(/Grouped into (\d+) features/)?.[1];
   let agents: string;
   let start: string;
+  // D-028: an agent with the Codeceipt plugin gets nothing written into the repo; the plugin is offered to the others.
+  const notes: string[] = [];
   try {
-    const init = runInit(root, deps.home, config, []);
-    agents = agentList(init.agents);
-    start = `Start ${agents === "" ? "your agent" : agents.replace(" and ", " or ")} in this folder.`;
+    const set = await setupAgents(root, deps.home, config, {
+      marketplace: deps.marketplace ?? null,
+      stdout: (line) => notes.push(line),
+      ...(deps.hasCommand ? { hasCommand: deps.hasCommand } : {}),
+      ...(deps.ask ? { ask: deps.ask } : {}),
+      ...(deps.run ? { run: deps.run } : {}),
+    });
+    agents = set.agents;
+    const plain = agents.replace(/ \(plugin\)/g, "");
+    start = `Start ${plain === "" ? "your agent" : plain.replace(" and ", " or ")} in this folder.`;
   } catch {
     agents = "none found here (run `codeceipt init --claude` or `codeceipt init --cursor`)";
     start = "Start Claude Code or Cursor in this folder (then run `codeceipt init` once).";
@@ -293,6 +331,7 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     `  Indexed: ${files} file${files === "1" ? "" : "s"}${features ? `, ${features} features` : ""}`,
   );
   deps.stdout(`  Agents:  ${agents}`);
+  for (const note of notes) deps.stdout(note);
   // D-027: run through npx with no codeceipt installed, it recommends the native app (one line, for this platform).
   if (!deps.native && deps.hasCommand && !deps.hasCommand("codeceipt")) {
     deps.stdout(
