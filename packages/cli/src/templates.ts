@@ -33,7 +33,7 @@ export const LEGACY_END_HOOK = hook(LEGACY, "session-end");
 // user who ran `npx codeceipt` has no global codeceipt. The hook command written into the agent's settings therefore
 // adds the usual Node install folders to PATH and runs the installed codeceipt when there is one, else the published
 // package through npx. POSIX sh, the same on every machine that shares the committed settings file.
-const NODE_PATHS =
+export const NODE_PATHS =
   '"$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.volta/bin:$HOME/.npm-global/bin:$HOME/.local/bin"';
 // The npx fallback is pinned to the version that wrote the hook (security review 2026-11-01): a later publish of the
 // package never runs on a teammate's machine without a new `npx codeceipt`.

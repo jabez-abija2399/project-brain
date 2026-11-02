@@ -11,6 +11,7 @@ import {
 import { dirname, join, relative, sep } from "node:path";
 import { CliError, EXIT } from "./api";
 import type { CliConfig } from "./config";
+import { NODE_PATHS } from "./templates";
 import {
   AGENTS_SECTION,
   AGENTS_START,
@@ -328,8 +329,12 @@ const sameJson = (a: unknown, b: unknown): boolean => {
 const HELPERS = ["codeceipt mcp-headers", "projectbrain mcp-headers"];
 // Our token helper in any form we have written: the bare command of older versions, or the shell chain of any
 // release (installed path, PATH, then `npx -y codeceipt@<version>`). Anchored at both ends: nothing may follow it.
-const OUR_HELPER =
-  /^PATH=[^;]*; if (?:\[ -x "[A-Za-z0-9_./@+ -]+" \]; then "[A-Za-z0-9_./@+ -]+" mcp-headers; elif )?command -v codeceipt >\/dev\/null 2>&1; then codeceipt mcp-headers; else npx -y codeceipt@\d{1,4}\.\d{1,4}\.\d{1,4} mcp-headers; fi$/;
+// The PATH prefix is the literal one the helper writes (never a pattern): a pattern here let a cloned repo's shell
+// command through (security review, HIGH). Anchored at both ends: nothing may follow the helper.
+const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const OUR_HELPER = new RegExp(
+  `^${escapeRe(`PATH=${NODE_PATHS}; `)}(?:if \\[ -x "[A-Za-z0-9_./@+ -]+" \\]; then "[A-Za-z0-9_./@+ -]+" mcp-headers; elif |if )command -v codeceipt >/dev/null 2>&1; then codeceipt mcp-headers; else npx -y codeceipt@\\d{1,4}\\.\\d{1,4}\\.\\d{1,4} mcp-headers; fi$`,
+);
 // Earlier releases wrote the plain pinned form: `npx -y codeceipt@<version> mcp-headers`.
 const PINNED_HELPER = /^npx -y codeceipt@\d{1,4}\.\d{1,4}\.\d{1,4} mcp-headers$/;
 export const isOurHelper = (value: unknown) =>
