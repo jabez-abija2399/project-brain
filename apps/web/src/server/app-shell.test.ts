@@ -198,8 +198,8 @@ describe("projects list", () => {
 });
 
 describe("docs layout", () => {
-  it("the quickstart has a table of contents linking to each section heading", () => {
-    const html = renderToStaticMarkup(createElement(QuickstartPage));
+  it("the quickstart has a table of contents linking to each section heading", async () => {
+    const html = renderToStaticMarkup((await QuickstartPage()) as ReactElement);
     expect(html).toContain('<nav class="doc-toc" aria-label="On this page">');
     const links = [...html.matchAll(/<li><a href="#([\w-]+)">/g)].map((m) => m[1]);
     const ids = [...html.matchAll(/<h2 id="([\w-]+)">/g)].map((m) => m[1]);

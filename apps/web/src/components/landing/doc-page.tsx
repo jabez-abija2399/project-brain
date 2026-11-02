@@ -28,8 +28,9 @@ export function slug(text: string): string {
 export function DocPage({
   title,
   updated,
+  signedIn = false,
   children,
-}: { title: string; updated?: string; children: ReactNode }) {
+}: { title: string; updated?: string; signedIn?: boolean; children: ReactNode }) {
   const toc: { id: string; label: string }[] = [];
   const body = Children.map(children, (child) => {
     if (isValidElement<{ children?: ReactNode; id?: string }>(child) && child.type === "h2") {
@@ -45,7 +46,7 @@ export function DocPage({
       <a className="skip-link" href="#main">
         Skip to content
       </a>
-      <SiteHeader home="/" />
+      <SiteHeader home="/" signedIn={signedIn} />
       <main id="main" className="lp-container doc-layout">
         <header className="doc-head">
           <h1>{title}</h1>
@@ -65,7 +66,7 @@ export function DocPage({
           </nav>
         ) : null}
       </main>
-      <SiteFooter />
+      <SiteFooter signedIn={signedIn} />
     </div>
   );
 }

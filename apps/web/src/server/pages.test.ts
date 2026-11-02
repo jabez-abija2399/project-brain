@@ -10,7 +10,8 @@ import { setSessionResolver } from "./auth";
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 // Launch part 6: plain-language privacy and terms, a one-command quickstart, linked from the footer.
-const render = (el: unknown) => renderToStaticMarkup(el as ReactElement);
+// The reading pages are async (they check the session for their header and footer, owner 2026-11-02).
+const render = async (el: unknown) => renderToStaticMarkup((await el) as ReactElement);
 const text = (html: string) =>
   html
     .replace(/<[^>]+>/g, " ")
@@ -24,8 +25,8 @@ beforeEach(() => setSessionResolver(async () => null));
 afterEach(() => setSessionResolver(null));
 
 describe("public pages", () => {
-  it("/privacy says what is stored, what never is, which services are used and how to delete an account", () => {
-    const html = render(PrivacyPage());
+  it("/privacy says what is stored, what never is, which services are used and how to delete an account", async () => {
+    const html = await render(PrivacyPage());
     const t = text(html);
     expect(privacyMeta.title).toBe("Privacy | Codeceipt");
     for (const heading of [
@@ -43,15 +44,15 @@ describe("public pages", () => {
     expect(t).toContain("[REVIEW]");
   });
 
-  it("/terms is plain language and marks the questions for a lawyer", () => {
-    const html = render(TermsPage());
+  it("/terms is plain language and marks the questions for a lawyer", async () => {
+    const html = await render(TermsPage());
     expect(termsMeta.title).toBe("Terms | Codeceipt");
     expect(html).toMatch(/<h1[^>]*>Terms of use<\/h1>/);
     expect(text(html)).toContain("[REVIEW]");
   });
 
-  it("/docs/quickstart shows just `npx codeceipt`, plus troubleshooting", () => {
-    const html = render(QuickstartPage());
+  it("/docs/quickstart shows just `npx codeceipt`, plus troubleshooting", async () => {
+    const html = await render(QuickstartPage());
     expect(quickstartMeta.title).toBe("Quickstart | Codeceipt");
     expect(copies(html)).toEqual(["npx codeceipt"]);
     expect(html).toMatch(/<h2[^>]*>Troubleshooting<\/h2>/);
@@ -61,8 +62,8 @@ describe("public pages", () => {
     expect(t).not.toContain("CODECEIPT_TOKEN");
   });
 
-  it("/docs/quickstart follows the first-time journey step by step, with screenshot placeholders", () => {
-    const html = render(QuickstartPage());
+  it("/docs/quickstart follows the first-time journey step by step, with screenshot placeholders", async () => {
+    const html = await render(QuickstartPage());
     const t = text(html);
     const order = [
       "Sign in with GitHub",
@@ -80,7 +81,7 @@ describe("public pages", () => {
   });
 
   it("the landing page: only `npx codeceipt` to copy (hero and final band), no session-end command, and footer links to the new pages", async () => {
-    const html = render(await Home());
+    const html = await render(Home());
     expect(copies(html)).toEqual(["npx codeceipt", "npx codeceipt"]);
     expect(html).not.toContain("hook session-end");
     const footer = html.slice(html.indexOf("<footer"));
@@ -89,8 +90,12 @@ describe("public pages", () => {
     }
   });
 
-  it("every page's footer has the same links", () => {
-    for (const html of [render(PrivacyPage()), render(TermsPage()), render(QuickstartPage())]) {
+  it("every page's footer has the same links", async () => {
+    for (const html of await Promise.all([
+      render(PrivacyPage()),
+      render(TermsPage()),
+      render(QuickstartPage()),
+    ])) {
       const footer = html.slice(html.indexOf("<footer"));
       for (const href of ["/privacy", "/terms", "/docs/quickstart"]) {
         expect(footer).toContain(`href="${href}"`);
