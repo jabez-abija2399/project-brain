@@ -157,7 +157,7 @@ describe("edutech evidence, end to end through the session hooks", () => {
     const [stored] = await receiptsRepo.list(world.db, t.project.id, 5);
     const items = (stored?.summaryJson as { items: { status: string }[] }).items;
     expect(items.map((i) => i.status)).toEqual(["done_untested"]);
-    expect(t.err[0]).toBe("Codeceipt receipt: 1 file changed; 1 done, 0 missed.");
+    expect(t.err[0]).toBe("Codeceipt receipt: 1 file changed; 1 done.");
   });
 
   it("codeceipt last --evidence prints exactly the code-free evidence the judge was given, per file", async () => {

@@ -166,6 +166,6 @@ describe("codeceipt last", () => {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this looks for
     expect(all).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f]/);
     expect(all).not.toContain("evil.test");
-    expect(t.out).toContain("Codeceipt receipt: 1 done, 0 missed.");
+    expect(t.out).toContain("Codeceipt receipt: 1 done.");
   });
 });

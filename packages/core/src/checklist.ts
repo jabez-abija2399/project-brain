@@ -9,7 +9,16 @@ export const MAX_CHECKLIST_ITEMS = 10;
 export const MAX_ITEM_CHARS = 300;
 
 // postponed: the user deferred this item ("only do the first task for now"); it is recorded, never judged (real-test G).
-export type ChecklistDraftItem = { text: string; needs_clarification: boolean; postponed?: true };
+// no_file_change: a check or report the user asked for ("check zod and tell me the result"); no file is expected to
+// change, so it cannot be judged from files. Its state is NO_FILE_CHANGE_STATE: never done, partly done or missed (O).
+export type ChecklistDraftItem = {
+  text: string;
+  needs_clarification: boolean;
+  postponed?: true;
+  no_file_change?: true;
+};
+
+export const NO_FILE_CHANGE_STATE = "Not verified (no file change expected)";
 
 // The only shape kept from the model's answer; anything else is dropped (spec section 5).
 const itemSchema = z
@@ -34,6 +43,11 @@ export const ITEM_RULE =
   "existing code unchanged or following its style). A constraint the user asked for (for example 'passwords are " +
   "never logged') is an outcome. A short request with one purpose is exactly one item, in the user's words.";
 
+// Real-test A: a request that asks for several things is several items; one item for them all is what the user rejected.
+export const SPLIT_RULE =
+  "A request that asks for several things, joined by 'and', 'then', ';' or a new sentence, is one item per thing: " +
+  "each quoted name to check and each change to make is its own item. Never merge several things into one item.";
+
 // Real-test A: requests naming files, quoting text or showing code were answered in shapes the parser dropped.
 export const DATA_RULE =
   "File paths, quoted text, code, package names and tool names in the request are details of a normal request: " +
@@ -48,6 +62,7 @@ export const CHECKLIST_SYSTEM = [
   "You split a user's software change request into a checklist. Answer only with lines, at most 10.",
   "Each line is one concrete, separately checkable item: a page, each distinct element, each behaviour.",
   ITEM_RULE,
+  SPLIT_RULE,
   "Start a clear item with '- '.",
   QUESTION_RULE,
   POSTPONE_RULE,
@@ -84,14 +99,110 @@ export function singlePurpose(request: string): boolean {
 
 /**
  * The items for a request: a single-purpose request that has a clear item becomes one item in the user's words; its
- * real questions stay.
+ * real questions stay. A request that asks for several things (A) never stays one item: when the answer gave at most
+ * one item for it, its parts are the items (a deterministic guard, no second model call).
  */
 export function outcomesFor(request: string, items: ChecklistDraftItem[]): ChecklistDraftItem[] {
-  if (!singlePurpose(request) || !items.some((i) => !i.needs_clarification)) return items;
+  const questions = items.filter((i) => i.needs_clarification);
+  const answered = items.filter((i) => !i.needs_clarification);
+  // Exactly one item for a request that asks for several things: that is the collapse, so its parts are the items.
+  // (No item at all is left to the caller's retry.)
+  if (answered.length === 1 && severalParts(request)) {
+    const parts = partItems(request);
+    if (parts.length >= 2) return classify([...parts, ...questions]);
+  }
+  if (!singlePurpose(request) || answered.length === 0) return classify(items);
   const text = maskSecretsIn(oneLineText(request))
     .replace(/[.!\s]+$/, "")
     .slice(0, MAX_ITEM_CHARS);
-  return [{ text, needs_clarification: false }, ...items.filter((i) => i.needs_clarification)];
+  return classify([{ text, needs_clarification: false }, ...questions]);
+}
+
+// A quoted name in a request ("zod", "react-super-hooks-xyz").
+const QUOTED_NAME = /"[^"\n]{1,200}"/g;
+
+/**
+ * The parts of a request, one per sentence ("Then" dropped). A sentence naming several quoted things becomes one part
+ * per name, each with the sentence's remaining words: 'check "zod" and "react" and tell me the results' gives 'check
+ * "zod" and tell me the results' and 'check "react" and tell me the results'.
+ */
+function sentencesOf(request: string): string[] {
+  return oneLineText(request)
+    .split(/(?<=[.!?])\s+/)
+    .map((s) =>
+      s
+        .replace(/^then\s+/i, "")
+        .replace(/[.!?\s]+$/, "")
+        .trim(),
+    )
+    .filter((s) => s.length > 0);
+}
+
+export function requestParts(request: string): string[] {
+  const parts: string[] = [];
+  const clauses = sentencesOf(request).flatMap((s) => s.split(/,?\s+then\s+/i));
+  for (const s of clauses) {
+    const names = [...s.matchAll(QUOTED_NAME)];
+    const first = names[0];
+    const last = names[names.length - 1];
+    if (names.length < 2 || !first || !last) {
+      parts.push(s);
+      continue;
+    }
+    const head = s.slice(0, first.index ?? 0);
+    const rest = s.slice((last.index ?? 0) + last[0].length).trim();
+    for (const name of names) parts.push(`${head}${name[0]}${rest ? ` ${rest}` : ""}`);
+  }
+  return parts
+    .map((p) => maskSecretsIn(p).slice(0, MAX_ITEM_CHARS).trim())
+    .filter((p) => p.length >= 3)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+}
+
+/**
+ * The request asks for several things (A): a "then" joins two things, or one sentence names two quoted things ("check
+ * "zod" and "react-super-hooks-xyz""). A second sentence alone is not a second thing ("This is a fake key.").
+ */
+export function severalParts(request: string): boolean {
+  return (
+    /\bthen\b/i.test(request) ||
+    sentencesOf(request).some((s) => [...s.matchAll(QUOTED_NAME)].length >= 2)
+  );
+}
+
+/** The parts of a request as items, never more than MAX_CHECKLIST_ITEMS. */
+function partItems(request: string): ChecklistDraftItem[] {
+  return requestParts(request)
+    .slice(0, MAX_CHECKLIST_ITEMS)
+    .map((text) => ({ text, needs_clarification: false }));
+}
+
+// A check or a report with no change to make: "check zod", "tell me the result", "...and report back". Only when no
+// change verb is in the item, so "add a check" is still a change.
+const CHECK_OR_REPORT =
+  /^(check|verify|look up|find out|compare)\b|\b(tell me|let me know|report back|reported)\b/i;
+const CHANGE_VERB =
+  /\b(add|adds|added|create|make|change|update|remove|delete|write|fix|rename|edit|move|replace|import|implement|build|refactor|upgrade|set|store|commit|publish)\b/i;
+
+function noFileChange(text: string): boolean {
+  return CHECK_OR_REPORT.test(text) && !CHANGE_VERB.test(text);
+}
+
+/** Marks the checks and reports the user asked for (O). Questions and postponed items are never marked. */
+function classify(items: ChecklistDraftItem[]): ChecklistDraftItem[] {
+  return items.map((i) =>
+    !i.needs_clarification && !i.postponed && noFileChange(i.text)
+      ? { ...i, no_file_change: true }
+      : i,
+  );
+}
+
+/**
+ * Whether the item is judged from changed files: a clear item that is neither postponed nor a check or report with no
+ * file change. Only these can be done, partly done or missed (O).
+ */
+export function judgedByFiles(item: ChecklistDraftItem): boolean {
+  return !item.needs_clarification && !item.postponed && !item.no_file_change;
 }
 
 // One item per line ('- ' clear, '? ' needs clarification, '~ ' postponed); lines outside that shape are dropped, and so are
@@ -101,8 +212,8 @@ export function parseChecklist(answer: string): ChecklistDraftItem[] {
   const items = parseLines(answer).filter(
     (i) => i.needs_clarification || !STEP_OR_RULE.test(i.text),
   );
-  if (!items.some((i) => !i.needs_clarification)) return items;
-  return items.filter((i) => !i.needs_clarification || !WORDING_QUESTION.test(i.text));
+  if (!items.some((i) => !i.needs_clarification)) return classify(items);
+  return classify(items.filter((i) => !i.needs_clarification || !WORDING_QUESTION.test(i.text)));
 }
 
 // The item markers models really write: '-', '*', '+', '•', '1.' or '1)', an optional '[ ]'/'[x]' checkbox (never read
@@ -169,6 +280,11 @@ export async function splitRequest(
     });
     const items = outcomesFor(request, parseChecklist(answer));
     if (items.length > 0) return items;
+  }
+  // A request that asks for several things keeps its parts, never one whole-request item (A).
+  if (severalParts(request)) {
+    const parts = partItems(request);
+    if (parts.length >= 2) return classify(parts);
   }
   return [wholeRequestItem(request)];
 }

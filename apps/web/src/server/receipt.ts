@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  type Finding,
   MAX_SUMMARY_SYMBOLS,
   type ReceiptFileInput,
   TESTS_KEY,
@@ -10,6 +11,7 @@ import {
   featureFromPath,
   isCodeceiptSetupPath,
   maskSecretsIn,
+  namesFile,
   safePath,
   secretFinding,
   testSubjects,
@@ -23,7 +25,12 @@ import {
   requestsRepo,
 } from "@brain/db";
 import { z } from "zod";
-import { lookupNewDependencies, packageJsonChanges, prepareNewDependencies } from "./check-package";
+import {
+  type NewDependency,
+  lookupNewDependencies,
+  packageJsonChanges,
+  prepareNewDependencies,
+} from "./check-package";
 import { repoPath } from "./code-index-input";
 import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
@@ -200,6 +207,60 @@ async function filesWithFeatures(
 }
 
 /**
+ * L: the changed files the request names. A full path the request writes out names that file; a shorter name (a
+ * basename) names the file only when exactly one changed file matches it, so an ambiguous name names none.
+ */
+export function requestNamedFiles(requestText: string, paths: string[]): Set<string> {
+  const words = new Set(
+    (requestText.toLowerCase().match(/[\w@~./-]+/g) ?? []).map((w) =>
+      w.replace(/^\.\//, "").replace(/\.+$/, ""),
+    ),
+  );
+  const named = new Set(paths.filter((p) => words.has(p.toLowerCase())));
+  const matches = paths.filter((p) => namesFile(requestText, p));
+  if (matches.length === 1 && matches[0] !== undefined) named.add(matches[0]);
+  return named;
+}
+
+const TEST_CHECK_LABEL: Record<string, string> = {
+  skipped_tests: "tests skipped or focused",
+  deleted_tests: "tests deleted",
+  deleted_test_file: "test file deleted",
+  removed_assertions: "assertions removed",
+  test_config_changed: "test config changed",
+  passing_tests_dropped: "passing tests dropped",
+};
+
+/**
+ * K: the session's own checks as one masked line each for the judge: test checks, secret findings and new
+ * dependencies. The judge may use a line as evidence for the item it describes; the stored receipt keeps them all.
+ */
+export function sessionFindingLines(
+  integrity: { flags: { kind: string; file: string; names: string[]; count: number }[] } | null,
+  findings: Finding[],
+  dependencies: NewDependency[],
+): string[] {
+  return [
+    ...(integrity?.flags ?? []).map((f) => {
+      const what = `${TEST_CHECK_LABEL[f.kind] ?? f.kind} (${f.count})`;
+      const where = f.file ? ` in ${f.file}` : "";
+      const names = f.names.length > 0 ? `: ${f.names.join(", ")}` : "";
+      return `Test check: ${what}${where}${names}`;
+    }),
+    ...findings.map((f) => {
+      const where = `${f.file}${f.line === null ? "" : `:${f.line}`}`;
+      const value = f.masked_value ? ` (${f.masked_value})` : "";
+      const table = f.table ? ` table ${f.table}` : "";
+      return `Security finding: ${f.type} in ${where}${value}${table}`;
+    }),
+    ...dependencies.map(
+      (d) =>
+        `Dependency: ${d.name} ${d.changed_from ? `changed from ${d.changed_from} to` : "added"} ${d.range} in ${d.path}`,
+    ),
+  ];
+}
+
+/**
  * MCP generate_receipt (FEAT-013): checks a change (its changed file paths) against the request's open checklist.
  * Deterministic except one judging call (D-009), made only when there are changed files and open items, and counted
  * against the project's daily AI budget. Items judged done/partial/missed get that status (missed items stay open
@@ -224,10 +285,13 @@ export async function generateReceipt(
   // Codeceipt's own setup files are never the user's change, even when an older CLI sends them.
   const paths = [...new Set(input.changedFiles)].filter((p) => !isCodeceiptSetupPath(p));
   const summaries = new Map((input.changeSummaries ?? []).map((s) => [s.path, s]));
+  // L: a file the request names is in scope, whatever its feature.
+  const named = requestNamedFiles(request?.text ?? "", paths);
   const files = (await filesWithFeatures(db, pid, paths, request?.featureId ?? null)).map((f) => {
+    const scoped = named.has(f.path) ? { ...f, inScope: true } : f;
     const summary = summaries.get(f.path);
     const marked = (input.preExistingFiles ?? []).includes(f.path) ? { preExisting: true } : {};
-    return summary ? { ...f, summary, ...marked } : { ...f, ...marked };
+    return summary ? { ...scoped, summary, ...marked } : { ...scoped, ...marked };
   });
   const alreadyModified = [...new Set(input.preExistingFiles ?? [])].filter((p) =>
     paths.includes(p),
@@ -247,38 +311,6 @@ export async function generateReceipt(
       );
     }
   }
-  let receipt: Awaited<ReturnType<typeof buildReceipt>>;
-  try {
-    // Real-test F: with no changed file, an item already done in an earlier request is "already present".
-    const present =
-      files.length === 0 && request
-        ? await checklistItemsRepo.doneElsewhere(
-            db,
-            pid,
-            request.id,
-            judgedItems.map((i) => i.text),
-          )
-        : new Set<string>();
-    receipt = await buildReceipt(
-      llm,
-      items.map((i) => ({
-        id: i.id,
-        text: i.text,
-        question: i.needsClarification,
-        ...(i.status === "postponed" ? { postponed: true } : {}),
-        ...(present.has(i.text.toLowerCase()) ? { alreadyPresent: true } : {}),
-      })),
-      files,
-    );
-  } catch (err) {
-    console.error(
-      "[mcp]",
-      "generate_receipt",
-      JSON.stringify({ projectId: pid, error: errorType(err) }),
-    );
-    throw new AppError(502, "ai_unavailable", "the receipt could not be judged; try again");
-  }
-
   // Newly added dependencies with their check_package result (AC-014-05); the package.json text is not kept.
   const newDependencies = await lookupNewDependencies(dependencies, now);
   const omitted = dependencies.omitted;
@@ -303,6 +335,39 @@ export async function generateReceipt(
       !f.table && askedForFile(asked, f.file) ? { ...f, asked: true } : f,
     ),
   };
+  let receipt: Awaited<ReturnType<typeof buildReceipt>>;
+  try {
+    // Real-test F: with no changed file, an item already done in an earlier request is "already present".
+    const present =
+      files.length === 0 && request
+        ? await checklistItemsRepo.doneElsewhere(
+            db,
+            pid,
+            request.id,
+            judgedItems.map((i) => i.text),
+          )
+        : new Set<string>();
+    receipt = await buildReceipt(
+      llm,
+      items.map((i) => ({
+        id: i.id,
+        text: i.text,
+        question: i.needsClarification,
+        ...(i.status === "postponed" ? { postponed: true } : {}),
+        ...(present.has(i.text.toLowerCase()) ? { alreadyPresent: true } : {}),
+      })),
+      files,
+      // K: the session's own checks, as masked facts the judge can use (a finding is evidence for its item).
+      sessionFindingLines(integrity, security.findings, newDependencies),
+    );
+  } catch (err) {
+    console.error(
+      "[mcp]",
+      "generate_receipt",
+      JSON.stringify({ projectId: pid, error: errorType(err) }),
+    );
+    throw new AppError(502, "ai_unavailable", "the receipt could not be judged; try again");
+  }
 
   // A receipt with no changed files reports every item missed (AC-013-05) but changes no stored status, so it
   // cannot downgrade work an earlier receipt judged partial.

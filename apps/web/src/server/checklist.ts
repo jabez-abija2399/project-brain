@@ -10,6 +10,7 @@ import {
 } from "@brain/core";
 import {
   type BrainDb,
+  type ChecklistItem,
   type ShownProposal,
   checklistItemsRepo,
   featuresRepo,
@@ -21,6 +22,7 @@ import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
 import { resolveFeature } from "./feature-ref";
 import { getLlm } from "./llm";
+import { attachRepeats, matchRepeats, openItemsForFeature } from "./open-item-merge";
 import { reserveDaily } from "./rate-limit";
 import { type ToolToken, bindToken } from "./session-tools";
 
@@ -145,17 +147,39 @@ export async function createChecklist(
     );
     throw new AppError(502, "ai_unavailable", "the checklist could not be made; try again");
   }
+  // H1 (2026-11-02): an item that repeats an open item of this feature reuses that item (it moves onto this request);
+  // only the others are stored as new items.
+  const pool = await openItemsForFeature(db, pid, feature.id);
+  const repeats = matchRepeats(items, pool);
   const stored = await requestsRepo.createWithItems(
     db,
     pid,
     { featureId: feature.id, text: maskSecretsIn(input.request) },
-    items.map((i) => ({
-      text: i.text,
-      needsClarification: i.needs_clarification,
-      // Real-test G: an item the user deferred is recorded as postponed, never dropped.
-      ...(i.postponed ? { status: "postponed" as const } : {}),
-    })),
+    items.flatMap((i, n) =>
+      repeats[n]
+        ? []
+        : [
+            {
+              text: i.text,
+              needsClarification: i.needs_clarification,
+              // Real-test G: an item the user deferred is recorded as postponed, never dropped.
+              ...(i.postponed ? { status: "postponed" as const } : {}),
+            },
+          ],
+    ),
   );
+  await attachRepeats(db, pid, stored.request.id, repeats);
+  // In the order the request was split: a reused item is the existing one, the others are the stored rows.
+  const out: ChecklistItem[] = [];
+  let next = 0;
+  items.forEach((_, n) => {
+    const existing = repeats[n];
+    if (existing) out.push(existing);
+    else {
+      const row = stored.items[next++];
+      if (row) out.push(row);
+    }
+  });
   console.info(
     "[mcp]",
     "create_checklist",
@@ -164,6 +188,7 @@ export async function createChecklist(
       featureId: feature.id,
       ms: Date.now() - started,
       items: stored.items.length,
+      reused: items.length - stored.items.length,
       llmCalls: 1,
       requestHash: hash(input.request),
       requestLength: input.request.length,
@@ -173,7 +198,7 @@ export async function createChecklist(
     request_id: stored.request.id,
     feature_id: feature.id,
     feature: maskSecretsIn(feature.name),
-    items: stored.items.map((i) => ({
+    items: out.map((i) => ({
       id: i.id,
       text: i.text,
       needs_clarification: i.needsClarification,

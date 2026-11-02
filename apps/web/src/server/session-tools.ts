@@ -190,31 +190,53 @@ export async function saveDirective(db: BrainDb, token: ToolToken, raw: unknown)
   });
 }
 
+// Filler words that do not change what an item asks for. Only these are dropped: the key stays conservative, so
+// "/about" and "/contact" never collapse.
+const FILLER = new Set(["a", "the", "short", "please", "to", "at", "top", "of"]);
+
+// Real-test H: a near-duplicate key. Lowercase, punctuation out, filler words out. "Add a short comment at the top of
+// the main page" and "Add a comment at the top of the main page" share one key.
+export function nearDuplicateKey(text: string): string {
+  const words = text
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .split(" ")
+    .filter((w) => w && !FILLER.has(w));
+  // A text made only of filler words keeps its own (lowercased) form.
+  return words.length > 0 ? words.join(" ") : text.trim().toLowerCase();
+}
+
 /**
  * Real-test H (2026-11-01): the start note's items, newest request first. Open work (open, partly done, missed) and
- * postponed items are "still open"; questions and items done without a test are listed apart; the same item from a
- * repeated request is listed once. `open` is the open work alone, in order (the first is the next step).
+ * postponed items are "still open"; questions and items done without a test are listed apart. A repeated request, or
+ * a near-duplicate of one (nearDuplicateKey), is listed once with its count, "(xN)". `open` is the open work alone, in
+ * order (the first is the next step).
  */
 export function startNoteItems(
   rows: { text: string; status: string; needsClarification: boolean }[],
 ) {
-  const seen = new Set<string>();
+  // Rows with the same near-duplicate key are one item: the first (newest) text is shown, with its count when > 1.
+  const groups = new Map<string, { first: (typeof rows)[number]; count: number }>();
+  for (const r of rows) {
+    const key = nearDuplicateKey(r.text);
+    const group = groups.get(key);
+    if (group) group.count++;
+    else groups.set(key, { first: r, count: 1 });
+  }
   const out = {
     open: [] as string[],
     checklist: [] as string[],
     questions: [] as string[],
     untested: [] as string[],
   };
-  for (const r of rows) {
-    const key = r.text.trim().toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    if (r.status === "done_untested") out.untested.push(r.text);
-    else if (r.needsClarification) out.questions.push(r.text);
-    else if (r.status === "postponed") out.checklist.push(`(postponed) ${r.text}`);
+  for (const { first: r, count } of groups.values()) {
+    const text = count > 1 ? `${r.text} (x${count})` : r.text;
+    if (r.status === "done_untested") out.untested.push(text);
+    else if (r.needsClarification) out.questions.push(text);
+    else if (r.status === "postponed") out.checklist.push(`(postponed) ${text}`);
     else {
-      out.open.push(r.text);
-      out.checklist.push(r.text);
+      out.open.push(text);
+      out.checklist.push(text);
     }
   }
   return out;
@@ -238,10 +260,14 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
     const last = sessions[0];
     const items = startNoteItems(checklist);
     // Real-test H: the next step is the first truly open item; a saved step naming finished work is not repeated.
-    const listed = new Set([...items.questions, ...items.untested].map((t) => t.toLowerCase()));
+    // The "(xN)" count is not part of an item's text, so it is left off before the keys are compared.
+    const plain = (t: string) => t.replace(/ \(x\d+\)$/, "");
+    const listed = new Set(
+      [...items.questions, ...items.untested].map((t) => nearDuplicateKey(plain(t))),
+    );
     const saved = last?.nextStep ?? "";
     const nextStep =
-      items.open[0] ?? (listed.has(saved.toLowerCase()) ? "Start the next request" : saved);
+      items.open[0] ?? (listed.has(nearDuplicateKey(saved)) ? "Start the next request" : saved);
     return buildHandoffNote({
       session: last
         ? {

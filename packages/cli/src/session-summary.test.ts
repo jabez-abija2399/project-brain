@@ -88,7 +88,7 @@ describe("session-end receipt summary", () => {
     ]);
   });
 
-  it("counts partly done items as missed and names the checks that need attention", async () => {
+  it("counts partly done items as partly done, not missed, and names the checks that need attention", async () => {
     const t = setup({
       receipt_id: "rc-2",
       items: [item("A", "done"), item("B", "partial"), item("C", "done")],
@@ -100,7 +100,7 @@ describe("session-end receipt summary", () => {
     });
     await t.end();
     expect(t.err.slice(0, 3)).toEqual([
-      "Codeceipt receipt: 1 file changed; 2 done, 1 missed (1 partly done).",
+      "Codeceipt receipt: 1 file changed; 2 done, 1 partly done.",
       "Checks needing attention: 3 security findings, 1 test check, 1 file outside the request, 1 not verified.",
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-2",
     ]);
@@ -118,7 +118,7 @@ describe("session-end receipt summary", () => {
     // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this looks for
     expect(all).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f]/);
     expect(all).not.toContain("evil.test");
-    expect(t.err[0]).toBe("Codeceipt receipt: 1 file changed; 5000 done, 0 missed.");
+    expect(t.err[0]).toBe("Codeceipt receipt: 1 file changed; 5000 done.");
     expect(t.err.some((l) => l.startsWith("Full receipt:"))).toBe(false);
   });
 });

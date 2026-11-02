@@ -108,6 +108,25 @@ export async function verifiedBlobs(
   return out;
 }
 
+/**
+ * The start content of each already-modified file, read back from the verified start blobs (the text as it was when
+ * the session began). A file whose start blob cannot be verified, or that is too large to compare, is left out.
+ */
+export async function verifiedStartTexts(
+  git: Git,
+  root: string,
+  blobs: StartBlobs,
+  snapshot: Snapshot,
+): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  const ids = await verifiedBlobs(git, root, blobs, snapshot);
+  for (const [path, id] of Object.entries(ids)) {
+    const text = await git(["cat-file", "blob", id], root).catch(() => null);
+    if (text !== null && text.length <= MAX_SCAN_BYTES) out[path] = text;
+  }
+  return out;
+}
+
 async function blobOf(git: Git, root: string, file: string): Promise<string | null> {
   const abs = await inside(root, file);
   const st = abs ? await lstat(abs).catch(() => null) : null;

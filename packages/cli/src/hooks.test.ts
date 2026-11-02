@@ -175,7 +175,7 @@ describe("FEAT-016 agent hooks", () => {
     expect(await t.hook("session-end", "claude")).toBe(0);
     // Journey part 4: the 3-line receipt summary comes first (this fake receipt has no item verdicts), then the warnings.
     expect(t.err).toEqual([
-      "Codeceipt receipt: 1 file changed; 0 done, 0 missed.",
+      "Codeceipt receipt: 1 file changed; no items.",
       "Checks needing attention: none.",
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-1",
       "Codeceipt: 2 checklist items are neither done nor parked:",

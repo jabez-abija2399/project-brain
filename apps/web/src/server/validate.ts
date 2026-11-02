@@ -1,13 +1,31 @@
 import { MAX_PAGE_SIZE } from "@brain/db";
 import { type ZodSchema, z } from "zod";
+import { readJsonCapped } from "./body";
 import { AppError } from "./errors";
 
-export async function parseInput<T>(req: Request, schema: ZodSchema<T>): Promise<T> {
+// `limit` (bytes) reads the body through the capped reader, which also covers chunked bodies with no Content-Length.
+export async function parseInput<T>(
+  req: Request,
+  schema: ZodSchema<T>,
+  limit?: number,
+): Promise<T> {
   let raw: unknown;
-  try {
-    raw = await req.json();
-  } catch {
-    throw new AppError(400, "invalid_json", "request body is not valid JSON");
+  if (limit !== undefined) {
+    // Over the cap is a refusal with a 400, the same answer as other bad input on these routes (AC-017-04).
+    try {
+      raw = await readJsonCapped(req, limit);
+    } catch (err) {
+      if (err instanceof AppError && err.status === 413) {
+        throw new AppError(400, "invalid_input", "request body too large");
+      }
+      throw err;
+    }
+  } else {
+    try {
+      raw = await req.json();
+    } catch {
+      throw new AppError(400, "invalid_json", "request body is not valid JSON");
+    }
   }
   const result = schema.safeParse(raw);
   if (!result.success) {

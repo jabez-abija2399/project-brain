@@ -35,6 +35,7 @@ import {
   validBlobs,
   validSnapshot,
   verifiedBlobs,
+  verifiedStartTexts,
 } from "./session-snapshot";
 import { localIntegrity, passingTests } from "./test-integrity-local";
 
@@ -237,6 +238,14 @@ const count = (v: unknown) => (Array.isArray(v) ? v.length : 0);
 const number = (v: unknown) =>
   typeof v === "number" && Number.isSafeInteger(v) && v > 0 ? Math.min(v, 1_000_000) : 0;
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+// M: how a pre-session test change is named in the session-end note.
+const PRE_TEST_LABEL: Record<string, string> = {
+  skipped_tests: "skipped test",
+  deleted_tests: "deleted test",
+  deleted_test_file: "deleted test file",
+  removed_assertions: "removed assertion",
+  test_config_changed: "changed test config",
+};
 
 /**
  * Journey part 4: the receipt in three lines (done, missed, checks needing attention) and a link to the full receipt.
@@ -266,7 +275,15 @@ export function receiptSummary(
   const untested = status("done_untested");
   const done = status("done") + untested;
   const partial = status("partial");
-  const missed = status("missed") + partial;
+  const missed = status("missed");
+  const notVerified = status("not_verified");
+  // P: each item is counted in exactly one state; the line lists only the states with a count above zero.
+  const states = [
+    done > 0 ? `${done} done` : "",
+    partial > 0 ? `${partial} partly done` : "",
+    missed > 0 ? `${missed} missed` : "",
+    notVerified > 0 ? `${notVerified} not verified` : "",
+  ].filter(Boolean);
   const postponed = status("postponed");
   const present = status("already_present");
   const questions = status("question");
@@ -324,7 +341,7 @@ export function receiptSummary(
       : receipt.no_changes === true
         ? // Real-test F: a request but no changed file still gets a receipt.
           `Codeceipt receipt: No files changed; ${status("missed")} not done${present > 0 ? `, ${present} already present` : ""}.`
-        : `Codeceipt receipt: ${changed ? `${changed}; ` : ""}${done} done, ${missed} missed${partial > 0 ? ` (${partial} partly done)` : ""}.`,
+        : `Codeceipt receipt: ${changed ? `${changed}; ` : ""}${states.length > 0 ? states.join(", ") : "no items"}.`,
     `Checks needing attention: ${attention.length > 0 ? attention.join(", ") : "none"}.`,
     ...(extra.length > 0 ? [`Also listed: ${extra.join(", ")}.`] : []),
   ];
@@ -576,11 +593,22 @@ export async function sessionEnd(
   const sessionFindings = scan?.findings.filter((f) => session.has(f.file)) ?? [];
   const beforeFindings = scan?.findings.filter((f) => !session.has(f.file)) ?? [];
   // FEAT-018: tests deleted, skipped or weakened, compared on this machine; only names and counts are sent.
+  // M: a file already modified before the session is compared with its start content (verified), so its earlier
+  // skips are not the session's; they are reported apart below.
+  const startTexts = snapshot
+    ? await verifiedStartTexts(
+        deps.git,
+        root,
+        Object.fromEntries(Object.entries(blobs).filter(([path]) => preExisting.includes(path))),
+        snapshot,
+      ).catch(() => ({}))
+    : {};
   const integrity = await localIntegrity(
     deps.git,
     root,
     start ?? (commit ? "HEAD" : null),
     files,
+    startTexts,
   ).catch(() => null);
   const passingAfter = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
   // D-025: what changed in each file (counts, symbol names, places), computed here; never source text.
@@ -773,6 +801,16 @@ export async function sessionEnd(
     if (testWarnings > 0) {
       warnings.push(
         `${WARN} ${testWarnings} sign(s) that tests were removed or weakened; see the receipt.`,
+      );
+    }
+    // M: test changes that were already in the working tree before the session: shown apart, never counted.
+    const earlier = integrity?.beforeSession ?? [];
+    if (earlier.length > 0) {
+      const items = earlier
+        .slice(0, MAX_WARNED_ITEMS)
+        .map((f) => `${plural(f.count, PRE_TEST_LABEL[f.kind] ?? "test change")} in ${f.file}`);
+      warnings.push(
+        `${WARN} already modified before this session, not counted: ${items.join("; ")}.`,
       );
     }
     if (scan && scan.findings.length + scan.omitted > 0) {

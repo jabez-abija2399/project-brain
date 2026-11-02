@@ -197,7 +197,7 @@ export function registerBrainTools(server: McpServer): void {
     "find_similar_component",
     {
       description:
-        "Existing components whose name or summary is close to the query, so the agent reuses instead of duplicating.",
+        "Existing components close to the query (at most 3, best first, each with a score and a one-line reason), so the agent reuses instead of duplicating.",
       inputSchema: z.object({ projectId, query: z.string().describe("Component name or purpose") }),
     },
     async (args, ctx) =>
