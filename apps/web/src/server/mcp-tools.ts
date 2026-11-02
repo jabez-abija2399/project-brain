@@ -1,6 +1,7 @@
-import { projectTokensRepo, projectsRepo } from "@brain/db";
+import { oauthRepo, projectTokensRepo, projectsRepo } from "@brain/db";
 import { type AuthInfo, type McpServer, ProtocolError } from "@modelcontextprotocol/server";
 import { z } from "zod";
+import { appOriginOf } from "./auth";
 import { checkPackage } from "./check-package";
 import { createChecklist, proposeChecklistChange } from "./checklist";
 import { findSimilarComponents } from "./components";
@@ -8,6 +9,7 @@ import { getContextPack } from "./context-pack";
 import { getDb } from "./db";
 import { AppError } from "./errors";
 import { FeatureNotFoundError, resolveFeature } from "./feature-ref";
+import { mcpResource, verifyOAuthAccessToken } from "./mcp-oauth";
 import { planProject } from "./plan";
 import { MCP_CALLS_PER_MINUTE, rateLimit } from "./rate-limit";
 import { generateReceipt } from "./receipt";
@@ -39,25 +41,43 @@ export const MCP_ERROR = {
 } as const;
 
 // Bearer token -> the one project it belongs to. Missing, unknown or revoked tokens return undefined, so the route
-// answers 401 before any tool runs. The token itself is never logged.
+// answers 401 before any tool runs. The token itself is never logged. Two kinds are accepted, and both resolve to one
+// project only: a CLI project token (pb_...), and an OAuth access token from a grant made for this server's /mcp
+// (mcp-oauth.ts). The OAuth project comes from its grant, never from the request.
 export async function verifyProjectToken(
-  _req: Request,
+  req: Request,
   bearer?: string,
 ): Promise<AuthInfo | undefined> {
   const value = bearer?.trim();
   if (!value) return undefined;
   const db = getDb();
   const row = await projectTokensRepo.findActiveByValue(db, value);
-  if (!row) return undefined;
-  await projectTokensRepo.touchLastUsed(db, row.projectId, row.id).catch(() => {});
-  // Suspension (2026-11-01) is carried to the tools, which answer with the clear message instead of a bare 401.
-  const s = await projectsRepo.suspensionOf(db, row.projectId);
+  if (row) {
+    await projectTokensRepo.touchLastUsed(db, row.projectId, row.id).catch(() => {});
+    return authInfoFor(db, value, row.id, row.projectId);
+  }
+  const oauth = await verifyOAuthAccessToken(db, value, mcpResource(appOriginOf(req)));
+  if (!oauth) return undefined;
+  await oauthRepo.touchGrant(db, oauth.grantId, new Date()).catch(() => {});
+  return authInfoFor(db, value, oauth.grantId, oauth.projectId, oauth.expiresAt);
+}
+
+// Suspension (2026-11-01) is carried to the tools, which answer with the clear message instead of a bare 401.
+async function authInfoFor(
+  db: ReturnType<typeof getDb>,
+  token: string,
+  clientId: string,
+  projectId: string,
+  expiresAt?: Date,
+): Promise<AuthInfo> {
+  const s = await projectsRepo.suspensionOf(db, projectId);
   const suspended = s?.owner ? "user" : s?.project ? "project" : "";
   return {
-    token: value,
-    clientId: row.id,
+    token,
+    clientId,
     scopes: [],
-    extra: { projectId: row.projectId, suspended },
+    ...(expiresAt ? { expiresAt: expiresAt.getTime() / 1000 } : {}),
+    extra: { projectId, suspended },
   };
 }
 

@@ -53,3 +53,10 @@ export {
   aiUsageRepo,
   lastDays,
 } from "./admin";
+export {
+  oauthRepo,
+  MAX_CONNECTIONS as MAX_OAUTH_CONNECTIONS,
+  type ActiveAccess,
+  type Connection,
+  type NewToken,
+} from "./oauth";
