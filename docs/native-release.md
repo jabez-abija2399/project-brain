@@ -9,8 +9,10 @@ Targets: `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`, `linux-x64-mu
 ## How the trust chain works
 
 1. A tag `cli-v<version>` runs `.github/workflows/release-cli.yml`. It builds every target, smoke-tests each one on
-   its own runner, signs and notarises where the secrets exist, and uploads the files to a draft GitHub Release.
-2. The publish job writes `manifest.json` (version, and the SHA-256 and size of every file) and `SHA256SUMS`, signs
+   its own runner, signs and notarises where the secrets exist, and hands the files to the publish job (the build
+   jobs cannot write to the release).
+2. The publish job (the only one that can write to the release or read the signing key) uploads the files, writes
+   `manifest.json` (version, and the SHA-256 and size of every file) and `SHA256SUMS`, signs
    the manifest with the Ed25519 release key (`manifest.json.sig`), uploads them and publishes the release.
 3. The binary's self-updater downloads `manifest.json` and `.sig` from the latest release over HTTPS, accepts it only
    when the signature matches the public key compiled into the binary (`packages/cli/src/native/release-key.ts`) and
@@ -30,9 +32,16 @@ It writes the private key to a file only you can read and prints the public key.
 
 - Put the public key (base64) in `packages/cli/src/native/release-key.ts` (`RELEASE_PUBLIC_KEY`) through a PR.
   Without it the binaries never update themselves (they report that updates are not set up).
-- Add the private key (the whole PEM text) as the repository secret `CODECEIPT_RELEASE_SIGNING_KEY`
-  (Settings → Secrets and variables → Actions). Then delete the local file, or keep it offline.
-- The release workflow refuses to run when the secret is missing.
+- Create a GitHub Environment named `release` (Settings → Environments): deployment branches and tags "Selected"
+  with only the tag pattern `cli-v*`, and yourself as a required reviewer. Add the private key (the whole PEM text)
+  as the **environment** secret `CODECEIPT_RELEASE_SIGNING_KEY` there, not as a repository secret: then a workflow
+  pushed on any other branch cannot read it. Delete the local file, or keep it offline.
+- Protect the `cli-v*` tags with a tag ruleset (Settings → Rules → Rulesets: target tags `cli-v*`, restrict
+  creation, update and deletion to yourself), so only you can start a release.
+- Only the `publish` job uses the `release` environment; the build jobs have read-only access and hand their files
+  over as workflow artifacts, so nothing they install can change the release before it is signed.
+- The release fails when the secret is missing (the manifest cannot be signed), and waits for your approval of the
+  `release` environment before signing anything.
 
 ### 2. macOS signing and notarisation (optional, recommended)
 
@@ -103,7 +112,7 @@ pnpm -C packages/cli build:native
 ```
 
 builds every target into `packages/cli/dist-native/` (gitignored), with `manifest.json` and `SHA256SUMS`.
-`node packages/cli/scripts/smoke-native.mjs dist-native/codeceipt-linux-x64` checks one file.
+`node packages/cli/scripts/smoke-native.mjs packages/cli/dist-native/codeceipt-linux-x64` checks one file.
 
 ## Coming soon
 

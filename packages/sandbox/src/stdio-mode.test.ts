@@ -48,4 +48,21 @@ describe("sandbox child over stdio (native binary mode)", () => {
     });
     expect((await bad.run([{ sql: "select 1" }])).outcome).toBe("crash");
   });
+
+  it.runIf(process.platform === "linux" || process.platform === "darwin")(
+    "attack: a child that grows past the memory cap is killed long before the time limit (Bun has no heap flag)",
+    async () => {
+      // Stands in for a hostile migration that builds a huge value: it allocates and touches 16 MB every 100 ms,
+      // forever (slow enough that only the cap, not the machine running out of memory, can stop it in time).
+      const hog = "const k=[];setInterval(()=>{k.push(Buffer.alloc(16*1024*1024,1))},100);";
+      const started = Date.now();
+      const run = await createPgliteSandbox({
+        timeLimitMs: 30_000,
+        childCommand: { command: process.execPath, args: ["-e", hog], maxRssMb: 200 },
+      }).run([{ sql: "select 1" }]);
+      expect(run.outcome).toBe("crash");
+      expect(Date.now() - started).toBeLessThan(10_000);
+    },
+    60_000,
+  );
 });

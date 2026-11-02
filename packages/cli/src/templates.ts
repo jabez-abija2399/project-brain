@@ -77,12 +77,16 @@ const isWrapped = (command: string, bare: string) => {
   const m = /npx -y codeceipt@(\d{1,4}\.\d{1,4}\.\d{1,4}) /.exec(command);
   if (!m?.[1]) return false;
   const args = bare.replace(/^codeceipt /, "");
-  const path = /^PATH=\S+; if \[ -x "([^"]+)" \]/.exec(command)?.[1];
+  const path = hookCommandPath(command) ?? undefined;
   return command === (path ? wrapWithPath(args, m[1], path) : wrap(args, m[1]));
 };
 /** The installed path a hook command calls first, or null for the PATH/npx form. */
-export const hookCommandPath = (command: string): string | null =>
-  /^PATH=\S+; if \[ -x "([^"]+)" \]/.exec(command)?.[1] ?? null;
+// Only a path hookPathFor could have written (absolute or under $HOME, plain characters): a committed hook with a
+// shell expression in the quotes is never "ours", so doctor does not call it set up and init replaces it.
+export const hookCommandPath = (command: string): string | null => {
+  const path = /^PATH=\S+; if \[ -x "([^"]+)" \]/.exec(command)?.[1];
+  return path && /^(?:\$HOME)?\/[A-Za-z0-9_./@+ -]+$/.test(path) ? path : null;
+};
 
 // Our hook is the exact command for its event: bare, with an absolute path to the binary, or wrapped by shellHook. A
 // foreign command that merely mentions "codeceipt hook", or a relative path (a codeceipt shipped inside the repo), is

@@ -39,9 +39,24 @@ const https = (res: Response, requested: string) => {
   return final.startsWith("https://");
 };
 
+// Reads at most `max` bytes: a larger body (declared or streamed) is dropped without being held in memory.
 async function readText(res: Response, max: number): Promise<string | null> {
-  const buf = Buffer.from(await res.arrayBuffer());
-  return buf.length > max ? null : buf.toString("utf8");
+  if (Number(res.headers.get("content-length") ?? 0) > max) return null;
+  if (!res.body) return null;
+  const chunks: Buffer[] = [];
+  let size = 0;
+  const reader = res.body.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > max) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 const defaultProbe = (file: string) =>

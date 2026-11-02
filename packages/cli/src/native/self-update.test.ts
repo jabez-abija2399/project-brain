@@ -81,6 +81,30 @@ describe("codeceipt update", () => {
     expect(w.fetched.every((u) => u.startsWith("https://"))).toBe(true);
   });
 
+  it("attack: an endless manifest stream is cut off at the size limit instead of being read into memory", async () => {
+    let sent = 0;
+    const endless = new ReadableStream<Uint8Array>({
+      pull(c) {
+        sent += 65536;
+        c.enqueue(new Uint8Array(65536).fill(32));
+      },
+    });
+    const result = await runUpdate({
+      fetch: async (url: string) => {
+        const r = new Response(url.endsWith(".sig") ? "x" : endless);
+        Object.defineProperty(r, "url", { value: url });
+        return r;
+      },
+      execPath: "/nonexistent/codeceipt",
+      target: "linux-x64",
+      version: "0.1.2",
+      publicKey: PUB,
+      platform: "linux",
+    });
+    expect(result.status).toBe("failed");
+    expect(sent).toBeLessThan(1024 * 1024);
+  });
+
   it("the same or an older signed version changes nothing (no downgrade)", async () => {
     for (const v of ["0.1.2", "0.1.1"]) {
       const w = world(release(v));

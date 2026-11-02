@@ -33,7 +33,10 @@ const SH = String.raw`#!/bin/sh
 # Codeceipt installer for macOS, Linux and WSL: ${SITE}/install.sh
 # Installs the native app (no Node.js needed) into ~/.local/bin, or CODECEIPT_INSTALL_DIR, without sudo.
 # Pinned release: __VERSION__. Every download is checked against the SHA-256 below before it is installed.
+# Everything runs inside main(), called on the last line, so a download cut off halfway runs nothing.
 set -eu
+
+main() {
 
 VERSION="__VERSION__"
 say() { printf '%s\n' "$*"; }
@@ -97,8 +100,9 @@ fi
 [ "$got" = "$want" ] || fail "checksum mismatch: the download is not the published file, so nothing was installed"
 
 chmod 755 "$tmp"
+# Checked before it replaces anything, so a build that cannot run here leaves a working install alone.
+"$tmp" --version >/dev/null 2>&1 || fail "this build does not run on this system, so nothing was installed; use: npx codeceipt"
 mv -f "$tmp" "$dir/codeceipt"
-"$dir/codeceipt" --version >/dev/null 2>&1 || fail "installed, but it does not run on this system; use: npx codeceipt"
 
 # Migrating from npm: a global npm copy could run instead of this one. Your login and settings are kept either way.
 if [ "$(printenv CODECEIPT_KEEP_NPM || true)" != 1 ] && command -v npm >/dev/null 2>&1 && npm ls -g codeceipt --depth=0 >/dev/null 2>&1; then
@@ -116,14 +120,14 @@ esac
 if [ "$on_path" = 0 ]; then
   if [ "$dir" = "$HOME/.local/bin" ]; then line='export PATH="$HOME/.local/bin:$PATH"'; else line="export PATH=\"$dir:\$PATH\""; fi
   case "$(basename "$(printenv SHELL || echo sh)")" in
-    zsh) rcs="$HOME/.zshrc" ;;
-    bash) if [ "$os" = Darwin ]; then rcs="$HOME/.bash_profile"; else rcs="$HOME/.bashrc"; fi ;;
-    fish) rcs="" ; mkdir -p "$HOME/.config/fish/conf.d" && printf 'fish_add_path %s\n' "$dir" > "$HOME/.config/fish/conf.d/codeceipt.fish" ;;
-    *) rcs="$HOME/.profile" ;;
+    zsh) rc="$HOME/.zshrc" ;;
+    bash) if [ "$os" = Darwin ]; then rc="$HOME/.bash_profile"; else rc="$HOME/.bashrc"; fi ;;
+    fish) rc="" ; mkdir -p "$HOME/.config/fish/conf.d" && printf "fish_add_path '%s'\n" "$dir" > "$HOME/.config/fish/conf.d/codeceipt.fish" ;;
+    *) rc="$HOME/.profile" ;;
   esac
-  for rc in $rcs; do
+  if [ -n "$rc" ]; then
     grep -qsF "$line" "$rc" || printf '\n# Added by the Codeceipt installer\n%s\n' "$line" >> "$rc"
-  done
+  fi
 fi
 
 say ""
@@ -140,6 +144,9 @@ say "Next: cd into your app's folder and run:"
 say "  codeceipt"
 say "Connected a repo with npx before? Run codeceipt init in it once, so its hooks use this install."
 say "Check everything with: codeceipt doctor"
+}
+
+main "$@"
 `;
 
 const PS1 = String.raw`# Codeceipt installer for Windows PowerShell: ${SITE}/install.ps1
@@ -169,6 +176,13 @@ if ($Got -ne $Sha256) {
   Write-Error "Codeceipt: checksum mismatch: the download is not the published file, so nothing was installed."
   exit 1
 }
+# Checked before it replaces anything, so a build that cannot run here leaves a working install alone.
+& $Tmp --version | Out-Null
+if ($LASTEXITCODE -ne 0) {
+  Remove-Item -Force $Tmp
+  Write-Error "Codeceipt: this build does not run on this system, so nothing was installed; use: npx codeceipt"
+  exit 1
+}
 $Exe = Join-Path $Dir "codeceipt.exe"
 if (Test-Path $Exe) {
   # A running codeceipt.exe cannot be replaced, but it can be renamed; the old file is removed on its next start.
@@ -176,7 +190,6 @@ if (Test-Path $Exe) {
   Move-Item -Force $Exe "$Exe.old"
 }
 Move-Item -Force $Tmp $Exe
-& $Exe --version | Out-Null
 
 if ($env:CODECEIPT_KEEP_NPM -ne "1" -and (Get-Command npm -ErrorAction SilentlyContinue)) {
   npm ls -g codeceipt --depth=0 *> $null

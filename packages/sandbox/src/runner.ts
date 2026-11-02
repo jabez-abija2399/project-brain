@@ -1,4 +1,5 @@
-import { fork, spawn } from "node:child_process";
+import { execFile, fork, spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import type { SandboxRun, SandboxStatement } from "@brain/core";
 
@@ -16,7 +17,9 @@ export type PgliteSandboxOptions = {
   // `__sandbox-child`). Without it, child.mjs is forked by Node with memory caps.
   childCommand?: SandboxChildCommand;
 };
-export type SandboxChildCommand = { command: string; args: string[] };
+// maxRssMb: the native binary's child runs under Bun, which has no heap or WASM memory flags; the parent then watches
+// the child's resident memory and kills it past this cap (Linux and macOS; see agent/later.md for Windows).
+export type SandboxChildCommand = { command: string; args: string[]; maxRssMb?: number };
 
 // Set once by the native binary's entry (native-main.ts); the npm build never sets it.
 let defaultChildCommand: SandboxChildCommand | undefined;
@@ -120,6 +123,19 @@ function runOverStdio(
       resolve(run);
     };
     const timer = setTimeout(() => finish(failedRun("timeout", cap)), timeLimitMs);
+    const pid = proc.pid;
+    if (child.maxRssMb && pid) {
+      const limitKb = child.maxRssMb * 1024;
+      const watch = setInterval(async () => {
+        if (settled) return clearInterval(watch);
+        const kb = await residentKb(pid);
+        if (kb !== null && kb > limitKb) {
+          clearInterval(watch);
+          finish(failedRun("crash", cap));
+        }
+      }, 100);
+      watch.unref?.();
+    }
     proc.stdout?.on("data", (chunk: Buffer) => {
       size += chunk.length;
       if (size > MAX_RESULT_BYTES) finish(failedRun("crash", cap));
@@ -141,6 +157,27 @@ function runOverStdio(
     proc.stdin?.on("error", () => {});
     proc.stdin?.end(JSON.stringify({ statements, cap }));
   });
+}
+
+// The child's resident memory in KB (null when unknown: then only the time limit applies).
+async function residentKb(pid: number): Promise<number | null> {
+  if (process.platform === "linux") {
+    try {
+      const m = /^VmRSS:\s+(\d+) kB/m.exec(await readFile(`/proc/${pid}/status`, "utf8"));
+      return m?.[1] ? Number(m[1]) : null;
+    } catch {
+      return null;
+    }
+  }
+  if (process.platform === "darwin") {
+    return new Promise((resolve) => {
+      execFile("/bin/ps", ["-o", "rss=", "-p", String(pid)], { timeout: 2000 }, (err, out) => {
+        const kb = Number(String(out).trim());
+        resolve(err || !Number.isFinite(kb) || kb <= 0 ? null : kb);
+      });
+    });
+  }
+  return null;
 }
 
 type ChildMessage =

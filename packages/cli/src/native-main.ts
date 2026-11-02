@@ -56,7 +56,12 @@ if (process.argv[2] === "__sandbox-child") {
   const { setNativeBuild } = await import("./native/install-info");
   const { setSandboxChildCommand } = await import("@brain/sandbox");
   setNativeBuild({ target: __CODECEIPT_TARGET__ as Target });
-  setSandboxChildCommand({ command: process.execPath, args: ["__sandbox-child"] });
+  setSandboxChildCommand({
+    command: process.execPath,
+    args: ["__sandbox-child"],
+    // D-005 caps the forked child at 512 MB of WASM plus a 256 MB heap; Bun has neither flag, so the parent watches it.
+    maxRssMb: 1024,
+  });
   // Windows: an update moved the previous binary aside; it can be removed once that run has ended.
   if (process.platform === "win32") rmSync(`${process.execPath}.old`, { force: true });
   await import("./main");

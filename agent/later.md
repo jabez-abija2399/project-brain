@@ -165,3 +165,4 @@
 - 2026-11-02 (D-027): the OpenCode plugin and the MCP server entries in agent configs still call `codeceipt` by name (with npx fallback), not by its full installed path like the shell hooks.
 - 2026-11-02 (D-027): publish a Homebrew tap and a winget manifest (both pinning the release SHA-256), then drop "coming soon" on the landing page and quickstart.
 - 2026-11-02 (D-027): EV Windows certificates live on hardware tokens; signing in CI then needs a cloud signing service (e.g. Azure Trusted Signing) instead of a .pfx secret.
+- 2026-11-02 (D-027, security review): the native sandbox child's memory is now watched by the parent (1 GB resident cap, Linux and macOS); Windows still has only the time limit (a Job Object memory limit would cover it).

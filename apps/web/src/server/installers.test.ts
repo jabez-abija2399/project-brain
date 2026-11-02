@@ -37,8 +37,18 @@ const release = (linuxSha: string): CliRelease => ({
 });
 
 // Runs the real install.sh under sh with stub curl and npm on PATH (no network); returns what happened.
-function runInstallSh(script: string, served: string, opts: { npmGlobal?: boolean } = {}) {
-  const home = mkdtempSync(join(tmpdir(), "cc-inst-home-"));
+function runInstallSh(
+  script: string,
+  served: string,
+  opts: { npmGlobal?: boolean; existing?: string; homeSuffix?: string } = {},
+) {
+  const base = mkdtempSync(join(tmpdir(), "cc-inst-home-"));
+  const home = opts.homeSuffix ? join(base, opts.homeSuffix) : base;
+  mkdirSync(home, { recursive: true });
+  if (opts.existing) {
+    mkdirSync(join(home, ".local", "bin"), { recursive: true });
+    writeFileSync(join(home, ".local", "bin", "codeceipt"), opts.existing, { mode: 0o755 });
+  }
   const stubs = join(home, "stubs");
   mkdirSync(stubs);
   const log = join(home, "calls.log");
@@ -98,6 +108,32 @@ describe("install.sh", () => {
     expect(t.r.status, t.r.stderr).toBe(0);
     expect(t.calls).toContain("npm uninstall -g codeceipt");
     expect(t.r.stdout).toMatch(/removed the npm copy/i);
+  });
+
+  it("attack: a script cut off mid-download runs nothing (the body is one function called on the last line)", () => {
+    const full = installSh(release(sha(binary("0.2.0"))));
+    expect(full.trimEnd().endsWith('main "$@"')).toBe(true);
+    const half = full.slice(0, Math.floor(full.length / 2));
+    const t = runInstallSh(half, binary("0.2.0"));
+    expect(t.calls).toBe("");
+    expect(existsSync(t.bin)).toBe(false);
+  });
+
+  it("a build that does not run here leaves the existing install untouched", () => {
+    const broken = "#!/bin/sh\nexit 3\n";
+    const t = runInstallSh(installSh(release(sha(broken))), broken, { existing: binary("0.1.2") });
+    expect(t.r.status).not.toBe(0);
+    expect(t.r.stderr).toMatch(/nothing was installed/);
+    expect(readFileSync(t.bin, "utf8")).toBe(binary("0.1.2"));
+  });
+
+  it("a home folder with a space gets its PATH line in its own shell profile, not in split paths", () => {
+    const body = binary("0.2.0");
+    const t = runInstallSh(installSh(release(sha(body))), body, { homeSuffix: "John Doe" });
+    expect(t.r.status, t.r.stderr).toBe(0);
+    expect(readFileSync(join(t.home, ".bashrc"), "utf8")).toContain(
+      'export PATH="$HOME/.local/bin:$PATH"',
+    );
   });
 
   it("before the first native release it says so and points to npx, installing nothing", () => {
