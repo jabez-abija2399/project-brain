@@ -40,12 +40,49 @@ const NODE_PATHS =
 export const CLI_VERSION = "0.1.2";
 const wrap = (args: string, version: string) =>
   `PATH=${NODE_PATHS}; if command -v codeceipt >/dev/null 2>&1; then codeceipt ${args}; else npx -y codeceipt@${version} ${args}; fi`;
-export const shellHook = (bare: string) => wrap(bare.replace(/^codeceipt /, ""), CLI_VERSION);
-// The same wrapper written by any version (so an upgrade rewrites ours instead of adding a second hook).
+// D-027: hooks call codeceipt by its full installed path first (the native binary, or a global npm install's bin),
+// then codeceipt on PATH, then the pinned npx. The path is the one of the codeceipt that ran `init`, set by main().
+const wrapWithPath = (args: string, version: string, path: string) =>
+  `PATH=${NODE_PATHS}; if [ -x "${path}" ]; then "${path}" ${args}; elif command -v codeceipt >/dev/null 2>&1; then codeceipt ${args}; else npx -y codeceipt@${version} ${args}; fi`;
+let hookInstallPath: string | null = null;
+export function setHookInstallPath(path: string | null): void {
+  hookInstallPath = path;
+}
+/**
+ * The path written into hooks for an installed codeceipt: inside the home folder as $HOME/... (so a committed settings
+ * file works for teammates with the same layout), always with forward slashes. Null when the path has characters that
+ * are not safe inside a double-quoted shell word (quotes, $, backticks, backslashes) or is not absolute.
+ */
+export function hookPathFor(absolute: string, home: string): string | null {
+  const norm = (p: string) => p.replace(/\\/g, "/");
+  let path = absolute;
+  if (
+    home &&
+    (absolute === home || absolute.startsWith(`${home}/`) || absolute.startsWith(`${home}\\`))
+  ) {
+    path = `$HOME${norm(absolute.slice(home.length))}`;
+  }
+  const rest = path.startsWith("$HOME/") ? path.slice(5) : path;
+  if (!rest.startsWith("/") || !/^[A-Za-z0-9_./@+ -]+$/.test(rest)) return null;
+  return path;
+}
+export const shellHook = (bare: string) => {
+  const args = bare.replace(/^codeceipt /, "");
+  return hookInstallPath
+    ? wrapWithPath(args, CLI_VERSION, hookInstallPath)
+    : wrap(args, CLI_VERSION);
+};
+// The same wrapper written by any version or install path (so an upgrade rewrites ours instead of adding a second hook).
 const isWrapped = (command: string, bare: string) => {
   const m = /npx -y codeceipt@(\d{1,4}\.\d{1,4}\.\d{1,4}) /.exec(command);
-  return !!m?.[1] && command === wrap(bare.replace(/^codeceipt /, ""), m[1]);
+  if (!m?.[1]) return false;
+  const args = bare.replace(/^codeceipt /, "");
+  const path = /^PATH=\S+; if \[ -x "([^"]+)" \]/.exec(command)?.[1];
+  return command === (path ? wrapWithPath(args, m[1], path) : wrap(args, m[1]));
 };
+/** The installed path a hook command calls first, or null for the PATH/npx form. */
+export const hookCommandPath = (command: string): string | null =>
+  /^PATH=\S+; if \[ -x "([^"]+)" \]/.exec(command)?.[1] ?? null;
 
 // Our hook is the exact command for its event: bare, with an absolute path to the binary, or wrapped by shellHook. A
 // foreign command that merely mentions "codeceipt hook", or a relative path (a codeceipt shipped inside the repo), is

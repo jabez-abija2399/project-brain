@@ -136,3 +136,9 @@ export function writeSettings(path: string, settings: UserSettings): void {
   writeFileSync(path, `${JSON.stringify({ ...file, ...settings }, null, 2)}\n`, { mode: 0o600 });
   chmodSync(path, 0o600);
 }
+
+/** Whether this computer has any Codeceipt login (a default one, or any project's token). */
+export function hasAnyLogin(path: string): boolean {
+  const file = readFile(path) ?? readFile(legacyConfigPath(path));
+  return Boolean(file && (asConfig(file) || projectTokens(file).length > 0));
+}
