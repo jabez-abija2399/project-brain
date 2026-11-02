@@ -2,13 +2,13 @@ import SignInButton from "@/app/sign-in-button";
 import { AgentTabs } from "./agent-tabs";
 import { CommandBox } from "./command-box";
 import { CHECKS, COMMAND, COMPARISON, FAQ, NEVER_SENT, SENT, STUDY_URL } from "./content";
-import { HowTerminal } from "./how-terminal";
 import { InlineCode } from "./inline-code";
 import { PrivacyToggle } from "./privacy-toggle";
 import { HeroReceipt } from "./receipt";
 import { ReceiptStates } from "./receipt-states";
 import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
+import { UseGuide } from "./use-guide";
 
 // The public landing page (2026-11-01 redesign): Codeceipt checks whether your AI agent did what you asked. Server
 // rendered; only the tabs, the terminal, the receipt states, the privacy toggle, the copy boxes and the menu are
@@ -100,10 +100,10 @@ export function Landing({ notice }: { notice?: string } = {}) {
 
         <Section
           id="how"
-          title="How it works"
-          lead="Three steps. Pick one to see what your terminal shows."
+          title="How to use Codeceipt"
+          lead="Three steps, about five minutes. Do them in order; the terminal below shows what each one looks like."
         >
-          <HowTerminal />
+          <UseGuide />
         </Section>
 
         <Section
