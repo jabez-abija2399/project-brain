@@ -1,5 +1,5 @@
 import { indexRoute } from "@/server/index-route";
-import { receiptsRepo } from "@brain/db";
+import { checklistItemsRepo, receiptsRepo } from "@brain/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,10 +10,33 @@ export const dynamic = "force-dynamic";
 // already got from generate_receipt; the CLI prints only counts from it.
 export const GET = indexRoute("hooks.last-receipt", async (db, projectId) => {
   const [row] = await receiptsRepo.list(db, projectId, 1);
-  if (!row) return { receipt: null };
+  if (!row) return { receipt: null, owner_closed_ids: [], dismissed_ids: [] };
+  // The owner may have closed or dismissed an item after the receipt was written; the CLI labels those items.
+  // Only plain ids of this project's items are looked up (ids of other projects never match).
+  const states = await checklistItemsRepo.ownerStatesAmong(
+    db,
+    projectId,
+    itemIdsOf(row.summaryJson),
+  );
   return {
     receipt_id: row.id,
     created_at: row.createdAt.toISOString(),
     receipt: row.summaryJson ?? {},
+    owner_closed_ids: states.closed,
+    dismissed_ids: states.dismissed,
   };
 });
+
+const PLAIN_ID = /^[\w-]{1,64}$/;
+const MAX_ITEMS = 500;
+
+function itemIdsOf(summary: unknown): string[] {
+  const items = (summary as { items?: unknown } | null)?.items;
+  if (!Array.isArray(items)) return [];
+  const ids = new Set<string>();
+  for (const item of items.slice(0, MAX_ITEMS)) {
+    const id = (item as { id?: unknown } | null)?.id;
+    if (typeof id === "string" && PLAIN_ID.test(id)) ids.add(id);
+  }
+  return [...ids];
+}
