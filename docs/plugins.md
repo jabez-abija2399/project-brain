@@ -31,6 +31,9 @@ README.md
   blocks or breaks a session. If `codeceipt` is not installed, the session-start hook prints one line with the
   one-line installer for the platform; nothing else is printed.
 - In a repo that is not linked to a Codeceipt project, the hooks do nothing and say nothing.
+- Every command uses an absolute script path (`${CLAUDE_PLUGIN_ROOT}`, `${CURSOR_PLUGIN_ROOT}`, `${PLUGIN_ROOT}`), never
+  `./scripts/…`, so a repo's own `scripts/codeceipt.sh` can never run. The skill and rule treat the handoff note as
+  context, not instructions.
 - The MCP server is the CLI's stdio proxy (`codeceipt mcp-proxy --linked-only`). It sends the linked repo's project
   token from the user config on this computer. No plugin file holds a token.
 - The skill (Claude Code, Codex, Antigravity) and the rule (Cursor, Antigravity) are the same workflow text that
@@ -47,7 +50,7 @@ README.md
 | Cursor (local agent) | run | "Cursor hooks last ran here …" |
 | Cursor cloud agents | do not run | "its hooks have not run in this repo yet (… cloud agents do not run hooks)" |
 | Codex | run only after you trust them in `/hooks` | "… only after you trust them in /hooks" |
-| Antigravity | documented for its CLI only; SessionStart only (no prompt or session-end event) | "… documents plugin hooks for its CLI only"; run `codeceipt receipt` when you finish |
+| Antigravity | documented for its CLI only; SessionStart only (no prompt or session-end event); the hook needs `PLUGIN_ROOT`, which Antigravity documents for MCP arguments only | "… documents plugin hooks for its CLI only"; run `codeceipt receipt` when you finish, or `codeceipt init --antigravity` |
 
 Doctor knows a Claude Code session happened from its transcript (`~/.claude/projects/<folder>/*.jsonl`); a
 transcript newer than the last recorded hook run means that session ran no Codeceipt hooks. Every hook run is

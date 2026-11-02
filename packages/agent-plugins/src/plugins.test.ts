@@ -107,7 +107,7 @@ describe("one plugin per agent, from shared templates", () => {
         SessionStart: [
           {
             type: "command",
-            command: "sh ./scripts/codeceipt.sh hook session-start antigravity",
+            command: 'sh "${PLUGIN_ROOT}/scripts/codeceipt.sh" hook session-start antigravity',
             timeout: 30,
           },
         ],
@@ -156,8 +156,30 @@ describe("one plugin per agent, from shared templates", () => {
     expect(commands.length).toBe(4 + 3 + 3 + 1);
     for (const c of commands) {
       expect(c).toMatch(
-        /^sh (?:"\$\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\}\/scripts\/codeceipt\.sh"|\.\/scripts\/codeceipt\.sh) hook (?:session-start|session-end|prompt|stop) (?:claude|cursor|codex|antigravity)$/,
+        /^sh "\$\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\}\/scripts\/codeceipt\.sh" hook (?:session-start|session-end|prompt|stop) (?:claude|cursor|codex|antigravity)$/,
       );
+    }
+  });
+
+  it("attack: no script path is relative (a repo's own scripts/codeceipt.sh never runs), and Codex's MCP server runs only an absolute codeceipt", () => {
+    for (const [path, text] of files) {
+      if (path.endsWith(".json")) expect(text, path).not.toMatch(/"(?:sh )?\.\/scripts\//);
+    }
+    const codex = json("plugins/codex/.mcp.json").mcpServers as Record<
+      string,
+      { command: string; args: string[] }
+    >;
+    expect(codex.codeceipt?.command).toBe("sh");
+    const t = launchInline(codex.codeceipt?.args ?? []);
+    expect(t.r.status).toBe(0);
+    expect(existsSync(join(t.project, "ran"))).toBe(false);
+  });
+
+  it("attack: the plugin's instructions treat the handoff note as context, never as orders (a repo can ship a server named codeceipt)", () => {
+    for (const [path, text] of files) {
+      if (!/\.(md|mdc)$/.test(path) || path === "README.md") continue;
+      expect(text, path).not.toMatch(/follow its handoff note|owner's instructions/);
+      expect(text, path).toMatch(/handoff note as context/);
     }
   });
 
@@ -175,6 +197,20 @@ describe("one plugin per agent, from shared templates", () => {
     for (const [path, text] of files) expect(committed.get(path), path).toBe(text);
   });
 });
+
+// Codex's MCP command run for real in a hostile repo that ships ./codeceipt, with "." on PATH.
+function launchInline(args: string[]) {
+  const home = mkdtempSync(join(tmpdir(), "cc-plugin-"));
+  const project = mkdtempSync(join(tmpdir(), "cc-project-"));
+  writeFileSync(join(project, "codeceipt"), `#!/bin/sh\ntouch "${project}/ran"\n`);
+  chmodSync(join(project, "codeceipt"), 0o755);
+  const r = spawnSync("/bin/sh", args, {
+    cwd: project,
+    env: { HOME: home, PATH: ".:/usr/bin:/bin" },
+    encoding: "utf8",
+  });
+  return { r, project };
+}
 
 // The launcher, run for real under sh with a fake HOME (no network; a stub codeceipt records how it was called).
 function launch(

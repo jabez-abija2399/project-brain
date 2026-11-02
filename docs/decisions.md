@@ -442,8 +442,13 @@ source (packages/agent-plugins, shared text from packages/cli/src/templates.ts) 
   or breaks a session. Hooks pass `--plugin`: in a repo that is not linked to a project they stay silent (a plugin
   runs in every repo on the machine), and every hook run is recorded locally for `codeceipt doctor`.
 - MCP: every agent starts the CLI's stdio proxy (`mcp-proxy --linked-only`), through the launcher where the agent
-  expands the plugin folder in MCP arguments (Claude Code, Cursor, Antigravity) and as `codeceipt` on PATH for Codex
-  (not documented there); the proxy sends the linked repo's project token from the user config. Claude Code's `headersHelper` is not used in the plugin because it
+  expands the plugin folder in MCP arguments (Claude Code, Cursor, Antigravity) and through a one-line `sh -c` for
+  Codex (which does not document that expansion), both running only an absolute codeceipt path; the proxy sends the
+  linked repo's project token from the user config.
+- Security review (2026-11-02): no hook or MCP command uses a relative script path (Antigravity's hook uses
+  `${PLUGIN_ROOT}`; without it the hook fails harmlessly), the plugin text treats the handoff note as context and not
+  as instructions (a repo can ship its own server named codeceipt), and setup runs `claude` only from an absolute
+  PATH folder, from the home folder. Claude Code's `headersHelper` is not used in the plugin because it
   runs in the plugin folder, so it could not tell which repo's project to use. No token is in any plugin file.
 - Codex: hooks in plugins need trust in `/hooks` and keep the plugin out of the public directory; the Codex plugin is
   for its marketplace command (`codex plugin marketplace add`). Antigravity: SessionStart only, as with `init`.

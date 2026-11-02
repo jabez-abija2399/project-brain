@@ -2,10 +2,10 @@
   "mcpServers": {
     "codeceipt": {
       "type": "stdio",
-      "command": "codeceipt",
+      "command": "sh",
       "args": [
-        "mcp-proxy",
-        "--linked-only"
+        "-c",
+        "b=\"$HOME/.local/bin/codeceipt\"; [ -x \"$b\" ] || b=\"$(command -v codeceipt 2>/dev/null)\"; case \"$b\" in /*) exec \"$b\" mcp-proxy --linked-only ;; esac; echo \"Codeceipt is not installed on this computer.\" >&2; exit 0"
       ]
     }
   }

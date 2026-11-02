@@ -6,6 +6,7 @@ import { main } from "./index";
 import { maybeStartBackgroundUpdate } from "./native/commands";
 import { nativeBuild } from "./native/install-info";
 import { readHiddenLine } from "./prompt";
+import { findProgram } from "./setup-command";
 
 // Reads the token: everything piped in, or one pasted line in a terminal (not echoed).
 async function readStdin(): Promise<string> {
@@ -69,9 +70,13 @@ const code = await main(process.argv.slice(2), {
       }
     : {}),
   // An agent's own command (claude plugin install ...), with the arguments as a list: no shell.
+  // Resolved to an absolute path first and run from the home folder, never from the repo (a cloned repo's own
+  // claude.exe must not run).
   runCommand: (command: string, args: string[]) =>
     new Promise<boolean>((resolve) => {
-      const child = spawn(command, args, { stdio: "inherit", windowsHide: true });
+      const program = findProgram(command, process.env, process.platform);
+      if (!program) return resolve(false);
+      const child = spawn(program, args, { cwd: homedir(), stdio: "inherit", windowsHide: true });
       child.on("error", () => resolve(false));
       child.on("close", (code) => resolve(code === 0));
     }),

@@ -169,3 +169,4 @@
 - 2026-11-02 (D-028): the plugin launcher is POSIX sh; Cursor and Antigravity on Windows without Git Bash cannot run it, so `codeceipt init` stays their fallback there (a .cmd/.ps1 launcher would cover them).
 - 2026-11-02 (D-028): doctor reads Claude Code transcripts to spot a session whose hooks did not run; Cursor, Codex and Antigravity keep no transcript location we rely on, so their doctor line only says when the hooks last ran.
 - 2026-11-02 (D-028): add square logos for the Cursor and Antigravity listings (their marketplaces require one) and the Antigravity partner intake.
+- 2026-11-02 (D-028 security review LOW): `codeceipt init --remove-repo-files` checks a file (no symlink, inside the repo) and then rewrites or removes it by path; a local process could swap it in between. Open with O_NOFOLLOW and fstat before rewriting.

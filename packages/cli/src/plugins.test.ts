@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { type CliDeps, main } from "./index";
 import { setNativeBuild } from "./native/install-info";
 import { claudeTranscriptDir, pluginInstalled, setupAgents } from "./plugins";
+import { findProgram } from "./setup-command";
 import { linkRepo } from "./test-support";
 
 // D-028: with a plugin installed once per machine, a repo only needs its project link. Plugin hooks stay silent in a
@@ -333,5 +334,17 @@ describe("codeceipt connect", () => {
     const elsewhere = mkdtempSync(join(tmpdir(), "cc-plug-nogit-"));
     expect(await w.run(["connect"], { cwd: elsewhere })).not.toBe(0);
     expect(w.err.join("\n")).toContain("inside your app's git repository");
+  });
+});
+
+describe("running an agent's own command (security review)", () => {
+  it("attack: only an absolute PATH folder counts, so a repo's own ./claude (or claude.exe in the current folder) never runs", () => {
+    const repo = mkdtempSync(join(tmpdir(), "cc-plug-prog-"));
+    writeFileSync(join(repo, "claude"), "#!/bin/sh\n");
+    expect(findProgram("claude", { PATH: `.:${repo.replace(/^\//, "")}` }, "linux")).toBeNull();
+    expect(findProgram("claude", { PATH: repo }, "linux")).toBe(join(repo, "claude"));
+    // Windows: a .cmd needs a shell, so only .exe or .com is run.
+    writeFileSync(join(repo, "claude.cmd"), "@echo off\n");
+    expect(findProgram("claude", { Path: "C:\\nowhere" }, "win32")).toBeNull();
   });
 });
