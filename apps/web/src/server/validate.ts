@@ -11,7 +11,15 @@ export async function parseInput<T>(
 ): Promise<T> {
   let raw: unknown;
   if (limit !== undefined) {
-    raw = await readJsonCapped(req, limit);
+    // Over the cap is a refusal with a 400, the same answer as other bad input on these routes (AC-017-04).
+    try {
+      raw = await readJsonCapped(req, limit);
+    } catch (err) {
+      if (err instanceof AppError && err.status === 413) {
+        throw new AppError(400, "invalid_input", "request body too large");
+      }
+      throw err;
+    }
   } else {
     try {
       raw = await req.json();

@@ -48,7 +48,7 @@ describe("round 2 security", () => {
     expect(row?.requestId).toBe(requestA.id);
   });
 
-  it("attack: a PATCH body over the cap is refused with no Content-Length header and nothing is changed", async () => {
+  it("attack: a PATCH body over the cap is refused (400, as on the other routes) with no Content-Length header and nothing is changed", async () => {
     const owner = await world.createUser({ name: "owner" });
     world.signInAs(owner);
     const project = await projectsRepo.create(world.db, owner.id, { name: "A" });
@@ -83,7 +83,7 @@ describe("round 2 security", () => {
       params: Promise.resolve({ id: project.id, itemId: item.id }),
     });
 
-    expect(res.status).toBe(413);
+    expect(res.status).toBe(400);
     const [row] = await world.db
       .select()
       .from(checklistItems)
