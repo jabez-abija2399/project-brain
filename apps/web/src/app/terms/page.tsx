@@ -1,5 +1,9 @@
 import { DocPage } from "@/components/landing/doc-page";
+import { isSignedIn } from "@/server/signed-in";
 import type { Metadata } from "next";
+
+// Rendered per request: the header and footer depend on whether the visitor is signed in.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Terms | Codeceipt",
@@ -7,9 +11,10 @@ export const metadata: Metadata = {
 };
 
 // Launch part 6: plain language. [REVIEW] marks questions for a lawyer before the beta opens widely.
-export default function TermsPage() {
+export default async function TermsPage() {
+  const signedIn = await isSignedIn();
   return (
-    <DocPage title="Terms of use" updated="October 30, 2026">
+    <DocPage signedIn={signedIn} title="Terms of use" updated="October 30, 2026">
       <p>
         These terms are the agreement between you and Codeceipt when you use the website, the
         dashboard or the <code>codeceipt</code> command. [REVIEW] The legal name and country of the
