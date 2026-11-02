@@ -312,7 +312,7 @@ describe("the real test session, replayed in order", () => {
     );
     judge = "1 | done | src/app/page.tsx";
     await c.run(app.dir, ["hook", "session-end", "--agent", "claude"], s4);
-    expect(c.err[0]).toBe("Codeceipt receipt: 1 file changed; 1 done, 0 missed.");
+    expect(c.err[0]).toBe("Codeceipt receipt: 1 file changed; 1 done.");
     expect(c.err[1]).toContain("1 postponed");
     await c.run(app.dir, ["last"]);
     expect(c.out.join("\n")).toContain("Postponed: The footer has a link to /about");

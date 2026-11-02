@@ -223,7 +223,7 @@ describe("receipts for the session's own requests; the session-end hook exits 0"
       "req-new",
     ]);
     expect(t.err.slice(0, 3)).toEqual([
-      "Codeceipt receipt: 2 files changed; 1 done, 0 missed.",
+      "Codeceipt receipt: 2 files changed; 1 done.",
       "Checks needing attention: none.",
       "Full receipt: https://brain.test/projects/proj-1/receipts#receipt-rc-1",
     ]);
