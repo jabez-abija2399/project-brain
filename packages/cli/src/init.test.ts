@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
 import { shellHook } from "./templates";
+import { claudeMcpServer } from "./templates";
 import { linkRepo } from "./test-support";
 
 // The token is built at runtime from chunks under 10 characters.
@@ -68,7 +69,7 @@ describe("FEAT-016 codeceipt init", () => {
     expect(readJson(join(t.repo, ".mcp.json")).mcpServers.codeceipt).toEqual({
       type: "http",
       url: "https://brain.test/mcp",
-      headersHelper: "codeceipt mcp-headers",
+      headersHelper: claudeMcpServer("https://brain.test").headersHelper,
     });
     // Launch part 3: Cursor runs the CLI's stdio proxy, so no token variable is needed.
     expect(readJson(join(t.repo, ".cursor/mcp.json")).mcpServers.codeceipt).toEqual({

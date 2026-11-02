@@ -13,7 +13,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join, sep } from "node:path";
-import { AGENTS, AGENT_NAMES, type Agent, codexServer } from "./init-command";
+import { AGENTS, AGENT_NAMES, type Agent, codexServer, isOurHelper } from "./init-command";
 import { pluginInstalled } from "./plugins";
 import {
   AGENTS_END,
@@ -180,7 +180,7 @@ const claudeServer = (entry: unknown) =>
   isObject(entry) &&
   Object.keys(entry).sort().join() === "headersHelper,type,url" &&
   entry.type === "http" &&
-  entry.headersHelper === "codeceipt mcp-headers" &&
+  isOurHelper(entry.headersHelper) &&
   typeof entry.url === "string" &&
   /^https:\/\/[^/\s]+\/mcp$/.test(entry.url);
 const hooksIn = (events: [string, string][], grouped: boolean) => (doc: Json) => {
