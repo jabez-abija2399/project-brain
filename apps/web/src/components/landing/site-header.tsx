@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 
 // The public header: wordmark, Docs, Privacy, Sign in and one primary button. Sticky and compact; on phones the
 // links fold into a menu button. Other public pages pass home="/" so the links lead back to the landing page.
-export function SiteHeader({ home = "" }: { home?: "" | "/" }) {
+// Owner, 2026-11-02: a signed-in visitor (signedIn) never sees Sign in or Get started: the button leads to their
+// projects instead.
+export function SiteHeader({
+  home = "",
+  signedIn = false,
+}: { home?: "" | "/"; signedIn?: boolean }) {
   const [open, setOpen] = useState(false);
   // Following one of the page's links (a hash change) or pressing Escape closes the menu.
   useEffect(() => {
@@ -35,10 +40,18 @@ export function SiteHeader({ home = "" }: { home?: "" | "/" }) {
         <nav id="lp-nav" className="lp-nav" aria-label="Main" data-open={open ? "true" : "false"}>
           <a href="/docs/quickstart">Docs</a>
           <a href="/privacy">Privacy</a>
-          <a href="/sign-in">Sign in</a>
-          <a className="btn btn-primary" href={`${home}#get-started`}>
-            Get started
-          </a>
+          {signedIn ? (
+            <a className="btn btn-primary" href="/projects">
+              Your projects
+            </a>
+          ) : (
+            <>
+              <a href="/sign-in">Sign in</a>
+              <a className="btn btn-primary" href={`${home}#get-started`}>
+                Get started
+              </a>
+            </>
+          )}
         </nav>
       </div>
     </header>

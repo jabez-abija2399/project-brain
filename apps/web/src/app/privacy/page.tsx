@@ -1,5 +1,9 @@
 import { DocPage } from "@/components/landing/doc-page";
+import { isSignedIn } from "@/server/signed-in";
 import type { Metadata } from "next";
+
+// Rendered per request: the header and footer depend on whether the visitor is signed in.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Privacy | Codeceipt",
@@ -7,9 +11,10 @@ export const metadata: Metadata = {
 };
 
 // Launch part 6: plain language. [REVIEW] marks questions for a lawyer before the beta opens widely.
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const signedIn = await isSignedIn();
   return (
-    <DocPage title="Privacy" updated="October 30, 2026">
+    <DocPage signedIn={signedIn} title="Privacy" updated="October 30, 2026">
       <p>
         Your source code never leaves your machine. Codeceipt reads your code on your own computer
         and sends only facts about it: names, paths, hashes and short summaries. This page lists

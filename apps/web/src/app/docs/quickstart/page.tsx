@@ -1,6 +1,10 @@
 import { DocPage } from "@/components/landing/doc-page";
 import { TerminalSnippet } from "@/components/landing/terminal-snippet";
+import { isSignedIn } from "@/server/signed-in";
 import type { Metadata } from "next";
+
+// Rendered per request: the header and footer depend on whether the visitor is signed in.
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Quickstart | Codeceipt",
@@ -90,9 +94,10 @@ function Screenshot({ of }: { of: string }) {
 }
 
 // Journey part 6: the same steps, in the same words, as the start page, the terminal and the receipt.
-export default function QuickstartPage() {
+export default async function QuickstartPage() {
+  const signedIn = await isSignedIn();
   return (
-    <DocPage title="Quickstart">
+    <DocPage signedIn={signedIn} title="Quickstart">
       <p>
         About five minutes from sign-in to your first receipt. Your source code stays on your
         machine.
