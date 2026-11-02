@@ -1,0 +1,11 @@
+{
+  "codeceipt": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "sh ./scripts/codeceipt.sh hook session-start antigravity",
+        "timeout": 30
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "codeceipt": {
+      "command": "sh",
+      "args": [
+        "${PLUGIN_ROOT}/scripts/codeceipt.sh",
+        "mcp",
+        "antigravity"
+      ]
+    }
+  }
+}

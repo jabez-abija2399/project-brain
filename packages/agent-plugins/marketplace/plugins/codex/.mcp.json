@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "codeceipt": {
+      "type": "stdio",
+      "command": "codeceipt",
+      "args": [
+        "mcp-proxy",
+        "--linked-only"
+      ]
+    }
+  }
+}
