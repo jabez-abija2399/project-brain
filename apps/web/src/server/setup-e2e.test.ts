@@ -204,7 +204,8 @@ describe("npx codeceipt (no arguments) sets everything up", () => {
     expect(await c.run()).toBe(0);
     expect(c.out.slice(-6, -4)).toEqual([
       "  Agents:  Claude Code",
-      "  Install: optional. Your agents' hooks run codeceipt through npx when it is not installed; npm install -g codeceipt makes them faster.",
+      // D-027 (owner, 2026-11-02): npx recommends the native installer.
+      "  Install: the native app (no Node.js needed, updates itself): curl -fsSL https://codeceipts.vercel.app/install.sh | sh",
     ]);
     expect(c.out.at(-4)).toBe("What happens next:");
   });

@@ -143,24 +143,37 @@ const POLICIES = `select pol.oid::text as oid, n.nspname as schema, c.relname as
   from pg_policy pol join pg_class c on c.oid = pol.polrelid join pg_namespace n on n.oid = c.relnamespace
   order by pol.oid limit $1`;
 
-process.once("message", (job) => {
-  run(job).then(
-    (result) => reply({ type: "result", ...result }),
-    (err) => reply({ type: "fatal", message: String(err?.message ?? err) }),
-  );
-});
+// Forked by Node (npm install): the job arrives over IPC. Started any other way (stdio-child.mjs, or the native binary,
+// D-027) there is no IPC channel and the caller runs runSandboxJob itself.
+if (typeof process.send === "function") {
+  process.once("message", (job) => {
+    run(job).then(
+      (result) => reply({ type: "result", ...result }),
+      (err) => reply({ type: "fatal", message: String(err?.message ?? err) }),
+    );
+  });
+}
+
+/**
+ * One sandbox job. `pg` lets the native binary hand PGlite its embedded WebAssembly modules and data
+ * (pgliteWasmModule, initdbWasmModule, fsBundle) and extensions whose bundles it unpacked (D-027).
+ */
+export function runSandboxJob(job, pg = {}) {
+  return run(job, pg);
+}
 
 function reply(message) {
   process.send(message, () => process.exit(0));
 }
 
-async function run({ statements, cap }) {
-  const extensions = { uuid_ossp, pgcrypto };
-  const setup = await PGlite.create({ extensions });
+async function run({ statements, cap }, pg = {}) {
+  const { extensions: given, ...assets } = pg;
+  const extensions = given ?? { uuid_ossp, pgcrypto };
+  const setup = await PGlite.create({ ...assets, extensions });
   await setup.exec(STAND_INS + GUARD);
   const image = await setup.dumpDataDir("none");
   await setup.close();
-  const db = await PGlite.create({ loadDataDir: image, extensions });
+  const db = await PGlite.create({ ...assets, loadDataDir: image, extensions });
   await db.exec(SEARCH_PATH);
   const guarded = (await db.query(GUARDED_COUNT)).rows[0].n;
   const guard = await guardState(db, guarded);

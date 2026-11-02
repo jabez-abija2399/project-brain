@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import HomePage, { metadata } from "@/app/page";
+import { INSTALL_SH, nativeReleased } from "@/components/install-options";
 import { WaitlistForm } from "@/components/landing/waitlist-form";
 import { WAITLIST_THANKS, joinWaitlist } from "@/lib/ui-helpers";
 import { copyText } from "@/lib/ui-helpers";
@@ -168,7 +169,10 @@ describe("landing page", () => {
     setSessionResolver(async () => null);
     const html = await render();
     const commands = [...html.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1]);
-    expect(commands).toEqual(["npx codeceipt", "npx codeceipt"]);
+    // D-027 (owner, 2026-11-02): the one-line installer goes first once a native release is pinned.
+    const first = nativeReleased() ? INSTALL_SH : "npx codeceipt";
+    expect(commands).toEqual([first, first]);
+    expect(text(html)).toContain("Homebrew and winget: coming soon");
     const written: string[] = [];
     const clipboard = { writeText: async (t: string) => void written.push(t) };
     expect(await copyText("codeceipt index", clipboard)).toBe("copied");

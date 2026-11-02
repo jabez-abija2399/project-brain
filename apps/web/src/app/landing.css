@@ -1218,3 +1218,22 @@
   border: 1px dashed var(--border-strong);
   border-radius: var(--radius-sm);
 }
+
+/* ---------- Install options (D-027): installers first, then coming soon, then npx ---------- */
+.install-options {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 16px;
+}
+.install-label,
+.install-then,
+.install-soon {
+  margin: 0;
+}
+.install-soon {
+  color: var(--muted);
+}
+.install-soon code,
+.lp-note code {
+  overflow-wrap: anywhere;
+}

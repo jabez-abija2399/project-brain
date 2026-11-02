@@ -1,4 +1,4 @@
-import { existsSync, statSync } from "node:fs";
+import { existsSync, realpathSync, statSync } from "node:fs";
 import { homedir as osHomedir } from "node:os";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import {
@@ -12,6 +12,7 @@ import { CliError, EXIT, REPO_MISMATCH_MESSAGE, request } from "./api";
 import {
   type CliConfig,
   configPath,
+  hasAnyLogin,
   legacyConfigPath,
   readConfig,
   readProjectToken,
@@ -31,6 +32,9 @@ import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { attentionLines } from "./last-attention";
 import { evidenceLines } from "./last-evidence";
 import { runMcpProxy } from "./mcp-proxy";
+import { configCommand, updateCommand } from "./native/commands";
+import { codeceiptsOnPath, runDoctor } from "./native/doctor";
+import { installKind } from "./native/install-info";
 import { applyOwnerStates, ownerStateLines } from "./owner-states";
 import {
   gitDirOf,
@@ -41,7 +45,7 @@ import {
 } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 import { onPath, runSetup } from "./setup-command";
-import { CLI_VERSION } from "./templates";
+import { CLI_VERSION, hookPathFor, setHookInstallPath } from "./templates";
 
 export const PACKAGE = "@brain/cli";
 // Also the version the hooks' npx fallback is pinned to (templates.ts CLI_VERSION; a test keeps them equal).
@@ -63,6 +67,10 @@ export function helpText(): string {
     "  codeceipt receipt                   saves a receipt and progress now (for agents with no session-end event)",
     "  codeceipt last                      prints the latest receipt's summary and link again",
     "  codeceipt last --evidence           also prints the code-free evidence the judge was given, per file",
+    "  codeceipt doctor                    checks the install, login, repo link, hooks and network, with the fix for each problem",
+    "  codeceipt update                    updates the native app now (it also checks by itself once a day)",
+    "  codeceipt config auto-update on|off turns the daily automatic update on or off",
+    "  codeceipt --version                 prints the version",
   ].join("\n");
 }
 
@@ -84,6 +92,9 @@ export type CliDeps = {
   hasCommand?: (name: string) => boolean;
   // Starts this CLI again with `args` in the background, `input` on its stdin (Codex's 3-second session end).
   spawnBackground?: (args: string[], input: string, cwd: string) => void;
+  // D-027: where this copy runs from (the native binary, or node + the bundled script); tests inject them.
+  execPath?: string;
+  scriptPath?: string;
   git?: Git;
 };
 
@@ -199,6 +210,26 @@ function insideGitFolder(dir: string): boolean {
 // A login saved before the rename still counts until the next `codeceipt login` writes the new place.
 const savedConfig = (path: string) => readConfig(path) ?? readConfig(legacyConfigPath(path));
 
+/**
+ * D-027: the path hooks should call: the native binary itself, or a global npm install's codeceipt on PATH. A one-off
+ * npx run or a source checkout has no lasting path (null: hooks look codeceipt up on PATH, then use the pinned npx).
+ */
+function currentHookPath(deps: CliDeps): string | null {
+  const home = deps.homedir ?? osHomedir();
+  const platform = deps.platform ?? process.platform;
+  const kind = installKind(deps.scriptPath ?? process.argv[1]);
+  if (kind === "native") return hookPathFor(deps.execPath ?? process.execPath, home);
+  if (kind !== "npm") return null;
+  const npmBin = codeceiptsOnPath(deps.env, platform).find((p) => {
+    try {
+      return /[\\/]node_modules[\\/]codeceipt[\\/]/.test(realpathSync(p));
+    } catch {
+      return false;
+    }
+  });
+  return npmBin ? hookPathFor(npmBin, home) : null;
+}
+
 // Returns the exit code (spec section 7); errors are one line on stderr, never a stack trace or the token.
 export async function main(argv: string[], deps: CliDeps): Promise<number> {
   const [command, ...args] = argv;
@@ -207,6 +238,45 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
     if (command === "help" || command === "--help" || command === "-h") {
       deps.stdout(helpText());
       return EXIT.ok;
+    }
+    // D-027: hooks written by this run call this install by its full path.
+    setHookInstallPath(currentHookPath(deps));
+    if (command === "doctor") {
+      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt doctor");
+      return await runDoctor({
+        fetch: deps.fetch,
+        env: deps.env,
+        cwd: deps.cwd,
+        home: deps.homedir ?? osHomedir(),
+        platform: deps.platform ?? process.platform,
+        execPath: deps.execPath ?? process.execPath,
+        scriptPath: deps.scriptPath ?? process.argv[1],
+        version: VERSION,
+        configFile: path,
+        defaultApiUrl: brandEnv(deps.env, "API_URL") ?? DEFAULT_API_URL,
+        stdout: deps.stdout,
+        repoProject: () => projectConfig(deps, path, deps.cwd),
+        inGitRepo: async () => (await gitDirOf(deps.git ?? runGit, deps.cwd)) !== null,
+        hasLogin: () => hasAnyLogin(path),
+      });
+    }
+    // D-027: exactly `codeceipt <version>` (the self-updater runs a new file with --version to check it).
+    if (command === "--version" || command === "-v" || command === "version") {
+      deps.stdout(`codeceipt ${VERSION}`);
+      return EXIT.ok;
+    }
+    if (command === "config") {
+      configCommand(args, path, deps);
+      return EXIT.ok;
+    }
+    if (command === "update") {
+      return await updateCommand(args, path, deps, {
+        fetch: deps.fetch,
+        platform: deps.platform ?? process.platform,
+        scriptPath: deps.scriptPath ?? process.argv[1],
+        execPath: deps.execPath ?? process.execPath,
+        version: VERSION,
+      });
     }
     // No command (flags only): the one-command setup.
     if (command === undefined || command.startsWith("--")) {
@@ -230,6 +300,7 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         ...(deps.openUrl ? { openUrl: deps.openUrl } : {}),
         hasCommand:
           deps.hasCommand ?? ((name) => onPath(name, deps.env, deps.platform ?? process.platform)),
+        native: installKind(deps.scriptPath ?? process.argv[1]) === "native",
       });
       return EXIT.ok;
     }

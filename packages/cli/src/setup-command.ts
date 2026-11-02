@@ -13,6 +13,7 @@ import {
 import { type CliConfig, readProjectToken, saveProjectToken } from "./config";
 import { runIndex } from "./index-command";
 import { agentList, runInit } from "./init-command";
+import { INSTALL_PS1, INSTALL_SH } from "./native/install-info";
 import { gitDirOf, readRepoLink, repoFingerprint, writeRepoLink } from "./repo-link";
 import { type Git, repoRoot } from "./scan-secrets";
 
@@ -31,6 +32,8 @@ export type SetupDeps = {
   openUrl?: (url: string) => Promise<boolean>;
   /** Whether a command is installed; the agents run `codeceipt`, which `npx` alone does not install. */
   hasCommand?: (name: string) => boolean;
+  // D-027: this is the native binary (then it does not recommend installing itself).
+  native?: boolean;
 };
 
 const MAX_WAIT_S = 600;
@@ -290,9 +293,10 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     `  Indexed: ${files} file${files === "1" ? "" : "s"}${features ? `, ${features} features` : ""}`,
   );
   deps.stdout(`  Agents:  ${agents}`);
-  if (deps.hasCommand && !deps.hasCommand("codeceipt")) {
+  // D-027: run through npx with no codeceipt installed, it recommends the native app (one line, for this platform).
+  if (!deps.native && deps.hasCommand && !deps.hasCommand("codeceipt")) {
     deps.stdout(
-      "  Install: optional. Your agents' hooks run codeceipt through npx when it is not installed; npm install -g codeceipt makes them faster.",
+      `  Install: the native app (no Node.js needed, updates itself): ${deps.platform === "win32" ? INSTALL_PS1 : INSTALL_SH}`,
     );
   }
   // Journey part 3: what to do next, ending with where the receipt will be.

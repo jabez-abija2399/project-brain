@@ -159,7 +159,7 @@ export const STEPS: Step[] = [
     title: "Set up",
     caption: "Once per repository, about two minutes.",
     does: [
-      "Open a terminal in your app's folder and run `npx codeceipt`.",
+      "Install Codeceipt with the one-line installer above (or use `npx codeceipt` with Node.js), then open a terminal in your app's folder and run `codeceipt`.",
       "Your browser opens a page with a code. Check it is the same code your terminal shows, sign in with GitHub and click Approve.",
       "Wait for `Codeceipt is set up for this repo.` It indexes your code on your machine and sets up the agents it finds.",
     ],

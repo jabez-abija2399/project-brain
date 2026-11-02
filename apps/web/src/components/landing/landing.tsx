@@ -1,4 +1,5 @@
 import SignInButton from "@/app/sign-in-button";
+import { INSTALL_PS1, INSTALL_SH, nativeReleased } from "@/components/install-options";
 import { AgentTabs } from "./agent-tabs";
 import { CommandBox } from "./command-box";
 import { CHECKS, COMMAND, COMPARISON, FAQ, NEVER_SENT, SENT, STUDY_URL } from "./content";
@@ -69,9 +70,10 @@ export function Landing({ notice }: { notice?: string } = {}) {
                 code never leaves your machine.
               </p>
               <div className="lp-actions">
-                <CommandBox command={COMMAND} />
+                <CommandBox command={nativeReleased() ? INSTALL_SH : COMMAND} />
                 <SignInButton />
               </div>
+              <InstallNote />
               <p className="lp-note">Free during the beta. Works in any git repository.</p>
             </div>
             <HeroReceipt />
@@ -207,13 +209,29 @@ export function Landing({ notice }: { notice?: string } = {}) {
             </h2>
             <p>Run one command in your app's folder. Free during the beta.</p>
             <div className="lp-actions">
-              <CommandBox command={COMMAND} tone="ink" />
+              <CommandBox command={nativeReleased() ? INSTALL_SH : COMMAND} tone="ink" />
               <SignInButton />
             </div>
+            <InstallNote />
           </div>
         </section>
       </main>
       <SiteFooter />
     </div>
+  );
+}
+
+// D-027: the one-line installer goes first (no Node.js, updates itself); the rest of the install options in one line.
+function InstallNote() {
+  return nativeReleased() ? (
+    <p className="lp-note">
+      macOS, Linux, WSL. Windows (PowerShell): <code>{INSTALL_PS1}</code>. Homebrew and winget:
+      coming soon. Or with Node.js: <code>{COMMAND}</code>.
+    </p>
+  ) : (
+    <p className="lp-note">
+      Needs Node.js. One-line installers for macOS, Linux and Windows (no Node.js) come with the
+      first native release; Homebrew and winget: coming soon.
+    </p>
   );
 }

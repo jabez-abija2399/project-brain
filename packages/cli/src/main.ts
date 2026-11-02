@@ -1,7 +1,10 @@
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline";
+import { configPath } from "./config";
 import { main } from "./index";
+import { maybeStartBackgroundUpdate } from "./native/commands";
+import { nativeBuild } from "./native/install-info";
 import { readHiddenLine } from "./prompt";
 
 // Reads the token: everything piped in, or one pasted line in a terminal (not echoed).
@@ -33,6 +36,12 @@ async function readHookInput(): Promise<string> {
 }
 
 // The bin's entry: wires main() to the real process (bundled into dist/codeceipt.mjs by build.mjs).
+// D-027: the native binary checks for a signed update at most once a day, in a detached process (never waited on).
+maybeStartBackgroundUpdate(
+  configPath(process.env, process.platform, homedir()),
+  process.execPath,
+  process.argv[2],
+);
 const code = await main(process.argv.slice(2), {
   fetch: (url, init) => fetch(url, init),
   env: process.env,
@@ -47,7 +56,9 @@ const code = await main(process.argv.slice(2), {
   // Codex's session end (D-021): this same CLI again, detached, so it outlives the hook's 3 seconds. No shell: the
   // arguments are passed as a list.
   spawnBackground: (args, input, cwd) => {
-    const child = spawn(process.execPath, [process.argv[1] ?? "", ...args], {
+    // The native binary is itself the program; under Node the bundled script is argv[1] (D-027).
+    const argv = nativeBuild() ? args : [process.argv[1] ?? "", ...args];
+    const child = spawn(process.execPath, argv, {
       cwd,
       detached: true,
       stdio: ["pipe", "ignore", "ignore"],

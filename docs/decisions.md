@@ -385,3 +385,30 @@ store passwords in plain text", "keep the admin page behind login") is an outcom
 before storing per-file evidence (a raw path had reached the response). Start blobs are used only when git reports a
 blob whose content hash matches the snapshot (a blob planted in the state file is ignored), and at most 64 MB is
 written as start blobs.
+
+## D-027 | 2026-11-02 | Native CLI binaries: Bun compile, signed manifest, self-update
+**Decision:** Codeceipt also ships as one self-contained executable per platform (macOS arm64/x64, Linux x64/arm64 with
+glibc and musl, Windows x64), built with `bun build --compile` from one Linux machine. Installers and the self-updater
+only accept a release whose manifest is signed with the Codeceipt release key (Ed25519) and whose file matches the
+SHA-256 in that manifest. npm (`npx codeceipt`) stays supported.
+
+**Compared (measured on Linux x64, 2026-11-02, this repo's CLI):**
+
+| | Bun compile (1.4.4) | Node single executable (22.22 + postject) |
+|---|---|---|
+| Size | 113 MB + 16 MB PGlite assets ≈ 129 MB | 128 MB (plus the same assets) |
+| `codeceipt help` (hook start cost) | ~250 ms | ~255 ms (with code cache); today's npm bundle on Node: ~500 ms |
+| Cross-platform build | one command, all 7 targets from one runner (incl. musl, Windows) | needs each platform's official Node binary, postject (last release 2023), re-signing on macOS |
+| Entry point | ESM with top-level await as is | CommonJS only on Node 22: the entry needs rewriting |
+| Embedded files | `import x from "…" with { type: "file" }`; PGlite takes its WASM and data through options | `sea.getAsset()`; same code changes |
+| Child processes | `fork()` does not pass arguments in a compiled binary (each child ran the parent again): replaced by `spawn` + JSON over stdio | `fork()` of the executable needs the same self-relaunch |
+
+**Why Bun:** equal size and startup, but one cross-compiling build instead of seven platform-specific ones and no
+unmaintained injector. **Trade-off:** the sandbox child (FEAT-005) cannot get Node's `--max-old-space-size` and
+`--wasm-max-mem-pages` caps under Bun; it keeps the empty environment, no stdio except the JSON job, and the 30 s hard
+kill. The npm build keeps the Node caps. Recorded in agent/later.md.
+
+**Trust:** downloads are HTTPS only; the site's installer pins the version and per-file SHA-256 (apps/web/src/lib/cli-release.json,
+written from the release manifest by a human PR); the self-updater fetches the release manifest, verifies its Ed25519
+signature with the public key built into the binary, only moves to a newer version, checks the SHA-256 and replaces
+itself atomically. macOS notarisation and Windows Authenticode need paid accounts (docs/native-release.md).
