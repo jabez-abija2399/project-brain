@@ -51,7 +51,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: npm install -g "bun@$BUN_VERSION"
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
+      # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
+      # ~100 MB bun binary.
+      - run: npm install -g "bun@$BUN_VERSION" # zizmor: ignore[adhoc-packages]
       - run: pnpm install --frozen-lockfile
       - run: node packages/cli/build-native.mjs linux-x64 linux-arm64 linux-x64-musl linux-arm64-musl
       - run: node packages/cli/scripts/smoke-native.mjs packages/cli/dist-native/codeceipt-linux-x64
@@ -76,7 +80,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: npm install -g "bun@$BUN_VERSION"
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
+      # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
+      # ~100 MB bun binary.
+      - run: npm install -g "bun@$BUN_VERSION" # zizmor: ignore[adhoc-packages]
       - run: pnpm install --frozen-lockfile
       - run: node packages/cli/build-native.mjs darwin-arm64 darwin-x64
       - name: Sign and notarise (only when the Apple secrets are set)
@@ -132,7 +140,11 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: npm install -g "bun@$BUN_VERSION"
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
+      # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
+      # ~100 MB bun binary.
+      - run: npm install -g "bun@$BUN_VERSION" # zizmor: ignore[adhoc-packages]
       - run: pnpm install --frozen-lockfile
       - run: node packages/cli/build-native.mjs windows-x64
       - name: Sign (only when the Windows certificate secrets are set)
@@ -174,6 +186,8 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
       - name: The signed binaries from the build jobs
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

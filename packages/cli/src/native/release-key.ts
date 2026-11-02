@@ -2,4 +2,4 @@
 // a release whose manifest this key verifies (D-027). Empty until the release key is created: then auto-update says so
 // and does nothing. Create it with `node packages/cli/scripts/release-keys.mjs` (docs/native-release.md); the private
 // half goes only into the GitHub secret CODECEIPT_RELEASE_SIGNING_KEY.
-export const RELEASE_PUBLIC_KEY = "";
+export const RELEASE_PUBLIC_KEY = "MCowBQYDK2VwAyEAEqYueN7JzW2u0Y1cO9SGSrP8Au7brt567jGxdH/ucMQ=";
