@@ -351,6 +351,19 @@ export function ReceiptCard({
               </ul>
             </Section>
           )}
+          {view.fromPush && (
+            <p className="m0 muted">
+              From a GitHub push: the commit messages are the request (no agent session was
+              recorded).
+            </p>
+          )}
+          {view.filesNotChecked > 0 && (
+            <p className="m0 muted">
+              {view.filesNotChecked} more changed file
+              {view.filesNotChecked === 1 ? " was" : "s were"} not checked (GitHub lists at most 300
+              per push).
+            </p>
+          )}
           <p className="m0">
             <strong>Build and tests:</strong> {checkRunText(view.checkRun)}
             {view.checkRun.status !== "not_run" && (

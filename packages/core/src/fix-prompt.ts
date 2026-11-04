@@ -63,6 +63,9 @@ export type ReceiptView = {
     recommendation: string | null;
     note: string | null;
   }[];
+  // FEAT-023: a receipt made from a GitHub push (no agent session), and changed files past the 300 it lists.
+  fromPush: boolean;
+  filesNotChecked: number;
   // FEAT-022: the repo's own check command (build or tests), run after the session; "not_run" when none ran.
   checkRun: {
     status: "passed" | "failed" | "timed_out" | "not_run";
@@ -84,12 +87,14 @@ const CHECK_LABELS: Record<string, string> = {
 const countOrNull = (v: unknown) =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
 
-const MAX_LIST = 200;
+// FEAT-023: 300, so a push receipt can list all the files GitHub's compare gives.
+const MAX_LIST = 300;
 const MAX_TEXT = 300;
 const MAX_PROMPT_ITEMS = 20;
 // Display caps for the changed-files list (a receipt has at most 200 files).
 const MAX_FEATURE_GROUPS = 50;
-const MAX_GROUP_FILES = 200;
+// FEAT-023: a push receipt lists up to 300 files (GitHub compare's limit).
+const MAX_GROUP_FILES = 300;
 const STATUSES = new Set([
   "done",
   "done_untested",
@@ -264,6 +269,8 @@ export function receiptView(
       ];
     }),
     checkRun: checkRunOf(s.check_run),
+    fromPush: s.from_push === true,
+    filesNotChecked: countOrNull(s.files_not_checked) ?? 0,
   };
 }
 

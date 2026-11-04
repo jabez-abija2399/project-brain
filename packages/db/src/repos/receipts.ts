@@ -40,6 +40,31 @@ export const receiptsRepo = {
     return rows.length > 0;
   },
 
+  /** FEAT-023: the receipt already made for a commit of this project, or null. */
+  async findByCommit(db: BrainDb, projectId: string, commitSha: string): Promise<string | null> {
+    const [row] = await db
+      .select({ id: receipts.id })
+      .from(receipts)
+      .where(and(eq(receipts.projectId, projectId), eq(receipts.commitSha, commitSha)))
+      .limit(1);
+    return row?.id ?? null;
+  },
+
+  /** Adds top-level keys to a receipt's stored summary (FEAT-023: from_push, files_not_checked). */
+  async mergeSummary(
+    db: BrainDb,
+    projectId: string,
+    receiptId: string,
+    extra: Record<string, unknown>,
+  ): Promise<void> {
+    await db
+      .update(receipts)
+      .set({
+        summaryJson: sql`coalesce(${receipts.summaryJson}, '{}'::jsonb) || ${JSON.stringify(extra)}::jsonb`,
+      })
+      .where(and(eq(receipts.id, receiptId), eq(receipts.projectId, projectId)));
+  },
+
   async exists(db: BrainDb, projectId: string, receiptId: string): Promise<boolean> {
     const [row] = await db
       .select({ id: receipts.id })

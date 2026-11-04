@@ -78,6 +78,9 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
       dependencies: [],
       // FEAT-022 (2026-11-04): the repo's check command; none ran here.
       checkRun: { status: "not_run", exitCode: null, durationMs: null, passed: null, failed: null },
+      // FEAT-023: not from a push; no files left unchecked.
+      fromPush: false,
+      filesNotChecked: 0,
     });
   });
 
