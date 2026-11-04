@@ -35,6 +35,7 @@ import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { attentionLines } from "./last-attention";
 import { evidenceLines } from "./last-evidence";
+import { type LiveDb, connectLiveDb, readLiveRls } from "./live-rls";
 import { runMcpProxy } from "./mcp-proxy";
 import { configCommand, updateCommand } from "./native/commands";
 import { codeceiptsOnPath, runDoctor } from "./native/doctor";
@@ -79,6 +80,9 @@ export function helpText(): string {
     "  codeceipt doctor                    checks the install, login, repo link, hooks and network, with the fix for each problem",
     "  codeceipt update                    updates the native app now (it also checks by itself once a day)",
     "  codeceipt config auto-update on|off turns the daily automatic update on or off",
+    "  codeceipt config stop-gate on|off   holds the agent back while its receipt shows unfinished work (default on)",
+    '  codeceipt config check "npm test"   runs this command after each session; receipts show passed or failed',
+    "  codeceipt rls                       checks your live Supabase database (SUPABASE_DB_URL) for tables open to anyone",
     "  codeceipt --version                 prints the version",
   ].join("\n");
 }
@@ -107,6 +111,8 @@ export type CliDeps = {
   git?: Git;
   // D-028: a yes/no question in the terminal (absent without one), and an agent's own command run without a shell.
   ask?: (question: string) => Promise<boolean>;
+  // FEAT-024: opens the live database for `codeceipt rls` (tests inject one).
+  liveDb?: (url: string) => Promise<LiveDb>;
   runCommand?: (command: string, args: string[]) => Promise<boolean>;
 };
 
@@ -286,6 +292,11 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       return EXIT.ok;
     }
     if (command === "check-run") return await runCheckCommand(args, deps, path);
+    if (command === "rls") {
+      if (args.length > 0)
+        throw new CliError(EXIT.usage, "Usage: codeceipt rls (reads SUPABASE_DB_URL)");
+      return await runLiveRls(deps, path);
+    }
     if (command === "update") {
       return await updateCommand(args, path, deps, {
         fetch: deps.fetch,
@@ -936,4 +947,61 @@ const AGENT_REFUSED =
   "The check command can only be set by you: run it yourself in a terminal, not through your agent.";
 function insideAgent(env: Record<string, string | undefined>): boolean {
   return AGENT_ENV.some((k) => typeof env[k] === "string" && env[k] !== "");
+}
+
+/** `codeceipt rls` (FEAT-024): the live Supabase database's RLS state, read here; flags only are uploaded. */
+async function runLiveRls(deps: CliDeps, path: string): Promise<number> {
+  const url = deps.env.SUPABASE_DB_URL;
+  if (!url || !/^postgres(ql)?:\/\//.test(url)) {
+    throw new CliError(
+      EXIT.usage,
+      "Set SUPABASE_DB_URL to your database's connection string (Supabase: Project Settings, Database, Connection string), then run codeceipt rls again. It is read on this computer only.",
+    );
+  }
+  const config = await projectConfig(deps, path, deps.cwd, { linkedOnly: true });
+  const limit = Math.max(100, Number(deps.env.CODECEIPT_RLS_TIMEOUT_MS) || 10_000);
+  let db: LiveDb | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("timeout")), limit);
+  });
+  let flags: Awaited<ReturnType<typeof readLiveRls>>;
+  try {
+    flags = await Promise.race([
+      (async () => {
+        db = await (deps.liveDb ?? connectLiveDb)(url);
+        return readLiveRls(db);
+      })(),
+      timeout,
+    ]);
+  } catch {
+    // Codeceipt's own words only: a driver error can include the host or user name.
+    throw new CliError(
+      EXIT.failure,
+      `The database did not answer within ${Math.round(limit / 1000)} s, or refused the connection: check SUPABASE_DB_URL and your network. Nothing was uploaded.`,
+    );
+  } finally {
+    clearTimeout(timer);
+    (db as LiveDb | null)?.end().catch(() => {});
+  }
+  await request(
+    deps.fetch,
+    config,
+    "POST",
+    `/api/index/${encodeURIComponent(config.projectId)}/supabase`,
+    flags,
+  );
+  const writes = new Set(["INSERT", "UPDATE", "DELETE", "ALL"]);
+  const open = [
+    ...flags.tables.filter((t) => !t.rlsEnabled).map((t) => `${t.name} (RLS off)`),
+    ...[
+      ...new Set(
+        flags.policies.filter((p) => p.allowsAll && writes.has(p.command)).map((p) => p.table),
+      ),
+    ].map((t) => `${t} (a policy lets anyone write)`),
+  ];
+  deps.stdout(
+    `Live database: ${flags.tables.length} tables; ${open.length > 0 ? `open to anyone: ${open.join(", ")}` : "none open to anyone"}.`,
+  );
+  return EXIT.ok;
 }
