@@ -31,7 +31,6 @@ pnpm-lock.yaml # FEAT-025 stripe
 .env.example # FEAT-025 Stripe variable names
 docs/decisions.md # D-029
 docs/dependencies.md # stripe row
-apps/web/src/components/landing/site-footer.tsx # FEAT-025 pricing link
 packages/db/src/repos/admin.ts # FEAT-026 funnel query
 apps/web/src/server/admin-data.ts # FEAT-026
 apps/web/src/app/admin/page.tsx # FEAT-026 funnel table

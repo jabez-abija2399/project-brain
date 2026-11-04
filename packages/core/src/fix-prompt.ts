@@ -89,8 +89,8 @@ const CHECK_LABELS: Record<string, string> = {
 const countOrNull = (v: unknown) =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
 
-// FEAT-023: 300, so a push receipt can list all the files GitHub's compare gives.
-const MAX_LIST = 300;
+// AC-017-02: lists from stored receipts are capped at 200 (files in a group: see MAX_GROUP_FILES).
+const MAX_LIST = 200;
 const MAX_TEXT = 300;
 const MAX_PROMPT_ITEMS = 20;
 // Display caps for the changed-files list (a receipt has at most 200 files).
@@ -208,7 +208,9 @@ export function receiptView(
       .slice(0, MAX_FEATURE_GROUPS)
       .flatMap((raw) => {
         const g = obj(raw);
-        const files = list(g.files).map(safePath).filter(Boolean).slice(0, MAX_GROUP_FILES);
+        const files = (Array.isArray(g.files) ? g.files.slice(0, MAX_GROUP_FILES) : [])
+          .map(safePath)
+          .filter(Boolean);
         return files.length > 0
           ? [{ feature: safeDisplay(g.feature, 100) || "(no feature)", files }]
           : [];
