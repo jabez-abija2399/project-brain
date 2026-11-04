@@ -93,11 +93,7 @@ export function ShareReceipt({
           <span className="muted">Shown once: anyone with this link can see this receipt.</span>
         </p>
       )}
-      {message && (
-        <p role="status" className="muted">
-          {message}
-        </p>
-      )}
+      {message && <output className="muted">{message}</output>}
     </div>
   );
 }
