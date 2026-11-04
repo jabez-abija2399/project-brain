@@ -1,6 +1,6 @@
-import { and, count, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { receiptShareLinks, receipts, requests } from "../schema";
+import { projects, receiptShareLinks, receipts, requests, users } from "../schema";
 
 // FEAT-021: share links. Every query is scoped to a project except findActiveByHash, which is the public lookup (by
 // the token's hash only) and returns just the receipt it points at.
@@ -22,13 +22,35 @@ export const shareLinksRepo = {
     return row?.n ?? 0;
   },
 
-  async create(db: BrainDb, projectId: string, receiptId: string, tokenHash: string) {
-    const [row] = await db
-      .insert(receiptShareLinks)
-      .values({ projectId, receiptId, tokenHash })
-      .returning({ id: receiptShareLinks.id, createdAt: receiptShareLinks.createdAt });
-    if (!row) throw new Error("share link insert returned nothing");
-    return row;
+  /**
+   * Creates a link unless the project already has `max` active ones (null then). The count and the insert run under
+   * one per-project lock, so parallel requests cannot pass the cap.
+   */
+  async createCapped(
+    db: BrainDb,
+    projectId: string,
+    receiptId: string,
+    tokenHash: string,
+    max: number,
+  ) {
+    return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`share:${projectId}`}, 0))`,
+      );
+      const [n] = await tx
+        .select({ n: count() })
+        .from(receiptShareLinks)
+        .where(
+          and(eq(receiptShareLinks.projectId, projectId), isNull(receiptShareLinks.revokedAt)),
+        );
+      if ((n?.n ?? 0) >= max) return null;
+      const [row] = await tx
+        .insert(receiptShareLinks)
+        .values({ projectId, receiptId, tokenHash })
+        .returning({ id: receiptShareLinks.id, createdAt: receiptShareLinks.createdAt });
+      if (!row) throw new Error("share link insert returned nothing");
+      return row;
+    });
   },
 
   /** Revokes an active link of this project; false when there is none. */
@@ -87,11 +109,21 @@ export const shareLinksRepo = {
           eq(receipts.projectId, receiptShareLinks.projectId),
         ),
       )
+      // Security review: a suspended project or owner stops its links (they are not revoked, so they come back).
+      .innerJoin(projects, eq(projects.id, receipts.projectId))
+      .innerJoin(users, eq(users.id, projects.ownerId))
       .leftJoin(
         requests,
         and(eq(requests.id, receipts.requestId), eq(requests.projectId, receipts.projectId)),
       )
-      .where(and(eq(receiptShareLinks.tokenHash, tokenHash), isNull(receiptShareLinks.revokedAt)))
+      .where(
+        and(
+          eq(receiptShareLinks.tokenHash, tokenHash),
+          isNull(receiptShareLinks.revokedAt),
+          isNull(projects.suspendedAt),
+          isNull(users.suspendedAt),
+        ),
+      )
       .limit(1);
     return row ?? null;
   },

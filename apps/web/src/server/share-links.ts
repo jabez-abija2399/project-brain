@@ -6,8 +6,10 @@ import { itemIdsOf, receiptView, safeDisplay } from "@brain/core";
 import { type BrainDb, checklistItemsRepo, shareLinksRepo } from "@brain/db";
 import { type SessionUser, isPlausibleId, requireProjectAccess } from "./auth";
 import { AppError } from "./errors";
+import { rateLimit } from "./rate-limit";
 
 export const MAX_ACTIVE_LINKS = 100;
+const CREATES_PER_MINUTE = 120;
 const TOKEN = /^[A-Za-z0-9_-]{32}$/;
 const hashOf = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -25,15 +27,23 @@ export async function createShareLink(
   ) {
     throw new AppError(404, "not_found");
   }
-  if ((await shareLinksRepo.activeCount(db, project.id)) >= MAX_ACTIVE_LINKS) {
+  // Security review: a create-and-revoke loop cannot grow the table without bound.
+  await rateLimit(db, `share-create:${user.id}`, CREATES_PER_MINUTE);
+  const token = randomBytes(24).toString("base64url");
+  const row = await shareLinksRepo.createCapped(
+    db,
+    project.id,
+    receiptId,
+    hashOf(token),
+    MAX_ACTIVE_LINKS,
+  );
+  if (!row) {
     throw new AppError(
       409,
       "too_many_links",
       `This project already has ${MAX_ACTIVE_LINKS} active share links: revoke one first.`,
     );
   }
-  const token = randomBytes(24).toString("base64url");
-  const row = await shareLinksRepo.create(db, project.id, receiptId, hashOf(token));
   return { id: row.id, url: `${origin}/r/${token}`, createdAt: row.createdAt.toISOString() };
 }
 

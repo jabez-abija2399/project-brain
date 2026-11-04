@@ -26,6 +26,22 @@ export type ReceiptCardData = {
 // without a test, which only a later receipt judges).
 const UNRESOLVED = new Set(["open", "partial", "missed", "done_untested"]);
 
+// FEAT-022: one line for the repo's own check command, run after the session on the user's computer.
+function checkRunText(run: ReceiptView["checkRun"]): string {
+  if (run.status === "not_run") return 'not run (set one with codeceipt config check "npm test")';
+  const secs = run.durationMs === null ? null : Math.round(run.durationMs / 1000);
+  if (run.status === "timed_out") return `timed out after ${secs ?? "?"} s`;
+  const counts = [
+    run.passed !== null ? `${run.passed} passed` : "",
+    run.failed !== null ? `${run.failed} failed` : "",
+  ].filter(Boolean);
+  return [
+    run.status === "passed" ? "passed" : `failed (exit code ${run.exitCode ?? "?"})`,
+    secs !== null ? ` in ${secs} s` : "",
+    counts.length > 0 ? `; ${counts.join(", ")}` : "",
+  ].join("");
+}
+
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="stack gap-6">
@@ -67,7 +83,8 @@ export function ReceiptCard({
   };
   return (
     <article
-      id={`receipt-${receipt.id}`}
+      // FEAT-021: a shared page carries no receipt id.
+      {...(readOnly ? {} : { id: `receipt-${receipt.id}` })}
       className={`card receipt-card${attention ? " card-highlighted" : ""}`}
       data-testid="receipt-card"
     >
@@ -96,7 +113,10 @@ export function ReceiptCard({
             <span className="row">
               <StatusBadge status="done" label={`${count("done")} done`} />
               {closedByOwner > 0 && (
-                <StatusBadge status="closed_by_owner" label={`${closedByOwner} closed by you`} />
+                <StatusBadge
+                  status="closed_by_owner"
+                  label={`${closedByOwner} closed by ${readOnly ? "the owner" : "you"}`}
+                />
               )}
               {count("done_untested") > 0 && (
                 <StatusBadge
@@ -204,6 +224,7 @@ export function ReceiptCard({
                     status={i.status}
                     evidence={i.evidence}
                     closedByOwner={i.closedByOwner}
+                    readOnly={readOnly}
                     // Owner item 1: an unresolved item with a plain id can be closed or dismissed by the owner.
                     action={
                       !readOnly &&
@@ -330,6 +351,9 @@ export function ReceiptCard({
               </ul>
             </Section>
           )}
+          <p className="m0">
+            <strong>Build and tests:</strong> {checkRunText(view.checkRun)}
+          </p>
           {view.notVerified.length > 0 && (
             <Section title="Not verified">
               <ul className="stack plain-list">

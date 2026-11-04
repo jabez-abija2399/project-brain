@@ -16,6 +16,23 @@ export const receiptsRepo = {
     return row;
   },
 
+  /** FEAT-022: attaches the check command's result to a receipt of this project; false when there is none. */
+  async setCheckRun(
+    db: BrainDb,
+    projectId: string,
+    receiptId: string,
+    checkRun: Record<string, unknown>,
+  ): Promise<boolean> {
+    const rows = await db
+      .update(receipts)
+      .set({
+        summaryJson: sql`coalesce(${receipts.summaryJson}, '{}'::jsonb) || jsonb_build_object('check_run', ${JSON.stringify(checkRun)}::jsonb)`,
+      })
+      .where(and(eq(receipts.id, receiptId), eq(receipts.projectId, projectId)))
+      .returning({ id: receipts.id });
+    return rows.length > 0;
+  },
+
   async list(db: BrainDb, projectId: string, limit = 50): Promise<Receipt[]> {
     return db
       .select()

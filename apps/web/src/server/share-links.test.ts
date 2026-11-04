@@ -4,7 +4,17 @@
 import { POST as createRoute } from "@/app/api/projects/[id]/receipts/[receiptId]/share/route";
 import { DELETE as revokeRoute } from "@/app/api/projects/[id]/share-links/[linkId]/route";
 import SharedReceiptPage, { generateMetadata } from "@/app/r/[token]/page";
-import { projectsRepo, receiptShareLinks, receipts, requestsRepo } from "@brain/db";
+import {
+  checklistItems,
+  projects,
+  projectsRepo,
+  receiptShareLinks,
+  receipts,
+  requestsRepo,
+  shareLinksRepo,
+  users,
+} from "@brain/db";
+import { eq } from "drizzle-orm";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -146,5 +156,45 @@ describe("FEAT-021 shareable receipt links", () => {
     const res = await create();
     expect(res.status).toBe(409);
     expect(((await res.json()) as { message: string }).message).toMatch(/100 active share links/);
+  });
+
+  it("attack (security review): a suspended project or owner stops its shared links (404), without revoking them", async () => {
+    world.signInAs(owner);
+    const link = ((await (await create()).json()) as { link: { id: string; url: string } }).link;
+    const token = tokenOf(link.url);
+    await world.db
+      .update(projects)
+      .set({ suspendedAt: new Date() })
+      .where(eq(projects.id, projectId));
+    await expect(sharedReceipt(world.db, token)).resolves.toBeNull();
+    await world.db.update(projects).set({ suspendedAt: null }).where(eq(projects.id, projectId));
+    await world.db.update(users).set({ suspendedAt: new Date() }).where(eq(users.id, owner.id));
+    await expect(sharedReceipt(world.db, token)).resolves.toBeNull();
+    await world.db.update(users).set({ suspendedAt: null }).where(eq(users.id, owner.id));
+    await expect(sharedReceipt(world.db, token)).resolves.not.toBeNull();
+  });
+
+  it("attack (security review): parallel creates never pass the 100-link cap", async () => {
+    world.signInAs(owner);
+    for (let i = 0; i < MAX_ACTIVE_LINKS - 2; i++) await create();
+    const results = await Promise.all(Array.from({ length: 6 }, () => create()));
+    expect(results.filter((r) => r.status === 200)).toHaveLength(2);
+    expect(await shareLinksRepo.activeCount(world.db, projectId)).toBe(MAX_ACTIVE_LINKS);
+  });
+
+  it("the shared page carries no receipt id and says 'closed by the owner', not 'by you'", async () => {
+    const [row] = await world.db.select().from(receipts).where(eq(receipts.id, receiptId));
+    await world.db
+      .update(checklistItems)
+      .set({ closedByOwner: true, status: "done" })
+      .where(eq(checklistItems.projectId, projectId));
+    world.signInAs(owner);
+    const link = ((await (await create()).json()) as { link: { id: string; url: string } }).link;
+    world.signInAs(null);
+    const html = await page(tokenOf(link.url));
+    expect(html).not.toContain(receiptId);
+    expect(html).not.toMatch(/by you/i);
+    expect(html).toMatch(/closed by the owner/i);
+    expect(row).toBeDefined();
   });
 });

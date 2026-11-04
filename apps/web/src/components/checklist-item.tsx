@@ -11,17 +11,23 @@ export function ChecklistItem({
   evidence,
   action,
   closedByOwner,
+  readOnly = false,
 }: {
   text: string;
   status: ReceiptItemStatus | "open";
   evidence: string[];
   action?: { projectId: string; itemId: string };
   closedByOwner?: true;
+  // FEAT-021: on a shared page the viewer is not the owner ("Closed by the owner", not "by you").
+  readOnly?: boolean;
 }) {
   return (
     <li className="stack gap-4">
       <span className="row">
-        <StatusBadge status={closedByOwner ? "closed_by_owner" : status} />
+        <StatusBadge
+          status={closedByOwner ? "closed_by_owner" : status}
+          {...(closedByOwner && readOnly ? { label: "Closed by the owner" } : {})}
+        />
         <span className="wrap">{text}</span>
       </span>
       {evidence.length > 0 && (

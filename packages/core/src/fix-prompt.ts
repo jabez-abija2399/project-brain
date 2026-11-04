@@ -63,6 +63,14 @@ export type ReceiptView = {
     recommendation: string | null;
     note: string | null;
   }[];
+  // FEAT-022: the repo's own check command (build or tests), run after the session; "not_run" when none ran.
+  checkRun: {
+    status: "passed" | "failed" | "timed_out" | "not_run";
+    exitCode: number | null;
+    durationMs: number | null;
+    passed: number | null;
+    failed: number | null;
+  };
 };
 
 const CHECK_LABELS: Record<string, string> = {
@@ -255,6 +263,24 @@ export function receiptView(
         },
       ];
     }),
+    checkRun: checkRunOf(s.check_run),
+  };
+}
+
+const RUN_STATUSES = new Set(["passed", "failed", "timed_out"]);
+function checkRunOf(raw: unknown): ReceiptView["checkRun"] {
+  const r = obj(raw);
+  if (typeof r.status !== "string" || !RUN_STATUSES.has(r.status)) {
+    return { status: "not_run", exitCode: null, durationMs: null, passed: null, failed: null };
+  }
+  const exit = r.exit_code;
+  return {
+    status: r.status as "passed" | "failed" | "timed_out",
+    exitCode:
+      typeof exit === "number" && Number.isInteger(exit) && Math.abs(exit) <= 255 ? exit : null,
+    durationMs: countOrNull(r.duration_ms),
+    passed: countOrNull(r.passed),
+    failed: countOrNull(r.failed),
   };
 }
 
