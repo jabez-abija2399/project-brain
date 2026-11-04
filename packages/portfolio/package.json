@@ -1,0 +1,16 @@
+{
+  "name": "@brain/portfolio",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Portfolio images of Codeceipt from the real app (docs/portfolio). Dev only.",
+  "scripts": {
+    "images": "node src/images.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.10",
+    "@electric-sql/pglite-socket": "0.2.13",
+    "playwright": "1.63.0",
+    "postgres": "^3.4.5"
+  }
+}

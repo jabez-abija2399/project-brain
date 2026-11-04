@@ -10,7 +10,8 @@
     "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
-    "lint": "biome ci ."
+    "lint": "biome ci .",
+    "portfolio:images": "pnpm --filter @brain/portfolio images"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

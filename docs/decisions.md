@@ -458,3 +458,13 @@ source (packages/agent-plugins, shared text from packages/cli/src/templates.ts) 
 **Trade-off:** four manifest formats and three hook shapes to keep in step; one generator and a test that the committed
 marketplace equals the generated one keep them from drifting. Windows needs Git Bash for the sh launcher (Claude Code
 and Codex use it already); Cursor and Antigravity on Windows without it fall back to `codeceipt init` (later.md).
+
+## D-029 | 2026-11-04 | Portfolio images from the real app
+- `pnpm portfolio:images` runs the production build of the web app against an in-memory PGlite database served over
+  the Postgres wire protocol (pglite-socket; its queue is patched so one client keeps the database until its Sync).
+  It seeds one invented demo project ("salon-booking"), signs in with a real session row (as the e2e test does: no
+  GitHub call), runs the real CLI (`codeceipt login`, `last`, `last --evidence`) in a throwaway git repo, and takes
+  screenshots of the real pages with Playwright.
+- The demo receipts are seeded as the server stores them (no AI call). Each image's text is checked for tokens, keys,
+  emails and ids before it is saved; the demo ids in the CLI's receipt link are replaced with "…".
+- Dev-only package (packages/portfolio); nothing ships to users.

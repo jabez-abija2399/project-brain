@@ -12,3 +12,10 @@ packages/sandbox/* # native binary: the sandbox child runs as the binary itself 
 packages/agent-plugins/* # D-028 native agent plugins (Claude Code, Cursor, Codex, Antigravity) from shared templates
 biome.json # the generated plugin marketplace is not reformatted (D-028)
 .github/workflows/release-cli.yml  # human-owned native release workflow (D-027), added by the owner
+packages/portfolio/* # portfolio images: demo data, screenshots, terminal and cover (Upwork)
+docs/portfolio/* # the portfolio images and their captions
+package.json # pnpm portfolio:images
+pnpm-lock.yaml # portfolio package dependencies
+docs/dependencies.md # pglite-socket and playwright rows
+docs/decisions.md # D-029 portfolio images
+biome.json # generated portfolio html is not linted (if needed)

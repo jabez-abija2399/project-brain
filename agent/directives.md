@@ -63,3 +63,4 @@
 - 2026-11-02: The landing page's how-to section is a clear step-by-step guide (what you need, what to do in each step, where the receipt is), readable without clicking.
 - 2026-11-02: Codeceipt installs like Claude Code: native self-updating binaries (no Node.js needed), one-line installers from the site, codeceipt update / doctor / config auto-update off, hooks call the full installed path, npm stays supported.
 - 2026-11-02: Ship Codeceipt as a native plugin per agent (Claude Code, Cursor, then Codex, Antigravity), installed once per machine; repo setup only links the repo and offers the plugin; `codeceipt init` stays as the fallback and can remove old per-repo files.
+- 2026-11-04: Portfolio images for Upwork from the real app (docs/portfolio/, `pnpm portfolio:images`): demo project "salon-booking" on a local PGlite database, never real user data; only the masked demo secret may appear. Own branch, PR to main, merge when CI is green.

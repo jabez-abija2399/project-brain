@@ -59,3 +59,5 @@ pnpm overrides (package.json): `postcss@<8.5.18`, `@esbuild-kit/core-utils>esbui
 `gaxios@7>rimraf: "-"` (2026-10-31): gaxios 7 (via inngest > OpenTelemetry) lists rimraf but never uses it, and rimraf 5
 pulls glob 10.5.0 and minimatch 9.0.9 (osv-scanner advisories GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249). Remove this
 override when inngest moves to gaxios 8, which has no rimraf.
+| @electric-sql/pglite-socket | packages/portfolio (dev only: serves the demo PGlite database over the Postgres wire protocol so the real app can run on it) | PGlite as a local Postgres server; 0.2.13 pairs with the PGlite 0.5.10 already in the lockfile | embedded-postgres (downloads Postgres binaries, ~60 MB), pg-mem (no wire protocol; the app speaks postgres.js over TCP) | Apache-2.0 | 2026-11-04 |
+| playwright | packages/portfolio (dev only: screenshots of the real pages for docs/portfolio) | Headless Chromium screenshots; 1.63.0 matches the browser the dev container already has | puppeteer (Chrome only, no device scale per context), @playwright/test (test runner not needed) | Apache-2.0 | 2026-11-04 |
