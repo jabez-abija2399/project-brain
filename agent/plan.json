@@ -21,6 +21,305 @@
           "check": "Every receipt shows two separate states for items it cannot call done: 'Done, no test proves it' (the change has file evidence but no test changed) and 'Not verified' (Codeceipt could not check the item, e.g. no file evidence); neither is ever stored or shown as done"
         }
       ]
+    },
+    {
+      "id": "FEAT-020",
+      "title": "Stop gate: the agent cannot say done while the receipt disagrees",
+      "priority": 20,
+      "depends_on": [
+        "FEAT-013",
+        "FEAT-018"
+      ],
+      "origin": "USER REQUIREMENT",
+      "security_sensitive": true,
+      "acceptance": [
+        {
+          "id": "AC-020-01",
+          "kind": "happy",
+          "check": "When the Claude Code Stop hook's receipt has a missed item, a deleted/skipped/weakened test, a new secret or a table with RLS off, the hook blocks the stop with one short instruction listing those findings (Cursor: the stop hook returns them as followup_message)"
+        },
+        {
+          "id": "AC-020-02",
+          "kind": "boundary",
+          "check": "The gate blocks at most 2 times per session; the 3rd stop is let through and the receipt says the gate gave up"
+        },
+        {
+          "id": "AC-020-03",
+          "kind": "negative",
+          "check": "A receipt with nothing blocking, a repo that is not linked, a server error or a timeout never blocks the stop"
+        },
+        {
+          "id": "AC-020-04",
+          "kind": "state",
+          "check": "`codeceipt config stop-gate off` turns the gate off for this user (receipts still made); `on` turns it back on; default on"
+        },
+        {
+          "id": "AC-020-05",
+          "kind": "attack",
+          "check": "The instruction contains only Codeceipt's own wording, item texts the user typed, file paths and masked secrets; checklist text that looks like instructions is quoted as data and capped at 200 characters per item"
+        }
+      ]
+    },
+    {
+      "id": "FEAT-021",
+      "title": "Shareable receipt links",
+      "priority": 21,
+      "depends_on": [
+        "FEAT-013",
+        "FEAT-017"
+      ],
+      "origin": "USER REQUIREMENT",
+      "security_sensitive": true,
+      "acceptance": [
+        {
+          "id": "AC-021-01",
+          "kind": "happy",
+          "check": "The project owner creates a read-only link for one receipt; anyone with the link sees the receipt (request, items, checks, evidence summary) with a 'Receipt by Codeceipt' badge, without signing in"
+        },
+        {
+          "id": "AC-021-02",
+          "kind": "state",
+          "check": "The owner revokes the link; the page then returns 404 and the link cannot be re-enabled (a new link gets a new token)"
+        },
+        {
+          "id": "AC-021-03",
+          "kind": "permission",
+          "check": "Only the project owner can create or revoke a link for its receipts (others get 404); the shared page shows nothing else from the project"
+        },
+        {
+          "id": "AC-021-04",
+          "kind": "attack",
+          "check": "Link tokens are at least 128 random bits and compared in constant time; guessed or altered tokens return 404; the page sends noindex and no-referrer and shows secrets masked"
+        },
+        {
+          "id": "AC-021-05",
+          "kind": "boundary",
+          "check": "A project can have at most 100 active links; creating the 101st returns a clear error"
+        }
+      ]
+    },
+    {
+      "id": "FEAT-022",
+      "title": "Build and test evidence on receipts",
+      "priority": 22,
+      "depends_on": [
+        "FEAT-013"
+      ],
+      "origin": "USER REQUIREMENT",
+      "security_sensitive": true,
+      "acceptance": [
+        {
+          "id": "AC-022-01",
+          "kind": "happy",
+          "check": "With a check command set for the repo (`codeceipt config check \"npm test\"`), the session end runs it locally and the receipt shows passed or failed, exit code and duration"
+        },
+        {
+          "id": "AC-022-02",
+          "kind": "boundary",
+          "check": "The command is stopped after 5 minutes (configurable 30 s to 15 min) and the receipt says it timed out"
+        },
+        {
+          "id": "AC-022-03",
+          "kind": "attack",
+          "check": "The command is stored in the user's config on this computer, never read from the repo; a repo cannot set or change it"
+        },
+        {
+          "id": "AC-022-04",
+          "kind": "attack",
+          "check": "No command output is uploaded or stored: only passed/failed, exit code, duration and test counts when the output states them"
+        },
+        {
+          "id": "AC-022-05",
+          "kind": "negative",
+          "check": "Without a check command, receipts say 'not run' and nothing is executed"
+        }
+      ]
+    },
+    {
+      "id": "FEAT-023",
+      "title": "Receipts on push for GitHub-connected projects (Lovable, Bolt, Replit)",
+      "priority": 23,
+      "depends_on": [
+        "FEAT-009",
+        "FEAT-013"
+      ],
+      "origin": "USER REQUIREMENT",
+      "security_sensitive": true,
+      "acceptance": [
+        {
+          "id": "AC-023-01",
+          "kind": "happy",
+          "check": "A verified GitHub push webhook to a project's connected repository creates one receipt for that push: the commit messages are the request, changed files come from the GitHub compare API, and the secret, RLS, test-integrity and dependency checks run"
+        },
+        {
+          "id": "AC-023-02",
+          "kind": "state",
+          "check": "The same push delivered twice creates one receipt (idempotent by repository and after-SHA)"
+        },
+        {
+          "id": "AC-023-03",
+          "kind": "attack",
+          "check": "An unsigned or wrongly signed webhook does nothing and returns 401; file contents fetched for checks are never stored (only findings, masked)"
+        },
+        {
+          "id": "AC-023-04",
+          "kind": "negative",
+          "check": "A push to a repository not connected to any project, or to a branch other than the default branch, creates no receipt"
+        },
+        {
+          "id": "AC-023-05",
+          "kind": "boundary",
+          "check": "A push with more than 300 changed files gets a receipt that lists the first 300 and says the rest were not checked"
+        }
+      ]
+    },
+    {
+      "id": "FEAT-024",
+      "title": "Live Supabase RLS check",
+      "priority": 24,
+      "depends_on": [
+        "FEAT-015"
+      ],
+      "origin": "USER REQUIREMENT",
+      "security_sensitive": true,
+      "acceptance": [
+        {
+          "id": "AC-024-01",
+          "kind": "happy",
+          "check": "`codeceipt rls` reads the live database given in SUPABASE_DB_URL on the user's computer and uploads per table: RLS on/off and allow-all policies; the dashboard and next receipts show tables open to anyone"
+        },
+        {
+          "id": "AC-024-02",
+          "kind": "attack",
+          "check": "The database URL and password are never uploaded, stored or printed; only table names and flags leave the computer"
+        },
+        {
+          "id": "AC-024-03",
+          "kind": "attack",
+          "check": "The check runs only read-only catalog queries (pg_class, pg_policies) in a read-only transaction"
+        },
+        {
+          "id": "AC-024-04",
+          "kind": "negative",
+          "check": "Without SUPABASE_DB_URL, or when the database cannot be reached in 10 s, the command explains how to set it and uploads nothing"
+        }
+      ]
+    },
+    {
+      "id": "FEAT-025",
+      "title": "Plans and billing: Free, Builder, Pro, Agency, founding offer",
+      "priority": 25,
+      "depends_on": [
+        "FEAT-003",
+        "FEAT-013"
+      ],
+      "origin": "USER REQUIREMENT",
+      "security_sensitive": true,
+      "acceptance": [
+        {
+          "id": "AC-025-01",
+          "kind": "happy",
+          "check": "A signed-in user picks Builder, Pro or Agency on /pricing, pays through Stripe Checkout, and the plan is active after Stripe's verified webhook"
+        },
+        {
+          "id": "AC-025-02",
+          "kind": "state",
+          "check": "Plan limits apply: Free 1 project and 20 AI-judged receipts a month; Builder 5 projects and 150; Pro unlimited projects and 600; Agency 25 projects and 2,000. Over the limit, receipts are still made from git, without the AI judge, and say so"
+        },
+        {
+          "id": "AC-025-03",
+          "kind": "attack",
+          "check": "The plan only changes from a Stripe webhook with a valid signature; a client cannot set its own plan or price"
+        },
+        {
+          "id": "AC-025-04",
+          "kind": "state",
+          "check": "The founding offer ($8 a month for Builder, 12 months) is shown and sold only while fewer than 200 founding subscriptions exist"
+        },
+        {
+          "id": "AC-025-05",
+          "kind": "state",
+          "check": "Cancelling in the Stripe customer portal returns the account to Free at the end of the paid period; data is kept"
+        }
+      ],
+      "notes": "Needs a Stripe account and keys (human). New dependency: stripe (dep-check)."
+    },
+    {
+      "id": "FEAT-026",
+      "title": "Activation funnel for the admin",
+      "priority": 26,
+      "depends_on": [
+        "FEAT-013"
+      ],
+      "origin": "USER REQUIREMENT",
+      "acceptance": [
+        {
+          "id": "AC-026-01",
+          "kind": "happy",
+          "check": "The admin overview shows, per week of sign-up: signed up, linked a repo, first receipt, a receipt that caught something, and the share who reached first receipt within 10 minutes"
+        },
+        {
+          "id": "AC-026-02",
+          "kind": "permission",
+          "check": "Only admins can see the funnel; others get 404"
+        },
+        {
+          "id": "AC-026-03",
+          "kind": "boundary",
+          "check": "The funnel for the last 12 weeks loads in under 1 s with 10,000 users (one aggregate query, no per-user loop)"
+        }
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "id": "REQ-019",
+      "text": "The agent cannot end a session as done while its receipt shows missed items, weakened tests, secrets or open tables (with a cap)",
+      "features": [
+        "FEAT-020"
+      ]
+    },
+    {
+      "id": "REQ-020",
+      "text": "Owners can share a read-only receipt with anyone through a revocable link",
+      "features": [
+        "FEAT-021"
+      ]
+    },
+    {
+      "id": "REQ-021",
+      "text": "Receipts show whether the project's own build or tests still pass",
+      "features": [
+        "FEAT-022"
+      ]
+    },
+    {
+      "id": "REQ-022",
+      "text": "Projects built in Lovable, Bolt or Replit get receipts from GitHub pushes, with no install",
+      "features": [
+        "FEAT-023"
+      ]
+    },
+    {
+      "id": "REQ-023",
+      "text": "The live Supabase database is checked for tables open to anyone",
+      "features": [
+        "FEAT-024"
+      ]
+    },
+    {
+      "id": "REQ-024",
+      "text": "Paid plans with limits and a founding offer",
+      "features": [
+        "FEAT-025"
+      ]
+    },
+    {
+      "id": "REQ-025",
+      "text": "The owner can see how many sign-ups reach a first receipt",
+      "features": [
+        "FEAT-026"
+      ]
     }
   ]
 }
