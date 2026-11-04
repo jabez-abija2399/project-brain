@@ -1,6 +1,6 @@
 import { and, count, eq, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { projects, receipts, stripeEvents, subscriptions } from "../schema";
+import { billingCustomers, judgedUsage, projects, stripeEvents, subscriptions } from "../schema";
 import type { Subscription } from "../schema/billing";
 
 export type SubscriptionWrite = {
@@ -20,6 +20,15 @@ export const billingRepo = {
       .select()
       .from(subscriptions)
       .where(eq(subscriptions.userId, userId))
+      .limit(1);
+    return row ?? null;
+  },
+
+  async forSubscription(db: BrainDb, subscriptionId: string): Promise<Subscription | null> {
+    const [row] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.stripeSubscriptionId, subscriptionId))
       .limit(1);
     return row ?? null;
   },
@@ -59,20 +68,37 @@ export const billingRepo = {
     return row?.n ?? 0;
   },
 
-  /** Receipts the AI judged this month across the user's projects (FEAT-025 plan limit). */
-  async judgedSince(db: BrainDb, userId: string, since: Date): Promise<number> {
+  /** Counts one AI-judged receipt for the user's month, only while under the limit (atomic; never counted back). */
+  async reserveJudged(db: BrainDb, userId: string, month: string, limit: number): Promise<boolean> {
+    if (limit <= 0) return false;
+    const rows = await db
+      .insert(judgedUsage)
+      .values({ userId, month, n: 1 })
+      .onConflictDoUpdate({
+        target: [judgedUsage.userId, judgedUsage.month],
+        set: { n: sql`${judgedUsage.n} + 1` },
+        setWhere: sql`${judgedUsage.n} < ${limit}`,
+      })
+      .returning({ n: judgedUsage.n });
+    return rows.length > 0;
+  },
+
+  async customerFor(db: BrainDb, userId: string): Promise<string | null> {
     const [row] = await db
-      .select({ n: count() })
-      .from(receipts)
-      .innerJoin(projects, eq(projects.id, receipts.projectId))
-      .where(
-        and(
-          eq(projects.ownerId, userId),
-          sql`${receipts.createdAt} >= ${since}`,
-          sql`coalesce((${receipts.summaryJson}->>'llm_calls')::int, 0) > 0`,
-        ),
-      );
-    return row?.n ?? 0;
+      .select({ id: billingCustomers.stripeCustomerId })
+      .from(billingCustomers)
+      .where(eq(billingCustomers.userId, userId))
+      .limit(1);
+    return row?.id ?? null;
+  },
+
+  /** Stores the user's Stripe customer; when another request stored one first, that one is returned. */
+  async saveCustomer(db: BrainDb, userId: string, customerId: string): Promise<string> {
+    await db
+      .insert(billingCustomers)
+      .values({ userId, stripeCustomerId: customerId })
+      .onConflictDoNothing();
+    return (await this.customerFor(db, userId)) ?? customerId;
   },
 
   /** True the first time an event id is seen; a redelivered event returns false and is not applied again. */
@@ -98,20 +124,5 @@ export const billingRepo = {
           updatedAt: new Date(),
         },
       });
-  },
-
-  async updateBySubscription(
-    db: BrainDb,
-    subscriptionId: string,
-    data: Partial<
-      Pick<SubscriptionWrite, "plan" | "status" | "currentPeriodEnd" | "cancelAtPeriodEnd">
-    >,
-  ): Promise<boolean> {
-    const rows = await db
-      .update(subscriptions)
-      .set({ ...data, updatedAt: new Date() })
-      .where(and(eq(subscriptions.stripeSubscriptionId, subscriptionId)))
-      .returning({ id: subscriptions.userId });
-    return rows.length > 0;
   },
 };

@@ -19,3 +19,16 @@ CREATE TABLE "stripe_events" (
   "id" text PRIMARY KEY NOT NULL,
   "received_at" timestamptz NOT NULL DEFAULT now()
 );
+-- One Stripe customer per user, made before the first checkout, so every checkout and subscription shares it.
+CREATE TABLE "billing_customers" (
+  "user_id" text PRIMARY KEY NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+  "stripe_customer_id" text NOT NULL,
+  "created_at" timestamptz NOT NULL DEFAULT now()
+);
+-- AI-judged receipts per user per month: only ever counted up (deleting receipts or projects does not give any back).
+CREATE TABLE "judged_usage" (
+  "user_id" text NOT NULL REFERENCES "user"("id") ON DELETE CASCADE,
+  "month" date NOT NULL,
+  "n" integer NOT NULL DEFAULT 0,
+  PRIMARY KEY ("user_id", "month")
+);

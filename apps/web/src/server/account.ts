@@ -78,7 +78,8 @@ export async function deleteAccount(
   if (row.suspendedAt) throw new AppError(403, "suspended", SUSPENDED_USER);
   // FEAT-025: a paid plan is cancelled in Stripe first, so a deleted account is never charged again.
   const sub = await billingRepo.forUser(db, user.id);
-  if (sub && sub.status !== "canceled" && sub.status !== "incomplete_expired") {
+  // One set to cancel at the period's end is never charged again, so it does not block.
+  if (sub && effectivePlan(sub) !== "free" && !sub.cancelAtPeriodEnd) {
     throw new AppError(
       409,
       "subscribed",

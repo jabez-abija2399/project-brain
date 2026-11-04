@@ -1,5 +1,6 @@
-// FEAT-025: plans and billing. Checkout and the portal go through Stripe (a fake gateway here); the plan only changes
-// from Stripe's webhook with a valid signature (checked by the real stripe SDK below). Attacker tests: "attack: ...".
+// FEAT-025: plans and billing. Checkout, the portal and reading a subscription go through a fake gateway; webhook
+// signatures are checked by the real stripe SDK. The plan only changes from a validly signed webhook, and then to the
+// subscription's state as Stripe has it now. Attacker tests are named "attack: ...".
 import { POST as checkoutRoute } from "@/app/api/billing/checkout/route";
 import { POST as webhookRoute } from "@/app/api/billing/webhook/route";
 import { POST as createProjectRoute } from "@/app/api/projects/route";
@@ -26,9 +27,12 @@ import type { SessionUser } from "./auth";
 import {
   type BillingGateway,
   type CheckoutArgs,
+  type StripeSubscription,
   foundingAvailable,
+  judgeAllowed,
   openPortal,
   planOf,
+  setBillingGatewayForTests,
   startCheckout,
 } from "./billing";
 import { setLlmForTests } from "./llm";
@@ -39,25 +43,36 @@ import { type TestWorld, createTestWorld } from "./test-helpers";
 const KEY = ["sk", "test", "billing", "Xq81Lm"].join("_");
 const WEBHOOK_SECRET = ["whsec", "billingTestSecret81"].join("_");
 const ORIGIN = "https://codeceipt.example.com";
+const stripe = new Stripe(KEY);
 
 let world: TestWorld;
 let user: SessionUser;
 let checkouts: CheckoutArgs[];
-const fakeGateway = (): BillingGateway => ({
+let customersMade: number;
+// Stripe's side: subscriptions as Stripe has them now.
+let stripeSubs: Map<string, StripeSubscription>;
+
+const gateway: BillingGateway = {
+  customer: async () => `cus_${++customersMade}`,
+  subscription: async (id) => stripeSubs.get(id) ?? null,
   checkout: async (args) => {
     checkouts.push(args);
     return "https://checkout.stripe.test/c/pay_1";
   },
   portal: async () => "https://billing.stripe.test/p/session_1",
-  event: () => {
-    throw new Error("not used");
+  event: (body, signature) => {
+    if (!signature) throw new Error("unsigned");
+    return stripe.webhooks.constructEvent(body, signature, WEBHOOK_SECRET);
   },
-});
+};
 
 beforeEach(async () => {
   world = await createTestWorld();
   user = await world.createUser({ name: "maker" });
   checkouts = [];
+  customersMade = 0;
+  stripeSubs = new Map();
+  setBillingGatewayForTests(gateway);
   vi.stubEnv("STRIPE_SECRET_KEY", KEY);
   vi.stubEnv("STRIPE_WEBHOOK_SECRET", WEBHOOK_SECRET);
   vi.stubEnv("STRIPE_PRICE_BUILDER", "price_builder");
@@ -67,10 +82,29 @@ beforeEach(async () => {
   vi.stubEnv("BETTER_AUTH_URL", ORIGIN);
 });
 afterEach(async () => {
+  setBillingGatewayForTests(null);
   vi.unstubAllEnvs();
   setLlmForTests(undefined);
   await world.teardown();
 });
+
+function setSub(
+  id: string,
+  userId: string,
+  over: Partial<StripeSubscription> & { founding?: boolean } = {},
+) {
+  const { founding, ...rest } = over;
+  stripeSubs.set(id, {
+    id,
+    customerId: `cus_${userId.slice(0, 8)}`,
+    status: "active",
+    priceId: "price_builder",
+    currentPeriodEnd: new Date(Date.now() + 20 * 86400_000),
+    cancelAtPeriodEnd: false,
+    metadata: { user_id: userId, founding: String(founding ?? false) },
+    ...rest,
+  });
+}
 
 let eventSeq = 0;
 function signed(type: string, object: Record<string, unknown>, secret = WEBHOOK_SECRET) {
@@ -80,7 +114,7 @@ function signed(type: string, object: Record<string, unknown>, secret = WEBHOOK_
     type,
     data: { object },
   });
-  const header = new Stripe(KEY).webhooks.generateTestHeaderString({ payload, secret });
+  const header = stripe.webhooks.generateTestHeaderString({ payload, secret });
   return { payload, header };
 }
 const deliver = (e: { payload: string; header: string }) =>
@@ -91,35 +125,14 @@ const deliver = (e: { payload: string; header: string }) =>
       body: e.payload,
     }),
   );
-const completed = (userId: string, plan: string, founding = false, sub = "sub_1") =>
+const completed = (subId: string) =>
   signed("checkout.session.completed", {
     object: "checkout.session",
     mode: "subscription",
-    client_reference_id: userId,
-    customer: `cus_${userId.slice(0, 8)}`,
-    subscription: sub,
-    metadata: { user_id: userId, plan, founding: String(founding) },
+    subscription: subId,
   });
-const subscription = (
-  type: string,
-  over: { status?: string; cancelAt?: boolean; end?: Date; price?: string; id?: string } = {},
-) =>
-  signed(type, {
-    object: "subscription",
-    id: over.id ?? "sub_1",
-    status: over.status ?? "active",
-    cancel_at_period_end: over.cancelAt ?? false,
-    items: {
-      data: [
-        {
-          price: { id: over.price ?? "price_builder" },
-          current_period_end: Math.floor(
-            (over.end ?? new Date(Date.now() + 20 * 86400_000)).getTime() / 1000,
-          ),
-        },
-      ],
-    },
-  });
+const subEvent = (type: string, subId: string) =>
+  signed(type, { object: "subscription", id: subId, status: "active" });
 const createProject = (name: string) =>
   createProjectRoute(
     new Request(`${ORIGIN}/api/projects`, {
@@ -131,21 +144,24 @@ const createProject = (name: string) =>
 
 describe("FEAT-025 plans and billing", () => {
   it("AC-025-01 a signed-in user picks a plan, pays through Stripe Checkout, and the plan is active after the verified webhook", async () => {
-    const { url } = await startCheckout(world.db, user, { plan: "pro" }, ORIGIN, fakeGateway());
+    const { url } = await startCheckout(world.db, user, { plan: "pro" }, ORIGIN);
     expect(url).toBe("https://checkout.stripe.test/c/pay_1");
     expect(checkouts[0]).toMatchObject({
       priceId: "price_pro",
       couponId: null,
       userId: user.id,
+      customerId: "cus_1",
       plan: "pro",
       successUrl: `${ORIGIN}/account?billing=success`,
     });
     // Paying is not enough by itself: only the webhook changes the plan.
     expect(await planOf(world.db, user.id)).toBe("free");
-    expect((await deliver(completed(user.id, "pro"))).status).toBe(200);
+    setSub("sub_1", user.id, { priceId: "price_pro" });
+    expect((await deliver(completed("sub_1"))).status).toBe(200);
     expect(await planOf(world.db, user.id)).toBe("pro");
-    const portal = await openPortal(world.db, user, ORIGIN, fakeGateway());
-    expect(portal.url).toBe("https://billing.stripe.test/p/session_1");
+    expect((await openPortal(world.db, user, ORIGIN)).url).toBe(
+      "https://billing.stripe.test/p/session_1",
+    );
   });
 
   it("AC-025-02 plan limits: Free has 1 project, Builder 5; over the monthly AI-judged receipts a receipt is made from git without the judge, and says so", async () => {
@@ -156,16 +172,16 @@ describe("FEAT-025 plans and billing", () => {
     expect(((await second.json()) as { message: string }).message).toMatch(
       /Free plan allows 1 project/,
     );
-    await deliver(completed(user.id, "builder"));
+    setSub("sub_1", user.id);
+    await deliver(completed("sub_1"));
     for (const name of ["two", "three", "four", "five"])
       expect((await createProject(name)).status).toBe(201);
     expect((await createProject("six")).status).toBe(402);
 
-    // Free owner with 20 AI-judged receipts this month.
+    // A Free owner who has used this month's 20 AI-judged receipts.
     const free = await world.createUser({ name: "free" });
     const pid = (await projectsRepo.create(world.db, free.id, { name: "app" })).id;
-    for (let i = 0; i < 20; i++)
-      await receiptsRepo.insert(world.db, pid, { summaryJson: { llm_calls: 1 } });
+    for (let i = 0; i < 20; i++) expect(await judgeAllowed(world.db, pid)).toBe(true);
     let judged = 0;
     const llm: Llm = {
       async complete() {
@@ -197,17 +213,19 @@ describe("FEAT-025 plans and billing", () => {
   });
 
   it("AC-025-03 attack: the plan changes only from a validly signed webhook; a client cannot set its own plan or price", async () => {
-    const forged = completed(user.id, "agency");
-    const wrongSecret = signed(
-      "checkout.session.completed",
-      JSON.parse(forged.payload).data.object,
-      "whsec_wrong",
-    );
-    expect((await deliver(wrongSecret)).status).toBe(400);
-    expect((await deliver({ payload: forged.payload, header: "" })).status).toBe(400);
+    setSub("sub_1", user.id, { priceId: "price_agency" });
+    const real = completed("sub_1");
+    expect(
+      (
+        await deliver(
+          signed("checkout.session.completed", JSON.parse(real.payload).data.object, "whsec_wrong"),
+        )
+      ).status,
+    ).toBe(400);
+    expect((await deliver({ payload: real.payload, header: "" })).status).toBe(400);
     // A valid signature over a different body does not carry over.
     expect(
-      (await deliver({ payload: forged.payload.replace("agency", "pro"), header: forged.header }))
+      (await deliver({ payload: real.payload.replace("sub_1", "sub_2"), header: real.header }))
         .status,
     ).toBe(400);
     expect(await planOf(world.db, user.id)).toBe("free");
@@ -219,9 +237,11 @@ describe("FEAT-025 plans and billing", () => {
       null,
     ]) {
       await expect(
-        startCheckout(world.db, user, body, ORIGIN, fakeGateway()),
+        startCheckout(world.db, user, body, ORIGIN),
         JSON.stringify(body),
-      ).rejects.toMatchObject({ status: 400 });
+      ).rejects.toMatchObject({
+        status: 400,
+      });
     }
     world.signInAs(user);
     const res = await checkoutRoute(
@@ -232,12 +252,13 @@ describe("FEAT-025 plans and billing", () => {
       }),
     );
     expect(res.status).toBe(400);
+    // A subscription on a price that is not ours gives no plan.
+    setSub("sub_3", user.id, { priceId: "price_someone_elses" });
+    await deliver(completed("sub_3"));
     expect(await planOf(world.db, user.id)).toBe("free");
     // A redelivered event is applied once.
-    const once = completed(user.id, "builder");
-    await deliver(once);
-    const again = await deliver(once);
-    expect(await again.json()).toMatchObject({ duplicate: true });
+    await deliver(real);
+    expect(await (await deliver(real)).json()).toMatchObject({ duplicate: true });
   });
 
   it("AC-025-04 the founding offer is shown and sold only while fewer than 200 founding subscriptions exist", async () => {
@@ -245,7 +266,7 @@ describe("FEAT-025 plans and billing", () => {
       renderToStaticMarkup(createElement(PricingBody, { signedIn: true, founding }));
     expect(await foundingAvailable(world.db)).toBe(true);
     expect(page(true)).toMatch(/Builder for \$8 a month for your first 12 months/);
-    await startCheckout(world.db, user, { plan: "founding" }, ORIGIN, fakeGateway());
+    await startCheckout(world.db, user, { plan: "founding" }, ORIGIN);
     expect(checkouts[0]).toMatchObject({
       priceId: "price_builder",
       couponId: "coupon_founding",
@@ -261,42 +282,82 @@ describe("FEAT-025 plans and billing", () => {
         plan: "builder",
         status: "active",
         founding: true,
-        stripeCustomerId: `cus_${i}`,
+        stripeCustomerId: `cus_f${i}`,
         stripeSubscriptionId: `sub_f${i}`,
       })),
     );
     expect(await foundingAvailable(world.db)).toBe(false);
     expect(page(false)).not.toContain("Founding offer");
-    await expect(
-      startCheckout(world.db, user, { plan: "founding" }, ORIGIN, fakeGateway()),
-    ).rejects.toMatchObject({
-      status: 409,
-      code: "founding_sold_out",
-    });
+    await expect(startCheckout(world.db, user, { plan: "founding" }, ORIGIN)).rejects.toMatchObject(
+      {
+        status: 409,
+        code: "founding_sold_out",
+      },
+    );
   });
 
   it("AC-025-05 cancelling in the portal keeps the plan to the end of the paid period, then Free; data is kept", async () => {
     world.signInAs(user);
-    await deliver(completed(user.id, "builder"));
+    setSub("sub_1", user.id);
+    await deliver(completed("sub_1"));
     await createProject("a");
     await createProject("b");
-    const end = new Date(Date.now() + 10 * 86400_000);
-    await deliver(subscription("customer.subscription.updated", { cancelAt: true, end }));
+    setSub("sub_1", user.id, { cancelAtPeriodEnd: true });
+    await deliver(subEvent("customer.subscription.updated", "sub_1"));
     expect(await planOf(world.db, user.id)).toBe("builder");
     expect((await billingRepo.forUser(world.db, user.id))?.cancelAtPeriodEnd).toBe(true);
-    await deliver(
-      subscription("customer.subscription.deleted", {
-        status: "canceled",
-        end: new Date(Date.now() - 1000),
-      }),
-    );
+    // Set to end: the account can be deleted (it is never charged again).
+    setSub("sub_1", user.id, { status: "canceled" });
+    await deliver(subEvent("customer.subscription.deleted", "sub_1"));
     expect(await planOf(world.db, user.id)).toBe("free");
     const owned = await world.db.select().from(projects).where(eq(projects.ownerId, user.id));
     expect(owned).toHaveLength(2);
   });
 
+  it("attack (security review): a late or retried 'active' event cannot bring back a cancelled plan", async () => {
+    setSub("sub_1", user.id);
+    const early = subEvent("customer.subscription.updated", "sub_1");
+    await deliver(completed("sub_1"));
+    setSub("sub_1", user.id, { status: "canceled" });
+    await deliver(subEvent("customer.subscription.deleted", "sub_1"));
+    // The 'active' event Stripe retries after the deletion: the state is read back from Stripe.
+    await deliver(early);
+    expect(await planOf(world.db, user.id)).toBe("free");
+    // An unpaid checkout (Stripe has the subscription as incomplete) gives no plan.
+    const other = await world.createUser({ name: "unpaid" });
+    setSub("sub_9", other.id, { status: "incomplete" });
+    await deliver(completed("sub_9"));
+    expect(await planOf(world.db, other.id)).toBe("free");
+  });
+
+  it("attack (security review): deleting receipts or projects gives no AI-judged receipts back; parallel calls stop at the limit", async () => {
+    const pid = (await projectsRepo.create(world.db, user.id, { name: "app" })).id;
+    const results = await Promise.all(
+      Array.from({ length: 25 }, () => judgeAllowed(world.db, pid)),
+    );
+    expect(results.filter(Boolean)).toHaveLength(20);
+    await world.db.delete(receipts).where(eq(receipts.projectId, pid));
+    await world.db.delete(projects).where(eq(projects.id, pid));
+    const again = (await projectsRepo.create(world.db, user.id, { name: "app2" })).id;
+    expect(await judgeAllowed(world.db, again)).toBe(false);
+    expect(receiptsRepo).toBeDefined();
+  });
+
+  it("attack (security review): a second checkout uses the same Stripe customer, and its subscription never replaces the first", async () => {
+    await startCheckout(world.db, user, { plan: "builder" }, ORIGIN);
+    await startCheckout(world.db, user, { plan: "pro" }, ORIGIN);
+    expect(customersMade).toBe(1);
+    expect(checkouts.map((c) => c.customerId)).toEqual(["cus_1", "cus_1"]);
+    setSub("sub_1", user.id);
+    setSub("sub_2", user.id, { priceId: "price_pro" });
+    await deliver(completed("sub_1"));
+    await deliver(completed("sub_2"));
+    expect((await billingRepo.forUser(world.db, user.id))?.stripeSubscriptionId).toBe("sub_1");
+  });
+
   it("attack: an account with a paid plan cannot be deleted until the plan is cancelled (no charging a deleted account)", async () => {
-    await deliver(completed(user.id, "pro"));
+    setSub("sub_1", user.id, { priceId: "price_pro" });
+    await deliver(completed("sub_1"));
     await expect(deleteAccount(world.db, user, { confirm: "maker" })).rejects.toMatchObject({
       status: 409,
     });
@@ -307,8 +368,8 @@ describe("FEAT-025 plans and billing", () => {
     world.signInAs(user);
     expect((await createProject("one")).status).toBe(201);
     expect((await createProject("two")).status).toBe(201);
-    await expect(
-      startCheckout(world.db, user, { plan: "pro" }, ORIGIN, fakeGateway()),
-    ).rejects.toMatchObject({ status: 503 });
+    await expect(startCheckout(world.db, user, { plan: "pro" }, ORIGIN)).rejects.toMatchObject({
+      status: 503,
+    });
   });
 });

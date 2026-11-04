@@ -14,13 +14,25 @@ export type CheckoutArgs = {
   couponId: string | null;
   userId: string;
   email: string;
-  customerId: string | null;
+  customerId: string;
   plan: PlanId;
   founding: boolean;
   successUrl: string;
   cancelUrl: string;
 };
+/** A subscription as Stripe has it now (read back on every event, so event order and replays do not matter). */
+export type StripeSubscription = {
+  id: string;
+  customerId: string;
+  status: string;
+  priceId: string | null;
+  currentPeriodEnd: Date | null;
+  cancelAtPeriodEnd: boolean;
+  metadata: Record<string, string>;
+};
 export type BillingGateway = {
+  customer(email: string, userId: string): Promise<string>;
+  subscription(id: string): Promise<StripeSubscription | null>;
   checkout(args: CheckoutArgs): Promise<string>;
   portal(customerId: string, returnUrl: string): Promise<string>;
   /** The verified event; throws when the signature or the body is not Stripe's. */
@@ -49,12 +61,37 @@ export function stripeGateway(): BillingGateway {
   if (!key) throw new AppError(503, "billing_not_configured", "billing is not set up");
   const stripe = new Stripe(key);
   return {
+    async customer(email, userId) {
+      const c = await stripe.customers.create({ email, metadata: { user_id: userId } });
+      return c.id;
+    },
+    async subscription(subId) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(subId);
+        const item = sub.items.data[0] as
+          | (Stripe.SubscriptionItem & { current_period_end?: number })
+          | undefined;
+        const end = item?.current_period_end;
+        return {
+          id: sub.id,
+          customerId: typeof sub.customer === "string" ? sub.customer : sub.customer.id,
+          status: sub.status,
+          priceId: item?.price.id ?? null,
+          currentPeriodEnd: typeof end === "number" ? new Date(end * 1000) : null,
+          cancelAtPeriodEnd: sub.cancel_at_period_end,
+          metadata: sub.metadata ?? {},
+        };
+      } catch (err) {
+        if ((err as { statusCode?: number }).statusCode === 404) return null;
+        throw err;
+      }
+    },
     async checkout(a) {
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         line_items: [{ price: a.priceId, quantity: 1 }],
         client_reference_id: a.userId,
-        ...(a.customerId ? { customer: a.customerId } : { customer_email: a.email }),
+        customer: a.customerId,
         ...(a.couponId ? { discounts: [{ coupon: a.couponId }] } : {}),
         metadata: { user_id: a.userId, plan: a.plan, founding: String(a.founding) },
         subscription_data: {
@@ -82,6 +119,13 @@ export function stripeGateway(): BillingGateway {
   };
 }
 
+let testGateway: BillingGateway | null = null;
+/** Tests only: a gateway in place of Stripe's API (signatures are still checked by the real SDK in the tests). */
+export function setBillingGatewayForTests(g: BillingGateway | null): void {
+  testGateway = g;
+}
+export const billingGateway = (): BillingGateway => testGateway ?? stripeGateway();
+
 export async function planOf(db: BrainDb, userId: string, now = new Date()): Promise<PlanId> {
   return effectivePlan(await billingRepo.forUser(db, userId), now);
 }
@@ -100,7 +144,7 @@ export async function startCheckout(
   user: SessionUser,
   raw: unknown,
   origin: string,
-  gateway: BillingGateway = stripeGateway(),
+  gateway: BillingGateway = billingGateway(),
 ): Promise<{ url: string }> {
   if (!billingEnabled()) throw new AppError(503, "billing_not_configured", "billing is not set up");
   const parsed = checkoutSchema.safeParse(raw);
@@ -120,6 +164,10 @@ export async function startCheckout(
       "you already have a plan: change it in Manage billing",
     );
   }
+  const customerId =
+    current?.stripeCustomerId ??
+    (await billingRepo.customerFor(db, user.id)) ??
+    (await billingRepo.saveCustomer(db, user.id, await gateway.customer(user.email, user.id)));
   const priceId = process.env[priceEnv[plan]];
   const couponId = founding ? (process.env.STRIPE_COUPON_FOUNDING ?? null) : null;
   if (!priceId || (founding && !couponId)) {
@@ -130,7 +178,7 @@ export async function startCheckout(
     couponId,
     userId: user.id,
     email: user.email,
-    customerId: current?.stripeCustomerId ?? null,
+    customerId,
     plan,
     founding,
     successUrl: `${origin}/account?billing=success`,
@@ -143,7 +191,7 @@ export async function openPortal(
   db: BrainDb,
   user: SessionUser,
   origin: string,
-  gateway: BillingGateway = stripeGateway(),
+  gateway: BillingGateway = billingGateway(),
 ): Promise<{ url: string }> {
   const current = await billingRepo.forUser(db, user.id);
   if (!current) throw new AppError(404, "not_found", "no subscription to manage");
@@ -159,7 +207,7 @@ const str = (v: unknown) => (typeof v === "string" && v.length <= 255 ? v : null
 export async function handleStripeWebhook(
   db: BrainDb,
   req: Request,
-  gateway: BillingGateway = stripeGateway(),
+  gateway: BillingGateway = billingGateway(),
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const body = await req.text();
   if (body.length > MAX_WEBHOOK_BYTES) return { status: 413, body: { error: "too_large" } };
@@ -172,63 +220,52 @@ export async function handleStripeWebhook(
   const applied = await db.transaction(async (tx) => {
     const t = tx as unknown as BrainDb;
     if (!(await billingRepo.markEvent(t, event.id))) return false;
-    await applyEvent(t, event);
+    await applyEvent(t, event, gateway);
     return true;
   });
   return { status: 200, body: { ok: true, ...(applied ? {} : { duplicate: true }) } };
 }
 
-type SubLike = {
-  id: string;
-  status: string;
-  cancel_at_period_end?: boolean;
-  current_period_end?: number;
-  items?: { data?: { price?: { id?: string }; current_period_end?: number }[] };
-};
-
-function periodEnd(sub: SubLike): Date | null {
-  const end = sub.items?.data?.[0]?.current_period_end ?? sub.current_period_end;
-  return typeof end === "number" ? new Date(end * 1000) : null;
-}
-
-async function applyEvent(db: BrainDb, event: Stripe.Event): Promise<void> {
+/**
+ * Every subscription event (and a completed checkout) is applied by reading the subscription back from Stripe and
+ * writing its current state, so a late, retried or out-of-order event can never bring back an old state (security
+ * review). The user comes from the row already stored, or from metadata our own server set at checkout.
+ */
+async function applyEvent(
+  db: BrainDb,
+  event: Stripe.Event,
+  gateway: BillingGateway,
+): Promise<void> {
   const obj = event.data.object as unknown as Record<string, unknown>;
+  let subId: string | null = null;
   if (event.type === "checkout.session.completed") {
-    if (obj.mode !== "subscription") return;
-    // Set by our own server when it made the session (startCheckout), and delivered in a signed event.
-    const userId = str(obj.client_reference_id);
-    const meta = (obj.metadata ?? {}) as Record<string, unknown>;
-    const customerId = str(id(obj.customer));
-    const subscriptionId = str(id(obj.subscription));
-    if (!userId || !customerId || !subscriptionId || !isPlanId(meta.plan) || meta.plan === "free") {
-      return;
-    }
-    await billingRepo.upsert(db, userId, {
-      plan: meta.plan,
-      status: "active",
-      founding: meta.founding === "true",
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: subscriptionId,
-      currentPeriodEnd: null,
-      cancelAtPeriodEnd: false,
-    });
+    if (obj.mode === "subscription") subId = str(id(obj.subscription));
+  } else if (event.type.startsWith("customer.subscription.")) {
+    subId = str(obj.id);
+  }
+  if (!subId) return;
+  const sub = await gateway.subscription(subId);
+  if (!sub) return;
+  const existing = await billingRepo.forSubscription(db, sub.id);
+  const userId = existing?.userId ?? str(sub.metadata.user_id);
+  const plan = planForPrice(sub.priceId);
+  if (!userId || !plan) return;
+  const current = existing ?? (await billingRepo.forUser(db, userId));
+  // A second live subscription for the same user (two checkouts at once) never replaces the first one's row; both
+  // are on the same Stripe customer, so the portal shows and cancels either.
+  if (current && current.stripeSubscriptionId !== sub.id && effectivePlan(current) !== "free") {
+    console.warn("[billing]", JSON.stringify({ event: "second_subscription_ignored" }));
     return;
   }
-  if (
-    event.type === "customer.subscription.updated" ||
-    event.type === "customer.subscription.deleted" ||
-    event.type === "customer.subscription.created"
-  ) {
-    const sub = obj as unknown as SubLike;
-    if (!str(sub.id)) return;
-    const plan = planForPrice(sub.items?.data?.[0]?.price?.id);
-    await billingRepo.updateBySubscription(db, sub.id, {
-      ...(plan ? { plan } : {}),
-      status: event.type === "customer.subscription.deleted" ? "canceled" : String(sub.status),
-      currentPeriodEnd: periodEnd(sub),
-      cancelAtPeriodEnd: sub.cancel_at_period_end === true,
-    });
-  }
+  await billingRepo.upsert(db, userId, {
+    plan,
+    status: sub.status,
+    founding: sub.metadata.founding === "true",
+    stripeCustomerId: sub.customerId,
+    stripeSubscriptionId: sub.id,
+    currentPeriodEnd: sub.currentPeriodEnd,
+    cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+  });
 }
 
 /** Project creation: the plan's project count (only when billing is on). */
@@ -245,7 +282,10 @@ export async function assertCanCreateProject(db: BrainDb, userId: string): Promi
   }
 }
 
-/** True while the project owner's plan still has AI-judged receipts this month (always true without billing). */
+/**
+ * Counts one AI-judged receipt against the project owner's plan for this month; false when the month's are used up
+ * (always true without billing). The count never goes down, so deleting receipts or projects gives none back.
+ */
 export async function judgeAllowed(
   db: BrainDb,
   projectId: string,
@@ -255,7 +295,8 @@ export async function judgeAllowed(
   const ownerId = await billingRepo.ownerOf(db, projectId);
   if (!ownerId) return false;
   const plan = PLANS[await planOf(db, ownerId, now)];
-  return (await billingRepo.judgedSince(db, ownerId, monthStart(now))) < plan.judgedPerMonth;
+  const month = monthStart(now).toISOString().slice(0, 10);
+  return billingRepo.reserveJudged(db, ownerId, month, plan.judgedPerMonth);
 }
 
 export const PLAN_LIMIT_NOTE =

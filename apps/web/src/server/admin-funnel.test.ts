@@ -111,18 +111,14 @@ describe("FEAT-026 activation funnel", () => {
           createdAt: new Date(start + (i + j) * 600_000),
         })),
       );
-      await world.db
-        .insert(projects)
-        .values(
-          ids
-            .slice(i, i + 1000)
-            .map((id, j) => ({
-              id: `p-${id}`,
-              ownerId: id,
-              name: id,
-              ...((i + j) % 2 ? { repoFingerprint: "r=a;o=b" } : {}),
-            })),
-        );
+      await world.db.insert(projects).values(
+        ids.slice(i, i + 1000).map((id, j) => ({
+          id: `p-${id}`,
+          ownerId: id,
+          name: id,
+          ...((i + j) % 2 ? { repoFingerprint: "r=a;o=b" } : {}),
+        })),
+      );
       await world.db.insert(receipts).values(
         ids
           .slice(i, i + 1000)

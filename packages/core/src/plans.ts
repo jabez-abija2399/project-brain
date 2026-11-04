@@ -27,17 +27,12 @@ export const isPlanId = (v: unknown): v is PlanId =>
 const PAID = new Set(["active", "trialing", "past_due"]);
 
 /**
- * The plan in force: a paid status keeps the plan; a cancelled subscription keeps it until the end of the period
- * it was paid for, then the account is on Free (its data is kept).
+ * The plan in force: a paid Stripe status keeps the plan. Cancelling in the portal keeps the subscription active to
+ * the end of the paid period; Stripe then ends it ("canceled") and the account is on Free (its data is kept).
  */
-export function effectivePlan(
-  sub: { plan: string; status: string; currentPeriodEnd: Date | null } | null,
-  now: Date,
-): PlanId {
+export function effectivePlan(sub: { plan: string; status: string } | null, _now?: Date): PlanId {
   if (!sub || !isPlanId(sub.plan)) return "free";
-  if (PAID.has(sub.status)) return sub.plan;
-  if (sub.currentPeriodEnd && sub.currentPeriodEnd.getTime() > now.getTime()) return sub.plan;
-  return "free";
+  return PAID.has(sub.status) ? sub.plan : "free";
 }
 
 export function monthStart(now: Date): Date {

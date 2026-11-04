@@ -1,4 +1,14 @@
-import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  index,
+  integer,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
 import { users } from "./auth";
 import { createdAt } from "./columns";
 
@@ -32,5 +42,25 @@ export const stripeEvents = pgTable("stripe_events", {
   id: text("id").primaryKey(),
   receivedAt: timestamp("received_at", { withTimezone: true, mode: "date" }).notNull().defaultNow(),
 });
+
+export const billingCustomers = pgTable("billing_customers", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+  createdAt: createdAt(),
+});
+
+export const judgedUsage = pgTable(
+  "judged_usage",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    month: date("month", { mode: "string" }).notNull(),
+    n: integer("n").notNull().default(0),
+  },
+  (t) => ({ pk: primaryKey({ columns: [t.userId, t.month] }) }),
+);
 
 export type Subscription = typeof subscriptions.$inferSelect;
