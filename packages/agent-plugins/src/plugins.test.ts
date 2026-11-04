@@ -74,7 +74,12 @@ describe("one plugin per agent, from shared templates", () => {
     const doc = json(`${root}/hooks/hooks.json`);
     expect(doc.version).toBe(1);
     const hooks = doc.hooks as Record<string, { command: string }[]>;
-    expect(Object.keys(hooks).sort()).toEqual(["beforeSubmitPrompt", "sessionEnd", "sessionStart", "stop"]);
+    expect(Object.keys(hooks).sort()).toEqual([
+      "beforeSubmitPrompt",
+      "sessionEnd",
+      "sessionStart",
+      "stop",
+    ]);
     expect(hooks.beforeSubmitPrompt?.[0]?.command).toBe(
       'sh "${CURSOR_PLUGIN_ROOT}/scripts/codeceipt.sh" hook prompt cursor',
     );
