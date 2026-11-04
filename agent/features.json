@@ -2408,45 +2408,68 @@
           "id": "AC-021-01",
           "kind": "happy",
           "check": "The project owner creates a read-only link for one receipt; anyone with the link sees the receipt (request, items, checks, evidence summary) with a 'Receipt by Codeceipt' badge, without signing in",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-021-01"
         },
         {
           "id": "AC-021-02",
           "kind": "state",
           "check": "The owner revokes the link; the page then returns 404 and the link cannot be re-enabled (a new link gets a new token)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-021-02"
         },
         {
           "id": "AC-021-03",
           "kind": "permission",
           "check": "Only the project owner can create or revoke a link for its receipts (others get 404); the shared page shows nothing else from the project",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-021-03"
         },
         {
           "id": "AC-021-04",
           "kind": "attack",
           "check": "Link tokens are at least 128 random bits and compared in constant time; guessed or altered tokens return 404; the page sends noindex and no-referrer and shows secrets masked",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-021-04"
         },
         {
           "id": "AC-021-05",
           "kind": "boundary",
           "check": "A project can have at most 100 active links; creating the 101st returns a clear error",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-021-05"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/api/hooks/[projectId]/check-run/route.ts",
+        "apps/web/src/app/api/projects/[id]/receipts/[receiptId]/share/route.ts",
+        "apps/web/src/app/api/projects/[id]/share-links/[linkId]/route.ts",
+        "apps/web/src/app/projects/[id]/receipts/page.tsx",
+        "apps/web/src/app/r/[token]/page.tsx",
+        "apps/web/src/components/checklist-item.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/components/share-receipt.tsx",
+        "apps/web/src/server/check-run.test.ts",
+        "apps/web/src/server/check-run.ts",
+        "apps/web/src/server/dashboard.ts",
+        "apps/web/src/server/share-links.test.ts",
+        "apps/web/src/server/share-links.ts",
+        "packages/core/src/fix-prompt.ts",
+        "packages/db/migrations/0044_receipt_share_links.sql",
+        "packages/db/src/migration-check.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/receipts.ts",
+        "packages/db/src/repos/share-links.ts",
+        "packages/db/src/schema/index.ts",
+        "packages/db/src/schema/share-links.ts"
+      ]
     },
     {
       "id": "FEAT-022",
@@ -2464,45 +2487,63 @@
           "id": "AC-022-01",
           "kind": "happy",
           "check": "With a check command set for the repo (`codeceipt config check \"npm test\"`), the session end runs it locally and the receipt shows passed or failed, exit code and duration",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-022-01"
         },
         {
           "id": "AC-022-02",
           "kind": "boundary",
           "check": "The command is stopped after 5 minutes (configurable 30 s to 15 min) and the receipt says it timed out",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-022-02"
         },
         {
           "id": "AC-022-03",
           "kind": "attack",
           "check": "The command is stored in the user's config on this computer, never read from the repo; a repo cannot set or change it",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-022-03"
         },
         {
           "id": "AC-022-04",
           "kind": "attack",
           "check": "No command output is uploaded or stored: only passed/failed, exit code, duration and test counts when the output states them",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-022-04"
         },
         {
           "id": "AC-022-05",
           "kind": "negative",
           "check": "Without a check command, receipts say 'not run' and nothing is executed",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-022-05"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/api/hooks/[projectId]/check-run/route.ts",
+        "apps/web/src/components/checklist-item.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/server/check-run.test.ts",
+        "apps/web/src/server/check-run.ts",
+        "apps/web/src/server/share-links.test.ts",
+        "apps/web/src/server/share-links.ts",
+        "packages/cli/src/check-run.test.ts",
+        "packages/cli/src/check-run.ts",
+        "packages/cli/src/config.ts",
+        "packages/cli/src/hooks.ts",
+        "packages/cli/src/index.ts",
+        "packages/core/src/fix-prompt.test.ts",
+        "packages/core/src/fix-prompt.ts",
+        "packages/db/src/repos/receipts.ts",
+        "packages/db/src/repos/share-links.ts"
+      ]
     },
     {
       "id": "FEAT-023",
@@ -2521,45 +2562,57 @@
           "id": "AC-023-01",
           "kind": "happy",
           "check": "A verified GitHub push webhook to a project's connected repository creates one receipt for that push: the commit messages are the request, changed files come from the GitHub compare API, and the secret, RLS, test-integrity and dependency checks run",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-023-01"
         },
         {
           "id": "AC-023-02",
           "kind": "state",
           "check": "The same push delivered twice creates one receipt (idempotent by repository and after-SHA)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-023-02"
         },
         {
           "id": "AC-023-03",
           "kind": "attack",
           "check": "An unsigned or wrongly signed webhook does nothing and returns 401; file contents fetched for checks are never stored (only findings, masked)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-023-03"
         },
         {
           "id": "AC-023-04",
           "kind": "negative",
           "check": "A push to a repository not connected to any project, or to a branch other than the default branch, creates no receipt",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-023-04"
         },
         {
           "id": "AC-023-05",
           "kind": "boundary",
           "check": "A push with more than 300 changed files gets a receipt that lists the first 300 and says the rest were not checked",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-023-05"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/server/github-test-helpers.ts",
+        "apps/web/src/server/inngest-functions.ts",
+        "apps/web/src/server/push-index.ts",
+        "apps/web/src/server/push-receipt.test.ts",
+        "apps/web/src/server/push-receipt.ts",
+        "apps/web/src/server/receipt.ts",
+        "packages/core/src/fix-prompt.test.ts",
+        "packages/core/src/fix-prompt.ts",
+        "packages/db/src/repos/receipts.ts"
+      ]
     },
     {
       "id": "FEAT-024",
@@ -2577,37 +2630,43 @@
           "id": "AC-024-01",
           "kind": "happy",
           "check": "`codeceipt rls` reads the live database given in SUPABASE_DB_URL on the user's computer and uploads per table: RLS on/off and allow-all policies; the dashboard and next receipts show tables open to anyone",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-024-01"
         },
         {
           "id": "AC-024-02",
           "kind": "attack",
           "check": "The database URL and password are never uploaded, stored or printed; only table names and flags leave the computer",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-024-02"
         },
         {
           "id": "AC-024-03",
           "kind": "attack",
           "check": "The check runs only read-only catalog queries (pg_class, pg_policies) in a read-only transaction",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-024-03"
         },
         {
           "id": "AC-024-04",
           "kind": "negative",
           "check": "Without SUPABASE_DB_URL, or when the database cannot be reached in 10 s, the command explains how to set it and uploads nothing",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-024-04"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "packages/cli/package.json",
+        "packages/cli/src/index.ts",
+        "packages/cli/src/live-rls.test.ts",
+        "packages/cli/src/live-rls.ts"
+      ]
     },
     {
       "id": "FEAT-025",
@@ -2626,45 +2685,75 @@
           "id": "AC-025-01",
           "kind": "happy",
           "check": "A signed-in user picks Builder, Pro or Agency on /pricing, pays through Stripe Checkout, and the plan is active after Stripe's verified webhook",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-025-01"
         },
         {
           "id": "AC-025-02",
           "kind": "state",
           "check": "Plan limits apply: Free 1 project and 20 AI-judged receipts a month; Builder 5 projects and 150; Pro unlimited projects and 600; Agency 25 projects and 2,000. Over the limit, receipts are still made from git, without the AI judge, and say so",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-025-02"
         },
         {
           "id": "AC-025-03",
           "kind": "attack",
           "check": "The plan only changes from a Stripe webhook with a valid signature; a client cannot set its own plan or price",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-025-03"
         },
         {
           "id": "AC-025-04",
           "kind": "state",
           "check": "The founding offer ($8 a month for Builder, 12 months) is shown and sold only while fewer than 200 founding subscriptions exist",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-025-04"
         },
         {
           "id": "AC-025-05",
           "kind": "state",
           "check": "Cancelling in the Stripe customer portal returns the account to Free at the end of the paid period; data is kept",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-025-05"
         }
       ],
-      "status": "in_progress",
-      "notes": "Needs a Stripe account and keys (human). New dependency: stripe (dep-check)."
+      "status": "done",
+      "notes": "Needs a Stripe account and keys (human). New dependency: stripe (dep-check).",
+      "files": [
+        ".env.example",
+        "apps/web/package.json",
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/api/billing/checkout/route.ts",
+        "apps/web/src/app/api/billing/portal/route.ts",
+        "apps/web/src/app/api/billing/webhook/route.ts",
+        "apps/web/src/app/api/projects/route.ts",
+        "apps/web/src/app/pricing/page.tsx",
+        "apps/web/src/components/billing-button.tsx",
+        "apps/web/src/components/landing/site-footer.tsx",
+        "apps/web/src/components/pricing-body.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/server/account.ts",
+        "apps/web/src/server/admin-funnel.test.ts",
+        "apps/web/src/server/billing.test.ts",
+        "apps/web/src/server/billing.ts",
+        "apps/web/src/server/device.ts",
+        "apps/web/src/server/receipt.ts",
+        "packages/core/src/fix-prompt.test.ts",
+        "packages/core/src/fix-prompt.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/plans.ts",
+        "packages/db/migrations/0045_billing.sql",
+        "packages/db/src/migration-check.ts",
+        "packages/db/src/repos/billing.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/schema/billing.ts",
+        "packages/db/src/schema/index.ts"
+      ]
     },
     {
       "id": "FEAT-026",
@@ -2682,32 +2771,38 @@
           "id": "AC-026-01",
           "kind": "happy",
           "check": "The admin overview shows, per week of sign-up: signed up, linked a repo, first receipt, a receipt that caught something, and the share who reached first receipt within 10 minutes",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-026-01"
         },
         {
           "id": "AC-026-02",
           "kind": "permission",
           "check": "Only admins can see the funnel; others get 404",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-026-02"
         },
         {
           "id": "AC-026-03",
           "kind": "boundary",
           "check": "The funnel for the last 12 weeks loads in under 1 s with 10,000 users (one aggregate query, no per-user loop)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 12:48; log contains AC-026-03"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/admin/page.tsx",
+        "apps/web/src/server/admin-data.ts",
+        "apps/web/src/server/admin-funnel.test.ts",
+        "packages/db/src/repos/admin.ts"
+      ]
     }
   ],
   "meta": {
-    "tests_passed": 1484
+    "tests_passed": 1537
   }
 }

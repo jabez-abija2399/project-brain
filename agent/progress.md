@@ -1,5 +1,36 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-04 | FEAT-026 activation funnel for the admin | status: done
+Changed: adminRepo.funnel (one aggregate SQL: weekly sign-up cohorts, linked a repo, first receipt, caught something, first receipt within 10 min); adminFunnel (last 12 weeks); table on /admin.
+Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); CI verify on 9d0e3e1 PASS (build, e2e, audit, gitleaks, semgrep, osv); kit.py pass for every AC from the test log. 10,000-user funnel in under 1 s on PGlite.
+NOT VERIFIED: real Neon timing; no fresh-context security review (admin-only read of counts).
+Next: none in this stack; PR #43 waits on the human.
+
+## 2026-11-04 | FEAT-025 plans and billing (Stripe) | status: done
+Changed: core plans.ts (Free/Builder/Pro/Agency, founding $8 x 12 months, first 200); migration 0045 (subscriptions, stripe_events, billing_customers, judged_usage); billing.ts (Checkout, portal, verified webhook that reads each subscription back from Stripe, project limit, monthly AI-judge counter that never goes down); /pricing; account Plan section; no delete while a paid plan is active. Limits only when STRIPE_SECRET_KEY is set (D-029). stripe 23.0.1 added.
+Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); CI verify on 9d0e3e1 PASS (build, e2e, audit, gitleaks, semgrep, osv); kit.py pass for every AC from the test log. Fresh-context security review: 4 MEDIUM fixed (replays/order, unpaid, judge bypass, double checkout).
+NOT VERIFIED: a real Stripe account (test mode) end to end; coupon max_redemptions is set by the human in Stripe. Known LOW items in agent/later.md (project-limit race, refunds/disputes, BILLING_ENABLED flag).
+
+## 2026-11-04 | FEAT-024 live Supabase RLS check (codeceipt rls) | status: done
+Changed: CLI live-rls.ts (read-only transaction, catalog queries, every app schema, TLS required for remote hosts), runLiveRls (refused inside an agent; late connections closed); uploads flags only. postgres dependency in the CLI.
+Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); CI verify on 9d0e3e1 PASS (build, e2e, audit, gitleaks, semgrep, osv); kit.py pass for every AC from the test log. Security review: TLS downgrade, agent refusal, schemas, leak fixed.
+NOT VERIFIED: a real Supabase database. Known: rls and index both replace flags (agent/later.md).
+
+## 2026-11-04 | FEAT-023 receipts on GitHub push (Lovable, Bolt, Replit) | status: done
+Changed: push-receipt.ts (commit messages stored as written, compare up to 300 files, secret scan incl. .env, test integrity, package.json fetched in the last step only, retry-safe, 200 a day per project); server-made receipts may list 300 files, agent receipts stay at 200 (AC-013-06).
+Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); CI verify on 9d0e3e1 PASS (build, e2e, audit, gitleaks, semgrep, osv); kit.py pass for every AC from the test log. Security review findings fixed.
+NOT VERIFIED: a real GitHub App push on a Lovable/Bolt/Replit repo.
+
+## 2026-11-04 | FEAT-022 build and test evidence | status: done
+Changed: CLI check-run (per-repo command in the user config, never from the repo, refused inside an agent, background, timeout 30-900 s, only result fields posted); server check-run route (first result wins, 409 after); card "Build and tests".
+Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); CI verify on 9d0e3e1 PASS (build, e2e, audit, gitleaks, semgrep, osv); kit.py pass for every AC from the test log. Security review findings fixed.
+NOT VERIFIED: Windows process-tree kill on a real machine.
+
+## 2026-11-04 | FEAT-021 shareable receipt links | status: done
+Changed: migration 0044, shareLinksRepo (hash only, 100 active per project under an advisory lock), create/revoke routes, /r/[token] read-only page (noindex, no-referrer, no ids), Share button.
+Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); CI verify on 9d0e3e1 PASS (build, e2e, audit, gitleaks, semgrep, osv); kit.py pass for every AC from the test log. Security review findings fixed.
+NOT VERIFIED: real browser click-through of share and revoke.
+
 ## 2026-10-29 | FEAT-018 test integrity check in receipts | status: done
 Changed: core test-source.ts (linear tokenizer: comments/strings blanked, bracket pairs in one pass) + test-integrity.ts (deleted test files/tests, skip/only/xit/options/ctx skip, removed expect/assert, test-config selection changes incl. package.json; renames by body fingerprint ignoring whitespace/trailing commas). CLI session-end hook compares git base vs working tree locally and sends only flags (masked names/paths, max 50 by priority + omitted) and passing counts from PROJECTBRAIN_TEST_REPORT (<=1e6). Server validates (zod strict), cleans paths, adds passing_tests_dropped; dashboard shows "Test checks".
 Verified (ran this session): fresh-context security pass added 3 test files (36 attacks); fixed rename false alarm, ReDoS-quadratic brackets, flag/count caps, client-side masking, bidi in file names; verify.sh PASS (typecheck, lint, tests 753, kit guard); kit.py pass AC-018-01..05.
