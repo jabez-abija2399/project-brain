@@ -41,7 +41,16 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function ReceiptCard({
   receipt,
   expanded = false,
-}: { receipt: ReceiptCardData; expanded?: boolean }) {
+  readOnly = false,
+  share,
+}: {
+  receipt: ReceiptCardData;
+  expanded?: boolean;
+  // FEAT-021: a shared receipt shows no owner actions and no fix prompt.
+  readOnly?: boolean;
+  // FEAT-021: the owner's share control for this receipt (absent on a shared page).
+  share?: ReactNode;
+}) {
   const { view } = receipt;
   // Owner item 3: an item the owner closed is counted apart, never as the agent's done.
   const count = (s: string) => view.items.filter((i) => i.status === s && !i.closedByOwner).length;
@@ -197,7 +206,10 @@ export function ReceiptCard({
                     closedByOwner={i.closedByOwner}
                     // Owner item 1: an unresolved item with a plain id can be closed or dismissed by the owner.
                     action={
-                      i.itemId !== undefined && UNRESOLVED.has(i.status) && !i.closedByOwner
+                      !readOnly &&
+                      i.itemId !== undefined &&
+                      UNRESOLVED.has(i.status) &&
+                      !i.closedByOwner
                         ? { projectId: receipt.projectId, itemId: i.itemId }
                         : undefined
                     }
@@ -332,9 +344,10 @@ export function ReceiptCard({
               </ul>
             </Section>
           )}
-          {receipt.fixPrompt && (
+          {!readOnly && receipt.fixPrompt && (
             <CopyButton text={receipt.fixPrompt} label="Send fix to agent" variant="primary" />
           )}
+          {!readOnly && share}
         </div>
       </Disclosure>
     </article>
