@@ -951,6 +951,8 @@ function insideAgent(env: Record<string, string | undefined>): boolean {
 
 /** `codeceipt rls` (FEAT-024): the live Supabase database's RLS state, read here; flags only are uploaded. */
 async function runLiveRls(deps: CliDeps, path: string): Promise<number> {
+  // Security review: the agent being checked must not upload flags read from a database it set up itself.
+  if (insideAgent(deps.env)) throw new CliError(EXIT.usage, AGENT_REFUSED);
   const url = deps.env.SUPABASE_DB_URL;
   if (!url || !/^postgres(ql)?:\/\//.test(url)) {
     throw new CliError(
@@ -960,20 +962,15 @@ async function runLiveRls(deps: CliDeps, path: string): Promise<number> {
   }
   const config = await projectConfig(deps, path, deps.cwd, { linkedOnly: true });
   const limit = Math.max(100, Number(deps.env.CODECEIPT_RLS_TIMEOUT_MS) || 10_000);
-  let db: LiveDb | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new Error("timeout")), limit);
   });
+  // Kept, so a connection that opens after the time limit is still closed (security review).
+  const connecting = (deps.liveDb ?? connectLiveDb)(url);
   let flags: Awaited<ReturnType<typeof readLiveRls>>;
   try {
-    flags = await Promise.race([
-      (async () => {
-        db = await (deps.liveDb ?? connectLiveDb)(url);
-        return readLiveRls(db);
-      })(),
-      timeout,
-    ]);
+    flags = await Promise.race([connecting.then(readLiveRls), timeout]);
   } catch {
     // Codeceipt's own words only: a driver error can include the host or user name.
     throw new CliError(
@@ -982,7 +979,7 @@ async function runLiveRls(deps: CliDeps, path: string): Promise<number> {
     );
   } finally {
     clearTimeout(timer);
-    (db as LiveDb | null)?.end().catch(() => {});
+    connecting.then((db) => db.end()).catch(() => {});
   }
   await request(
     deps.fetch,

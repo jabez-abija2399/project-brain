@@ -11,12 +11,15 @@ export type LiveDb = {
 
 export const LIVE_PATH = "supabase/live-database";
 const COMMANDS = new Set(["ALL", "SELECT", "INSERT", "UPDATE", "DELETE"]);
-// User tables: the app's own schema; Supabase's internal schemas are not the app's to secure.
-const SCHEMAS = "('public')";
+// User tables: every schema but Postgres's and Supabase's own (security review: an app can expose another schema,
+// such as "api", and the upload replaces the project's flags, so reading "public" only would hide those tables).
+const SCHEMAS = `not in ('information_schema', 'auth', 'storage', 'realtime', 'extensions', 'vault', 'pgsodium',
+    'pgsodium_masks', 'net', 'cron', 'pgbouncer', 'supabase_functions', 'supabase_migrations', '_realtime', '_analytics')
+  and n.nspname not like 'pg\\_%' and n.nspname not like 'graphql%' and n.nspname not like 'supabase\\_%'`;
 
 const TABLES = `select n.nspname as schema, c.relname as name, c.relrowsecurity as rls
   from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid = c.relnamespace
-  where c.relkind in ('r', 'p') and n.nspname in ${SCHEMAS} order by n.nspname, c.relname limit 5000`;
+  where c.relkind in ('r', 'p') and n.nspname ${SCHEMAS} order by n.nspname, c.relname limit 5000`;
 
 const POLICIES = `select n.nspname as schema, c.relname as table, pol.polpermissive as permissive,
   case pol.polcmd when 'r' then 'SELECT' when 'a' then 'INSERT' when 'w' then 'UPDATE' when 'd' then 'DELETE'
@@ -27,7 +30,7 @@ const POLICIES = `select n.nspname as schema, c.relname as table, pol.polpermiss
   pg_catalog.pg_get_expr(pol.polwithcheck, pol.polrelid) as with_check
   from pg_catalog.pg_policy pol join pg_catalog.pg_class c on c.oid = pol.polrelid
   join pg_catalog.pg_namespace n on n.oid = c.relnamespace
-  where n.nspname in ${SCHEMAS} order by n.nspname, c.relname limit 5000`;
+  where n.nspname ${SCHEMAS} order by n.nspname, c.relname limit 5000`;
 
 const str = (v: unknown) => (typeof v === "string" ? v : null);
 
@@ -80,15 +83,33 @@ export async function readLiveRls(db: LiveDb) {
   }
 }
 
+/**
+ * TLS for the connection (security review): the URL's own sslmode wins; local databases need none; anything else
+ * requires TLS, so a network attacker cannot downgrade the connection to plaintext and read the password.
+ * (postgres.js "require" encrypts but does not verify the certificate; add sslmode=verify-full to the URL for that.)
+ */
+export function sslFor(url: string): "require" | false | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "require";
+  }
+  if (parsed.searchParams.has("sslmode") || parsed.searchParams.has("ssl")) return undefined;
+  const host = parsed.hostname.replace(/^\[|\]$/g, "");
+  return ["localhost", "127.0.0.1", "::1"].includes(host) ? false : "require";
+}
+
 /** The real connection (postgres.js), one connection, short time limits. */
 export async function connectLiveDb(url: string): Promise<LiveDb> {
   const { default: postgres } = await import("postgres");
+  const ssl = sslFor(url);
   const sql = postgres(url, {
     max: 1,
     connect_timeout: 10,
     idle_timeout: 5,
     prepare: false,
-    ssl: "prefer",
+    ...(ssl === undefined ? {} : { ssl }),
     onnotice: () => {},
   });
   return {

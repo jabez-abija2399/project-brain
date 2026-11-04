@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type CliDeps, main } from "./index";
-import type { LiveDb } from "./live-rls";
+import { type LiveDb, sslFor } from "./live-rls";
 import { linkRepo } from "./test-support";
 
 // FEAT-024: `codeceipt rls` checks the live Supabase database (SUPABASE_DB_URL on this computer) with read-only
@@ -56,7 +56,11 @@ function fakeDb(opts: { hang?: boolean } = {}): Fake {
   return { statements, db };
 }
 
-function setup(env: Record<string, string> = {}, fake = fakeDb()) {
+function setup(
+  env: Record<string, string> = {},
+  fake = fakeDb(),
+  connect?: (url: string) => Promise<LiveDb>,
+) {
   const home = mkdtempSync(join(tmpdir(), "cc-rls-home-"));
   const repo = mkdtempSync(join(tmpdir(), "cc-rls-repo-"));
   execFileSync("git", ["init", "-q"], { cwd: repo });
@@ -84,7 +88,7 @@ function setup(env: Record<string, string> = {}, fake = fakeDb()) {
       readStdin: async () => "",
       liveDb: async (url) => {
         connected.push(url);
-        return fake.db;
+        return connect ? connect(url) : fake.db;
       },
     } as CliDeps);
   return { uploads, out, err, connected, fake, run };
@@ -150,5 +154,48 @@ describe("FEAT-024 live Supabase RLS check", () => {
     expect(slow.err.join("\n")).toContain("did not answer");
     expect(slow.uploads).toHaveLength(0);
     expect(JSON.stringify(slow.err)).not.toContain(PASSWORD);
+  });
+
+  it("attack (security review): inside an agent session it refuses, so the agent cannot upload flags from its own database", async () => {
+    for (const env of [{ CLAUDECODE: "1" }, { CURSOR_AGENT: "1" }] as Record<string, string>[]) {
+      const t = setup({ SUPABASE_DB_URL: DB_URL, ...env });
+      expect(await t.run(), JSON.stringify(env)).not.toBe(0);
+      expect(t.connected).toHaveLength(0);
+      expect(t.uploads).toHaveLength(0);
+    }
+  });
+
+  it("attack (security review): TLS is required for a remote database unless the URL says otherwise", () => {
+    expect(sslFor(DB_URL)).toBe("require");
+    expect(sslFor(`${DB_URL}?sslmode=verify-full`)).toBeUndefined();
+    expect(sslFor("postgres://postgres:x@localhost:54322/postgres")).toBe(false);
+    expect(sslFor("postgres://postgres:x@[::1]:5432/postgres")).toBe(false);
+  });
+
+  it("security review: every app schema is read (not only public); Postgres and Supabase internals are left out", async () => {
+    const t = setup({ SUPABASE_DB_URL: DB_URL });
+    await t.run();
+    const tables = t.fake.statements.find((s) => /pg_catalog\.pg_class/.test(s)) ?? "";
+    expect(tables).not.toMatch(/nspname in \('public'\)/);
+    expect(tables).toMatch(/nspname not in \([^)]*'auth'[^)]*'storage'/);
+  });
+
+  it("security review: a connection that opens after the time limit is still closed", async () => {
+    let ended = 0;
+    let open: (db: LiveDb) => void = () => {};
+    const late = new Promise<LiveDb>((r) => {
+      open = r;
+    });
+    const t = setup(
+      { SUPABASE_DB_URL: DB_URL, CODECEIPT_RLS_TIMEOUT_MS: "100" },
+      fakeDb(),
+      () => late,
+    );
+    const code = await t.run();
+    expect(t.uploads).toHaveLength(0);
+    expect(code).not.toBe(0);
+    open({ ...fakeDb().db, end: async () => void ended++ });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(ended).toBe(1);
   });
 });
