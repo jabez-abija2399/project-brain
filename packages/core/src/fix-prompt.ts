@@ -66,6 +66,8 @@ export type ReceiptView = {
   // FEAT-023: a receipt made from a GitHub push (no agent session), and changed files past the 300 it lists.
   fromPush: boolean;
   filesNotChecked: number;
+  // FEAT-025: the plan's monthly AI-judged receipts were used up, so the AI judge did not run.
+  judgeSkipped: boolean;
   // FEAT-022: the repo's own check command (build or tests), run after the session; "not_run" when none ran.
   checkRun: {
     status: "passed" | "failed" | "timed_out" | "not_run";
@@ -270,6 +272,7 @@ export function receiptView(
     }),
     checkRun: checkRunOf(s.check_run),
     fromPush: s.from_push === true,
+    judgeSkipped: s.judge_skipped === "plan_limit",
     filesNotChecked: countOrNull(s.files_not_checked) ?? 0,
   };
 }

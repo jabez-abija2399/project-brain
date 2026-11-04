@@ -351,6 +351,12 @@ export function ReceiptCard({
               </ul>
             </Section>
           )}
+          {view.judgeSkipped && (
+            <p className="m0 muted">
+              Not checked by AI: this month's AI-checked receipts on your plan are used up, so the
+              tasks are "not verified". <a href="/pricing">See plans</a>.
+            </p>
+          )}
           {view.fromPush && (
             <p className="m0 muted">
               From a GitHub push: the commit messages are the request (no agent session was

@@ -59,3 +59,4 @@ pnpm overrides (package.json): `postcss@<8.5.18`, `@esbuild-kit/core-utils>esbui
 `gaxios@7>rimraf: "-"` (2026-10-31): gaxios 7 (via inngest > OpenTelemetry) lists rimraf but never uses it, and rimraf 5
 pulls glob 10.5.0 and minimatch 9.0.9 (osv-scanner advisories GHSA-3g3m-2fjr-6pw4, GHSA-g3hv-75wg-m249). Remove this
 override when inngest moves to gaxios 8, which has no rimraf.
+| stripe | apps/web (FEAT-025 billing: Checkout, customer portal, webhook signature check) | Stripe API client and webhook signature verification (constructEvent), so the signature check is not hand-written | @paddle/paddle-node-sdk (Paddle as merchant of record; fewer integrations), lemonsqueezy.js (last release 2023) | MIT | 2026-11-04 |

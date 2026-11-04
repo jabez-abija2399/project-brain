@@ -2663,7 +2663,7 @@
           "evidence": ""
         }
       ],
-      "status": "todo",
+      "status": "in_progress",
       "notes": "Needs a Stripe account and keys (human). New dependency: stripe (dep-check)."
     },
     {

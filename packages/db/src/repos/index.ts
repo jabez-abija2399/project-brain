@@ -54,3 +54,4 @@ export {
   aiUsageRepo,
   lastDays,
 } from "./admin";
+export { billingRepo } from "./billing";

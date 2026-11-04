@@ -25,6 +25,7 @@ import {
   requestsRepo,
 } from "@brain/db";
 import { z } from "zod";
+import { judgeAllowed } from "./billing";
 import {
   type NewDependency,
   lookupNewDependencies,
@@ -301,7 +302,10 @@ export async function generateReceipt(
   let llm = null;
   // Clarifying questions are never judged (D-025): the AI call is only for tasks.
   const judgedItems = items.filter((i) => !i.needsClarification && i.status !== "postponed");
-  if (files.length > 0 && judgedItems.length > 0) {
+  // FEAT-025: over the plan's monthly AI-judged receipts, the receipt is still made from git, without the judge.
+  const overPlan =
+    files.length > 0 && judgedItems.length > 0 && !(await judgeAllowed(db, pid, now));
+  if (files.length > 0 && judgedItems.length > 0 && !overPlan) {
     llm = getLlm();
     if (!llm) throw new AppError(503, "ai_not_configured", "receipt judging is not configured");
     if ((await reserveDaily(db, `ai:${pid}`, dailyAiBudget(), 1, now)) === 0) {
@@ -370,6 +374,15 @@ export async function generateReceipt(
     throw new AppError(502, "ai_unavailable", "the receipt could not be judged; try again");
   }
 
+  if (overPlan) {
+    // Not judged is not missed: the tasks are "not verified" (their stored status is kept) and the receipt says why.
+    receipt = {
+      ...receipt,
+      items: receipt.items.map((i) =>
+        i.status === "missed" ? { ...i, status: "not_verified" } : i,
+      ),
+    };
+  }
   // A receipt with no changed files reports every item missed (AC-013-05) but changes no stored status, so it
   // cannot downgrade work an earlier receipt judged partial.
   if (files.length > 0) {
@@ -432,6 +445,7 @@ export async function generateReceipt(
       new_dependencies_omitted: omitted,
       ...security,
       test_integrity: integrity,
+      ...(overPlan ? { judge_skipped: "plan_limit" } : {}),
     },
   });
   // One receipt per session: the one it replaces goes, only within this project, for the same request and if recent.

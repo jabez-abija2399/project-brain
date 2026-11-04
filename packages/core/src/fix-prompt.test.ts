@@ -80,6 +80,7 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
       checkRun: { status: "not_run", exitCode: null, durationMs: null, passed: null, failed: null },
       // FEAT-023: not from a push; no files left unchecked.
       fromPush: false,
+      judgeSkipped: false,
       filesNotChecked: 0,
     });
   });

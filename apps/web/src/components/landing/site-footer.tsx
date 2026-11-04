@@ -12,6 +12,7 @@ export function SiteFooter({ signedIn = false }: { signedIn?: boolean }) {
         <nav className="lp-footer-links" aria-label="Footer">
           <a href="/docs/quickstart">Docs</a>
           <a href="/privacy">Privacy</a>
+          <a href="/pricing">Pricing</a>
           <a href="/terms">Terms</a>
           <a href={NPM_URL} rel="noopener noreferrer">
             npm package
