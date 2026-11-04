@@ -9,6 +9,7 @@ import {
   sameRepo,
 } from "@brain/core";
 import { CliError, EXIT, REPO_MISMATCH_MESSAGE, request } from "./api";
+import { DEFAULT_TIMEOUT_S, MAX_TIMEOUT_S, MIN_TIMEOUT_S, checkKey, runCheck } from "./check-run";
 import {
   type CliConfig,
   configPath,
@@ -19,6 +20,7 @@ import {
   readSettings,
   saveProjectToken,
   writeConfig,
+  writeSettings,
 } from "./config";
 import { hookRunsFile, recordHookRun } from "./hook-runs";
 import {
@@ -277,9 +279,13 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       return EXIT.ok;
     }
     if (command === "config") {
+      if (args[0] === "check" || args[0] === "check-timeout") {
+        return await checkConfig(args, path, deps);
+      }
       configCommand(args, path, deps);
       return EXIT.ok;
     }
+    if (command === "check-run") return await runCheckCommand(args, deps, path);
     if (command === "update") {
       return await updateCommand(args, path, deps, {
         fetch: deps.fetch,
@@ -497,6 +503,7 @@ async function runAnyHook(
   );
   return await runHook("hook", args, hookDeps, resolved.config, resolved.problem, {
     stopGate: readSettings(path).stopGate !== false,
+    ...(await checkStarter(deps, path, deps.cwd)),
   });
 }
 
@@ -518,7 +525,7 @@ async function runHook(
   deps: CliDeps,
   saved: CliConfig | null,
   problem: string | undefined,
-  settings: { stopGate?: boolean } = {},
+  settings: { stopGate?: boolean; startCheck?: (receiptId: string) => void } = {},
 ): Promise<number> {
   const config = saved && isSafeApiUrl(saved.apiUrl) ? saved : null;
   const hookDeps = {
@@ -532,6 +539,7 @@ async function runHook(
     stdout: deps.stdout,
     stderr: deps.stderr,
     ...(settings.stopGate ? { stopGate: true } : {}),
+    ...(settings.startCheck ? { startCheck: settings.startCheck } : {}),
   };
   try {
     if (command === "mcp-headers") {
@@ -623,6 +631,7 @@ async function runAgentHook(args: string[], deps: CliDeps, path: string): Promis
     env: deps.env,
     stdout: deps.stdout,
     stderr: deps.stderr,
+    ...(await checkStarter(deps, path, dir)),
   };
   try {
     if (event === "session-start") await sessionStart(agent, hookDeps);
@@ -788,4 +797,119 @@ async function runPromptHook(args: string[], deps: CliDeps, path: string): Promi
     // Never fails the agent's prompt: an unlinked repo or an unreachable server records nothing.
   }
   return answer();
+}
+
+// FEAT-022: the repo's check command (set with `codeceipt config check`), from the user config only. The key is the
+// repo's top folder; a repo cannot set or change it.
+async function repoCheck(deps: CliDeps, path: string, folder: string) {
+  const root = await repoRoot(deps.git ?? runGit, folder).catch(() => null);
+  if (!root) return null;
+  const setting = readSettings(path).checks?.[checkKey(root)];
+  return setting ? { root, ...setting } : null;
+}
+
+// The session end starts `codeceipt check-run` in the background (a hook may run for 60 s at most).
+async function checkStarter(deps: CliDeps, path: string, folder: string) {
+  const check = await repoCheck(deps, path, folder).catch(() => null);
+  if (!check || !deps.spawnBackground) return {};
+  const spawnBackground = deps.spawnBackground;
+  return {
+    startCheck: (receiptId: string) => {
+      try {
+        spawnBackground(["check-run", "--receipt", receiptId], "", check.root);
+      } catch {}
+    },
+  };
+}
+
+/** `codeceipt config check ["<command>"|off]` and `codeceipt config check-timeout <seconds>`, for this repo. */
+async function checkConfig(args: string[], path: string, deps: CliDeps): Promise<number> {
+  const root = await repoRoot(deps.git ?? runGit, deps.cwd).catch(() => null);
+  if (!root) throw new CliError(EXIT.usage, "Run this inside your app's git repository.");
+  const key = checkKey(root);
+  const checks = { ...(readSettings(path).checks ?? {}) };
+  const [what, value, ...rest] = args;
+  if (rest.length > 0) {
+    throw new CliError(
+      EXIT.usage,
+      'Usage: codeceipt config check ["<command>"|off] | check-timeout <seconds>',
+    );
+  }
+  if (what === "check-timeout") {
+    const secs = Number(value);
+    if (!Number.isInteger(secs) || secs < MIN_TIMEOUT_S || secs > MAX_TIMEOUT_S) {
+      throw new CliError(
+        EXIT.usage,
+        `Usage: codeceipt config check-timeout <seconds> (${MIN_TIMEOUT_S} to ${MAX_TIMEOUT_S})`,
+      );
+    }
+    const current = checks[key];
+    if (!current)
+      throw new CliError(EXIT.usage, 'Set the command first: codeceipt config check "npm test"');
+    checks[key] = { ...current, timeoutSec: secs };
+    writeSettings(path, { checks });
+    deps.stdout(`The check command for this repo stops after ${secs} s.`);
+    return EXIT.ok;
+  }
+  if (value === undefined) {
+    const current = checks[key];
+    deps.stdout(
+      current
+        ? `Check command for this repo: ${current.command} (stops after ${current.timeoutSec ?? DEFAULT_TIMEOUT_S} s)`
+        : 'No check command for this repo. Set one with: codeceipt config check "npm test"',
+    );
+    return EXIT.ok;
+  }
+  if (value === "off") {
+    delete checks[key];
+    writeSettings(path, { checks });
+    deps.stdout("No check command for this repo any more; receipts say 'not run'.");
+    return EXIT.ok;
+  }
+  if (value.trim() === "" || value.length > 2000) {
+    throw new CliError(EXIT.usage, "The check command must be 1 to 2000 characters.");
+  }
+  checks[key] = {
+    command: value,
+    ...(checks[key]?.timeoutSec ? { timeoutSec: checks[key]?.timeoutSec } : {}),
+  };
+  writeSettings(path, { checks });
+  deps.stdout(`Check command for this repo: ${value}`);
+  deps.stdout(
+    "It runs on this computer after each agent session; only passed/failed, the time and test counts are sent.",
+  );
+  return EXIT.ok;
+}
+
+/** `codeceipt check-run --receipt <id>`: runs this repo's check command and posts only the result. */
+async function runCheckCommand(args: string[], deps: CliDeps, path: string): Promise<number> {
+  const receiptId = flag(args, "--receipt");
+  if (!receiptId || !/^[\w-]{1,64}$/.test(receiptId)) {
+    throw new CliError(EXIT.usage, "Usage: codeceipt check-run --receipt <receipt id>");
+  }
+  const check = await repoCheck(deps, path, deps.cwd);
+  if (!check) return EXIT.ok;
+  const config = await projectConfig(deps, path, check.root, { linkedOnly: true }).catch(
+    () => null,
+  );
+  if (!config || !isSafeApiUrl(config.apiUrl)) return EXIT.ok;
+  const result = await runCheck({
+    command: check.command,
+    cwd: check.root,
+    timeoutMs: (check.timeoutSec ?? DEFAULT_TIMEOUT_S) * 1000,
+    platform: deps.platform ?? process.platform,
+  });
+  try {
+    await request(
+      deps.fetch,
+      config,
+      "POST",
+      `/api/hooks/${encodeURIComponent(config.projectId)}/check-run`,
+      {
+        receipt_id: receiptId,
+        ...result,
+      },
+    );
+  } catch {}
+  return EXIT.ok;
 }

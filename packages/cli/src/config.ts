@@ -125,14 +125,34 @@ export function saveProjectToken(path: string, config: CliConfig): void {
 
 // D-027: user settings kept in the same file, beside the logins. Only known keys are read and written; everything
 // else in the file is kept as it is.
-// FEAT-020: stopGate (default on when absent).
-export type UserSettings = { autoUpdate?: boolean; stopGate?: boolean };
+// FEAT-020: stopGate (default on when absent). FEAT-022: checks, the check command per repo (by a hash of its folder).
+export type CheckSettings = Record<string, { command: string; timeoutSec?: number }>;
+export type UserSettings = { autoUpdate?: boolean; stopGate?: boolean; checks?: CheckSettings };
 export function readSettings(path: string): UserSettings {
-  const file = readFile(path) as (ConfigFile & { autoUpdate?: unknown; stopGate?: unknown }) | null;
+  const file = readFile(path) as
+    | (ConfigFile & { autoUpdate?: unknown; stopGate?: unknown; checks?: unknown })
+    | null;
   return {
     ...(typeof file?.autoUpdate === "boolean" ? { autoUpdate: file.autoUpdate } : {}),
     ...(typeof file?.stopGate === "boolean" ? { stopGate: file.stopGate } : {}),
+    ...(file?.checks ? { checks: validChecks(file.checks) } : {}),
   };
+}
+function validChecks(raw: unknown): CheckSettings {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  const out: CheckSettings = {};
+  for (const [key, v] of Object.entries(raw as Record<string, unknown>).slice(0, 500)) {
+    const c = v as { command?: unknown; timeoutSec?: unknown } | null;
+    if (!/^[0-9a-f]{24}$/.test(key) || typeof c?.command !== "string" || c.command.length > 2000)
+      continue;
+    out[key] = {
+      command: c.command,
+      ...(typeof c.timeoutSec === "number" && Number.isInteger(c.timeoutSec)
+        ? { timeoutSec: c.timeoutSec }
+        : {}),
+    };
+  }
+  return out;
 }
 export function writeSettings(path: string, settings: UserSettings): void {
   const file = (readFile(path) ?? {}) as Record<string, unknown>;

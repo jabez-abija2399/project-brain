@@ -61,6 +61,8 @@ export type HookDeps = {
   done?: (summary: { files: number; receiptId: string | null }) => void;
   // FEAT-020: whether the Stop gate is on for this user (default off here; the CLI passes the user's setting).
   stopGate?: boolean;
+  // FEAT-022: starts the repo's check command in the background for a receipt (absent when none is set).
+  startCheck?: (receiptId: string) => void;
 };
 
 // Claude Code stops a SessionEnd hook after its timeout (we install 60 s): the calls together stay under 50 s, so
@@ -762,6 +764,8 @@ export async function sessionEnd(
           break;
         }
       }
+      // FEAT-022: the session's end starts the check command for its receipt (not every Stop).
+      if (!opts.stop && receiptId) deps.startCheck?.(receiptId);
       if (opts.stop && stateFilePath && receiptId) {
         try {
           const raw = JSON.parse(readFileSync(stateFilePath, "utf8")) as Record<string, unknown>;
