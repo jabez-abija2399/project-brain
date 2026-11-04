@@ -18,15 +18,32 @@ import { type UpdateDeps, type UpdateState, runUpdate, shouldCheck } from "./sel
 
 type Out = { stdout: (line: string) => void; stderr: (line: string) => void };
 
-/** `codeceipt config auto-update [on|off]`. */
+const CONFIG_USAGE =
+  "Usage: codeceipt config auto-update [on|off] | codeceipt config stop-gate [on|off]";
+
+/** `codeceipt config auto-update [on|off]` and (FEAT-020) `codeceipt config stop-gate [on|off]`. */
 export function configCommand(args: string[], configFile: string, out: Out): void {
   const [key, value, ...rest] = args;
   if (
-    key !== "auto-update" ||
+    (key !== "auto-update" && key !== "stop-gate") ||
     rest.length > 0 ||
     (value !== undefined && value !== "on" && value !== "off")
   ) {
-    throw new CliError(EXIT.usage, "Usage: codeceipt config auto-update [on|off]");
+    throw new CliError(EXIT.usage, CONFIG_USAGE);
+  }
+  if (key === "stop-gate") {
+    if (value === undefined) {
+      const on = readSettings(configFile).stopGate !== false;
+      out.stdout(`The stop gate is ${on ? "on" : "off"}.`);
+      return;
+    }
+    writeSettings(configFile, { stopGate: value === "on" });
+    out.stdout(
+      value === "on"
+        ? "The stop gate is on: when a receipt shows unfinished work, the agent is told to finish it before stopping (at most twice per session)."
+        : "The stop gate is off: receipts are still made, but the agent is never held back.",
+    );
+    return;
   }
   if (value === undefined) {
     const on = readSettings(configFile).autoUpdate !== false;

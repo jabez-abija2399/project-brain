@@ -65,7 +65,7 @@ describe("one plugin per agent, from shared templates", () => {
     expect(files.get(`${root}/scripts/codeceipt.sh`)).toBe(LAUNCHER);
   });
 
-  it("Cursor: manifest, hooks (version 1, sessionStart, beforeSubmitPrompt, sessionEnd), mcp.json and an always-on rule", () => {
+  it("Cursor: manifest, hooks (version 1, sessionStart, beforeSubmitPrompt, sessionEnd, and stop for the Stop gate), mcp.json and an always-on rule", () => {
     const root = "plugins/cursor";
     expect(json(`${root}/.cursor-plugin/plugin.json`)).toMatchObject({
       name: "codeceipt",
@@ -74,7 +74,7 @@ describe("one plugin per agent, from shared templates", () => {
     const doc = json(`${root}/hooks/hooks.json`);
     expect(doc.version).toBe(1);
     const hooks = doc.hooks as Record<string, { command: string }[]>;
-    expect(Object.keys(hooks).sort()).toEqual(["beforeSubmitPrompt", "sessionEnd", "sessionStart"]);
+    expect(Object.keys(hooks).sort()).toEqual(["beforeSubmitPrompt", "sessionEnd", "sessionStart", "stop"]);
     expect(hooks.beforeSubmitPrompt?.[0]?.command).toBe(
       'sh "${CURSOR_PLUGIN_ROOT}/scripts/codeceipt.sh" hook prompt cursor',
     );
@@ -153,7 +153,8 @@ describe("one plugin per agent, from shared templates", () => {
           k === "command" && typeof x === "string" ? commands.push(x) : walk(x);
     };
     for (const [path, text] of files) if (path.endsWith("hooks.json")) walk(JSON.parse(text));
-    expect(commands.length).toBe(4 + 3 + 3 + 1);
+    // Claude Code 4, Cursor 4 (with the FEAT-020 stop hook), Codex 3, Antigravity 1.
+    expect(commands.length).toBe(4 + 4 + 3 + 1);
     for (const c of commands) {
       expect(c).toMatch(
         /^sh "\$\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\}\/scripts\/codeceipt\.sh" hook (?:session-start|session-end|prompt|stop) (?:claude|cursor|codex|antigravity)$/,

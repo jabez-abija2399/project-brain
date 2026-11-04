@@ -12,3 +12,4 @@ packages/sandbox/* # native binary: the sandbox child runs as the binary itself 
 packages/agent-plugins/* # D-028 native agent plugins (Claude Code, Cursor, Codex, Antigravity) from shared templates
 biome.json # the generated plugin marketplace is not reformatted (D-028)
 .github/workflows/release-cli.yml  # human-owned native release workflow (D-027), added by the owner
+packages/agent-plugins/* # FEAT-020 Cursor stop hook in the plugin

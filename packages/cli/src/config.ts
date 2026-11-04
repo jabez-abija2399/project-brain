@@ -125,10 +125,14 @@ export function saveProjectToken(path: string, config: CliConfig): void {
 
 // D-027: user settings kept in the same file, beside the logins. Only known keys are read and written; everything
 // else in the file is kept as it is.
-export type UserSettings = { autoUpdate?: boolean };
+// FEAT-020: stopGate (default on when absent).
+export type UserSettings = { autoUpdate?: boolean; stopGate?: boolean };
 export function readSettings(path: string): UserSettings {
-  const file = readFile(path) as (ConfigFile & { autoUpdate?: unknown }) | null;
-  return typeof file?.autoUpdate === "boolean" ? { autoUpdate: file.autoUpdate } : {};
+  const file = readFile(path) as (ConfigFile & { autoUpdate?: unknown; stopGate?: unknown }) | null;
+  return {
+    ...(typeof file?.autoUpdate === "boolean" ? { autoUpdate: file.autoUpdate } : {}),
+    ...(typeof file?.stopGate === "boolean" ? { stopGate: file.stopGate } : {}),
+  };
 }
 export function writeSettings(path: string, settings: UserSettings): void {
   const file = (readFile(path) ?? {}) as Record<string, unknown>;

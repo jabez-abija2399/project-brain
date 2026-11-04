@@ -16,6 +16,7 @@ import {
   legacyConfigPath,
   readConfig,
   readProjectToken,
+  readSettings,
   saveProjectToken,
   writeConfig,
 } from "./config";
@@ -493,7 +494,9 @@ async function runAnyHook(
       problem: err instanceof CliError ? hookProblem(err.message) : undefined,
     }),
   );
-  return await runHook("hook", args, hookDeps, resolved.config, resolved.problem);
+  return await runHook("hook", args, hookDeps, resolved.config, resolved.problem, {
+    stopGate: readSettings(path).stopGate !== false,
+  });
 }
 
 // Hooks and the headers helper never fail the agent's session: any error ends as one warning line and exit 0. A
@@ -514,6 +517,7 @@ async function runHook(
   deps: CliDeps,
   saved: CliConfig | null,
   problem: string | undefined,
+  settings: { stopGate?: boolean } = {},
 ): Promise<number> {
   const config = saved && isSafeApiUrl(saved.apiUrl) ? saved : null;
   const hookDeps = {
@@ -526,6 +530,7 @@ async function runHook(
     env: deps.env,
     stdout: deps.stdout,
     stderr: deps.stderr,
+    ...(settings.stopGate ? { stopGate: true } : {}),
   };
   try {
     if (command === "mcp-headers") {

@@ -532,7 +532,7 @@ const cursorHooks = (doc: Json): Change => {
   if (doc.hooks !== undefined && !isObject(doc.hooks)) {
     return { added: [], problems: ["hooks is not an object; left unchanged"] };
   }
-  const odd = oddHookLists(doc.hooks, ["sessionStart", "sessionEnd", "beforeSubmitPrompt"]);
+  const odd = oddHookLists(doc.hooks, ["sessionStart", "sessionEnd", "beforeSubmitPrompt", "stop"]);
   if (odd.length > 0) return { added: [], problems: odd };
   const hooks = (isObject(doc.hooks) ? doc.hooks : {}) as Json;
   const ours = (command: string) => (item: unknown) =>
@@ -559,6 +559,14 @@ const cursorHooks = (doc: Json): Change => {
       "beforeSubmitPrompt",
       { command: shellHook(PROMPT_HOOK("cursor")), timeout: 10 },
       ours(PROMPT_HOOK("cursor")),
+      () => false,
+    ),
+    // FEAT-020: the Stop gate; Cursor reads {"followup_message"} from a stop hook to keep the agent going.
+    addHook(
+      hooks,
+      "stop",
+      { command: shellHook(STOP_HOOK("cursor")), timeout: 60 },
+      ours(STOP_HOOK("cursor")),
       () => false,
     ),
   );
