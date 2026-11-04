@@ -353,6 +353,9 @@ export function ReceiptCard({
           )}
           <p className="m0">
             <strong>Build and tests:</strong> {checkRunText(view.checkRun)}
+            {view.checkRun.status !== "not_run" && (
+              <span className="muted"> (reported by your computer)</span>
+            )}
           </p>
           {view.notVerified.length > 0 && (
             <Section title="Not verified">

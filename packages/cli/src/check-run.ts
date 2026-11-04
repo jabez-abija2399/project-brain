@@ -70,16 +70,26 @@ export function runCheck(opts: {
     child.stdout?.on("data", keep);
     child.stderr?.on("data", keep);
     let timedOut = false;
+    let done = false;
+    // The whole process tree: a test runner's own children (and servers a script started) stop too.
+    const killTree = () => {
+      try {
+        if (!child.pid) return;
+        if (win) spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], { windowsHide: true });
+        else process.kill(-child.pid, "SIGKILL");
+      } catch {}
+    };
     const timer = setTimeout(() => {
       timedOut = true;
-      try {
-        // The whole process group: a test runner's own children stop too.
-        if (!win && child.pid) process.kill(-child.pid, "SIGKILL");
-        else child.kill("SIGKILL");
-      } catch {}
+      killTree();
+      // A grandchild that keeps the pipes open must not keep check-run waiting.
+      setTimeout(() => finish(null), 2000).unref();
     }, opts.timeoutMs);
     const finish = (code: number | null) => {
+      if (done) return;
+      done = true;
       clearTimeout(timer);
+      killTree();
       const duration_ms = Date.now() - started;
       if (timedOut) return resolve({ status: "timed_out", exit_code: null, duration_ms });
       resolve({
@@ -91,5 +101,7 @@ export function runCheck(opts: {
     };
     child.on("error", () => finish(127));
     child.on("close", (code) => finish(code));
+    // The shell has exited: its output may still be draining, but never wait more than a moment for it.
+    child.on("exit", (code) => setTimeout(() => finish(code), 1000).unref());
   });
 }

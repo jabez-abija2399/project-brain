@@ -817,6 +817,10 @@ async function checkStarter(deps: CliDeps, path: string, folder: string) {
     startCheck: (receiptId: string) => {
       try {
         spawnBackground(["check-run", "--receipt", receiptId], "", check.root);
+        // Security review: the user always sees which command ran after the session.
+        deps.stderr(
+          `Codeceipt: running your check command in the background: ${check.command.slice(0, 200)}`,
+        );
       } catch {}
     },
   };
@@ -846,6 +850,7 @@ async function checkConfig(args: string[], path: string, deps: CliDeps): Promise
     const current = checks[key];
     if (!current)
       throw new CliError(EXIT.usage, 'Set the command first: codeceipt config check "npm test"');
+    if (insideAgent(deps.env)) throw new CliError(EXIT.usage, AGENT_REFUSED);
     checks[key] = { ...current, timeoutSec: secs };
     writeSettings(path, { checks });
     deps.stdout(`The check command for this repo stops after ${secs} s.`);
@@ -860,6 +865,9 @@ async function checkConfig(args: string[], path: string, deps: CliDeps): Promise
     );
     return EXIT.ok;
   }
+  // Security review: the agent cannot plant or change a command that would then run after every session, outside
+  // its own sandbox. Showing it is fine; setting it is for the user, in their own terminal.
+  if (insideAgent(deps.env)) throw new CliError(EXIT.usage, AGENT_REFUSED);
   if (value === "off") {
     delete checks[key];
     writeSettings(path, { checks });
@@ -912,4 +920,20 @@ async function runCheckCommand(args: string[], deps: CliDeps, path: string): Pro
     );
   } catch {}
   return EXIT.ok;
+}
+
+// Environment variables the coding agents set for the commands they run (Claude Code, Cursor, Codex, Antigravity).
+const AGENT_ENV = [
+  "CLAUDECODE",
+  "CLAUDE_CODE_ENTRYPOINT",
+  "CURSOR_AGENT",
+  "CURSOR_TRACE_ID",
+  "CODEX_SANDBOX",
+  "CODEX_THREAD_ID",
+  "ANTIGRAVITY_AGENT",
+];
+const AGENT_REFUSED =
+  "The check command can only be set by you: run it yourself in a terminal, not through your agent.";
+function insideAgent(env: Record<string, string | undefined>): boolean {
+  return AGENT_ENV.some((k) => typeof env[k] === "string" && env[k] !== "");
 }

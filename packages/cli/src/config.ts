@@ -147,8 +147,9 @@ function validChecks(raw: unknown): CheckSettings {
       continue;
     out[key] = {
       command: c.command,
+      // Kept within 30 s to 15 min, even when the file was edited by hand (security review).
       ...(typeof c.timeoutSec === "number" && Number.isInteger(c.timeoutSec)
-        ? { timeoutSec: c.timeoutSec }
+        ? { timeoutSec: Math.min(Math.max(c.timeoutSec, 30), 900) }
         : {}),
     };
   }

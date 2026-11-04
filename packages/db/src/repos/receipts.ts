@@ -28,9 +28,25 @@ export const receiptsRepo = {
       .set({
         summaryJson: sql`coalesce(${receipts.summaryJson}, '{}'::jsonb) || jsonb_build_object('check_run', ${JSON.stringify(checkRun)}::jsonb)`,
       })
-      .where(and(eq(receipts.id, receiptId), eq(receipts.projectId, projectId)))
+      // Security review: one result per receipt; a later post (a forged "passed") never replaces it.
+      .where(
+        and(
+          eq(receipts.id, receiptId),
+          eq(receipts.projectId, projectId),
+          sql`(${receipts.summaryJson} -> 'check_run') IS NULL`,
+        ),
+      )
       .returning({ id: receipts.id });
     return rows.length > 0;
+  },
+
+  async exists(db: BrainDb, projectId: string, receiptId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ id: receipts.id })
+      .from(receipts)
+      .where(and(eq(receipts.id, receiptId), eq(receipts.projectId, projectId)))
+      .limit(1);
+    return Boolean(row);
   },
 
   async list(db: BrainDb, projectId: string, limit = 50): Promise<Receipt[]> {

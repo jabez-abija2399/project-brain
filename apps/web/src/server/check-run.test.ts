@@ -129,4 +129,23 @@ describe("FEAT-022 build and test evidence (server)", () => {
     });
     expect(card({ items: [] })).toMatch(/Build and tests:\s+not run/);
   });
+
+  it("attack (security review): a receipt keeps its first result; a later post (a forged 'passed') is refused with 409", async () => {
+    const f = await fixture();
+    await post(f.project.id, f.token, {
+      receipt_id: f.receipt.id,
+      status: "failed",
+      exit_code: 1,
+      duration_ms: 5,
+    });
+    const forged = await post(f.project.id, f.token, {
+      receipt_id: f.receipt.id,
+      status: "passed",
+      exit_code: 0,
+      duration_ms: 5,
+    });
+    expect(forged.status).toBe(409);
+    expect(receiptView(await summaryOf(f.receipt.id)).checkRun.status).toBe("failed");
+    expect(card(await summaryOf(f.receipt.id))).toContain("reported by your computer");
+  });
 });

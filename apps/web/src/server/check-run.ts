@@ -32,6 +32,10 @@ export async function recordCheckRun(db: BrainDb, projectId: string, raw: unknow
   }
   const { receipt_id, ...run } = parsed.data;
   if (!(await receiptsRepo.setCheckRun(db, projectId, receipt_id, run))) {
+    // Not this project's receipt, or it already has its result (kept: the first report stands).
+    if (await receiptsRepo.exists(db, projectId, receipt_id)) {
+      throw new AppError(409, "already_reported", "This receipt already has its check result.");
+    }
     throw new AppError(404, "not_found");
   }
   return { receipt_id };
