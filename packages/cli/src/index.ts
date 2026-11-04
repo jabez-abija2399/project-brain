@@ -49,6 +49,7 @@ import {
 } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 import { onPath, runSetup } from "./setup-command";
+import { GATE_HEADER } from "./stop-gate";
 import { CLI_VERSION, hookPathFor, setHookInstallPath } from "./templates";
 
 export const PACKAGE = "@brain/cli";
@@ -754,7 +755,14 @@ async function runPromptHook(args: string[], deps: CliDeps, path: string): Promi
     }
   } catch {}
   const prompt = typeof input.prompt === "string" ? input.prompt.trim() : "";
-  if (prompt === "" || prompt.startsWith("/") || OWN_COMMAND.test(prompt)) return answer();
+  // FEAT-020: the Stop gate's own instruction, which Cursor sends back as a follow-up prompt, is never a request.
+  if (
+    prompt === "" ||
+    prompt.startsWith("/") ||
+    OWN_COMMAND.test(prompt) ||
+    prompt.startsWith(GATE_HEADER)
+  )
+    return answer();
   const dir = await promptFolder(deps, sessionFolder(stdin, deps.cwd));
   if (!args.includes("--worker") && deps.spawnBackground) {
     try {
