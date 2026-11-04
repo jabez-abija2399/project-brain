@@ -2,7 +2,7 @@ import { receiptView } from "@brain/core";
 // FEAT-023: receipts on push for projects connected through GitHub (Lovable, Bolt, Replit and anyone who pushes):
 // the commit messages are the request, the changed files come from GitHub's compare, and the secret, test-integrity
 // and dependency checks run on contents fetched for the job and dropped. Attacker tests are named "attack: ...".
-import { githubRepo, projectsRepo, receipts, requests } from "@brain/db";
+import { checklistItems, githubRepo, projectsRepo, receipts, requests } from "@brain/db";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -16,7 +16,8 @@ import { handleWebhook } from "./github-webhook";
 import type { PushEventData } from "./inngest";
 import { installationClient } from "./inngest-functions";
 import type { StepRunner } from "./push-index";
-import { runPushJob } from "./push-receipt";
+import { MAX_PUSH_RECEIPTS_PER_DAY, runPushJob } from "./push-receipt";
+import { reserveDaily } from "./rate-limit";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
 const BEFORE = "a".repeat(40);
@@ -160,5 +161,68 @@ describe("FEAT-023 receipts on push", () => {
     const view = receiptView(row?.summaryJson);
     expect(view.filesByFeature.flatMap((g) => g.files)).toHaveLength(300);
     expect(view.filesNotChecked).toBe(50);
+  });
+
+  it("attack (security review): a pushed .env file is scanned for secrets", async () => {
+    mockGithub(
+      fakeRepo({
+        compare: { [`${BEFORE}...${AFTER}`]: [{ filename: ".env", status: "added" }] },
+        files: { ".env": `STRIPE_KEY=${SECRET}\n` },
+        filesAt: {},
+      }),
+    );
+    await run();
+    const [row] = await receiptRows();
+    expect(receiptView(row?.summaryJson).findings.map((f) => f.file)).toContain(".env");
+  });
+
+  it("attack (security review): no package.json text (or any file text) is kept in a step result", async () => {
+    mockGithub(fakeRepo());
+    await run();
+    const steps = JSON.stringify(outputs);
+    expect(steps).not.toContain('\\"left-pad-ultra\\":\\"^1.0.0\\"');
+    expect(steps).not.toContain("dependencies");
+  });
+
+  it("attack (security review): commit messages are the request as written; no AI checklist is made from them", async () => {
+    mockGithub(fakeRepo());
+    await run();
+    const [req] = await world.db.select().from(requests).where(eq(requests.projectId, projectId));
+    expect(req?.sessionId).toBe(`push-${AFTER.slice(0, 12)}`);
+    const items = await world.db
+      .select()
+      .from(checklistItems)
+      .where(eq(checklistItems.projectId, projectId));
+    expect(items).toHaveLength(0);
+  });
+
+  it("security review: a retried receipt step (its earlier steps' results replayed) does not make a second receipt", async () => {
+    mockGithub(fakeRepo());
+    const memo = new Map<string, unknown>();
+    const replaying: StepRunner = {
+      run: async (name, fn) => {
+        if (name !== "push-receipt-make" && memo.has(name)) return memo.get(name) as never;
+        const result = await fn();
+        memo.set(name, result);
+        return result;
+      },
+    };
+    await runPushJob(world.db, event(), replaying, () => installationClient(77));
+    await runPushJob(world.db, event(), replaying, () => installationClient(77));
+    expect(await receiptRows()).toHaveLength(1);
+  });
+
+  it("security review: a project gets at most 200 push receipts a day", async () => {
+    mockGithub(fakeRepo());
+    expect(MAX_PUSH_RECEIPTS_PER_DAY).toBe(200);
+    await reserveDaily(
+      world.db,
+      `push-receipt:${projectId}`,
+      MAX_PUSH_RECEIPTS_PER_DAY,
+      MAX_PUSH_RECEIPTS_PER_DAY,
+      new Date(),
+    );
+    await run();
+    expect(await receiptRows()).toHaveLength(0);
   });
 });
