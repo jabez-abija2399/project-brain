@@ -63,6 +63,19 @@ export type ReceiptView = {
     recommendation: string | null;
     note: string | null;
   }[];
+  // FEAT-023: a receipt made from a GitHub push (no agent session), and changed files past the 300 it lists.
+  fromPush: boolean;
+  filesNotChecked: number;
+  // FEAT-025: the plan's monthly AI-judged receipts were used up, so the AI judge did not run.
+  judgeSkipped: boolean;
+  // FEAT-022: the repo's own check command (build or tests), run after the session; "not_run" when none ran.
+  checkRun: {
+    status: "passed" | "failed" | "timed_out" | "not_run";
+    exitCode: number | null;
+    durationMs: number | null;
+    passed: number | null;
+    failed: number | null;
+  };
 };
 
 const CHECK_LABELS: Record<string, string> = {
@@ -76,12 +89,14 @@ const CHECK_LABELS: Record<string, string> = {
 const countOrNull = (v: unknown) =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
 
+// AC-017-02: lists from stored receipts are capped at 200 (files in a group: see MAX_GROUP_FILES).
 const MAX_LIST = 200;
 const MAX_TEXT = 300;
 const MAX_PROMPT_ITEMS = 20;
 // Display caps for the changed-files list (a receipt has at most 200 files).
 const MAX_FEATURE_GROUPS = 50;
-const MAX_GROUP_FILES = 200;
+// FEAT-023: a push receipt lists up to 300 files (GitHub compare's limit).
+const MAX_GROUP_FILES = 300;
 const STATUSES = new Set([
   "done",
   "done_untested",
@@ -193,7 +208,9 @@ export function receiptView(
       .slice(0, MAX_FEATURE_GROUPS)
       .flatMap((raw) => {
         const g = obj(raw);
-        const files = list(g.files).map(safePath).filter(Boolean).slice(0, MAX_GROUP_FILES);
+        const files = (Array.isArray(g.files) ? g.files.slice(0, MAX_GROUP_FILES) : [])
+          .map(safePath)
+          .filter(Boolean);
         return files.length > 0
           ? [{ feature: safeDisplay(g.feature, 100) || "(no feature)", files }]
           : [];
@@ -255,6 +272,27 @@ export function receiptView(
         },
       ];
     }),
+    checkRun: checkRunOf(s.check_run),
+    fromPush: s.from_push === true,
+    judgeSkipped: s.judge_skipped === "plan_limit",
+    filesNotChecked: countOrNull(s.files_not_checked) ?? 0,
+  };
+}
+
+const RUN_STATUSES = new Set(["passed", "failed", "timed_out"]);
+function checkRunOf(raw: unknown): ReceiptView["checkRun"] {
+  const r = obj(raw);
+  if (typeof r.status !== "string" || !RUN_STATUSES.has(r.status)) {
+    return { status: "not_run", exitCode: null, durationMs: null, passed: null, failed: null };
+  }
+  const exit = r.exit_code;
+  return {
+    status: r.status as "passed" | "failed" | "timed_out",
+    exitCode:
+      typeof exit === "number" && Number.isInteger(exit) && Math.abs(exit) <= 255 ? exit : null,
+    durationMs: countOrNull(r.duration_ms),
+    passed: countOrNull(r.passed),
+    failed: countOrNull(r.failed),
   };
 }
 

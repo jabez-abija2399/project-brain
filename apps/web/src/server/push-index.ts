@@ -198,7 +198,7 @@ type ContentFile = { type?: string; size?: number; encoding?: string; content?: 
 
 // The file at a commit as bytes; null when it is missing, not a file, or above the indexer's 1 MB limit (GitHub
 // returns no content for those, so nothing large is downloaded).
-async function fetchFile(
+export async function fetchFile(
   gh: GithubClient,
   owner: string,
   repo: string,
@@ -224,7 +224,7 @@ async function fetchFile(
   }
 }
 
-async function fetchText(
+export async function fetchText(
   gh: GithubClient,
   owner: string,
   repo: string,

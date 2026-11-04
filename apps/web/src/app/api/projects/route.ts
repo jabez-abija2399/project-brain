@@ -1,4 +1,5 @@
 import { requireUser } from "@/server/auth";
+import { assertCanCreateProject } from "@/server/billing";
 import { getDb } from "@/server/db";
 import { toResponse } from "@/server/errors";
 import { parseInput, parsePage, projectNameSchema } from "@/server/validate";
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
     const user = await requireUser(req);
     const input = await parseInput(req, createSchema);
     const db = getDb();
+    await assertCanCreateProject(db, user.id);
     const project = await projectsRepo.create(db, user.id, { name: input.name });
     return NextResponse.json({ ok: true, project }, { status: 201 });
   } catch (err) {

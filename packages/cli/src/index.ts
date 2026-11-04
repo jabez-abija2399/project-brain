@@ -9,6 +9,7 @@ import {
   sameRepo,
 } from "@brain/core";
 import { CliError, EXIT, REPO_MISMATCH_MESSAGE, request } from "./api";
+import { DEFAULT_TIMEOUT_S, MAX_TIMEOUT_S, MIN_TIMEOUT_S, checkKey, runCheck } from "./check-run";
 import {
   type CliConfig,
   configPath,
@@ -16,8 +17,10 @@ import {
   legacyConfigPath,
   readConfig,
   readProjectToken,
+  readSettings,
   saveProjectToken,
   writeConfig,
+  writeSettings,
 } from "./config";
 import { hookRunsFile, recordHookRun } from "./hook-runs";
 import {
@@ -32,6 +35,7 @@ import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { attentionLines } from "./last-attention";
 import { evidenceLines } from "./last-evidence";
+import { type LiveDb, connectLiveDb, readLiveRls } from "./live-rls";
 import { runMcpProxy } from "./mcp-proxy";
 import { configCommand, updateCommand } from "./native/commands";
 import { codeceiptsOnPath, runDoctor } from "./native/doctor";
@@ -48,6 +52,7 @@ import {
 } from "./repo-link";
 import { type Git, repoRoot, runGit, runScanSecrets } from "./scan-secrets";
 import { onPath, runSetup } from "./setup-command";
+import { GATE_HEADER } from "./stop-gate";
 import { CLI_VERSION, hookPathFor, setHookInstallPath } from "./templates";
 
 export const PACKAGE = "@brain/cli";
@@ -75,6 +80,9 @@ export function helpText(): string {
     "  codeceipt doctor                    checks the install, login, repo link, hooks and network, with the fix for each problem",
     "  codeceipt update                    updates the native app now (it also checks by itself once a day)",
     "  codeceipt config auto-update on|off turns the daily automatic update on or off",
+    "  codeceipt config stop-gate on|off   holds the agent back while its receipt shows unfinished work (default on)",
+    '  codeceipt config check "npm test"   runs this command after each session; receipts show passed or failed',
+    "  codeceipt rls                       checks your live Supabase database (SUPABASE_DB_URL) for tables open to anyone",
     "  codeceipt --version                 prints the version",
   ].join("\n");
 }
@@ -103,6 +111,8 @@ export type CliDeps = {
   git?: Git;
   // D-028: a yes/no question in the terminal (absent without one), and an agent's own command run without a shell.
   ask?: (question: string) => Promise<boolean>;
+  // FEAT-024: opens the live database for `codeceipt rls` (tests inject one).
+  liveDb?: (url: string) => Promise<LiveDb>;
   runCommand?: (command: string, args: string[]) => Promise<boolean>;
 };
 
@@ -275,8 +285,17 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       return EXIT.ok;
     }
     if (command === "config") {
+      if (args[0] === "check" || args[0] === "check-timeout") {
+        return await checkConfig(args, path, deps);
+      }
       configCommand(args, path, deps);
       return EXIT.ok;
+    }
+    if (command === "check-run") return await runCheckCommand(args, deps, path);
+    if (command === "rls") {
+      if (args.length > 0)
+        throw new CliError(EXIT.usage, "Usage: codeceipt rls (reads SUPABASE_DB_URL)");
+      return await runLiveRls(deps, path);
     }
     if (command === "update") {
       return await updateCommand(args, path, deps, {
@@ -493,7 +512,10 @@ async function runAnyHook(
       problem: err instanceof CliError ? hookProblem(err.message) : undefined,
     }),
   );
-  return await runHook("hook", args, hookDeps, resolved.config, resolved.problem);
+  return await runHook("hook", args, hookDeps, resolved.config, resolved.problem, {
+    stopGate: readSettings(path).stopGate !== false,
+    ...(await checkStarter(deps, path, deps.cwd)),
+  });
 }
 
 // Hooks and the headers helper never fail the agent's session: any error ends as one warning line and exit 0. A
@@ -514,6 +536,7 @@ async function runHook(
   deps: CliDeps,
   saved: CliConfig | null,
   problem: string | undefined,
+  settings: { stopGate?: boolean; startCheck?: (receiptId: string) => void } = {},
 ): Promise<number> {
   const config = saved && isSafeApiUrl(saved.apiUrl) ? saved : null;
   const hookDeps = {
@@ -526,6 +549,8 @@ async function runHook(
     env: deps.env,
     stdout: deps.stdout,
     stderr: deps.stderr,
+    ...(settings.stopGate ? { stopGate: true } : {}),
+    ...(settings.startCheck ? { startCheck: settings.startCheck } : {}),
   };
   try {
     if (command === "mcp-headers") {
@@ -617,6 +642,7 @@ async function runAgentHook(args: string[], deps: CliDeps, path: string): Promis
     env: deps.env,
     stdout: deps.stdout,
     stderr: deps.stderr,
+    ...(await checkStarter(deps, path, dir)),
   };
   try {
     if (event === "session-start") await sessionStart(agent, hookDeps);
@@ -749,7 +775,14 @@ async function runPromptHook(args: string[], deps: CliDeps, path: string): Promi
     }
   } catch {}
   const prompt = typeof input.prompt === "string" ? input.prompt.trim() : "";
-  if (prompt === "" || prompt.startsWith("/") || OWN_COMMAND.test(prompt)) return answer();
+  // FEAT-020: the Stop gate's own instruction, which Cursor sends back as a follow-up prompt, is never a request.
+  if (
+    prompt === "" ||
+    prompt.startsWith("/") ||
+    OWN_COMMAND.test(prompt) ||
+    prompt.startsWith(GATE_HEADER)
+  )
+    return answer();
   const dir = await promptFolder(deps, sessionFolder(stdin, deps.cwd));
   if (!args.includes("--worker") && deps.spawnBackground) {
     try {
@@ -775,4 +808,197 @@ async function runPromptHook(args: string[], deps: CliDeps, path: string): Promi
     // Never fails the agent's prompt: an unlinked repo or an unreachable server records nothing.
   }
   return answer();
+}
+
+// FEAT-022: the repo's check command (set with `codeceipt config check`), from the user config only. The key is the
+// repo's top folder; a repo cannot set or change it.
+async function repoCheck(deps: CliDeps, path: string, folder: string) {
+  const root = await repoRoot(deps.git ?? runGit, folder).catch(() => null);
+  if (!root) return null;
+  const setting = readSettings(path).checks?.[checkKey(root)];
+  return setting ? { root, ...setting } : null;
+}
+
+// The session end starts `codeceipt check-run` in the background (a hook may run for 60 s at most).
+async function checkStarter(deps: CliDeps, path: string, folder: string) {
+  const check = await repoCheck(deps, path, folder).catch(() => null);
+  if (!check || !deps.spawnBackground) return {};
+  const spawnBackground = deps.spawnBackground;
+  return {
+    startCheck: (receiptId: string) => {
+      try {
+        spawnBackground(["check-run", "--receipt", receiptId], "", check.root);
+        // Security review: the user always sees which command ran after the session.
+        deps.stderr(
+          `Codeceipt: running your check command in the background: ${check.command.slice(0, 200)}`,
+        );
+      } catch {}
+    },
+  };
+}
+
+/** `codeceipt config check ["<command>"|off]` and `codeceipt config check-timeout <seconds>`, for this repo. */
+async function checkConfig(args: string[], path: string, deps: CliDeps): Promise<number> {
+  const root = await repoRoot(deps.git ?? runGit, deps.cwd).catch(() => null);
+  if (!root) throw new CliError(EXIT.usage, "Run this inside your app's git repository.");
+  const key = checkKey(root);
+  const checks = { ...(readSettings(path).checks ?? {}) };
+  const [what, value, ...rest] = args;
+  if (rest.length > 0) {
+    throw new CliError(
+      EXIT.usage,
+      'Usage: codeceipt config check ["<command>"|off] | check-timeout <seconds>',
+    );
+  }
+  if (what === "check-timeout") {
+    const secs = Number(value);
+    if (!Number.isInteger(secs) || secs < MIN_TIMEOUT_S || secs > MAX_TIMEOUT_S) {
+      throw new CliError(
+        EXIT.usage,
+        `Usage: codeceipt config check-timeout <seconds> (${MIN_TIMEOUT_S} to ${MAX_TIMEOUT_S})`,
+      );
+    }
+    const current = checks[key];
+    if (!current)
+      throw new CliError(EXIT.usage, 'Set the command first: codeceipt config check "npm test"');
+    if (insideAgent(deps.env)) throw new CliError(EXIT.usage, AGENT_REFUSED);
+    checks[key] = { ...current, timeoutSec: secs };
+    writeSettings(path, { checks });
+    deps.stdout(`The check command for this repo stops after ${secs} s.`);
+    return EXIT.ok;
+  }
+  if (value === undefined) {
+    const current = checks[key];
+    deps.stdout(
+      current
+        ? `Check command for this repo: ${current.command} (stops after ${current.timeoutSec ?? DEFAULT_TIMEOUT_S} s)`
+        : 'No check command for this repo. Set one with: codeceipt config check "npm test"',
+    );
+    return EXIT.ok;
+  }
+  // Security review: the agent cannot plant or change a command that would then run after every session, outside
+  // its own sandbox. Showing it is fine; setting it is for the user, in their own terminal.
+  if (insideAgent(deps.env)) throw new CliError(EXIT.usage, AGENT_REFUSED);
+  if (value === "off") {
+    delete checks[key];
+    writeSettings(path, { checks });
+    deps.stdout("No check command for this repo any more; receipts say 'not run'.");
+    return EXIT.ok;
+  }
+  if (value.trim() === "" || value.length > 2000) {
+    throw new CliError(EXIT.usage, "The check command must be 1 to 2000 characters.");
+  }
+  checks[key] = {
+    command: value,
+    ...(checks[key]?.timeoutSec ? { timeoutSec: checks[key]?.timeoutSec } : {}),
+  };
+  writeSettings(path, { checks });
+  deps.stdout(`Check command for this repo: ${value}`);
+  deps.stdout(
+    "It runs on this computer after each agent session; only passed/failed, the time and test counts are sent.",
+  );
+  return EXIT.ok;
+}
+
+/** `codeceipt check-run --receipt <id>`: runs this repo's check command and posts only the result. */
+async function runCheckCommand(args: string[], deps: CliDeps, path: string): Promise<number> {
+  const receiptId = flag(args, "--receipt");
+  if (!receiptId || !/^[\w-]{1,64}$/.test(receiptId)) {
+    throw new CliError(EXIT.usage, "Usage: codeceipt check-run --receipt <receipt id>");
+  }
+  const check = await repoCheck(deps, path, deps.cwd);
+  if (!check) return EXIT.ok;
+  const config = await projectConfig(deps, path, check.root, { linkedOnly: true }).catch(
+    () => null,
+  );
+  if (!config || !isSafeApiUrl(config.apiUrl)) return EXIT.ok;
+  const result = await runCheck({
+    command: check.command,
+    cwd: check.root,
+    timeoutMs: (check.timeoutSec ?? DEFAULT_TIMEOUT_S) * 1000,
+    platform: deps.platform ?? process.platform,
+  });
+  try {
+    await request(
+      deps.fetch,
+      config,
+      "POST",
+      `/api/hooks/${encodeURIComponent(config.projectId)}/check-run`,
+      {
+        receipt_id: receiptId,
+        ...result,
+      },
+    );
+  } catch {}
+  return EXIT.ok;
+}
+
+// Environment variables the coding agents set for the commands they run (Claude Code, Cursor, Codex, Antigravity).
+const AGENT_ENV = [
+  "CLAUDECODE",
+  "CLAUDE_CODE_ENTRYPOINT",
+  "CURSOR_AGENT",
+  "CURSOR_TRACE_ID",
+  "CODEX_SANDBOX",
+  "CODEX_THREAD_ID",
+  "ANTIGRAVITY_AGENT",
+];
+const AGENT_REFUSED =
+  "The check command can only be set by you: run it yourself in a terminal, not through your agent.";
+function insideAgent(env: Record<string, string | undefined>): boolean {
+  return AGENT_ENV.some((k) => typeof env[k] === "string" && env[k] !== "");
+}
+
+/** `codeceipt rls` (FEAT-024): the live Supabase database's RLS state, read here; flags only are uploaded. */
+async function runLiveRls(deps: CliDeps, path: string): Promise<number> {
+  // Security review: the agent being checked must not upload flags read from a database it set up itself.
+  if (insideAgent(deps.env)) throw new CliError(EXIT.usage, AGENT_REFUSED);
+  const url = deps.env.SUPABASE_DB_URL;
+  if (!url || !/^postgres(ql)?:\/\//.test(url)) {
+    throw new CliError(
+      EXIT.usage,
+      "Set SUPABASE_DB_URL to your database's connection string (Supabase: Project Settings, Database, Connection string), then run codeceipt rls again. It is read on this computer only.",
+    );
+  }
+  const config = await projectConfig(deps, path, deps.cwd, { linkedOnly: true });
+  const limit = Math.max(100, Number(deps.env.CODECEIPT_RLS_TIMEOUT_MS) || 10_000);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("timeout")), limit);
+  });
+  // Kept, so a connection that opens after the time limit is still closed (security review).
+  const connecting = (deps.liveDb ?? connectLiveDb)(url);
+  let flags: Awaited<ReturnType<typeof readLiveRls>>;
+  try {
+    flags = await Promise.race([connecting.then(readLiveRls), timeout]);
+  } catch {
+    // Codeceipt's own words only: a driver error can include the host or user name.
+    throw new CliError(
+      EXIT.failure,
+      `The database did not answer within ${Math.round(limit / 1000)} s, or refused the connection: check SUPABASE_DB_URL and your network. Nothing was uploaded.`,
+    );
+  } finally {
+    clearTimeout(timer);
+    connecting.then((db) => db.end()).catch(() => {});
+  }
+  await request(
+    deps.fetch,
+    config,
+    "POST",
+    `/api/index/${encodeURIComponent(config.projectId)}/supabase`,
+    flags,
+  );
+  const writes = new Set(["INSERT", "UPDATE", "DELETE", "ALL"]);
+  const open = [
+    ...flags.tables.filter((t) => !t.rlsEnabled).map((t) => `${t.name} (RLS off)`),
+    ...[
+      ...new Set(
+        flags.policies.filter((p) => p.allowsAll && writes.has(p.command)).map((p) => p.table),
+      ),
+    ].map((t) => `${t} (a policy lets anyone write)`),
+  ];
+  deps.stdout(
+    `Live database: ${flags.tables.length} tables; ${open.length > 0 ? `open to anyone: ${open.join(", ")}` : "none open to anyone"}.`,
+  );
+  return EXIT.ok;
 }

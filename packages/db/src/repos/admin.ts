@@ -45,6 +45,55 @@ export const adminRepo = {
     }
   },
 
+  /**
+   * FEAT-026: the activation funnel per UTC week of sign-up (weeks start on Monday), in one aggregate query: signed
+   * up, linked a repo (GitHub or the CLI), first receipt, a receipt that caught something (a secret, an RLS problem
+   * or a weakened test), and first receipt within 10 minutes of signing up. Counts only.
+   */
+  async funnel(db: BrainDb, since: Date) {
+    const rows = await db.execute(sql`
+      with u as (
+        select id, "createdAt" as created, date_trunc('week', "createdAt" at time zone 'UTC') as week
+        from ${users} where "createdAt" >= ${since}
+      ),
+      p as (
+        select p.owner_id,
+          bool_or(p.repo_full_name is not null or p.repo_fingerprint is not null) as linked
+        from ${projects} p join u on u.id = p.owner_id group by p.owner_id
+      ),
+      r as (
+        select p.owner_id, min(r.created_at) as first,
+          bool_or(
+            case when jsonb_typeof(r.summary_json->'findings') = 'array'
+              then jsonb_array_length(r.summary_json->'findings') > 0 else false end
+            or case when jsonb_typeof(r.summary_json->'test_integrity'->'flags') = 'array'
+              then jsonb_array_length(r.summary_json->'test_integrity'->'flags') > 0 else false end
+          ) as caught
+        from ${receipts} r join ${projects} p on p.id = r.project_id join u on u.id = p.owner_id
+        group by p.owner_id
+      )
+      select to_char(u.week, 'YYYY-MM-DD') as week,
+        count(*)::int as signed_up,
+        (count(*) filter (where p.linked))::int as linked,
+        (count(r.first))::int as first_receipt,
+        (count(*) filter (where r.caught))::int as caught,
+        (count(*) filter (where r.first <= u.created + interval '10 minutes'))::int as fast
+      from u left join p on p.owner_id = u.id left join r on r.owner_id = u.id
+      group by u.week order by u.week desc`);
+    const list = (Array.isArray(rows) ? rows : (rows as { rows: unknown[] }).rows) as Record<
+      string,
+      unknown
+    >[];
+    return list.map((r) => ({
+      week: String(r.week),
+      signedUp: Number(r.signed_up),
+      linked: Number(r.linked),
+      firstReceipt: Number(r.first_receipt),
+      caught: Number(r.caught),
+      fast: Number(r.fast),
+    }));
+  },
+
   async overview(db: BrainDb, now: Date) {
     const days = lastDays(now, 30);
     const since = new Date(`${days[0]}T00:00:00.000Z`);

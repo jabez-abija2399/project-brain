@@ -1,6 +1,7 @@
 import { ConnectedComputers } from "@/components/account/connected-computers";
 import { DeleteAccount } from "@/components/account/delete-account";
 import { SignOutEverywhere } from "@/components/account/sign-out-everywhere";
+import { BillingButton } from "@/components/billing-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { accountView } from "@/server/account";
@@ -46,6 +47,23 @@ export default async function AccountPage() {
             {a.email} · signed in with GitHub since {a.createdAt.slice(0, 10)}
           </p>
         </div>
+      </section>
+
+      <section className="stack" aria-labelledby="plan">
+        <h2 id="plan" className="section-title">
+          Plan
+        </h2>
+        <p className="muted m0">
+          You are on the {a.billing.plan} plan
+          {a.billing.endsAt ? `; it ends on ${a.billing.endsAt.slice(0, 10)}, then Free` : ""}.
+        </p>
+        {a.billing.subscribed ? (
+          <BillingButton action="portal" label="Manage billing" />
+        ) : (
+          <Link className="btn self-start" href="/pricing">
+            See plans
+          </Link>
+        )}
       </section>
 
       <section className="stack" aria-labelledby="computers">

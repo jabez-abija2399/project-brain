@@ -37,6 +37,7 @@ import {
   verifiedBlobs,
   verifiedStartTexts,
 } from "./session-snapshot";
+import { GAVE_UP, MAX_GATE_BLOCKS, gateAnswer, gateInstruction } from "./stop-gate";
 import { localIntegrity, passingTests } from "./test-integrity-local";
 
 // FEAT-016 agent hooks. They fail safe: whatever goes wrong (not logged in, server unreachable, git missing), the
@@ -58,6 +59,10 @@ export type HookDeps = {
   now?: () => Date;
   // Called once progress is saved, with what was sent (`codeceipt receipt` prints it).
   done?: (summary: { files: number; receiptId: string | null }) => void;
+  // FEAT-020: whether the Stop gate is on for this user (default off here; the CLI passes the user's setting).
+  stopGate?: boolean;
+  // FEAT-022: starts the repo's check command in the background for a receipt (absent when none is set).
+  startCheck?: (receiptId: string) => void;
 };
 
 // Claude Code stops a SessionEnd hook after its timeout (we install 60 s): the calls together stay under 50 s, so
@@ -174,6 +179,8 @@ type SessionState = {
   // Stop hook (owner, 2026-11-01): the receipt it made last and what it was made from.
   receiptId: string | null;
   stopKey: string | null;
+  // FEAT-020: how many times the Stop gate has blocked this session.
+  gateBlocks: number;
 };
 const EMPTY_STATE: SessionState = {
   start: null,
@@ -183,6 +190,7 @@ const EMPTY_STATE: SessionState = {
   blobs: {},
   receiptId: null,
   stopKey: null,
+  gateBlocks: 0,
 };
 
 function readState(file: string): SessionState {
@@ -196,8 +204,13 @@ function readState(file: string): SessionState {
       blobs?: unknown;
       receiptId?: unknown;
       stopKey?: unknown;
+      gateBlocks?: unknown;
     };
     return {
+      gateBlocks:
+        typeof saved.gateBlocks === "number" && Number.isInteger(saved.gateBlocks)
+          ? Math.min(Math.max(saved.gateBlocks, 0), MAX_GATE_BLOCKS)
+          : 0,
       receiptId:
         typeof saved.receiptId === "string" && /^[\w-]{1,64}$/.test(saved.receiptId)
           ? saved.receiptId
@@ -546,9 +559,10 @@ export async function sessionEnd(
   let preExisting: string[] = [];
   let noSnapshot = false;
   let stateFilePath: string | null = null;
-  let previous: { receiptId: string | null; stopKey: string | null } = {
+  let previous: { receiptId: string | null; stopKey: string | null; gateBlocks: number } = {
     receiptId: null,
     stopKey: null,
+    gateBlocks: 0,
   };
   try {
     root = await repoRoot(deps.git, cwd);
@@ -556,6 +570,7 @@ export async function sessionEnd(
     stateFilePath = file;
     let receiptId: string | null;
     let stopKey: string | null;
+    let gateBlocks: number;
     ({
       start,
       passing: passingBefore,
@@ -564,8 +579,9 @@ export async function sessionEnd(
       blobs,
       receiptId,
       stopKey,
+      gateBlocks,
     } = readState(file));
-    previous = { receiptId, stopKey };
+    previous = { receiptId, stopKey, gateBlocks };
     if (!opts.stop) rmSync(file, { force: true });
     commit = await head(deps.git, root);
     // A start that is not an ancestor of HEAD (history rewritten, state file edited) cannot bound the session.
@@ -679,6 +695,8 @@ export async function sessionEnd(
       return false;
     let receiptNote = "";
     let receiptId: string | null = null;
+    let gate: { instruction: string; blocks: number } | null = null;
+    let gaveUp = false;
     const summary: string[] = [];
     const warnings: string[] = [];
     // A session that changed files always gets a receipt (dogfooding): one per request made in this session (newest
@@ -746,6 +764,8 @@ export async function sessionEnd(
           break;
         }
       }
+      // FEAT-022: the session's end starts the check command for its receipt (not every Stop).
+      if (!opts.stop && receiptId) deps.startCheck?.(receiptId);
       if (opts.stop && stateFilePath && receiptId) {
         try {
           const raw = JSON.parse(readFileSync(stateFilePath, "utf8")) as Record<string, unknown>;
@@ -753,9 +773,14 @@ export async function sessionEnd(
         } catch {}
       }
       if (receipts.length > 0) {
-        summary.push(
-          ...receiptSummary(combineReceipts(receipts), config, receiptId, receiptFiles.length),
-        );
+        const combined = combineReceipts(receipts);
+        summary.push(...receiptSummary(combined, config, receiptId, receiptFiles.length));
+        // FEAT-020: at Stop, unfinished work keeps the agent going, at most MAX_GATE_BLOCKS times per session.
+        if (opts.stop && deps.stopGate) {
+          const instruction = gateInstruction(combined);
+          if (instruction && previous.gateBlocks >= MAX_GATE_BLOCKS) gaveUp = true;
+          else if (instruction) gate = { instruction, blocks: previous.gateBlocks + 1 };
+        }
         if (noSnapshot) warnings.push(`${WARN} ${NO_SNAPSHOT_NOTE}`);
         if (beforeFindings.length > 0) {
           warnings.push(
@@ -818,8 +843,17 @@ export async function sessionEnd(
         `${WARN} ${scan.findings.length + scan.omitted} possible secret(s) in the changed files; see the receipt.`,
       );
     }
+    if (gaveUp) warnings.push(`${WARN} ${GAVE_UP}`);
     // The receipt summary first (journey part 4), then the warnings.
     for (const line of [...summary, ...warnings]) deps.stderr(line);
+    const answer = gate ? gateAnswer(_agent, gate.instruction) : null;
+    if (gate && answer && stateFilePath) {
+      try {
+        const raw = JSON.parse(readFileSync(stateFilePath, "utf8")) as Record<string, unknown>;
+        writeState(stateFilePath, JSON.stringify({ ...raw, gateBlocks: gate.blocks }));
+        deps.stdout(answer);
+      } catch {}
+    }
     return summary.length + warnings.length > 0;
   } catch {
     deps.stderr(`${WARN} server unreachable; progress and receipt were not saved.`);
