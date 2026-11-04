@@ -2338,45 +2338,58 @@
           "id": "AC-020-01",
           "kind": "happy",
           "check": "When the Claude Code Stop hook's receipt has a missed item, a deleted/skipped/weakened test, a new secret or a table with RLS off, the hook blocks the stop with one short instruction listing those findings (Cursor: the stop hook returns them as followup_message)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 10:32; log contains AC-020-01"
         },
         {
           "id": "AC-020-02",
           "kind": "boundary",
           "check": "The gate blocks at most 2 times per session; the 3rd stop is let through and the receipt says the gate gave up",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 10:32; log contains AC-020-02"
         },
         {
           "id": "AC-020-03",
           "kind": "negative",
           "check": "A receipt with nothing blocking, a repo that is not linked, a server error or a timeout never blocks the stop",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 10:32; log contains AC-020-03"
         },
         {
           "id": "AC-020-04",
           "kind": "state",
           "check": "`codeceipt config stop-gate off` turns the gate off for this user (receipts still made); `on` turns it back on; default on",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 10:32; log contains AC-020-04"
         },
         {
           "id": "AC-020-05",
           "kind": "attack",
           "check": "The instruction contains only Codeceipt's own wording, item texts the user typed, file paths and masked secrets; checklist text that looks like instructions is quoted as data and capped at 200 characters per item",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-04 10:32; log contains AC-020-05"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "packages/agent-plugins/marketplace/plugins/cursor/hooks/hooks.json",
+        "packages/agent-plugins/src/index.ts",
+        "packages/agent-plugins/src/plugins.test.ts",
+        "packages/cli/src/config.ts",
+        "packages/cli/src/hooks.ts",
+        "packages/cli/src/index.ts",
+        "packages/cli/src/init-command.ts",
+        "packages/cli/src/native/commands.ts",
+        "packages/cli/src/remove-repo-files.ts",
+        "packages/cli/src/stop-gate.test.ts",
+        "packages/cli/src/stop-gate.ts"
+      ]
     },
     {
       "id": "FEAT-021",
@@ -2695,6 +2708,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 808
+    "tests_passed": 1484
   }
 }

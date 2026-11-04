@@ -466,3 +466,9 @@ NOT VERIFIED: search and chips in a live browser with hydration.
 - Verified: unit suites per package, an end-to-end replay of the whole test session (apps/web/src/server/real-test-replay.test.ts), fresh-context security review, verify.sh (see PR).
 - NOT verified: real VS Code / Claude Desktop runs of the Stop hook and the npx fallback on a real Mac (needs the published package).
 - 2026-11-02: Owner added .github/workflows/release-cli.yml (native CLI release workflow, D-027), copied from docs/native-release/release-cli.yml.
+
+## 2026-11-04 | FEAT-020 Stop gate | status: done
+Changed: CLI stop-gate.ts turns a Stop receipt's missed/partly done items, test-integrity flags, secret findings (4 chars) and RLS findings into one instruction (Claude Code decision:block, Cursor followup_message); cap 2 per session (state file), never on errors/unlinked repos; `codeceipt config stop-gate on|off` (default on); Cursor stop hook in init, cleanup and plugin; prompt hook never records the gate's own text.
+Verified (ran this session): 8 stop-gate tests incl. 3 attacks; fresh-context security review (2 MEDIUM, 2 LOW) fixed with tests; CLI 303+ tests, plugins 15; verify.sh PASS; kit.py pass AC-020-01..05.
+NOT VERIFIED: a real Claude Code / Cursor Stop with the gate on a user machine (Cursor's followup_message behaviour from its docs only).
+Next: FEAT-021 shareable receipt links.
