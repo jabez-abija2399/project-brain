@@ -114,6 +114,8 @@ export async function runPushReceipt(
         secretFindings: checks.secrets,
         ...(checks.flags.length > 0 ? { testIntegrity: { flags: checks.flags } } : {}),
       },
+      new Date(),
+      { serverMade: true },
     );
     const receiptId = typeof receipt.receipt_id === "string" ? receipt.receipt_id : null;
     if (receiptId) {
