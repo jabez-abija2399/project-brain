@@ -175,11 +175,10 @@ quick_tests() {
   local dir name kind
   while read -r dir name kind; do
     [ -z "${dir:-}" ] && continue
+    # Only packages whose own files changed run tests in quick mode. Dependents get typecheck and lint (above), not tests:
+    # their tests run in the full gate and in CI.
     if [ "$kind" = changed ]; then
       run "tests $name (changed package: all)" "pnpm --filter \"$name\" --if-present run test -- --reporter=verbose"
-    else
-      run "tests $name (dependent: files related to the change)" \
-        "pnpm --filter \"$name\" exec vitest related --run --passWithNoTests $abs_args $SLOW_ARGS"
     fi
   done <<< "$plan"
 }
