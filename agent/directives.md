@@ -71,3 +71,4 @@
 - 2026-11-05: Each cli-v tag also publishes the CLI to npm from release-cli.yml, through npm trusted publishing (OIDC, no tokens) with provenance, after the GitHub release is published and only from the "release" environment. The updated workflow is kept at docs/native-release/release-cli.yml; the human copies it into .github/workflows.
 - 2026-11-05: The owner pushed cli-v0.3.4 before the version bump (release stopped at the version check, nothing published). CLI bumped to 0.3.4 through a PR; the owner deletes and re-pushes the tag after the merge. First release that publishes to npm by trusted publishing (npm config must validate before 2026-11-07 07:40 UTC).
 - 2026-11-05: Installers pinned to CLI 0.3.4 (signature-verified manifest from the cli-v0.3.4 release).
+- 2026-11-05: Migration 0048_mcp_oauth (additive: oauth_* tables) applied to the Neon production branch by Claude through the Neon connector; /api/health was 503 with it pending.
