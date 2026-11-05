@@ -34,6 +34,12 @@ describe("publish-ready CLI", () => {
     expect(Object.keys(manifest.dependencies).filter((d) => d.startsWith("@brain/"))).toEqual([]);
     expect(JSON.stringify(manifest)).not.toContain("workspace:");
     expect(manifest.private).toBeUndefined();
+    // npm provenance (trusted publishing, docs/native-release.md) rejects a package whose repository differs.
+    expect(manifest.repository).toEqual({
+      type: "git",
+      url: "git+https://github.com/jabez-abija2399/project-brain.git",
+      directory: "packages/cli",
+    });
   });
 
   it("the bundle has the workspace packages built in: no @brain/* import is left", () => {

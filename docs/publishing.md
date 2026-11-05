@@ -1,5 +1,9 @@
 # Publishing the CLI to npm (human steps)
 
+Since 2026-11-05 each `cli-v<version>` tag publishes to npm from the release workflow through npm trusted publishing
+(no token, with provenance; setup in docs/native-release.md, section 5). The manual steps below are the fallback,
+for example to publish a version that was released before the workflow did this.
+
 The CLI is published as the npm package **codeceipt** from the build folder `packages/cli/dist`, never from
 `packages/cli` itself (that is the private workspace package `@brain/cli`). Only an owner publishes; agents never do.
 On 2026-10-30 the name `codeceipt` was still free on npm (`npm view codeceipt` answered 404).

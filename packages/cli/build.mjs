@@ -52,6 +52,12 @@ async function publishManifest() {
     description: "A receipt for every AI change.",
     keywords: ["claude-code", "cursor", "mcp", "ai", "receipts"],
     homepage: "https://codeceipts.vercel.app",
+    // npm provenance (trusted publishing from release-cli.yml) requires this to match the source repository exactly.
+    repository: {
+      type: "git",
+      url: "git+https://github.com/jabez-abija2399/project-brain.git",
+      directory: "packages/cli",
+    },
     type: "module",
     bin: { codeceipt: "./codeceipt.mjs" },
     files: ["codeceipt.mjs", "child.mjs", "README.md"],
