@@ -51,6 +51,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          package-manager-cache: false
           # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
           package-manager-cache: false
       # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
@@ -80,6 +81,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          package-manager-cache: false
           # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
           package-manager-cache: false
       # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
@@ -140,6 +142,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          package-manager-cache: false
           # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
           package-manager-cache: false
       # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
@@ -186,6 +189,7 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          package-manager-cache: false
           # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
           package-manager-cache: false
       - name: The signed binaries from the build jobs
