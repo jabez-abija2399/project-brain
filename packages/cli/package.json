@@ -1,6 +1,6 @@
 {
   "name": "@brain/cli",
-  "version": "0.1.2",
+  "version": "0.3.3",
   "private": true,
   "type": "module",
   "main": "./src/index.ts",
@@ -24,7 +24,8 @@
     "libpg-query": "18.1.5",
     "typescript": "^5.6.3",
     "@brain/sandbox": "workspace:*",
-    "@electric-sql/pglite": "0.5.10"
+    "@electric-sql/pglite": "0.5.10",
+    "postgres": "^3.4.5"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",

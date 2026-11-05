@@ -5,8 +5,8 @@
 //   node build-native.mjs linux-x64 darwin-arm64
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { join, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const pkgDir = fileURLToPath(new URL(".", import.meta.url));
@@ -21,6 +21,27 @@ export const BUN_TARGETS = {
   "linux-arm64-musl": "bun-linux-arm64-musl",
   "windows-x64": "bun-windows-x64",
 };
+/**
+ * The bun executable to run. Elsewhere `bun` on PATH is the binary itself. On Windows, `npm install -g bun` puts only
+ * bun.cmd / bun.ps1 launchers on PATH, which a shell-less execFileSync cannot start (ENOENT), so the real bun.exe is
+ * found on PATH or next to the npm launcher (<npm prefix>/node_modules/bun/bin/bun.exe). BUN_PATH overrides both.
+ */
+export function bunExecutable(env = process.env, platform = process.platform, exists = existsSync) {
+  if (env.BUN_PATH) return env.BUN_PATH;
+  if (platform !== "win32") return "bun";
+  for (const dir of (env.PATH ?? env.Path ?? "").split(win32.delimiter).filter(Boolean)) {
+    for (const candidate of [
+      win32.join(dir, "bun.exe"),
+      win32.join(dir, "node_modules", "bun", "bin", "bun.exe"),
+    ]) {
+      if (exists(candidate)) return candidate;
+    }
+  }
+  throw new Error(
+    "bun.exe not found on PATH (install it with `npm install -g bun` or set BUN_PATH)",
+  );
+}
+
 const fileNameFor = (t) => `codeceipt-${t}${t.startsWith("windows") ? ".exe" : ""}`;
 
 export function buildNative(targets = Object.keys(BUN_TARGETS)) {
@@ -33,7 +54,7 @@ export function buildNative(targets = Object.keys(BUN_TARGETS)) {
     const outfile = join(outDir, file);
     // No shell: every argument is passed as is. --define fixes the target this binary updates itself to.
     execFileSync(
-      "bun",
+      bunExecutable(),
       [
         "build",
         "--compile",

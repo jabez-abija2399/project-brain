@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { type BrainDb, TokenLimitError, deviceCodesRepo, projectsRepo } from "@brain/db";
 import { z } from "zod";
 import { type SessionUser, appOriginOf, requireProjectAccess } from "./auth";
+import { assertCanCreateProject } from "./billing";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
 import { UNSAFE_NAME_CHARS, projectNameSchema } from "./validate";
@@ -156,7 +157,10 @@ export async function approveDevice(
   const projectId =
     "project_id" in input
       ? (await requireProjectAccess(db, input.project_id, user)).id
-      : (await projectsRepo.create(db, user.id, { name: input.new_project_name })).id;
+      : await (async () => {
+          await assertCanCreateProject(db, user.id);
+          return (await projectsRepo.create(db, user.id, { name: input.new_project_name })).id;
+        })();
   if (!(await deviceCodesRepo.decide(db, input.user_code, { userId: user.id, projectId }, now))) {
     throw new AppError(404, "not_found");
   }

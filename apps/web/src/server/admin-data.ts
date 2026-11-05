@@ -37,6 +37,16 @@ export async function adminOverview(_admin: Admin, db: BrainDb, now = new Date()
   return { ...o, suspended, health: h };
 }
 
+/** FEAT-026: the activation funnel for the last 12 weeks of sign-ups (admin only: the caller holds an Admin). */
+export const FUNNEL_WEEKS = 12;
+export async function adminFunnel(_admin: Admin, db: BrainDb, now = new Date()) {
+  const day = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  // Back to this week's Monday, then 11 more weeks.
+  const monday = new Date(day.getTime() - ((day.getUTCDay() + 6) % 7) * 86_400_000);
+  const since = new Date(monday.getTime() - (FUNNEL_WEEKS - 1) * 7 * 86_400_000);
+  return adminRepo.funnel(db, since);
+}
+
 export async function adminUsers(
   _admin: Admin,
   db: BrainDb,

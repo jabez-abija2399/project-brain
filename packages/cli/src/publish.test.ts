@@ -23,17 +23,23 @@ afterAll(() => {
 const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
 describe("publish-ready CLI", () => {
-  it("the package is codeceipt 0.1.2 with one command, codeceipt, and no workspace dependencies", () => {
+  it("the package is codeceipt 0.3.3 with one command, codeceipt, and no workspace dependencies", () => {
     const manifest = json(join(outDir, "package.json"));
     expect(manifest.name).toBe("codeceipt");
-    expect(manifest.version).toBe("0.1.2");
-    expect(VERSION).toBe("0.1.2");
-    expect(json(join(pkgDir, "package.json")).version).toBe("0.1.2");
+    expect(manifest.version).toBe("0.3.3");
+    expect(VERSION).toBe("0.3.3");
+    expect(json(join(pkgDir, "package.json")).version).toBe("0.3.3");
     expect(manifest.bin).toEqual({ codeceipt: "./codeceipt.mjs" });
     expect(manifest.files).toEqual(["codeceipt.mjs", "child.mjs", "README.md"]);
     expect(Object.keys(manifest.dependencies).filter((d) => d.startsWith("@brain/"))).toEqual([]);
     expect(JSON.stringify(manifest)).not.toContain("workspace:");
     expect(manifest.private).toBeUndefined();
+    // npm provenance (trusted publishing, docs/native-release.md) rejects a package whose repository differs.
+    expect(manifest.repository).toEqual({
+      type: "git",
+      url: "git+https://github.com/jabez-abija2399/project-brain.git",
+      directory: "packages/cli",
+    });
   });
 
   it("the bundle has the workspace packages built in: no @brain/* import is left", () => {
@@ -53,7 +59,7 @@ describe("publish-ready CLI", () => {
       version: string;
       files: { path: string }[];
     }[];
-    expect([pack?.name, pack?.version]).toEqual(["codeceipt", "0.1.2"]);
+    expect([pack?.name, pack?.version]).toEqual(["codeceipt", "0.3.3"]);
     expect(pack?.files.map((f) => f.path).sort()).toEqual(
       ["README.md", "child.mjs", "codeceipt.mjs", "package.json"].sort(),
     );

@@ -16,6 +16,64 @@ export const receiptsRepo = {
     return row;
   },
 
+  /** FEAT-022: attaches the check command's result to a receipt of this project; false when there is none. */
+  async setCheckRun(
+    db: BrainDb,
+    projectId: string,
+    receiptId: string,
+    checkRun: Record<string, unknown>,
+  ): Promise<boolean> {
+    const rows = await db
+      .update(receipts)
+      .set({
+        summaryJson: sql`coalesce(${receipts.summaryJson}, '{}'::jsonb) || jsonb_build_object('check_run', ${JSON.stringify(checkRun)}::jsonb)`,
+      })
+      // Security review: one result per receipt; a later post (a forged "passed") never replaces it.
+      .where(
+        and(
+          eq(receipts.id, receiptId),
+          eq(receipts.projectId, projectId),
+          sql`(${receipts.summaryJson} -> 'check_run') IS NULL`,
+        ),
+      )
+      .returning({ id: receipts.id });
+    return rows.length > 0;
+  },
+
+  /** FEAT-023: the receipt already made for a commit of this project, or null. */
+  async findByCommit(db: BrainDb, projectId: string, commitSha: string): Promise<string | null> {
+    const [row] = await db
+      .select({ id: receipts.id })
+      .from(receipts)
+      .where(and(eq(receipts.projectId, projectId), eq(receipts.commitSha, commitSha)))
+      .limit(1);
+    return row?.id ?? null;
+  },
+
+  /** Adds top-level keys to a receipt's stored summary (FEAT-023: from_push, files_not_checked). */
+  async mergeSummary(
+    db: BrainDb,
+    projectId: string,
+    receiptId: string,
+    extra: Record<string, unknown>,
+  ): Promise<void> {
+    await db
+      .update(receipts)
+      .set({
+        summaryJson: sql`coalesce(${receipts.summaryJson}, '{}'::jsonb) || ${JSON.stringify(extra)}::jsonb`,
+      })
+      .where(and(eq(receipts.id, receiptId), eq(receipts.projectId, projectId)));
+  },
+
+  async exists(db: BrainDb, projectId: string, receiptId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ id: receipts.id })
+      .from(receipts)
+      .where(and(eq(receipts.id, receiptId), eq(receipts.projectId, projectId)))
+      .limit(1);
+    return Boolean(row);
+  },
+
   async list(db: BrainDb, projectId: string, limit = 50): Promise<Receipt[]> {
     return db
       .select()
