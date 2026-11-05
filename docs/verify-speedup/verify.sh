@@ -93,7 +93,7 @@ done <<< "$CHANGED"
 # Tests marked "// @slow" (sandbox, end-to-end, anything that spawns processes or runs whole flows).
 SLOW_EXCLUDES=()
 while IFS= read -r f; do [ -n "$f" ] && SLOW_EXCLUDES+=(--exclude "**/$(basename "$f")"); done \
-  < <(grep -rl --include='*.test.ts' '@slow' apps packages 2>/dev/null || true)
+  < <(grep -rl --include='*.test.ts' '^// @slow' apps packages 2>/dev/null || true)
 SLOW_ARGS=""  # shell-quoted for the command strings below (a glob like **/x.test.ts must not expand)
 for a in ${SLOW_EXCLUDES[@]+"${SLOW_EXCLUDES[@]}"}; do printf -v q '%q ' "$a"; SLOW_ARGS+="$q"; done
 

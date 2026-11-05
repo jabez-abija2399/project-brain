@@ -86,7 +86,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Tests: db, core, agent-kit, agent-plugins (without @slow)
         run: |
-          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '@slow' apps packages | xargs -n1 basename)
+          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
           EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
           pnpm --filter @brain/db --filter @brain/core --filter @brain/agent-kit --filter @brain/agent-plugins \
             --if-present run test -- --reporter=verbose "${EXCL[@]}"
@@ -109,7 +109,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Tests: cli (without @slow)
         run: |
-          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '@slow' apps packages | xargs -n1 basename)
+          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
           EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
           pnpm --filter @brain/cli --if-present run test -- --reporter=verbose "${EXCL[@]}"
 
@@ -131,7 +131,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Tests: web and sandbox (without @slow)
         run: |
-          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '@slow' apps packages | xargs -n1 basename)
+          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
           EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
           pnpm --filter @brain/web --filter @brain/sandbox --if-present run test -- --reporter=verbose "${EXCL[@]}"
 
@@ -154,7 +154,7 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Slow tests (files marked // @slow)
         run: |
-          mapfile -t FILES < <(grep -rl --include='*.test.ts' '@slow' apps packages)
+          mapfile -t FILES < <(grep -rl --include='*.test.ts' '^// @slow' apps packages)
           pnpm -r --if-present run test -- --reporter=verbose --passWithNoTests "${FILES[@]}"
 
   # Production build and the end-to-end test against a disposable Postgres (throwaway credentials; the container lives
