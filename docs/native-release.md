@@ -93,11 +93,11 @@ Then commit with the override variable set for that one command (see AGENTS.md: 
 2. Tag the merge commit and push the tag:
 
    ```bash
-   git tag cli-v0.2.0
+   git tag cli-v0.3.0
    ```
 
    ```bash
-   git push origin cli-v0.2.0
+   git push origin cli-v0.3.0
    ```
 
 3. When the workflow finishes, its summary shows the JSON for `apps/web/src/lib/cli-release.json` (the version and
