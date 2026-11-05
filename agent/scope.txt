@@ -43,3 +43,5 @@ packages/cli/build-native.mjs # Windows release: run bun.exe, not the npm .cmd l
 packages/cli/src/native/build-native.test.ts # Windows bun lookup tests
 packages/cli/scripts/smoke-native.mjs # Windows: the sandbox child may carry only the OS system variables
 packages/cli/src/native-main.ts # embed libpg-query.wasm in the native binary (0.3.2 aborted on users' machines)
+apps/web/src/lib/cli-release.json # pin the installers to the verified CLI 0.3.3 release
+apps/web/src/server/pages.test.ts # landing copy command follows the pinned release (as landing-guide.test does, D-027)
