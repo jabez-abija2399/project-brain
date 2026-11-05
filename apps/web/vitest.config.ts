@@ -15,9 +15,9 @@ export default defineConfig({
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     testTimeout: 30000,
     hookTimeout: 30000,
-    // Same reason as packages/db: the integration suites each spin up a
-    // PGlite instance per `beforeEach`, so parallel files thrash a single
-    // WASM runtime. Serial file execution keeps hooks under budget.
-    fileParallelism: false,
+    // Test files run in parallel workers (one per core, at most 4): each worker has its own PGlite runtime, and the
+    // database image is built once per worker (packages/db testing), so parallel files no longer thrash one runtime.
+    fileParallelism: true,
+    maxWorkers: 4,
   },
 });
