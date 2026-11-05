@@ -2,6 +2,7 @@ import QuickstartPage, { metadata as quickstartMeta } from "@/app/docs/quickstar
 import Home from "@/app/page";
 import PrivacyPage, { metadata as privacyMeta } from "@/app/privacy/page";
 import TermsPage, { metadata as termsMeta } from "@/app/terms/page";
+import { INSTALL_SH, nativeReleased } from "@/components/install-options";
 import { INSTALL_PS1, INSTALL_SH, nativeReleased } from "@/components/install-options";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -86,7 +87,9 @@ describe("public pages", () => {
 
   it("the landing page: only `npx codeceipt` to copy (hero and final band), no session-end command, and footer links to the new pages", async () => {
     const html = await render(Home());
-    expect(copies(html)).toEqual(["npx codeceipt", "npx codeceipt"]);
+    // D-027 (owner, 2026-11-02): the one-line installer replaces npx once a native release is pinned.
+    const first = nativeReleased() ? INSTALL_SH : "npx codeceipt";
+    expect(copies(html)).toEqual([first, first]);
     expect(html).not.toContain("hook session-end");
     const footer = html.slice(html.indexOf("<footer"));
     for (const href of ["/privacy", "/terms", "/docs/quickstart"]) {
