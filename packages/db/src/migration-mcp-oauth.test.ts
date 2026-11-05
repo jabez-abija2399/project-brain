@@ -32,9 +32,7 @@ async function columnsOf(db: PGlite, table: string): Promise<string[]> {
 describe("migration 0048 (MCP OAuth)", () => {
   it("is registered after the highest migration on main (0045) with the name the app expects", () => {
     expect(MIGRATION_IDS).toContain("0048_mcp_oauth");
-    expect(MIGRATION_IDS.indexOf("0048_mcp_oauth")).toBe(
-      MIGRATION_IDS.indexOf("0045_billing") + 1,
-    );
+    expect(MIGRATION_IDS.indexOf("0048_mcp_oauth")).toBe(MIGRATION_IDS.indexOf("0045_billing") + 1);
   });
 
   it("creates the four OAuth tables with the columns the repository uses", async () => {
