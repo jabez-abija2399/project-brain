@@ -2,7 +2,7 @@
 // --version, help, and one SQL sandbox job through `__sandbox-child` (embedded PGlite, empty environment). Exits
 // non-zero on any failure. Usage: node scripts/smoke-native.mjs dist-native/codeceipt-linux-x64
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, renameSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -17,6 +17,26 @@ const check = (ok, what) => {
   }
   console.log(`ok   ${what}`);
 };
+// The binary must run on its embedded files only, as on a user's computer: the WebAssembly and data files of this
+// checkout's node_modules are moved aside for the run (a compiled-in build-machine path would otherwise still work
+// here; that is how the 0.3.2 binaries passed this check and then aborted elsewhere). Put back on exit.
+const hidden = [];
+const store = join(pkgDir, "..", "..", "node_modules", ".pnpm");
+if (existsSync(store)) {
+  for (const dir of readdirSync(store)) {
+    if (!/^(libpg-query|@electric-sql\+pglite)@/.test(dir)) continue;
+    for (const rel of readdirSync(join(store, dir), { recursive: true })) {
+      if (!/\.(wasm|data)$/.test(String(rel))) continue;
+      const file = join(store, dir, String(rel));
+      renameSync(file, `${file}.smoke-hidden`);
+      hidden.push(file);
+    }
+  }
+}
+process.on("exit", () => {
+  for (const file of hidden) renameSync(`${file}.smoke-hidden`, file);
+});
+console.log(`(${hidden.length} WebAssembly/data files of node_modules hidden for this run)`);
 const t0 = Date.now();
 const v = execFileSync(bin, ["--version"], { encoding: "utf8" }).trim();
 check(
