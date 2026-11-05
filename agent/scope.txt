@@ -38,3 +38,4 @@ apps/web/src/server/admin-funnel.test.ts # FEAT-026
 packages/cli/package.json # CLI 0.3.0
 packages/cli/src/templates.ts # CLI 0.3.0
 docs/native-release.md # CLI 0.3.0 tag example
+packages/agent-plugins/* # plugin versions follow the CLI (0.3.0)
