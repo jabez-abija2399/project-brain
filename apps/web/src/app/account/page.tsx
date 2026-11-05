@@ -1,5 +1,6 @@
 import { ConnectedComputers } from "@/components/account/connected-computers";
 import { DeleteAccount } from "@/components/account/delete-account";
+import { OAuthConnections } from "@/components/account/oauth-connections";
 import { SignOutEverywhere } from "@/components/account/sign-out-everywhere";
 import { BillingButton } from "@/components/billing-button";
 import { PageHeader } from "@/components/shell/page-header";
@@ -7,6 +8,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { accountView } from "@/server/account";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
+import { connectionsFor } from "@/server/mcp-oauth";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -17,7 +19,7 @@ export const metadata: Metadata = { title: "Account | Codeceipt", robots: { inde
 // as a download, and deleting the account for good. A suspended user can still export and delete.
 export default async function AccountPage() {
   const user = await pageUser({ allowSuspended: true });
-  const a = await accountView(getDb(), user);
+  const [a, apps] = await Promise.all([accountView(getDb(), user), connectionsFor(getDb(), user)]);
   return (
     <main className="page page-narrow stack stack-lg">
       <PageHeader
@@ -76,6 +78,18 @@ export default async function AccountPage() {
           <code>npx codeceipt</code> again.
         </p>
         <ConnectedComputers initial={a.computers} />
+      </section>
+
+      <section className="stack" aria-labelledby="apps">
+        <h2 id="apps" className="section-title">
+          Connected apps
+        </h2>
+        <p className="muted m0">
+          Apps such as Claude Desktop, a claude.ai connector or VS Code that you connected by
+          signing in. Each one can reach only the project you approved. Revoke one you no longer
+          use.
+        </p>
+        <OAuthConnections initial={apps} />
       </section>
 
       <section className="stack" aria-labelledby="sessions">

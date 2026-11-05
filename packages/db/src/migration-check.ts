@@ -30,6 +30,7 @@ export const MIGRATION_IDS = [
   "0041_closed_by_owner",
   "0044_receipt_share_links",
   "0045_billing",
+  "0048_mcp_oauth",
 ] as const;
 
 // The runner's tracking table (migrations-core.mjs); read only, never part of the app schema.
