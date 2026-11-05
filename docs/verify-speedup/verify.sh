@@ -130,6 +130,60 @@ if [ -f Cargo.toml ]; then
   have cargo-audit && : "${VERIFY_AUDIT=cargo audit}"
 fi
 
+# quick_plan: one line per workspace package in the changed set or depending on it: "DIR NAME changed|dependent".
+# Read from the workspace's own package.json files, so it does not depend on pnpm's output format.
+quick_plan() {
+  CHANGED_LIST="$CHANGED" node -e '
+const fs = require("fs"), path = require("path");
+const dirs = [];
+for (const g of ["apps", "packages"]) if (fs.existsSync(g)) for (const d of fs.readdirSync(g)) {
+  const p = path.join(g, d); if (fs.existsSync(path.join(p, "package.json"))) dirs.push(p);
+}
+const info = {};
+for (const d of dirs) {
+  const j = JSON.parse(fs.readFileSync(path.join(d, "package.json"), "utf8"));
+  info[d] = { name: j.name, deps: Object.keys({ ...j.dependencies, ...j.devDependencies }) };
+}
+const byName = {}; for (const d of dirs) byName[info[d].name] = d;
+const files = (process.env.CHANGED_LIST || "").split("\n").filter(Boolean);
+const changed = new Set(dirs.filter((d) => files.some((f) => f === d || f.startsWith(d + "/"))));
+const selected = new Set(changed);
+for (let grew = true; grew; ) {
+  grew = false;
+  for (const d of dirs) {
+    if (selected.has(d)) continue;
+    if (info[d].deps.some((n) => byName[n] && selected.has(byName[n]))) { selected.add(d); grew = true; }
+  }
+}
+for (const d of dirs) if (selected.has(d)) console.log(d + " " + info[d].name + " " + (changed.has(d) ? "changed" : "dependent"));
+'
+}
+
+# quick_tests: the test step of --quick (see the comment in the quick branch below).
+quick_tests() {
+  local plan; plan=$(quick_plan)
+  if [ -z "$plan" ]; then
+    run "tests (no workspace package changed: every test)" "${VERIFY_TEST:-}"; return
+  fi
+  # Changed files outside apps/ and packages/ (root config, lockfile, scripts) can affect anything: run every test.
+  if printf '%s\n' "$CHANGED" | grep -Eqv '^(apps|packages)/|^(docs/|agent/|.*\.md$)|^$'; then
+    run "tests (files outside the packages changed: every test)" "${VERIFY_TEST:-}"; return
+  fi
+  local abs=() f
+  while IFS= read -r f; do [ -n "$f" ] && [ -e "$f" ] && abs+=("$PWD/$f"); done <<< "$CHANGED"
+  local abs_args=""; for f in "${abs[@]+"${abs[@]}"}"; do printf -v q '%q ' "$f"; abs_args+="$q"; done
+  local dir name kind
+  while read -r dir name kind; do
+    [ -z "${dir:-}" ] && continue
+    if [ "$kind" = changed ]; then
+      run "tests $name (changed package: all)" "pnpm --filter \"$name\" --if-present run test -- --reporter=verbose"
+    else
+      run "tests $name (dependent: files related to the change)" \
+        "pnpm --filter \"$name\" exec vitest related --run --passWithNoTests $abs_args $SLOW_ARGS"
+    fi
+  done <<< "$plan"
+}
+
 if [ "$QUICK" = 1 ]; then
   if [ "$DOCS_ONLY" = 1 ]; then
     SUMMARY+=("SKIP  typecheck, tests (quick: only docs or agent/*.md changed)")
@@ -146,11 +200,11 @@ if [ "$QUICK" = 1 ]; then
       run "typecheck (changed packages and dependents)" \
         "pnpm --filter \"...[$BASE]\" --filter \"!$ROOT_NAME\" --if-present run typecheck"
       run "lint" "${VERIFY_LINT:-}"
-      # Packages that changed: every test. Their dependents: tests without the @slow files.
-      run "tests (changed packages)" \
-        "pnpm --filter \"[$BASE]\" --filter \"!$ROOT_NAME\" --if-present run test -- --reporter=verbose"
-      run "tests (dependents, @slow skipped)" \
-        "pnpm --filter \"...[$BASE]\" --filter \"![$BASE]\" --filter \"!$ROOT_NAME\" --if-present run test -- --reporter=verbose $SLOW_ARGS"
+      # Tests, quick version:
+      #  - a changed package runs all of its own tests (its @slow tests too, since the package changed);
+      #  - a dependent package runs only the test files that import a changed file (vitest related), no @slow tests;
+      #  - changes outside apps/ and packages/ (root config, lockfile, scripts) fall back to every test in the workspace.
+      quick_tests
     fi
     run "kit guard" "python3 scripts/kit.py check"
   fi
