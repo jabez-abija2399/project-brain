@@ -41,3 +41,4 @@ docs/native-release.md # CLI 0.3.0 tag example
 packages/agent-plugins/* # plugin versions follow the CLI (0.3.0)
 packages/cli/build-native.mjs # Windows release: run bun.exe, not the npm .cmd launcher
 packages/cli/src/native/build-native.test.ts # Windows bun lookup tests
+packages/cli/scripts/smoke-native.mjs # Windows: the sandbox child may carry only the OS system variables
