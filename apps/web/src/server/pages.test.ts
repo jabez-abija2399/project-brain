@@ -2,7 +2,6 @@ import QuickstartPage, { metadata as quickstartMeta } from "@/app/docs/quickstar
 import Home from "@/app/page";
 import PrivacyPage, { metadata as privacyMeta } from "@/app/privacy/page";
 import TermsPage, { metadata as termsMeta } from "@/app/terms/page";
-import { INSTALL_SH, nativeReleased } from "@/components/install-options";
 import { INSTALL_PS1, INSTALL_SH, nativeReleased } from "@/components/install-options";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
