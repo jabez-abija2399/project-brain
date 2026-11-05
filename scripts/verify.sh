@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Stack-agnostic verification gate. Auto-detects Node, Go, Python, Rust; override in scripts/verify.config.
 # Never reports a skipped step as passed. Full tool output goes to agent/last-verify.log (not into the chat);
-# a failing step prints only its last lines.
-#   bash scripts/verify.sh           full gate (required before `kit.py pass` and before commit)
-#   bash scripts/verify.sh --quick   fast inner loop: typecheck, lint, tests; stops at the first failure.
-#                                    Writes RESULT=QUICK_*, which `kit.py pass` and the commit hook do NOT accept.
+# a failing step prints only its last lines. Every step prints how long it took.
+#   bash scripts/verify.sh           full gate (required before `kit.py pass` and before a pull request)
+#   bash scripts/verify.sh --quick   fast inner loop: typecheck, lint and tests for the packages changed since the base
+#                                    (default origin/main) and the packages that depend on them; docs-only and
+#                                    agent/*.md-only changes skip typecheck and tests. Tests marked "// @slow" are
+#                                    skipped in packages that did not change. Writes RESULT=QUICK_*, which
+#                                    `kit.py pass` and the commit hook do NOT accept.
+# VERIFY_BASE=<ref> sets the base for --quick (default origin/main).
 # VERIFY_STRICT=1 (use in CI) turns skipped security scanners into failures. VERIFY_PARALLEL=0 runs scanners serially.
 # VERIFY_CI_ONLY="build e2e audit scanners perf mutation" (any subset) runs those steps only when CI is set.
 # Optional steps (off until configured): VERIFY_PERF (performance budget), VERIFY_MUTATION (do tests catch bugs?).
@@ -13,7 +17,13 @@ cd "$(dirname "$0")/.."
 QUICK=0; [ "${1:-}" = "--quick" ] && QUICK=1
 [ -f scripts/verify.config ] && . scripts/verify.config
 mkdir -p agent agent/.verify; rm -f agent/.verify/*
+now_ms() { # milliseconds now, for timing only (never a pass or fail input)
+  if [ -n "${EPOCHREALTIME:-}" ]; then local s="${EPOCHREALTIME%.*}" f="${EPOCHREALTIME#*.}"; echo $((s * 1000 + 10#${f:0:3}))
+  else python3 -c 'import time; print(int(time.time() * 1000))'; fi
+}
+fmt_ms() { awk -v ms="$1" 'BEGIN { printf "%.1f s", ms / 1000 }'; }
 START=$(python3 -c "import time; print(time.time())")
+START_MS=$(now_ms)
 LOG=agent/last-verify.log; : > "$LOG"
 SUMMARY=(); FAIL=0; SKIPPED_SEC=0; OFF=(); BG=()
 TAIL_LINES="${VERIFY_TAIL:-25}"
@@ -25,29 +35,35 @@ show_tail() { # show_tail NAME FILE : the useful end of a failing step, so nobod
   echo "---- $1 (last $TAIL_LINES lines; full output in $LOG) ----"
   grep -v '^[[:space:]]*$' "$2" | tail -n "$TAIL_LINES"
 }
-record() { # record NAME FILE RC
+record() { # record NAME FILE RC [MS]
   { echo "== $1"; cat "$2"; } >> "$LOG"
-  if [ "$3" = 0 ]; then SUMMARY+=("PASS  $1"); else SUMMARY+=("FAIL  $1"); FAIL=1; show_tail "$1" "$2"; fi
+  local took=""; [ -n "${4:-}" ] && took=" ($(fmt_ms "$4"))"
+  if [ "$3" = 0 ]; then SUMMARY+=("PASS  $1$took"); else SUMMARY+=("FAIL  $1$took"); FAIL=1; show_tail "$1" "$2"; fi
 }
 run() { # run NAME COMMAND
   local name="$1" cmd="$2" f
   if [ -z "$cmd" ] || [ "$cmd" = "SKIP" ]; then SUMMARY+=("SKIP  $name (not configured)"); return; fi
   [ "$QUICK" = 1 ] && [ "$FAIL" = 1 ] && { SUMMARY+=("----  $name (not run: --quick stops at first failure)"); return; }
   f="agent/.verify/$(slug "$name").out"; echo "\$ $cmd" > "$f"
-  bash -c "$cmd" >> "$f" 2>&1; record "$name" "$f" $?
+  local t0; t0=$(now_ms)
+  bash -c "$cmd" >> "$f" 2>&1; local rc=$?
+  record "$name" "$f" "$rc" "$(( $(now_ms) - t0 ))"
 }
 run_bg() { # run_bg NAME COMMAND : independent steps (scanners, audit) run concurrently; collected by wait_bg
   local name="$1" cmd="$2" f
   if [ -z "$cmd" ] || [ "$cmd" = "SKIP" ]; then SUMMARY+=("SKIP  $name (not configured)"); return; fi
   if [ "${VERIFY_PARALLEL:-1}" = 0 ]; then run "$name" "$cmd"; return; fi
   f="agent/.verify/$(slug "$name").out"; echo "\$ $cmd" > "$f"
-  ( bash -c "$cmd" >> "$f" 2>&1; echo $? > "$f.rc" ) &
+  ( t0=$(now_ms); bash -c "$cmd" >> "$f" 2>&1; echo $? > "$f.rc"; echo $(( $(now_ms) - t0 )) > "$f.ms" ) &
   BG+=("$name")
 }
 wait_bg() {
   wait
   local name f
-  for name in ${BG[@]+"${BG[@]}"}; do f="agent/.verify/$(slug "$name").out"; record "$name" "$f" "$(cat "$f.rc" 2>/dev/null || echo 1)"; done
+  for name in ${BG[@]+"${BG[@]}"}; do
+    f="agent/.verify/$(slug "$name").out"
+    record "$name" "$f" "$(cat "$f.rc" 2>/dev/null || echo 1)" "$(cat "$f.ms" 2>/dev/null || echo "")"
+  done
   BG=()
 }
 run_opt() { # run_opt NAME COMMAND ENVVAR : optional steps show OFF (not SKIP) and never count as skipped
@@ -62,6 +78,24 @@ sec() { # sec NAME TOOL COMMAND INSTALL_HINT
   if have "$2"; then run_bg "$1" "$3"
   else SUMMARY+=("SKIP  $1 (not installed: $4)"); SKIPPED_SEC=1; fi
 }
+
+# ---- what changed (quick mode works from this list only) ----
+BASE="${VERIFY_BASE:-origin/main}"
+CHANGED=$( { git diff --name-only "$BASE"...HEAD 2>/dev/null; git status --porcelain 2>/dev/null | cut -c4-; } | sort -u | sed '/^$/d')
+BASE_OK=0; git rev-parse -q --verify "$BASE^{commit}" >/dev/null 2>&1 && BASE_OK=1
+DOCS_ONLY=1
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  case "$f" in docs/*|agent/*.md|*.md) ;; *) DOCS_ONLY=0 ;; esac
+done <<< "$CHANGED"
+# Quick mode with no usable base runs everything (never guesses what changed).
+[ "$QUICK" = 1 ] && [ "$BASE_OK" = 0 ] && QUICK_FULL_REASON="base $BASE not found: running every package"
+# Tests marked "// @slow" (sandbox, end-to-end, anything that spawns processes or runs whole flows).
+SLOW_EXCLUDES=()
+while IFS= read -r f; do [ -n "$f" ] && SLOW_EXCLUDES+=(--exclude "**/$(basename "$f")"); done \
+  < <(grep -rl --include='*.test.ts' '@slow' apps packages 2>/dev/null || true)
+SLOW_ARGS=""  # shell-quoted for the command strings below (a glob like **/x.test.ts must not expand)
+for a in ${SLOW_EXCLUDES[@]+"${SLOW_EXCLUDES[@]}"}; do printf -v q '%q ' "$a"; SLOW_ARGS+="$q"; done
 
 # ---- detect stack defaults (only if not set in verify.config) ----
 if [ -f package.json ]; then
@@ -96,12 +130,30 @@ if [ -f Cargo.toml ]; then
   have cargo-audit && : "${VERIFY_AUDIT=cargo audit}"
 fi
 
-
 if [ "$QUICK" = 1 ]; then
-  run "typecheck" "${VERIFY_TYPECHECK:-}"
-  run "lint"      "${VERIFY_LINT:-}"
-  run "unit/integration tests" "${VERIFY_TEST_QUICK:-${VERIFY_TEST:-}}"
-  run "kit guard" "python3 scripts/kit.py check"
+  if [ "$DOCS_ONLY" = 1 ]; then
+    SUMMARY+=("SKIP  typecheck, tests (quick: only docs or agent/*.md changed)")
+    run "kit guard" "python3 scripts/kit.py check"
+  else
+    if [ -n "${QUICK_FULL_REASON:-}" ]; then SUMMARY+=("NOTE  $QUICK_FULL_REASON"); fi
+    # Changed packages and their dependents, from pnpm's own filter: "...[ref]" = what changed since ref, plus dependents.
+    # The root package is left out: its scripts run the whole workspace, which is what quick mode avoids.
+    ROOT_NAME=$(node -p "require('./package.json').name" 2>/dev/null || echo "")
+    if [ -n "${QUICK_FULL_REASON:-}" ] || [ "$pm" != pnpm ] || [ -z "$ROOT_NAME" ]; then
+      run "typecheck" "${VERIFY_TYPECHECK:-}"; run "lint" "${VERIFY_LINT:-}"
+      run "unit/integration tests" "${VERIFY_TEST:-}"
+    else
+      run "typecheck (changed packages and dependents)" \
+        "pnpm --filter \"...[$BASE]\" --filter \"!$ROOT_NAME\" --if-present run typecheck"
+      run "lint" "${VERIFY_LINT:-}"
+      # Packages that changed: every test. Their dependents: tests without the @slow files.
+      run "tests (changed packages)" \
+        "pnpm --filter \"[$BASE]\" --filter \"!$ROOT_NAME\" --if-present run test -- --reporter=verbose"
+      run "tests (dependents, @slow skipped)" \
+        "pnpm --filter \"...[$BASE]\" --filter \"![$BASE]\" --filter \"!$ROOT_NAME\" --if-present run test -- --reporter=verbose $SLOW_ARGS"
+    fi
+    run "kit guard" "python3 scripts/kit.py check"
+  fi
 else
   # scanners and audit are independent of the build: start them first, collect after the serial steps
   if cionly audit; then ci_note "dependency audit"; else run_bg "dependency audit" "${VERIFY_AUDIT:-}"; fi
@@ -121,15 +173,18 @@ else
   run "kit guard" "python3 scripts/kit.py check"
 fi
 if [ -z "${VERIFY_TEST:-}" ] || [ "${VERIFY_TEST:-}" = "SKIP" ]; then
-  FAIL=1; SUMMARY+=("FAIL  no test command configured: tests are mandatory (set VERIFY_TEST in scripts/verify.config)")
+  if [ "$QUICK" = 1 ] && [ "$DOCS_ONLY" = 1 ]; then :; else
+  FAIL=1; SUMMARY+=("FAIL  no test command configured: tests are mandatory (set VERIFY_TEST in scripts/verify.config)"); fi
 fi
 
+TOTAL_MS=$(( $(now_ms) - START_MS ))
 echo "================ VERIFY SUMMARY$([ "$QUICK" = 1 ] && echo ' (--quick)') ================"
 printf '%s\n' "${SUMMARY[@]}"
 [ ${#OFF[@]} -gt 0 ] && echo "OFF   opt-in (scripts/verify.config): ${OFF[*]}"
+echo "TOTAL $(fmt_ms "$TOTAL_MS")  (base $BASE; $([ "$DOCS_ONLY" = 1 ] && echo 'docs-only change' || echo "$(printf '%s\n' "$CHANGED" | sed '/^$/d' | wc -l | tr -d ' ') changed file(s)"))"
 if [ "$SKIPPED_SEC" = 1 ] && [ "${VERIFY_STRICT:-0}" = 1 ]; then FAIL=1; echo "STRICT: skipped security scanners count as failure"; fi
 NSKIP=$(printf '%s\n' "${SUMMARY[@]}" | grep -c '^SKIP' || true)
 RESULT=PASS; [ "$FAIL" = 1 ] && RESULT=FAIL; [ "$QUICK" = 1 ] && RESULT="QUICK_$RESULT"
-printf 'RESULT=%s\nTIME=%s\nSKIPPED=%s\n' "$RESULT" "$START" "$NSKIP" > agent/last-verify.txt
+printf 'RESULT=%s\nTIME=%s\nSKIPPED=%s\nDURATION_MS=%s\n' "$RESULT" "$START" "$NSKIP" "$TOTAL_MS" > agent/last-verify.txt
 echo "RESULT: $RESULT  (skipped: $NSKIP; opt-in off: ${#OFF[@]}; SKIP/OFF = NOT verified$([ "$QUICK" = 1 ] && echo '; quick result does not count for kit.py pass or commit'))"
 [ "$FAIL" = 0 ]
