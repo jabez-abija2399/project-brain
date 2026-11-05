@@ -52,7 +52,30 @@ check(
   result?.tables?.some((t) => t.name === "notes" && t.rlsEnabled === true),
   "sandbox reads RLS back",
 );
+// On Windows, Node's process launcher (libuv) always adds these system variables to a child, even with env: {}:
+// Windows programs need them. They hold no secrets; anything else (a token, SUPABASE_DB_URL) still fails the check.
+const WINDOWS_SYSTEM_ENV = new Set([
+  "HOMEDRIVE",
+  "HOMEPATH",
+  "LOGONSERVER",
+  "PATH",
+  "SYSTEMDRIVE",
+  "SYSTEMROOT",
+  "TEMP",
+  "USERDOMAIN",
+  "USERNAME",
+  "USERPROFILE",
+  "WINDIR",
+]);
+const extraEnv = Array.isArray(result?.childEnvKeys)
+  ? result.childEnvKeys.filter(
+      (k) => !(process.platform === "win32" && WINDOWS_SYSTEM_ENV.has(k.toUpperCase())),
+    )
+  : null;
+if (extraEnv && extraEnv.length > 0) console.error(`unexpected variables: ${extraEnv.join(", ")}`);
 check(
-  Array.isArray(result?.childEnvKeys) && result.childEnvKeys.length === 0,
-  "sandbox child has an empty environment",
+  extraEnv !== null && extraEnv.length === 0,
+  process.platform === "win32"
+    ? "sandbox child has only the Windows system variables"
+    : "sandbox child has an empty environment",
 );
