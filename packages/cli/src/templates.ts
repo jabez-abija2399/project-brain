@@ -33,7 +33,7 @@ export const LEGACY_END_HOOK = hook(LEGACY, "session-end");
 // user who ran `npx codeceipt` has no global codeceipt. The hook command written into the agent's settings therefore
 // adds the usual Node install folders to PATH and runs the installed codeceipt when there is one, else the published
 // package through npx. POSIX sh, the same on every machine that shares the committed settings file.
-const NODE_PATHS =
+export const NODE_PATHS =
   '"$PATH:/usr/local/bin:/opt/homebrew/bin:$HOME/.volta/bin:$HOME/.npm-global/bin:$HOME/.local/bin"';
 // The npx fallback is pinned to the version that wrote the hook (security review 2026-11-01): a later publish of the
 // package never runs on a teammate's machine without a new `npx codeceipt`.
@@ -149,10 +149,13 @@ export const LEGACY_CLAUDE_SKILL_PATH = `.claude/skills/${LEGACY.slug}/SKILL.md`
 export const CURSOR_RULE_PATH = `.cursor/rules/${BRAND.slug}.mdc`;
 export const LEGACY_CURSOR_RULE_PATH = `.cursor/rules/${LEGACY.slug}.mdc`;
 
+// The token helper runs the same fallback chain as the hooks (installed path, then codeceipt on PATH, then the pinned
+// npx), so the token never depends on codeceipt being on PATH. The old bare `codeceipt mcp-headers` did, and failed
+// for npx-only installs (regression after 0.1.2): `init` now replaces it with this form.
 export const claudeMcpServer = (apiUrl: string) => ({
   type: "http",
   url: `${apiUrl.replace(/\/+$/, "")}/mcp`,
-  headersHelper: "codeceipt mcp-headers",
+  headersHelper: shellHook("codeceipt mcp-headers"),
 });
 
 // Cursor has no header helper: it starts the CLI's stdio proxy for the workspace (Cursor fills in ${workspaceFolder}).

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { type CliDeps, main } from "./index";
+import { claudeMcpServer } from "./templates";
 import { linkRepo } from "./test-support";
 
 // Launch part 3: agents never need CODECEIPT_TOKEN. Claude Code asks the CLI's header helper; Cursor runs the CLI's
@@ -61,7 +62,7 @@ describe("no environment variables for agents", () => {
     expect(json(join(dir, ".mcp.json")).mcpServers.codeceipt).toEqual({
       type: "http",
       url: `${API}/mcp`,
-      headersHelper: "codeceipt mcp-headers",
+      headersHelper: claudeMcpServer(API).headersHelper,
     });
     expect(json(join(dir, ".cursor/mcp.json")).mcpServers.codeceipt).toEqual({
       command: "codeceipt",
@@ -107,7 +108,7 @@ describe("no environment variables for agents", () => {
     expect(json(join(dir, ".mcp.json")).mcpServers.codeceipt).toEqual({
       type: "http",
       url: `${API}/mcp`,
-      headersHelper: "codeceipt mcp-headers",
+      headersHelper: claudeMcpServer(API).headersHelper,
     });
     expect(json(join(dir, ".cursor/mcp.json")).mcpServers.codeceipt).toEqual({
       command: "codeceipt",

@@ -18,6 +18,7 @@ import {
   LEGACY_CURSOR_RULE,
   shellHook,
 } from "./templates";
+import { claudeMcpServer } from "./templates";
 import { linkRepo } from "./test-support";
 
 // D-019: the product was renamed from Project Brain to Codeceipt. Existing setups keep working and are upgraded.
@@ -147,7 +148,7 @@ describe("D-019 rename to Codeceipt", () => {
     expect(claude.codeceipt).toEqual({
       type: "http",
       url: `${API}/mcp`,
-      headersHelper: "codeceipt mcp-headers",
+      headersHelper: claudeMcpServer(API).headersHelper,
     });
     const hooks = json(join(t.repo, ".claude/settings.json")).hooks;
     expect(hooks.SessionStart).toEqual([

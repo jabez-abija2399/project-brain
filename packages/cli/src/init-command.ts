@@ -11,6 +11,7 @@ import {
 import { dirname, join, relative, sep } from "node:path";
 import { CliError, EXIT } from "./api";
 import type { CliConfig } from "./config";
+import { NODE_PATHS } from "./templates";
 import {
   AGENTS_SECTION,
   AGENTS_START,
@@ -326,12 +327,25 @@ const sameJson = (a: unknown, b: unknown): boolean => {
   return a === b;
 };
 const HELPERS = ["codeceipt mcp-headers", "projectbrain mcp-headers"];
+// Our token helper in any form we have written: the bare command of older versions, or the shell chain of any
+// release (installed path, PATH, then `npx -y codeceipt@<version>`). Anchored at both ends: nothing may follow it.
+// The PATH prefix is the literal one the helper writes (never a pattern): a pattern here let a cloned repo's shell
+// command through (security review, HIGH). Anchored at both ends: nothing may follow the helper.
+const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const OUR_HELPER = new RegExp(
+  `^${escapeRe(`PATH=${NODE_PATHS}; `)}(?:if \\[ -x "[A-Za-z0-9_./@+ -]+" \\]; then "[A-Za-z0-9_./@+ -]+" mcp-headers; elif |if )command -v codeceipt >/dev/null 2>&1; then codeceipt mcp-headers; else npx -y codeceipt@\\d{1,4}\\.\\d{1,4}\\.\\d{1,4} mcp-headers; fi$`,
+);
+// Earlier releases wrote the plain pinned form: `npx -y codeceipt@<version> mcp-headers`.
+const PINNED_HELPER = /^npx -y codeceipt@\d{1,4}\.\d{1,4}\.\d{1,4} mcp-headers$/;
+export const isOurHelper = (value: unknown) =>
+  typeof value === "string" &&
+  (HELPERS.includes(value) || OUR_HELPER.test(value) || PINNED_HELPER.test(value));
 const olderHttpForm = (entry: unknown, origin: string | null) =>
   isObject(entry) &&
   originOf(entry.url) === origin &&
   Object.keys(entry).every((k) => ["type", "url", "headers", "headersHelper"].includes(k)) &&
   (entry.type === undefined || entry.type === "http") &&
-  (entry.headersHelper === undefined || HELPERS.includes(String(entry.headersHelper))) &&
+  (entry.headersHelper === undefined || isOurHelper(entry.headersHelper)) &&
   (entry.headers === undefined ||
     (isObject(entry.headers) &&
       Object.values(entry.headers).every((v) => typeof v === "string" && TOKEN_VARIABLE.test(v))));
@@ -374,14 +388,20 @@ function addServer(server: Json, apiUrl: string, key = "mcpServers") {
     // token variable, which the current form replaces (the token now comes from the codeceipt helper).
     const readsTokenVariable =
       isObject(existing) && isObject(existing.headers) && Object.keys(existing.headers).length > 0;
-    if (olderHttpForm(existing, origin) && !readsTokenVariable) return { added: [], problems: [] };
-    if (olderHttpForm(existing, origin)) {
+    // Our own older form (same address, our helper, nothing else) is upgraded to the current one, so an update fixes it.
+    // An entry the user pointed at another path of the same server is kept as it is (only the helper is upgraded when the
+    // address is unchanged).
+    if (
+      olderHttpForm(existing, origin) &&
+      (readsTokenVariable || (isObject(existing) && existing.url === server.url))
+    ) {
       servers[SERVER_NAME] = server;
       return {
         added: [`MCP server ${SERVER_NAME} (token now from the codeceipt helper)`],
         problems: [],
       };
     }
+    if (olderHttpForm(existing, origin)) return { added: [], problems: [] };
     // An entry named codeceipt that is not exactly ours (another address, command, arguments or environment) is not
     // vouched for.
     return {
