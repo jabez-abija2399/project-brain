@@ -3,10 +3,10 @@
 # Never reports a skipped step as passed. Full tool output goes to agent/last-verify.log (not into the chat);
 # a failing step prints only its last lines. Every step prints how long it took.
 #   bash scripts/verify.sh           full gate (required before `kit.py pass` and before a pull request)
-#   bash scripts/verify.sh --quick   fast inner loop: typecheck, lint and tests for the packages changed since the base
-#                                    (default origin/main) and the packages that depend on them; docs-only and
-#                                    agent/*.md-only changes skip typecheck and tests. Tests marked "// @slow" are
-#                                    skipped in packages that did not change. Writes RESULT=QUICK_*, which
+#   bash scripts/verify.sh --quick   fast inner loop: typecheck and lint for the packages changed since the base (default
+#                                    origin/main) and the packages that depend on them; tests only for the changed packages
+#                                    themselves (dependents' tests run in the full gate and in CI). Docs-only and
+#                                    agent/*.md-only changes skip typecheck and tests. Writes RESULT=QUICK_*, which
 #                                    `kit.py pass` and the commit hook do NOT accept.
 # VERIFY_BASE=<ref> sets the base for --quick (default origin/main).
 # VERIFY_STRICT=1 (use in CI) turns skipped security scanners into failures. VERIFY_PARALLEL=0 runs scanners serially.
