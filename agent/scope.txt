@@ -12,3 +12,41 @@ packages/sandbox/* # native binary: the sandbox child runs as the binary itself 
 packages/agent-plugins/* # D-028 native agent plugins (Claude Code, Cursor, Codex, Antigravity) from shared templates
 biome.json # the generated plugin marketplace is not reformatted (D-028)
 .github/workflows/release-cli.yml  # human-owned native release workflow (D-027), added by the owner
+packages/agent-plugins/* # FEAT-020 Cursor stop hook in the plugin
+apps/web/src/app/api/billing/* # FEAT-025 checkout, portal, webhook
+apps/web/src/app/pricing/* # FEAT-025 pricing page
+apps/web/src/server/billing* # FEAT-025
+apps/web/src/components/billing-button.tsx # FEAT-025
+apps/web/src/components/pricing-body.tsx # FEAT-025
+apps/web/src/server/account.ts # FEAT-025 plan on the account page; no delete while subscribed
+apps/web/src/app/account/page.tsx # FEAT-025
+apps/web/src/server/device.ts # FEAT-025 project limit
+apps/web/src/app/api/projects/route.ts # FEAT-025 project limit
+packages/core/src/plans.ts # FEAT-025
+packages/db/src/repos/billing.ts # FEAT-025
+packages/db/src/schema/billing.ts # FEAT-025
+packages/db/migrations/0045_billing.sql # FEAT-025
+apps/web/package.json # FEAT-025 stripe
+pnpm-lock.yaml # FEAT-025 stripe
+.env.example # FEAT-025 Stripe variable names
+docs/decisions.md # D-029
+docs/dependencies.md # stripe row
+packages/db/src/repos/admin.ts # FEAT-026 funnel query
+apps/web/src/server/admin-data.ts # FEAT-026
+apps/web/src/app/admin/page.tsx # FEAT-026 funnel table
+apps/web/src/server/admin-funnel.test.ts # FEAT-026
+packages/cli/package.json # CLI 0.3.0
+packages/cli/src/templates.ts # CLI 0.3.0
+docs/native-release.md # CLI 0.3.0 tag example
+packages/agent-plugins/* # plugin versions follow the CLI (0.3.0)
+packages/cli/build-native.mjs # Windows release: run bun.exe, not the npm .cmd launcher
+packages/cli/src/native/build-native.test.ts # Windows bun lookup tests
+packages/cli/scripts/smoke-native.mjs # Windows: the sandbox child may carry only the OS system variables
+packages/cli/src/native-main.ts # embed libpg-query.wasm in the native binary (0.3.2 aborted on users' machines)
+apps/web/src/lib/cli-release.json # pin the installers to the verified CLI 0.3.3 release
+apps/web/src/server/pages.test.ts # landing copy command follows the pinned release (as landing-guide.test does, D-027)
+docs/native-release/release-cli.yml # npm trusted publishing job (human copies it into .github/workflows)
+docs/native-release.md # human steps: npm trusted publisher, applying the workflow from the GitHub website
+docs/publishing.md # releases now publish to npm from the workflow; manual steps are the fallback
+packages/cli/build.mjs # repository field in the npm manifest (npm provenance requires it to match the repo)
+packages/cli/src/publish.test.ts # assert the repository field

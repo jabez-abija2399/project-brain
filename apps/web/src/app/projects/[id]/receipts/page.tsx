@@ -1,5 +1,6 @@
 import { ReceiptCard } from "@/components/receipt-card";
 import { ReceiptsFilter } from "@/components/receipts-filter";
+import { ShareReceipt } from "@/components/share-receipt";
 import { StateGuide } from "@/components/state-guide";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
@@ -54,7 +55,17 @@ export default async function ReceiptsPage(props: ListPageProps) {
                       : (r.asked ?? "")
                     ).toLowerCase()}
                   >
-                    <ReceiptCard receipt={r} expanded={feed.page === 1 && n === 0} />
+                    <ReceiptCard
+                      receipt={r}
+                      expanded={feed.page === 1 && n === 0}
+                      share={
+                        <ShareReceipt
+                          projectId={r.projectId}
+                          receiptId={r.id}
+                          links={r.shareLinks}
+                        />
+                      }
+                    />
                   </li>,
                 ];
               })}

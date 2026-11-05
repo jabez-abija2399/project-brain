@@ -22,6 +22,7 @@ export { requestsRepo } from "./requests";
 export { checklistItemsRepo } from "./checklist-items";
 export type { ShownProposal } from "./checklist-items";
 export { receiptsRepo } from "./receipts";
+export { shareLinksRepo } from "./share-links";
 export { agentSessionsRepo } from "./agent-sessions";
 export { decisionsRepo } from "./decisions";
 export { type ActivateResult, directivesRepo } from "./directives";
@@ -60,3 +61,4 @@ export {
   type Connection,
   type NewToken,
 } from "./oauth";
+export { billingRepo } from "./billing";

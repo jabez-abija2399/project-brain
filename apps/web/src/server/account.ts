@@ -1,5 +1,6 @@
 import { safeDisplay } from "@brain/core";
-import { type BrainDb, accountRepo, usersRepo } from "@brain/db";
+import { PLANS, effectivePlan } from "@brain/core";
+import { type BrainDb, accountRepo, billingRepo, usersRepo } from "@brain/db";
 import { z } from "zod";
 import type { SessionUser } from "./auth";
 import { AppError } from "./errors";
@@ -12,9 +13,10 @@ const DELETES_PER_MINUTE = 5;
 const EXPORTS_PER_MINUTE = 5;
 
 export async function accountView(db: BrainDb, user: SessionUser) {
-  const [row, computers] = await Promise.all([
+  const [row, computers, sub] = await Promise.all([
     usersRepo.getById(db, user.id),
     accountRepo.connectedComputers(db, user.id),
+    billingRepo.forUser(db, user.id),
   ]);
   if (!row) throw new AppError(404, "not_found");
   return {
@@ -27,6 +29,12 @@ export async function accountView(db: BrainDb, user: SessionUser) {
         : null,
     createdAt: row.createdAt.toISOString(),
     suspended: row.suspendedAt !== null,
+    // FEAT-025: the plan in force and, for a subscription, whether it ends at the period's end.
+    billing: {
+      plan: PLANS[effectivePlan(sub, new Date())].name,
+      subscribed: sub !== null,
+      endsAt: sub?.cancelAtPeriodEnd ? (sub.currentPeriodEnd?.toISOString() ?? null) : null,
+    },
     computers: computers.map((c) => ({
       id: c.id,
       projectId: c.projectId,
@@ -68,6 +76,16 @@ export async function deleteAccount(
   if (!row) throw new AppError(404, "not_found");
   // A suspended account cannot be deleted (it could sign up again unsuspended); export still works.
   if (row.suspendedAt) throw new AppError(403, "suspended", SUSPENDED_USER);
+  // FEAT-025: a paid plan is cancelled in Stripe first, so a deleted account is never charged again.
+  const sub = await billingRepo.forUser(db, user.id);
+  // One set to cancel at the period's end is never charged again, so it does not block.
+  if (sub && effectivePlan(sub) !== "free" && !sub.cancelAtPeriodEnd) {
+    throw new AppError(
+      409,
+      "subscribed",
+      "Cancel your plan in Manage billing first, then delete the account.",
+    );
+  }
   // Compared with the name exactly as the account page shows it, and never an empty match.
   const expected = safeDisplay(row.name, 100).trim() || safeDisplay(row.email, 200).trim();
   if (input.confirm.trim() === "" || input.confirm.trim() !== expected) {

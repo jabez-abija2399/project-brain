@@ -1,5 +1,11 @@
 import { fixPrompt, itemIdsOf, receiptView, safeDisplay } from "@brain/core";
-import { type BoardSort, type BrainDb, checklistItemsRepo, dashboardRepo } from "@brain/db";
+import {
+  type BoardSort,
+  type BrainDb,
+  checklistItemsRepo,
+  dashboardRepo,
+  shareLinksRepo,
+} from "@brain/db";
 import { type SessionUser, requireProjectAccess } from "./auth";
 
 // FEAT-017 dashboard data. Every function checks that the signed-in user owns the project first (404 otherwise) and
@@ -72,11 +78,19 @@ export async function receiptsFeed(
   const project = await requireProjectAccess(db, projectId, user);
   const { rows, total } = await dashboardRepo.receiptsFeed(db, project.id, PAGE_SIZE, offset(page));
   // Owner item 3: items the owner closed since the receipt was written read "Closed by you".
-  const closed = await checklistItemsRepo.closedByOwnerAmong(
-    db,
-    project.id,
-    rows.flatMap((r) => itemIdsOf(r.summaryJson)),
-  );
+  const [closed, links] = await Promise.all([
+    checklistItemsRepo.closedByOwnerAmong(
+      db,
+      project.id,
+      rows.flatMap((r) => itemIdsOf(r.summaryJson)),
+    ),
+    // FEAT-021: active share links of these receipts (one query; tokens are never stored).
+    shareLinksRepo.activeForReceipts(
+      db,
+      project.id,
+      rows.map((r) => r.id),
+    ),
+  ]);
   return {
     project: { id: project.id, name: safeDisplay(project.name, 100) },
     ...paged(
@@ -92,6 +106,9 @@ export async function receiptsFeed(
             r.commitSha && /^[0-9a-f]{7,40}$/.test(r.commitSha) ? r.commitSha.slice(0, 12) : null,
           view,
           fixPrompt: fixPrompt(asked, view),
+          shareLinks: links
+            .filter((l) => l.receiptId === r.id)
+            .map((l) => ({ id: l.id, createdAt: l.createdAt.toISOString() })),
         };
       }),
       total,

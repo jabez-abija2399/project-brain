@@ -458,3 +458,11 @@ source (packages/agent-plugins, shared text from packages/cli/src/templates.ts) 
 **Trade-off:** four manifest formats and three hook shapes to keep in step; one generator and a test that the committed
 marketplace equals the generated one keep them from drifting. Windows needs Git Bash for the sh launcher (Claude Code
 and Codex use it already); Cursor and Antigravity on Windows without it fall back to `codeceipt init` (later.md).
+
+## D-029 | 2026-11-04 | Billing with Stripe; limits only when billing is configured
+- Stripe Checkout and the customer portal (no card data touches Codeceipt); the plan changes only from a webhook whose
+  signature the stripe SDK verifies. Prices are Stripe price ids from server env, never from the client.
+- Plans and limits live in packages/core/src/plans.ts. Limits apply only when STRIPE_SECRET_KEY is set, so a
+  self-hosted or test deployment is unlimited.
+- Over the monthly AI-judged receipt limit a receipt is still made from git, without the AI judge, and says so.
+- Alternatives: Paddle (merchant of record, handles VAT; fewer integrations), Lemon Squeezy (SDK unmaintained since 2023).

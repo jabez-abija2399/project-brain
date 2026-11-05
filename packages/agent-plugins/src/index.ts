@@ -133,6 +133,8 @@ function cursor(): Map<string, string> {
         hooks: {
           sessionStart: hook("session-start", 30),
           beforeSubmitPrompt: hook("prompt", 10),
+          // FEAT-020: the Stop gate (Cursor reads followup_message from a stop hook).
+          stop: hook("stop", 60),
           sessionEnd: hook("session-end", 60),
         },
       }),

@@ -3,6 +3,8 @@
 # accounts are set up, and publishes them as GitHub Release assets with SHA-256 checksums and an Ed25519-signed
 # manifest. The release stays a draft until every platform built, the manifest is signed and its signature verified.
 # Build jobs only read; the publish job alone uploads the files and signs the manifest of exactly those files.
+# Once the GitHub release is published, publish-npm publishes the same version as the npm package "codeceipt" through
+# npm trusted publishing (OIDC: no npm token exists anywhere), with a provenance attestation.
 name: release-cli
 on:
   push:
@@ -51,7 +53,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: npm install -g "bun@$BUN_VERSION"
+          package-manager-cache: false
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
+      # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
+      # ~100 MB bun binary.
+      - run: npm install -g "bun@$BUN_VERSION" # zizmor: ignore[adhoc-packages]
       - run: pnpm install --frozen-lockfile
       - run: node packages/cli/build-native.mjs linux-x64 linux-arm64 linux-x64-musl linux-arm64-musl
       - run: node packages/cli/scripts/smoke-native.mjs packages/cli/dist-native/codeceipt-linux-x64
@@ -76,7 +83,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: npm install -g "bun@$BUN_VERSION"
+          package-manager-cache: false
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
+      # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
+      # ~100 MB bun binary.
+      - run: npm install -g "bun@$BUN_VERSION" # zizmor: ignore[adhoc-packages]
       - run: pnpm install --frozen-lockfile
       - run: node packages/cli/build-native.mjs darwin-arm64 darwin-x64
       - name: Sign and notarise (only when the Apple secrets are set)
@@ -132,7 +144,12 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
-      - run: npm install -g "bun@$BUN_VERSION"
+          package-manager-cache: false
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
+      # Exact version, from npm; kept out of the lockfile so every pnpm install (and Vercel) does not fetch the
+      # ~100 MB bun binary.
+      - run: npm install -g "bun@$BUN_VERSION" # zizmor: ignore[adhoc-packages]
       - run: pnpm install --frozen-lockfile
       - run: node packages/cli/build-native.mjs windows-x64
       - name: Sign (only when the Windows certificate secrets are set)
@@ -159,10 +176,48 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  # The npm package (packages/cli/dist), built without any write access. pnpm install runs here, never in the job
+  # that can mint an npm token, so no dependency's install script can reach the OIDC token.
+  build-npm:
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @brain/cli build
+      - name: Package checks (name, version, only the built files and the README)
+        run: pnpm vitest run packages/cli/src/publish.test.ts
+      - name: Package version matches the tag
+        run: |
+          version="$(node -p 'require("./packages/cli/dist/package.json").version')"
+          test "$TAG" = "cli-v$version" || { echo "tag $TAG does not match the npm package version $version"; exit 1; }
+          cd packages/cli/dist && npm pack --dry-run
+      - name: Hand the package to publish-npm
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: npm-package
+          path: |
+            packages/cli/dist/package.json
+            packages/cli/dist/README.md
+            packages/cli/dist/codeceipt.mjs
+            packages/cli/dist/child.mjs
+          if-no-files-found: error
+          retention-days: 3
+
   # Only this job can write to the release or read the signing key. The key is an environment secret of "release",
   # which only cli-v* tags may deploy to, with a required reviewer (docs/native-release.md).
   publish:
-    needs: [build-linux, build-macos, build-windows]
+    needs: [build-linux, build-macos, build-windows, build-npm]
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -174,6 +229,9 @@ jobs:
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
+          package-manager-cache: false
+          # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
+          package-manager-cache: false
       - name: The signed binaries from the build jobs
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -202,3 +260,44 @@ jobs:
             node packages/cli/scripts/site-release.mjs
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # npm trusted publishing: npm accepts an OIDC token only from this repository, this workflow file and the "release"
+  # environment (the trusted publisher set on npmjs.com, docs/native-release.md). It runs only after the GitHub release
+  # is published, holds no other permission, installs nothing and publishes exactly the files build-npm checked.
+  # Provenance is generated because the repository and the package are public (--provenance makes it fail otherwise).
+  publish-npm:
+    needs: [publish, build-npm]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          # Node 24 ships npm 11; trusted publishing needs npm 11.5.1 or later.
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - name: npm supports trusted publishing
+        run: |
+          npm --version
+          node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)' "$(npm --version)" \
+            || { echo "npm $(npm --version) is older than 11.5.1 (trusted publishing)"; exit 1; }
+      - name: The package build-npm checked
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: npm-package
+          path: npm-package
+      - name: Publish to npm (trusted publishing, provenance)
+        working-directory: npm-package
+        run: |
+          name="$(node -p 'require("./package.json").name')"
+          version="$(node -p 'require("./package.json").version')"
+          test "$name" = "codeceipt" || { echo "unexpected package name $name"; exit 1; }
+          test "$TAG" = "cli-v$version" || { echo "tag $TAG does not match the npm package version $version"; exit 1; }
+          if [ -n "$(npm view "codeceipt@$version" version 2>/dev/null)" ]; then
+            echo "::notice::codeceipt@$version is already on npm; nothing to publish"
+            exit 0
+          fi
+          npm publish --access public --provenance --ignore-scripts
+          echo "Published https://www.npmjs.com/package/codeceipt/v/$version" >> "$GITHUB_STEP_SUMMARY"

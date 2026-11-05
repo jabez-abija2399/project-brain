@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { pageAdmin } from "@/server/admin";
-import { adminOverview } from "@/server/admin-data";
+import { FUNNEL_WEEKS, adminFunnel, adminOverview } from "@/server/admin-data";
 import { getDb } from "@/server/db";
 import type { Metadata } from "next";
 
@@ -20,7 +20,10 @@ const Check = ({ ok, label }: { ok: boolean; label: string }) => (
 // Admin overview (2026-11-01): the whole service at a glance. Counts only; no receipt contents or code.
 export default async function AdminPage() {
   const admin = await pageAdmin();
-  const o = await adminOverview(admin, getDb());
+  const [o, funnel] = await Promise.all([
+    adminOverview(admin, getDb()),
+    adminFunnel(admin, getDb()),
+  ]);
   const peak = Math.max(1, ...o.receiptsPerDay.map((d) => d.receipts));
   return (
     <main className="page stack stack-lg">
@@ -93,6 +96,44 @@ export default async function AdminPage() {
           </p>
         </section>
       </div>
+      <section className="card stack" aria-labelledby="funnel">
+        <h2 id="funnel" className="section-title">
+          Activation, by week of sign-up
+        </h2>
+        {funnel.length === 0 ? (
+          <p className="muted m0">No sign-ups in the last {FUNNEL_WEEKS} weeks.</p>
+        ) : (
+          <table className="table">
+            <caption>
+              Sign-ups in the last {FUNNEL_WEEKS} weeks (weeks start on Monday, UTC)
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Week of</th>
+                <th scope="col">Signed up</th>
+                <th scope="col">Linked a repo</th>
+                <th scope="col">First receipt</th>
+                <th scope="col">Caught something</th>
+                <th scope="col">First receipt in 10 min</th>
+              </tr>
+            </thead>
+            <tbody>
+              {funnel.map((w) => (
+                <tr key={w.week}>
+                  <td data-label="Week of">{w.week}</td>
+                  <td data-label="Signed up">{w.signedUp}</td>
+                  <td data-label="Linked a repo">{w.linked}</td>
+                  <td data-label="First receipt">{w.firstReceipt}</td>
+                  <td data-label="Caught something">{w.caught}</td>
+                  <td data-label="First receipt in 10 min">
+                    {Math.round((w.fast / Math.max(1, w.signedUp)) * 100)}% ({w.fast})
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </main>
   );
 }

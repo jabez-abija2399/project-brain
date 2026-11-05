@@ -29,11 +29,11 @@ async function columnsOf(db: PGlite, table: string): Promise<string[]> {
   return r.rows.map((row) => row.column_name);
 }
 
-describe("migration 0044 (MCP OAuth)", () => {
-  it("is registered after 0041 with the name the app expects", () => {
-    expect(MIGRATION_IDS).toContain("0044_mcp_oauth");
-    expect(MIGRATION_IDS.indexOf("0044_mcp_oauth")).toBe(
-      MIGRATION_IDS.indexOf("0041_closed_by_owner") + 1,
+describe("migration 0048 (MCP OAuth)", () => {
+  it("is registered after the highest migration on main (0045) with the name the app expects", () => {
+    expect(MIGRATION_IDS).toContain("0048_mcp_oauth");
+    expect(MIGRATION_IDS.indexOf("0048_mcp_oauth")).toBe(
+      MIGRATION_IDS.indexOf("0045_billing") + 1,
     );
   });
 
@@ -89,7 +89,7 @@ describe("migration 0044 (MCP OAuth)", () => {
   it("the runner records 0044 as applied", async () => {
     const db = await createTestDb();
     const r = await db.query<{ n: number }>(
-      `SELECT count(*)::int AS n FROM "_brain_migrations" WHERE id = '0044_mcp_oauth'`,
+      `SELECT count(*)::int AS n FROM "_brain_migrations" WHERE id = '0048_mcp_oauth'`,
     );
     expect(r.rows[0]?.n).toBe(1);
     await db.close();

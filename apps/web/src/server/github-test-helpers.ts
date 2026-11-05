@@ -38,6 +38,9 @@ export type FakeRepo = {
   compare: Record<string, { filename: string; status: string; previous_filename?: string }[]>;
   // file contents at the push's commit
   files: Record<string, string | Buffer>;
+  // FEAT-023: file contents at other commits (by sha), and the commit messages a compare returns
+  filesAt?: Record<string, Record<string, string | Buffer>>;
+  commitMessages?: Record<string, string[]>;
 };
 
 export type GithubMock = {
@@ -98,13 +101,18 @@ export function mockGithub(repo: FakeRepo): GithubMock {
       const files = repo.compare[decodeURIComponent(m[1] as string)] ?? [];
       const page = Number(url.searchParams.get("page") ?? "1");
       const per = Number(url.searchParams.get("per_page") ?? "100");
-      return json({ files: files.slice((page - 1) * per, page * per) });
+      const messages = repo.commitMessages?.[decodeURIComponent(m[1] as string)] ?? [];
+      return json({
+        files: files.slice((page - 1) * per, page * per),
+        commits: messages.map((message) => ({ commit: { message } })),
+      });
     }
     m = url.pathname.match(/^\/repos\/[^/]+\/[^/]+\/contents\/(.+)$/);
     if (m) {
       const path = decodeURIComponent(m[1] as string);
       mock.fetchedPaths.push(path);
-      const content = repo.files[path];
+      const ref = url.searchParams.get("ref") ?? "";
+      const content = repo.filesAt?.[ref] ? repo.filesAt[ref]?.[path] : repo.files[path];
       if (content === undefined) return json({ message: "Not Found" }, 404);
       const bytes = Buffer.isBuffer(content) ? content : Buffer.from(content, "utf8");
       return json({

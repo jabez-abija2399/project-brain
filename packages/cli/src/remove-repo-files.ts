@@ -223,6 +223,7 @@ export function removeRepoFiles(root: string, home: string): string[] {
         ["sessionStart", START_HOOK("cursor")],
         ["sessionEnd", END_HOOK("cursor")],
         ["beforeSubmitPrompt", PROMPT_HOOK("cursor")],
+        ["stop", STOP_HOOK("cursor")],
       ];
       r.json(".cursor/hooks.json", hooksIn(events, false));
       r.json(
