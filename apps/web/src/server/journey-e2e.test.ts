@@ -1,3 +1,4 @@
+// @slow: end-to-end or process-spawning test; skipped in quick mode unless its package changed
 import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";

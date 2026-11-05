@@ -36,5 +36,5 @@ Project rules (max 10; only what the code can't tell you):
 - Never say "fixed", "done" or "tests pass" unless you ran it in THIS session. Not checked = NOT VERIFIED.
 - Human-only: protected files (scripts/kit.py, verify.sh, verify.config, hook files) and the override variables.
 - Ask first: schema-breaking migrations, deleting files, auth changes outside the current feature, large new packages.
-- Gate: `bash scripts/verify.sh --quick` while working, `bash scripts/verify.sh` once at the end.
+- Gate: `bash scripts/verify.sh --quick` in every fix loop (typecheck, lint and tests for the packages changed since origin/main and their dependents; docs-only changes skip tests). Run `bash scripts/verify.sh` (the full gate) once before each pull request and never in a fix loop. Tests marked `// @slow` (sandbox, end-to-end) run in the full gate and in CI.
 <!-- KIT:END -->

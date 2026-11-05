@@ -50,3 +50,5 @@ docs/native-release.md # human steps: npm trusted publisher, applying the workfl
 docs/publishing.md # releases now publish to npm from the workflow; manual steps are the fallback
 packages/cli/build.mjs # repository field in the npm manifest (npm provenance requires it to match the repo)
 packages/cli/src/publish.test.ts # assert the repository field
+AGENTS.md # gate instructions for --quick and the full check before a pull request (perf, 2026-11-05)
+packages/sandbox/src/*.test.ts # @slow markers on the two slow sandbox tests (perf, 2026-11-05)

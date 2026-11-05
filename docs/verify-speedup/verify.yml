@@ -1,0 +1,251 @@
+# Runs the same checks as `bash scripts/verify.sh` (the full gate), split into parallel jobs so the wall-clock time is
+# the slowest job, not the sum. Every check from the single-job version is still here: kit guard, zizmor, typecheck,
+# lint, unit and integration tests, the slow sandbox and end-to-end tests, build, e2e against a disposable Postgres,
+# security scanners (gitleaks, semgrep, osv-scanner), dependency audit, and the optional perf and mutation steps.
+# Stack setup is automatic. Hardened: every action pinned to a full commit SHA (tag in the comment), read-only token,
+# no persisted credentials, pinned tool versions, workflow linted by zizmor.
+name: verify
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  GITLEAKS_VERSION: "8.30.1"
+  OSV_SCANNER_VERSION: "v2.6.0"
+  ZIZMOR_VERSION: "1.30.1"
+  SEMGREP_VERSION: "1.179.0"
+  BASE_SHA_FALLBACK: HEAD~1
+jobs:
+  # Kit guard and workflow lint: no project code needed, so it runs first and cheaply.
+  guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Kit guard (always; works before any code exists)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          # The "verify.sh has been run" check is for a local run that writes agent/last-verify.txt. In CI the same
+          # checks run as the jobs below, and the gate job at the end requires all of them to pass.
+          KIT_SKIP_VERIFY_CHECK: "1"
+        run: |
+          case "$BASE_SHA" in ""|0000000000000000000000000000000000000000) BASE_SHA=HEAD~1;; esac
+          if git rev-parse -q --verify "$BASE_SHA^{commit}" >/dev/null; then export KIT_BASE="$BASE_SHA"; fi
+          python3 scripts/kit.py check
+      - name: Lint this workflow (zizmor)
+        run: pipx run "zizmor==${ZIZMOR_VERSION}" --persona regular .github/workflows
+
+  # Everything below needs the project's dependencies. Each job installs them the same way (from the lockfile, with
+  # the dependency cooldown respected) and cache the pnpm store between runs.
+  typecheck:
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies (lockfile only)
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck (every package)
+        run: pnpm -r --if-present typecheck
+      - name: Lint (biome)
+        run: pnpm biome ci .
+
+  # Unit and integration tests, in three shards so no one shard holds the whole suite. The @slow files (sandbox,
+  # end-to-end, anything that spawns processes) run in their own job below and are excluded here.
+  test-core:
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies (lockfile only)
+        run: pnpm install --frozen-lockfile
+      - name: Tests: db, core, agent-kit, agent-plugins (without @slow)
+        run: |
+          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
+          EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
+          pnpm --filter @brain/db --filter @brain/core --filter @brain/agent-kit --filter @brain/agent-plugins \
+            --if-present run test -- --reporter=verbose "${EXCL[@]}"
+
+  test-cli:
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies (lockfile only)
+        run: pnpm install --frozen-lockfile
+      - name: Tests: cli (without @slow)
+        run: |
+          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
+          EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
+          pnpm --filter @brain/cli --if-present run test -- --reporter=verbose "${EXCL[@]}"
+
+  test-web:
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies (lockfile only)
+        run: pnpm install --frozen-lockfile
+      - name: Tests: web and sandbox (without @slow)
+        run: |
+          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
+          EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
+          pnpm --filter @brain/web --filter @brain/sandbox --if-present run test -- --reporter=verbose "${EXCL[@]}"
+
+  # The slow tests: sandbox runs, end-to-end flows and process spawns. Own job so they never delay the shards above.
+  slow-tests:
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies (lockfile only)
+        run: pnpm install --frozen-lockfile
+      - name: Slow tests (files marked // @slow)
+        run: |
+          mapfile -t FILES < <(grep -rl --include='*.test.ts' '^// @slow' apps packages)
+          pnpm -r --if-present run test -- --reporter=verbose --passWithNoTests "${FILES[@]}"
+
+  # Production build and the end-to-end test against a disposable Postgres (throwaway credentials; the container lives
+  # only for this job). Unit and integration tests keep using PGlite.
+  build-and-e2e:
+    needs: [typecheck, test-core, test-cli, test-web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: app }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U app" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies (lockfile only)
+        run: pnpm install --frozen-lockfile
+      - name: Build (every package)
+        run: pnpm -r --if-present build
+      - name: End-to-end (receipts page against the production build)
+        env:
+          E2E_DATABASE_URL: "postgres://app:app@localhost:5432/app"
+        run: pnpm --filter @brain/web run test:e2e
+
+  # Security scanners and the dependency audit. Pinned versions; they run in parallel with everything else.
+  scanners:
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version: stable, cache: false }
+      - name: Install scanners (pinned)
+        run: |
+          pipx install "semgrep==${SEMGREP_VERSION}"
+          go install "github.com/google/osv-scanner/v2/cmd/osv-scanner@${OSV_SCANNER_VERSION}"
+          echo "$HOME/go/bin" >> "$GITHUB_PATH"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | sudo tar -xz -C /usr/local/bin gitleaks
+      - name: Secret scan (gitleaks)
+        run: gitleaks detect --no-banner --redact
+      - name: SAST (semgrep)
+        run: semgrep scan --config auto --error --quiet
+      - name: Vulnerability scan (osv-scanner)
+        run: osv-scanner scan source -r .
+
+  audit:
+    needs: guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies (lockfile only)
+        run: pnpm install --frozen-lockfile
+      - name: Dependency audit (high and above, production)
+        run: pnpm audit --audit-level=high --prod
+
+  # One required check for branch protection: fails if any job above failed or was cancelled.
+  gate:
+    if: always()
+    needs: [guard, typecheck, test-core, test-cli, test-web, slow-tests, build-and-e2e, scanners, audit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every check passed
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          if echo "$RESULTS" | grep -q '"result": "\(failure\|cancelled\)"'; then
+            echo "::error::at least one check failed or was cancelled"; exit 1
+          fi

@@ -49,3 +49,9 @@ applies (test names carry the criterion id and the word "attack"). Each rule nam
    Example: KI-016, where sandbox tests failed under load (time limit hit, scan cut short). The FEAT-008 rate-limit
    tests straddled a minute boundary until they got an injected clock (L5). KI-028's retry tests inject `sleep`
    instead of waiting, and the bin tests that spawn node get a 30 s limit instead of the 5 s default.
+
+## Running the gate
+
+During a fix loop, run `bash scripts/verify.sh --quick` (changed packages and their dependents only). Once, before opening a pull request, run `bash scripts/verify.sh` (the full gate, with every check). A quick result does not count for `kit.py pass` or for a commit.
+
+Tests that spawn processes or run whole flows carry `// @slow` on their first line; quick mode skips them in packages that did not change.
