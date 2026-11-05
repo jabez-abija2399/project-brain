@@ -50,3 +50,8 @@ docs/native-release.md # human steps: npm trusted publisher, applying the workfl
 docs/publishing.md # releases now publish to npm from the workflow; manual steps are the fallback
 packages/cli/build.mjs # repository field in the npm manifest (npm provenance requires it to match the repo)
 packages/cli/src/publish.test.ts # assert the repository field
+packages/agent-plugins/marketplace/* # plugin versions follow the CLI version (generated)
+packages/cli/src/realtest-cli.test.ts # npx fallback pinned to the CLI version
+apps/web/src/server/real-test-replay.test.ts # npx fallback pinned to the CLI version
+packages/cli/package.json # CLI 0.3.4
+packages/cli/src/templates.ts # CLI_VERSION 0.3.4
