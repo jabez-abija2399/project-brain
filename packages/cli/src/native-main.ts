@@ -1,7 +1,7 @@
 // The entry the native binaries are compiled from (D-027; `bun build --compile`, build-native.mjs). The npm build and
 // the tests use main.ts directly. It embeds PGlite's WebAssembly and data, records the build target, and serves the
 // SQL sandbox child (`codeceipt __sandbox-child`), which only answers one job on stdin and never starts a process.
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import fs, { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -16,10 +16,23 @@ import wasmPath from "../node_modules/@electric-sql/pglite/dist/pglite.wasm" wit
 import uuidPath from "../node_modules/@electric-sql/pglite/dist/uuid-ossp.tar.gz" with {
   type: "file",
 };
+import libpgQueryWasmPath from "../node_modules/libpg-query/wasm/libpg-query.wasm" with {
+  type: "file",
+};
 import type { Target } from "./native/release";
 
 // Replaced at build time with this binary's target (build-native.mjs --define).
 declare const __CODECEIPT_TARGET__: string;
+
+// libpg-query (the migrations reader, FEAT-005) loads its WebAssembly when it is imported, with fs.readFileSync on a
+// path fixed at build time (the build machine's node_modules), which does not exist on the user's computer. Its reads of
+// libpg-query.wasm are served from the copy embedded in this binary instead (the 0.3.2 binaries aborted after start).
+const readFile = fs.readFileSync;
+fs.readFileSync = ((file: Parameters<typeof readFile>[0], ...rest: unknown[]) => {
+  const name = file instanceof URL ? file.pathname : String(file);
+  const embedded = /[\\/]libpg-query\.wasm$/.test(name);
+  return (readFile as (...a: unknown[]) => unknown)(embedded ? libpgQueryWasmPath : file, ...rest);
+}) as typeof fs.readFileSync;
 
 if (process.argv[2] === "__sandbox-child") {
   // The sandbox child: PGlite gets its WebAssembly and data from inside this binary. PGlite opens extension bundles
