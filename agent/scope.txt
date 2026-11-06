@@ -67,3 +67,5 @@ packages/cli/src/bin.test.ts # Phase 1: // @slow marker (comment line only)
 packages/sandbox/src/*.test.ts # Phase 1: // @slow marker (comment line only)
 AGENTS.md # Phase 1: gate wording (quick vs full)
 docs/build-checklist.md # Phase 1: running the gate
+docs/owner-pending/verify/* # Phase 1: owner-pending verify.sh and parallel verify.yml
+agent/later.md # Phase 1: parallel package tests idea
