@@ -1,3 +1,4 @@
+// @slow: end-to-end or process-spawning test; skipped in quick mode unless its package changed
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { createPgliteSandbox } from "./index";

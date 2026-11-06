@@ -55,3 +55,10 @@ packages/cli/src/realtest-cli.test.ts # npx fallback pinned to the CLI version
 apps/web/src/server/real-test-replay.test.ts # npx fallback pinned to the CLI version
 packages/cli/package.json # CLI 0.3.4
 packages/cli/src/templates.ts # CLI_VERSION 0.3.4
+packages/db/src/testing.ts # Phase 1: migrated test database image (from PR #55)
+apps/web/vitest.config.ts # Phase 1: parallel web test files
+apps/web/src/server/*-e2e.test.ts # Phase 1: // @slow marker (comment line only)
+packages/cli/src/bin.test.ts # Phase 1: // @slow marker (comment line only)
+packages/sandbox/src/*.test.ts # Phase 1: // @slow marker (comment line only)
+AGENTS.md # Phase 1: gate wording (quick vs full)
+docs/build-checklist.md # Phase 1: running the gate
