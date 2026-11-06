@@ -1,7 +1,8 @@
 # Runs the same checks as `bash scripts/verify.sh` (the full gate), split into parallel jobs so the wall-clock time is
 # the slowest job, not the sum. Every check from the single-job version is still here: kit guard, zizmor, typecheck,
 # lint, unit and integration tests, the slow sandbox and end-to-end tests, build, e2e against a disposable Postgres,
-# security scanners (gitleaks, semgrep, osv-scanner), dependency audit, and the optional perf and mutation steps.
+# security scanners (gitleaks, semgrep, osv-scanner) and the dependency audit. The commands mirror the kit's
+# verify config file; when it changes, change them here too (perf and mutation are off there).
 # Stack setup is automatic. Hardened: every action pinned to a full commit SHA (tag in the comment), read-only token,
 # no persisted credentials, pinned tool versions, workflow linted by zizmor.
 name: verify
@@ -83,8 +84,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: "Tests: db, core, agent-kit, agent-plugins (without @slow)"
         run: |
-          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
-          EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
+          EXCL=(); while IFS= read -r f; do [ -n "$f" ] && EXCL+=(--exclude "**/$(basename "$f")"); done \
+            < <(grep -rl --include='*.test.ts' '^// @slow' apps packages || true)
           pnpm --filter @brain/db --filter @brain/core --filter @brain/agent-kit --filter @brain/agent-plugins \
             --if-present run test -- --reporter=verbose "${EXCL[@]}"
 
@@ -106,8 +107,8 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: "Tests: cli (without @slow)"
         run: |
-          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
-          EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
+          EXCL=(); while IFS= read -r f; do [ -n "$f" ] && EXCL+=(--exclude "**/$(basename "$f")"); done \
+            < <(grep -rl --include='*.test.ts' '^// @slow' apps packages || true)
           pnpm --filter @brain/cli --if-present run test -- --reporter=verbose "${EXCL[@]}"
 
   test-web:
@@ -126,11 +127,15 @@ jobs:
           cache: pnpm
       - name: Install dependencies (lockfile only)
         run: pnpm install --frozen-lockfile
-      - name: "Tests: web and sandbox (without @slow)"
+      - name: "Tests: every other package, incl. web and sandbox (without @slow)"
         run: |
-          mapfile -t SLOW < <(grep -rl --include='*.test.ts' '^// @slow' apps packages | xargs -n1 basename)
-          EXCL=(); for f in "${SLOW[@]}"; do EXCL+=(--exclude "**/$f"); done
-          pnpm --filter @brain/web --filter @brain/sandbox --if-present run test -- --reporter=verbose "${EXCL[@]}"
+          EXCL=(); while IFS= read -r f; do [ -n "$f" ] && EXCL+=(--exclude "**/$(basename "$f")"); done \
+            < <(grep -rl --include='*.test.ts' '^// @slow' apps packages || true)
+          # Catch-all: any package not in the core or cli shards runs here, so a new package is never dropped.
+          ROOT=$(node -p "require('./package.json').name")
+          pnpm -r --filter "!$ROOT" --filter '!@brain/db' --filter '!@brain/core' --filter '!@brain/agent-kit' \
+            --filter '!@brain/agent-plugins' --filter '!@brain/cli' \
+            --if-present run test -- --reporter=verbose "${EXCL[@]}"
 
   # The slow tests: sandbox runs, end-to-end flows and process spawns. Own job so they never delay the shards above.
   slow-tests:
@@ -151,8 +156,16 @@ jobs:
         run: pnpm install --frozen-lockfile
       - name: Slow tests (files marked // @slow)
         run: |
-          mapfile -t FILES < <(grep -rl --include='*.test.ts' '^// @slow' apps packages)
-          pnpm -r --if-present run test -- --reporter=verbose --passWithNoTests "${FILES[@]}"
+          mapfile -t FILES < <(grep -rl --include='*.test.ts' '^// @slow' apps packages || true)
+          if [ "${#FILES[@]}" -eq 0 ]; then echo "No // @slow test files: nothing to run (the shards ran every test)."; exit 0; fi
+          # Run each file from its own package (its vitest config), with a path relative to that package. No
+          # --passWithNoTests: a file that matches nothing fails the job instead of passing silently.
+          for f in "${FILES[@]}"; do
+            dir=$(dirname "$f"); while [ ! -f "$dir/package.json" ]; do dir=$(dirname "$dir"); done
+            echo "::group::$f"
+            (cd "$dir" && pnpm exec vitest run --reporter=verbose "${f#"$dir"/}") || { echo "::error::$f failed"; exit 1; }
+            echo "::endgroup::"
+          done
 
   # Production build and the end-to-end test against a disposable Postgres (throwaway credentials; the container lives
   # only for this job). Unit and integration tests keep using PGlite.
@@ -243,6 +256,7 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
         run: |
           echo "$RESULTS"
-          if echo "$RESULTS" | grep -q '"result": "\(failure\|cancelled\)"'; then
-            echo "::error::at least one check failed or was cancelled"; exit 1
+          # Every needed job must have succeeded: failed, cancelled and skipped all fail the gate.
+          if ! echo "$RESULTS" | jq -e 'all(.[]; .result == "success")' >/dev/null; then
+            echo "::error::at least one check did not succeed (failed, cancelled or skipped)"; exit 1
           fi

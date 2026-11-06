@@ -81,21 +81,25 @@ sec() { # sec NAME TOOL COMMAND INSTALL_HINT
 
 # ---- what changed (quick mode works from this list only) ----
 BASE="${VERIFY_BASE:-origin/main}"
-CHANGED=$( { git diff --name-only "$BASE"...HEAD 2>/dev/null; git status --porcelain 2>/dev/null | cut -c4-; } | sort -u | sed '/^$/d')
+CHANGED=$( { git diff --name-only "$BASE"...HEAD 2>/dev/null
+             git diff --name-only HEAD 2>/dev/null; git diff --name-only --cached 2>/dev/null
+             git ls-files --others --exclude-standard 2>/dev/null; } | sort -u | sed '/^$/d')
 BASE_OK=0; git rev-parse -q --verify "$BASE^{commit}" >/dev/null 2>&1 && BASE_OK=1
-DOCS_ONLY=1
+# Docs-only means: something changed, and every change is under docs/, an agent/*.md file, or a top-level *.md file.
+# Markdown inside apps/ or packages/ (e.g. generated plugin files) is code for this purpose. No usable base means we
+# cannot tell what changed, so it is never docs-only.
+DOCS_ONLY=1; [ -z "$CHANGED" ] && DOCS_ONLY=0; [ "$BASE_OK" = 0 ] && DOCS_ONLY=0
 while IFS= read -r f; do
   [ -z "$f" ] && continue
-  case "$f" in docs/*|agent/*.md|*.md) ;; *) DOCS_ONLY=0 ;; esac
+  case "$f" in docs/*|agent/*.md) ;; */*) DOCS_ONLY=0 ;; *.md) ;; *) DOCS_ONLY=0 ;; esac
 done <<< "$CHANGED"
 # Quick mode with no usable base runs everything (never guesses what changed).
 [ "$QUICK" = 1 ] && [ "$BASE_OK" = 0 ] && QUICK_FULL_REASON="base $BASE not found: running every package"
-# Tests marked "// @slow" (sandbox, end-to-end, anything that spawns processes or runs whole flows).
-SLOW_EXCLUDES=()
-while IFS= read -r f; do [ -n "$f" ] && SLOW_EXCLUDES+=(--exclude "**/$(basename "$f")"); done \
-  < <(grep -rl --include='*.test.ts' '^// @slow' apps packages 2>/dev/null || true)
-SLOW_ARGS=""  # shell-quoted for the command strings below (a glob like **/x.test.ts must not expand)
-for a in ${SLOW_EXCLUDES[@]+"${SLOW_EXCLUDES[@]}"}; do printf -v q '%q ' "$a"; SLOW_ARGS+="$q"; done
+[ "$QUICK" = 1 ] && [ "$BASE_OK" = 1 ] && [ -z "$CHANGED" ] && QUICK_FULL_REASON="nothing changed since $BASE: running every package"
+# Root files (tsconfig, biome, lockfile, scripts) can affect every package: typecheck everything in that case.
+if [ "$QUICK" = 1 ] && printf '%s\n' "$CHANGED" | grep -Eqv '^(apps|packages)/|^docs/|^agent/.*\.md$|^[^/]*\.md$|^$'; then
+  QUICK_FULL_REASON="${QUICK_FULL_REASON:-files outside apps/ and packages/ changed: running every package}"
+fi
 
 # ---- detect stack defaults (only if not set in verify.config) ----
 if [ -f package.json ]; then
@@ -169,9 +173,6 @@ quick_tests() {
   if printf '%s\n' "$CHANGED" | grep -Eqv '^(apps|packages)/|^(docs/|agent/|.*\.md$)|^$'; then
     run "tests (files outside the packages changed: every test)" "${VERIFY_TEST:-}"; return
   fi
-  local abs=() f
-  while IFS= read -r f; do [ -n "$f" ] && [ -e "$f" ] && abs+=("$PWD/$f"); done <<< "$CHANGED"
-  local abs_args=""; for f in "${abs[@]+"${abs[@]}"}"; do printf -v q '%q ' "$f"; abs_args+="$q"; done
   local dir name kind
   while read -r dir name kind; do
     [ -z "${dir:-}" ] && continue
@@ -235,7 +236,7 @@ TOTAL_MS=$(( $(now_ms) - START_MS ))
 echo "================ VERIFY SUMMARY$([ "$QUICK" = 1 ] && echo ' (--quick)') ================"
 printf '%s\n' "${SUMMARY[@]}"
 [ ${#OFF[@]} -gt 0 ] && echo "OFF   opt-in (scripts/verify.config): ${OFF[*]}"
-echo "TOTAL $(fmt_ms "$TOTAL_MS")  (base $BASE; $([ "$DOCS_ONLY" = 1 ] && echo 'docs-only change' || echo "$(printf '%s\n' "$CHANGED" | sed '/^$/d' | wc -l | tr -d ' ') changed file(s)"))"
+echo "TOTAL $(fmt_ms "$TOTAL_MS")  (base $BASE; $([ "$QUICK" = 1 ] && [ "$DOCS_ONLY" = 1 ] && echo 'docs-only change' || echo "$(printf '%s\n' "$CHANGED" | sed '/^$/d' | wc -l | tr -d ' ') changed file(s)"))"
 if [ "$SKIPPED_SEC" = 1 ] && [ "${VERIFY_STRICT:-0}" = 1 ]; then FAIL=1; echo "STRICT: skipped security scanners count as failure"; fi
 NSKIP=$(printf '%s\n' "${SUMMARY[@]}" | grep -c '^SKIP' || true)
 RESULT=PASS; [ "$FAIL" = 1 ] && RESULT=FAIL; [ "$QUICK" = 1 ] && RESULT="QUICK_$RESULT"
