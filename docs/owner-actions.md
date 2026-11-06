@@ -75,3 +75,30 @@ leftover drafts.
 authentication and disallow bypass 2fa tokens (recommended)** → **Update Package Settings**.
 
 **Check:** reload the page; the first option is still selected. Trusted publisher shows **Valid**.
+
+---
+
+## 5. Faster verification: parallel CI and quick mode — pending
+
+**Why:** CI takes 27.5 minutes as one job, and CI never ran on PRs #53 and #55 because their workflow file was invalid
+YAML. Phase 1 (merged) made the tests themselves faster; these two human-owned files finish the job.
+
+**What it unblocks:** CI in an expected 7 minutes instead of 27.5, measured on its first run (parallel jobs: guard, typecheck+lint, three test shards,
+slow tests, build+e2e, scanners, audit, and one `gate` job that needs all of them); `verify.sh --quick` that runs only
+the changed packages' tests, with per-step times.
+
+**Steps (do them in this order):**
+1. **Workflow first.** Open [owner-pending/verify/verify.yml](owner-pending/verify/verify.yml) on GitHub → **Copy raw
+   file** → open `.github/workflows/verify.yml` → pencil (**Edit**) → select all → paste → **Commit directly to main**.
+   Check: Actions shows the new jobs for that commit and `gate` turns green (about 7 minutes).
+2. **Branch protection** (if you require checks): Settings → Branches → the rule for `main` → required checks:
+   replace `verify` with `gate`.
+3. **verify.sh second** (protected kit file). Open [owner-pending/verify/verify.sh](owner-pending/verify/verify.sh) →
+   **Copy raw file** → open `scripts/verify.sh` → **Edit** → select all → paste → **Commit directly to main**.
+   Expected: the `guard` job for *that one commit* fails with "scripts/verify.sh: protected guard file changed"
+   (CI cannot know a human made the change). The next commit is green. From a computer you can instead commit it
+   with `GUARD_ADMIN=1 git commit` and push; the CI guard still flags that one push.
+
+**Check:** on any later PR, the checks list shows `guard`, `typecheck`, `test-core`, `test-cli`, `test-web`,
+`slow-tests`, `build-and-e2e`, `scanners`, `audit`, `gate`, all green. Locally, `bash scripts/verify.sh --quick`
+prints a time next to every step and a `TOTAL` line.

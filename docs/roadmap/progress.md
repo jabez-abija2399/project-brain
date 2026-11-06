@@ -7,8 +7,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 
 | # | Phase / track | Status | PR | Result |
 |---|---|---|---|---|
-| 0 | Audit: kit migration map, baselines | in progress | [#57](https://github.com/jabez-abija2399/project-brain/pull/57) | Baselines: CI 27.5 min, local ≈ 21 min (web tests 14.6 min); ≈ 2,990 tokens at session start; hooks 0.3–0.6 s |
-| 1 | Fast verification (supersedes PRs #51, #53, #55) | not started | | |
+| 0 | Audit: kit migration map, baselines | merged | [#57](https://github.com/jabez-abija2399/project-brain/pull/57) | Baselines: CI 27.5 min, local ≈ 21 min (web tests 14.6 min); ≈ 2,990 tokens at session start; hooks 0.3–0.6 s |
+| 1 | Fast verification (supersedes PRs #51, #53, #55) | in progress | [#58](https://github.com/jabez-abija2399/project-brain/pull/58) | Web tests 14.6→5.4 min; full local gate ≈21→10.6 min; CI parallel workflow waits on owner action 5 |
 | 2a | Footprint: start note budget, compact MCP tools, cached context packs (server) | not started | | |
 | 2b | Footprint: cached start note, fast hooks (CLI) | not started | | |
 | 3a | Blueprint: versioned model, EARS criteria, proof status, flags | not started | | |

@@ -33,10 +33,25 @@ function pgliteToDriver(db: PGlite): SqlExec {
   );
 }
 
+// Every test database starts from one migrated image, built once per process (each vitest worker builds its own). A test
+// gets a fresh PGlite loaded from that image, so tests stay isolated and no migration runs again per test (perf step 2).
+let migratedImage: Promise<Blob> | null = null;
+function buildMigratedImage(): Promise<Blob> {
+  migratedImage ??= (async () => {
+    const seed = new PGlite();
+    await seed.waitReady;
+    await runMigrations(pgliteToDriver(seed));
+    const image = await seed.dumpDataDir("none");
+    await seed.close();
+    return image;
+  })();
+  return migratedImage;
+}
+
 export async function createTestDb(): Promise<PGlite> {
-  const db = new PGlite();
+  const image = await buildMigratedImage();
+  const db = new PGlite({ loadDataDir: image });
   await db.waitReady;
-  await runMigrations(pgliteToDriver(db));
   return db;
 }
 

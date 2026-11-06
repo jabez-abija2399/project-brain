@@ -1,3 +1,4 @@
+// @slow: end-to-end or process-spawning test; skipped in quick mode unless its package changed
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
