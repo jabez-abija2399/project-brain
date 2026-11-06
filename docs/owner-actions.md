@@ -17,25 +17,31 @@ Status: **pending**, **done** (with date).
 
 **What it unblocks:** every phase that adds a table (2a, 3a, 6 and later) reaches production without a manual step.
 
-**Steps (GitHub website):**
-1. Neon console → project "project brain" → **Connect** → turn **Connection pooling** off → copy the connection
-   string (the "direct" one).
-2. GitHub → repository **Settings** → **Environments** → **New environment** → name `production-db` →
-   **Configure environment**.
-3. Tick **Required reviewers**, add yourself, save. Under **Deployment branches and tags** choose **Selected
-   branches and tags** → **Add deployment branch or tag rule** → `main`.
-4. In the same environment, **Add environment secret**: name `PRODUCTION_DATABASE_URL_DIRECT`, value = the string
-   from step 1.
-5. Open [owner-pending/migrate/migrate-production.yml](owner-pending/migrate/migrate-production.yml) on GitHub, tap
-   **Copy raw file**, then go to **Add file → Create new file**, name it `.github/workflows/migrate-production.yml`,
-   paste, **Commit directly to main**.
+**Steps:**
+1. Neon console → project "project brain" → **SQL Editor** on the `production` branch → create a role that can only
+   change the app's tables (not the owner role the app uses):
+   `CREATE ROLE migrator LOGIN PASSWORD '<a new long password>'; GRANT ALL ON SCHEMA public TO migrator;`
+   then make it own the existing tables: run `REASSIGN OWNED BY neondb_owner TO migrator;` only if the app does not
+   connect as `neondb_owner` (check **Connect** → role); otherwise skip `REASSIGN` and use `neondb_owner` for now.
+2. Neon → **Connect** → role `migrator` → turn **Connection pooling** off → copy the direct connection string.
+3. GitHub → repository **Settings** → **Environments** → **New environment** → `production-db` → **Configure**.
+   Tick **Required reviewers** (add yourself) and **untick "Allow administrators to bypass configured protection
+   rules"**. Under **Deployment branches and tags** choose **Selected branches and tags** → add rule `main` (no tag
+   rules).
+4. Same page → **Add environment secret**: `PRODUCTION_DATABASE_URL_DIRECT` = the string from step 2.
+5. Open [owner-pending/migrate/migrate-production.yml](owner-pending/migrate/migrate-production.yml) on GitHub → **Copy
+   raw file** → **Add file → Create new file** → name `.github/workflows/migrate-production.yml` → paste → **Commit
+   directly to main**.
 
-**Check:** Actions tab → **migrate-production** → **Run workflow** (main) → approve `production-db` → the log ends
-with `no new migrations to apply.` (or lists the ones it applied). Then `https://codeceipts.vercel.app/api/health`
-answers 200.
+**Check:** Actions → **migrate-production** → **Run workflow** (main) → approve `production-db` → the log ends with
+`no new migrations to apply.` (or lists what it applied). `https://codeceipts.vercel.app/api/health` answers 200.
 
-**After this:** when a PR with a migration merges, approve the `production-db` run in Actions. Vercel may deploy a
-minute before the migration finishes; health recovers on its own once it does.
+**Every time a run waits for your approval:** this is the one place a human reads database changes before they
+reach production (Claude merges PRs on green CI). Before **Approve and deploy**, open the run's commit and look at
+**Files changed** under `packages/db/migrations/` and `packages/db/src/migrat*`: only `CREATE`/`ALTER`/`INSERT`
+statements for this app's tables are expected. Reject anything that drops tables, uses `dblink`, `COPY ... PROGRAM`
+or creates extensions you didn't ask for. Claude lists each new migration in its owner-action entry so you know what
+to expect. Vercel may deploy a minute before the migration finishes; health recovers on its own.
 
 ---
 

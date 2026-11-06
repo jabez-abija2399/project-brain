@@ -6,7 +6,7 @@ name: migrate-production
 on:
   push:
     branches: [main]
-    paths: ["packages/db/migrations/**"]
+    paths: ["packages/db/migrations/**", "packages/db/src/migrat*"]
   workflow_dispatch:
 permissions:
   contents: read
@@ -27,7 +27,7 @@ jobs:
         with:
           node-version: 22
           package-manager-cache: false
-      - run: pnpm install --frozen-lockfile --filter @brain/db
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @brain/db
       - name: Apply new migrations (each in its own transaction; already applied ones are skipped)
         env:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL_DIRECT }}
