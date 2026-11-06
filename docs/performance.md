@@ -24,7 +24,21 @@ breakdown inside it comes from the local table below.
 
 ### Local, per step (main's `scripts/verify.config` commands, run one at a time)
 
-STEP_TIMINGS_PLACEHOLDER
+| Step | Time | Notes |
+|---|---|---|
+| typecheck (`pnpm -r typecheck`) | 16 s | all packages |
+| lint (`pnpm biome ci .`) | 2 s | |
+| tests: `packages/core` | 3 min 33 s | includes the indexer perf test |
+| tests: `packages/db` | 1 min 24 s | migrations run for every test database |
+| tests: `packages/cli` | 38 s | |
+| tests: `packages/sandbox` | 22 s | |
+| tests: `packages/agent-kit`, `packages/agent-plugins` | 1 s each | |
+| tests: `apps/web` | **14 min 35 s** | 100 files, 884 tests, files run one at a time |
+| kit guard (`kit.py check`) | 3 s | |
+| **Sum (serial)** | **≈ 21 min** | build, e2e, audit and scanners are CI-only |
+
+Packages were run one after another, so the sum is what a serial `verify.sh` costs locally. The web suite is about
+70% of it.
 
 Earlier measurements on PR #55's branch (2026-11-05, same machine type): `apps/web` tests 18 min 08 s serial;
 `packages/db` tests 118 s. Phase 1 reports its results against this section.
