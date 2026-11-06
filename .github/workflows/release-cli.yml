@@ -229,7 +229,7 @@ jobs:
           # A release build never restores a cache another workflow could have written (zizmor cache-poisoning).
           package-manager-cache: false
       - name: The signed binaries from the build jobs
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: binaries-*
           path: packages/cli/dist-native
@@ -280,7 +280,7 @@ jobs:
           node -e 'const [a,b,c]=process.argv[1].split(".").map(Number); process.exit(a>11||(a===11&&(b>5||(b===5&&c>=1)))?0:1)' "$(npm --version)" \
             || { echo "npm $(npm --version) is older than 11.5.1 (trusted publishing)"; exit 1; }
       - name: The package build-npm checked
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: npm-package
           path: npm-package
