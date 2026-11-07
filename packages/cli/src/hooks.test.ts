@@ -308,6 +308,20 @@ describe("Phase 2b: start note with a saved fallback", () => {
     expect(readFileSync(target, "utf8")).toBe("untouched");
   });
 
+  it("PERF-2B-08 attack: a refused token never gets the saved note, and the saved note is deleted", async () => {
+    const { fetchImpl } = server();
+    const first = setup(fetchImpl);
+    await first.hook("session-start", "claude");
+    const saved = readFileSync(noteFile(first.repo), "utf8");
+    const refused: CliDeps["fetch"] = async () => new Response("unauthorized", { status: 401 });
+    const { repo, out, err, hook } = setup(refused);
+    writeFileSync(noteFile(repo), saved);
+    await hook("session-start", "claude");
+    expect(out.join("\n")).not.toContain("Goal: add reviews");
+    expect(existsSync(noteFile(repo))).toBe(false);
+    expect(err.join("\n")).not.toMatch(/unreachable|slow/);
+  });
+
   it("PERF-2B-06 a saved note older than a week is not shown", async () => {
     const { repo, out, hook } = setup(down);
     const old = new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString();

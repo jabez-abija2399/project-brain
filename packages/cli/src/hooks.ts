@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   constants,
   closeSync,
+  fchmodSync,
   lstatSync,
   mkdirSync,
   openSync,
@@ -67,7 +68,6 @@ export type HookDeps = {
 
 // Claude Code stops a SessionEnd hook after its timeout (we install 60 s): the calls together stay under 50 s, so
 // save_progress always gets its turn. A receipt for 20 files takes under 15 s (AC-013-06).
-const START_TIMEOUT_MS = 8_000;
 // Roadmap Phase 2b: the start note waits at most this long for the server, then shows the note saved last time (per
 // project, at most NOTE_MAX_AGE_MS old) so a slow or unreachable server never holds up the agent for long.
 export const START_NOTE_WAIT_MS = 1_500;
@@ -166,6 +166,7 @@ function writeState(file: string, text: string) {
     0o600,
   );
   try {
+    fchmodSync(fd, 0o600); // an existing file keeps its mode on open; make it private again
     writeSync(fd, text);
   } finally {
     closeSync(fd);
@@ -450,6 +451,11 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
   const now = deps.now?.() ?? new Date();
   let note: string;
   const fresh = await within(asked, START_NOTE_WAIT_MS);
+  // A refused token (revoked, project deleted or suspended) is not "slow": the saved note is deleted and never shown.
+  if (!fresh.ok && fresh.reason instanceof CliError && fresh.reason.exitCode === EXIT.auth) {
+    if (saved) rmSync(saved, { force: true });
+    return deps.stderr(`${WARN} ${oneLineText(fresh.reason.message)}; no handoff note.`);
+  }
   if (fresh.ok) {
     note = fresh.value;
     if (saved)
@@ -479,19 +485,19 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
   );
 }
 
-// Resolves with the promise's value, or { ok: false } after `ms` (or when it rejects). The promise keeps running.
+// Resolves with the promise's value, or { ok: false } after `ms` or with the rejection's reason.
 async function within<T>(
   p: Promise<T>,
   ms: number,
-): Promise<{ ok: true; value: T } | { ok: false }> {
+): Promise<{ ok: true; value: T } | { ok: false; reason?: unknown }> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const late = new Promise<{ ok: false }>((r) => {
     timer = setTimeout(() => r({ ok: false }), ms);
   });
   try {
     return await Promise.race([p.then((value) => ({ ok: true as const, value })), late]);
-  } catch {
-    return { ok: false };
+  } catch (reason) {
+    return { ok: false, reason };
   } finally {
     clearTimeout(timer);
   }
@@ -511,7 +517,9 @@ function saveNote(file: string, saved: SavedNote): void {
 // The saved note, only for this project and only when it is less than NOTE_MAX_AGE_MS old. Never through a symlink.
 function readSavedNote(file: string, projectId: string, now: Date): SavedNote | null {
   try {
-    if (lstatSync(file).isSymbolicLink()) return null;
+    // A regular file of a sane size only: never a symlink, a FIFO (would block) or a huge file.
+    const st = lstatSync(file);
+    if (!st.isFile() || st.size > 64 * 1024) return null;
     const v = JSON.parse(readFileSync(file, "utf8")) as Partial<SavedNote>;
     if (v.projectId !== projectId || typeof v.note !== "string" || typeof v.savedAt !== "string")
       return null;

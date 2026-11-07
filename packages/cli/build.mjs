@@ -2,7 +2,7 @@
 // (roadmap Phase 2b: commands that need the indexer load it only when they run, so hooks start fast). The packages
 // loaded at runtime (typescript, ignore, libpg-query, @electric-sql/pglite) stay external and are dependencies of this
 // package. The sandbox child script is copied next to the bundle, where the bundled runner forks it (FEAT-015).
-import { chmod, copyFile, readFile, writeFile } from "node:fs/promises";
+import { chmod, copyFile, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as esbuild from "esbuild";
@@ -11,6 +11,8 @@ const pkgDir = fileURLToPath(new URL(".", import.meta.url));
 
 export async function build({ outDir = join(pkgDir, "dist") } = {}) {
   const outfile = join(outDir, "codeceipt.mjs");
+  // Old chunks never ship: each build writes a fresh chunks/ folder (security review).
+  await rm(join(outDir, "chunks"), { recursive: true, force: true });
   await esbuild.build({
     entryPoints: { codeceipt: join(pkgDir, "src/main.ts") },
     outdir: outDir,
