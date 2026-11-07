@@ -81,3 +81,10 @@ packages/db/src/repos/* # Phase 2a: context-pack cache repo
 packages/db/src/schema/* # Phase 2a: context-pack cache table
 packages/core/src/handoff.ts # Phase 2a: feature list pointer
 apps/web/src/app/api/index/* # Phase 2a: warm context packs after grouping and summaries
+packages/db/migrations/0054_blueprint.sql # Phase 3a: Blueprint tables
+packages/db/src/* # Phase 3a: Blueprint schema, repos, optional migration
+packages/db/src/schema/* # Phase 3a
+packages/db/src/repos/* # Phase 3a
+apps/web/src/server/* # Phase 3a: Blueprint service, MCP touchpoints
+apps/web/src/app/* # Phase 3a: Blueprint routes
+docs/* # Phase 3a docs
