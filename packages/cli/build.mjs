@@ -1,4 +1,5 @@
-// Bundles the CLI (with @brain/core and @brain/sandbox) into one runnable file, dist/codeceipt.mjs. The packages
+// Bundles the CLI (with @brain/core and @brain/sandbox) into dist/codeceipt.mjs plus on-demand chunks in dist/chunks/
+// (roadmap Phase 2b: commands that need the indexer load it only when they run, so hooks start fast). The packages
 // loaded at runtime (typescript, ignore, libpg-query, @electric-sql/pglite) stay external and are dependencies of this
 // package. The sandbox child script is copied next to the bundle, where the bundled runner forks it (FEAT-015).
 import { chmod, copyFile, readFile, writeFile } from "node:fs/promises";
@@ -11,8 +12,11 @@ const pkgDir = fileURLToPath(new URL(".", import.meta.url));
 export async function build({ outDir = join(pkgDir, "dist") } = {}) {
   const outfile = join(outDir, "codeceipt.mjs");
   await esbuild.build({
-    entryPoints: [join(pkgDir, "src/main.ts")],
-    outfile,
+    entryPoints: { codeceipt: join(pkgDir, "src/main.ts") },
+    outdir: outDir,
+    outExtension: { ".js": ".mjs" },
+    splitting: true,
+    chunkNames: "chunks/[name]-[hash]",
     bundle: true,
     platform: "node",
     format: "esm",
@@ -60,7 +64,7 @@ async function publishManifest() {
     },
     type: "module",
     bin: { codeceipt: "./codeceipt.mjs" },
-    files: ["codeceipt.mjs", "child.mjs", "README.md"],
+    files: ["codeceipt.mjs", "chunks/", "child.mjs", "README.md"],
     engines: { node: ">=20" },
     dependencies: Object.fromEntries(external.map((name) => [name, pkg.dependencies[name]])),
   };

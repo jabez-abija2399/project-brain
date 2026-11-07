@@ -11,7 +11,7 @@ import {
   rmSync,
   writeSync,
 } from "node:fs";
-import { isAbsolute, join, sep } from "node:path";
+import { dirname, isAbsolute, join, sep } from "node:path";
 import {
   NO_REQUEST_NOTE,
   NO_SNAPSHOT_NOTE,
@@ -68,6 +68,10 @@ export type HookDeps = {
 // Claude Code stops a SessionEnd hook after its timeout (we install 60 s): the calls together stay under 50 s, so
 // save_progress always gets its turn. A receipt for 20 files takes under 15 s (AC-013-06).
 const START_TIMEOUT_MS = 8_000;
+// Roadmap Phase 2b: the start note waits at most this long for the server, then shows the note saved last time (per
+// project, at most NOTE_MAX_AGE_MS old) so a slow or unreachable server never holds up the agent for long.
+export const START_NOTE_WAIT_MS = 1_500;
+const NOTE_MAX_AGE_MS = 7 * 24 * 3600 * 1000;
 const OPEN_ITEMS_TIMEOUT_MS = 7_000;
 const RECEIPT_TIMEOUT_MS = 25_000;
 const SAVE_TIMEOUT_MS = 8_000;
@@ -414,9 +418,18 @@ export async function latestSession(git: Git, cwd: string): Promise<string | nul
 /** Session start: remembers the starting commit and shows the handoff note from where_did_we_stop. */
 export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> {
   const { sessionId, cwd } = await hookInput(deps);
+  // The note is asked for first, so the server works while the snapshot is taken (Phase 2b).
+  const asked = deps.config
+    ? // Aborted at the wait limit, so a slow server never keeps the hook's process alive afterwards.
+      callTool(timed(deps.fetch, START_NOTE_WAIT_MS), deps.config, "where_did_we_stop", {})
+    : null;
+  asked?.catch(() => {}); // settled later; never an unhandled rejection
+  let saved: string | null = null;
   try {
     const root = await repoRoot(deps.git, cwd);
     const file = await stateFile(deps.git, root, sessionId);
+    // Next to the session state folder, inside .git (never shown to the user, never committed).
+    saved = join(dirname(dirname(file)), "codeceipt-start-note.json");
     const passing = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
     const state = {
       start: await head(deps.git, root),
@@ -433,17 +446,21 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
   } catch {
     // Not a git repo: session end then compares with HEAD.
   }
-  if (!deps.config) return deps.stderr(`${WARN} ${problemOf(deps)}; no handoff note.`);
+  if (!deps.config || !asked) return deps.stderr(`${WARN} ${problemOf(deps)}; no handoff note.`);
+  const now = deps.now?.() ?? new Date();
   let note: string;
-  try {
-    note = await callTool(
-      timed(deps.fetch, START_TIMEOUT_MS),
-      deps.config,
-      "where_did_we_stop",
-      {},
-    );
-  } catch {
-    return deps.stderr(`${WARN} server unreachable; no handoff note this session.`);
+  const fresh = await within(asked, START_NOTE_WAIT_MS);
+  if (fresh.ok) {
+    note = fresh.value;
+    if (saved)
+      saveNote(saved, { projectId: deps.config.projectId, note, savedAt: now.toISOString() });
+  } else {
+    const earlier = saved ? readSavedNote(saved, deps.config.projectId, now) : null;
+    if (!earlier) {
+      return deps.stderr(`${WARN} server unreachable; no handoff note this session.`);
+    }
+    deps.stderr(`${WARN} server unreachable or slow; showing the note saved ${earlier.savedAt}.`);
+    note = `(Saved earlier, ${earlier.savedAt}: the server did not answer in time.)\n${earlier.note}`;
   }
   const safe = clean(note, MAX_NOTE_CHARS);
   // Claude Code and OpenCode's plugin add plain stdout to the session; Cursor reads additional_context, Antigravity
@@ -460,6 +477,55 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
             })
           : safe,
   );
+}
+
+// Resolves with the promise's value, or { ok: false } after `ms` (or when it rejects). The promise keeps running.
+async function within<T>(
+  p: Promise<T>,
+  ms: number,
+): Promise<{ ok: true; value: T } | { ok: false }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<{ ok: false }>((r) => {
+    timer = setTimeout(() => r({ ok: false }), ms);
+  });
+  try {
+    return await Promise.race([p.then((value) => ({ ok: true as const, value })), late]);
+  } catch {
+    return { ok: false };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+type SavedNote = { projectId: string; note: string; savedAt: string };
+
+// Saved inside the repo's .git folder like the session state (writeState: 0600, never through a symlink).
+function saveNote(file: string, saved: SavedNote): void {
+  try {
+    writeState(file, JSON.stringify({ ...saved, note: clean(saved.note, MAX_NOTE_CHARS) }));
+  } catch {
+    // A note that cannot be saved only means no fallback next time.
+  }
+}
+
+// The saved note, only for this project and only when it is less than NOTE_MAX_AGE_MS old. Never through a symlink.
+function readSavedNote(file: string, projectId: string, now: Date): SavedNote | null {
+  try {
+    if (lstatSync(file).isSymbolicLink()) return null;
+    const v = JSON.parse(readFileSync(file, "utf8")) as Partial<SavedNote>;
+    if (v.projectId !== projectId || typeof v.note !== "string" || typeof v.savedAt !== "string")
+      return null;
+    const at = Date.parse(v.savedAt);
+    if (!Number.isFinite(at) || now.getTime() - at > NOTE_MAX_AGE_MS || at > now.getTime() + 60_000)
+      return null;
+    return {
+      projectId,
+      note: v.note,
+      savedAt: new Date(at).toISOString().slice(0, 16).replace("T", " "),
+    };
+  } catch {
+    return null;
+  }
 }
 
 type OpenItems = {

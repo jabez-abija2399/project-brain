@@ -10,7 +10,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 0 | Audit: kit migration map, baselines | merged | [#57](https://github.com/jabez-abija2399/project-brain/pull/57) | Baselines: CI 27.5 min, local ≈ 21 min (web tests 14.6 min); ≈ 2,990 tokens at session start; hooks 0.3–0.6 s |
 | 1 | Fast verification (supersedes PRs #51, #53, #55) | in progress | [#58](https://github.com/jabez-abija2399/project-brain/pull/58) | Web tests 14.6→5.4 min; full local gate ≈21→10.6 min; CI parallel workflow waits on owner action 5 |
 | 2a | Footprint: start note budget, compact MCP tools, cached context packs (server) | not started | | |
-| 2b | Footprint: cached start note, fast hooks (CLI) | not started | | |
+| 2b | Footprint: cached start note, fast hooks (CLI) | in progress | | Hooks 520–600 ms → 70–120 ms (Node), ≈ 300 → 135–165 ms (native); offline start note ≤ 1.6 s with a saved note; CLI 0.3.5 (owner action 8) |
 | 3a | Blueprint: versioned model, EARS criteria, proof status, flags | not started | | |
 | 3b | Blueprint: Discover, interview, safety check | not started | | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | not started | | |

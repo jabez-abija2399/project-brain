@@ -102,3 +102,21 @@ the changed packages' tests, with per-step times.
 **Check:** on any later PR, the checks list shows `guard`, `typecheck`, `test-core`, `test-cli`, `test-web`,
 `slow-tests`, `build-and-e2e`, `scanners`, `audit`, `gate`, all green. Locally, `bash scripts/verify.sh --quick`
 prints a time next to every step and a `TOTAL` line.
+
+---
+
+## 8. Release CLI 0.3.5 (fast hooks) — pending
+
+**Why:** Phase 2b makes every hook start about 5× faster (the indexer loads only for `codeceipt index`) and gives the
+start note a saved fallback when the server is slow. Users get it through the release.
+
+**Steps (after the Phase 2b PR is merged):**
+1. GitHub → **Releases** → **Draft a new release** → **Choose a tag** → type `cli-v0.3.5` → **Create new tag on
+   publish**, target `main` → **Publish release** is not needed: just create the tag. (From a computer instead:
+   `git checkout main && git pull && git tag cli-v0.3.5 && git push origin cli-v0.3.5`.)
+2. Actions → the **release-cli** run → approve **release** twice (GitHub release, then npm).
+3. Tell Claude "0.3.5 is released"; it pins the website installers to it (`apps/web/src/lib/cli-release.json`)
+   from the signed manifest and opens the PR.
+
+**Check:** https://www.npmjs.com/package/codeceipt shows 0.3.5 with provenance; `codeceipt --version` after
+`codeceipt update` prints 0.3.5.

@@ -111,3 +111,5 @@ export type {
   RouteIndex,
   SkippedFile,
 } from "./types";
+// Subpath entry "@brain/core/indexer" (roadmap Phase 2b): the only way to load the indexer and its heavy dependencies.
+export { pathSkipReason } from "./walker";
