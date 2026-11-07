@@ -164,10 +164,9 @@ describe("Phase 2a: start note within budget", () => {
 });
 
 describe("Phase 2a: context packs cached at index time", () => {
-  it("PERF-2A-10 a pack's files and components are stored after the first read and reused", async () => {
+  it("PERF-2A-10 index time builds a pack's files and components ahead, and reads use them", async () => {
     const feature = await seedFeature("Checkout", ["src/checkout/Cart.tsx"]);
-    const first = await callTool("get_context_pack", { feature: "Checkout" }, token);
-    expect(first.text).toContain("src/checkout/Cart.tsx");
+    await warmContextPacks(world.db, projectId);
     const cached = await contextPackCacheRepo.get(world.db, projectId, feature.id);
     expect(cached?.files).toEqual(["src/checkout/Cart.tsx"]);
     // A reused entry is what the next read shows (proves the read uses the cache).
@@ -181,7 +180,7 @@ describe("Phase 2a: context packs cached at index time", () => {
 
   it("PERF-2A-11 any change to the project's files, symbols or features clears its cached packs", async () => {
     const feature = await seedFeature("Checkout", ["src/checkout/Cart.tsx"]);
-    await callTool("get_context_pack", { feature: "Checkout" }, token);
+    await warmContextPacks(world.db, projectId);
     expect(await contextPackCacheRepo.get(world.db, projectId, feature.id)).not.toBeNull();
     const file = await filesRepo.insert(world.db, projectId, {
       path: "src/checkout/Pay.tsx",
@@ -195,7 +194,7 @@ describe("Phase 2a: context packs cached at index time", () => {
 
   it("PERF-2A-12 attack: one project's change never clears or reveals another project's cache", async () => {
     const feature = await seedFeature("Checkout", ["src/checkout/Cart.tsx"]);
-    await callTool("get_context_pack", { feature: "Checkout" }, token);
+    await warmContextPacks(world.db, projectId);
     const other = await world.createUser({ name: "other" });
     const otherProject = (await projectsRepo.create(world.db, other.id, { name: "vault" })).id;
     await filesRepo.insert(world.db, otherProject, { path: "src/x.ts", hash: "h" });
@@ -205,7 +204,7 @@ describe("Phase 2a: context packs cached at index time", () => {
 
   it("PERF-2A-18 an entry older than the time limit is not used (bounds a read that raced an index change)", async () => {
     const feature = await seedFeature("Checkout", ["src/checkout/Cart.tsx"]);
-    await callTool("get_context_pack", { feature: "Checkout" }, token);
+    await warmContextPacks(world.db, projectId);
     const later = new Date(Date.now() + CONTEXT_PACK_CACHE_TTL_MS + 1000);
     expect(await contextPackCacheRepo.get(world.db, projectId, feature.id, later)).toBeNull();
   });
@@ -216,6 +215,13 @@ describe("Phase 2a: context packs cached at index time", () => {
     expect((await contextPackCacheRepo.get(world.db, projectId, feature.id))?.files).toEqual([
       "src/checkout/Cart.tsx",
     ]);
+  });
+
+  it("PERF-2A-21 a read never writes: a cache miss builds the pack live and stores nothing", async () => {
+    const feature = await seedFeature("Checkout", ["src/checkout/Cart.tsx"]);
+    const res = await callTool("get_context_pack", { feature: "Checkout" }, token);
+    expect(res.text).toContain("src/checkout/Cart.tsx");
+    expect(await contextPackCacheRepo.get(world.db, projectId, feature.id)).toBeNull();
   });
 
   it("PERF-2A-13 reads stay fast: get_context_pack p95 under 150 ms in-process", async () => {

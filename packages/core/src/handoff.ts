@@ -159,9 +159,14 @@ function pieces(input: HandoffInput): Piece[] {
 
 // The feature list as whole names only: as many as fit, then "and N more" (real-test N). Null when not even that fits.
 function fitList(list: ListPiece, room: number): string | null {
+  return fitListShown(list, room)?.text ?? null;
+}
+
+// The fitted list and how many names it shows (fewer than all means it was cut).
+function fitListShown(list: ListPiece, room: number): { text: string; shown: number } | null {
   for (let k = list.items.length; k >= 0; k--) {
     const text = listText(list, k);
-    if (text.length <= room) return text;
+    if (text.length <= room) return { text, shown: k };
   }
   return null;
 }
@@ -186,11 +191,12 @@ export function buildHandoffNote(input: HandoffInput): string {
     const headCost = p.head && !headPrinted.has(p.section) ? p.head.length + 1 : 0;
     if (p.list) {
       const room = remaining - headCost - 1;
-      let text = fitList(p.list, room);
+      const fitted = fitListShown(p.list, room);
+      let text = fitted?.text ?? null;
       // A cut list says where the rest is (a pointer, not more names), with room kept for that line. When not even
       // one name fits, the count and the pointer still do.
       const pointer = p.list.more ? `(full list: ${p.list.more})` : "";
-      if (pointer && (text === null || / more$/.test(text))) {
+      if (pointer && (fitted === null || fitted.shown < p.list.items.length)) {
         const cut = fitList(p.list, room - pointer.length - 1);
         const countOnly = `${p.list.prefix}${p.list.items.length} ${pointer}`;
         text = cut !== null ? `${cut}\n${pointer}` : countOnly.length <= room ? countOnly : null;

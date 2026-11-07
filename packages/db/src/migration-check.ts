@@ -36,6 +36,7 @@ export const MIGRATION_IDS = [
 
 // Migrations the app works without (caches and other speed-ups with a built-in fallback). While one is pending,
 // /api/health still answers 200 and lists it, so merging one never makes the service "not ready". Roadmap Phase 2a.
+// Only a migration the code can run without belongs here, and no later required migration may depend on it.
 export const OPTIONAL_MIGRATIONS: ReadonlySet<string> = new Set(["0051_context_pack_cache"]);
 
 /** The pending migrations the app cannot work without. */

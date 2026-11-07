@@ -1,4 +1,5 @@
 import { groupProject, parseIndexBody } from "@/server/code-index";
+import { warmContextPacks } from "@/server/context-pack";
 import { indexRoute } from "@/server/index-route";
 import { z } from "zod";
 
@@ -9,5 +10,8 @@ export const dynamic = "force-dynamic";
 // empty object; any key is a 400): the project comes only from the URL, checked against the token.
 export const POST = indexRoute("index.features", async (db, projectId, req) => {
   await parseIndexBody(req, z.object({}).strict());
-  return groupProject(db, projectId);
+  const result = await groupProject(db, projectId);
+  // Roadmap Phase 2a: build the likely-needed context packs now (bounded; never fails the index step).
+  await warmContextPacks(db, projectId).catch(() => 0);
+  return result;
 });

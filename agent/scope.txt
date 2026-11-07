@@ -80,3 +80,4 @@ packages/db/src/* # Phase 2a: context-pack cache table, repo, optional migration
 packages/db/src/repos/* # Phase 2a: context-pack cache repo
 packages/db/src/schema/* # Phase 2a: context-pack cache table
 packages/core/src/handoff.ts # Phase 2a: feature list pointer
+apps/web/src/app/api/index/* # Phase 2a: warm context packs after grouping and summaries

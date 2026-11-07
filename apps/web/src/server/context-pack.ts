@@ -31,8 +31,9 @@ export async function getContextPack(
   // A feature of another project has no row here, so it is reported exactly like a missing one.
   if (!feature) throw new AppError(404, "not_found");
 
-  // Files and components come from the index: cached per feature (0051) and rebuilt on a miss. Decisions, rules and
-  // the checklist change at any time, so they are always read live, in the same round trip as the cache.
+  // Files and components come from the index: cached per feature at index time (0051), built live on a miss (the
+  // read never writes: MCP read tools are DB reads only). Decisions, rules and the checklist change at any time, so
+  // they are always read live, in the same round trip as the cache.
   const [cached, decisions, rules, checklist] = await Promise.all([
     readCache(db, projectId, feature.id),
     decisionsRepo.listNewest(db, projectId, MAX_DECISIONS),
@@ -40,7 +41,6 @@ export async function getContextPack(
     checklistItemsRepo.listForFeature(db, projectId, feature.id, MAX_CHECKLIST_ITEMS),
   ]);
   const block = cached ?? (await buildIndexBlock(db, projectId, feature.id));
-  if (!cached) await writeCache(db, projectId, feature.id, block);
 
   const sections: { head: string; lines: string[] }[] = [
     {
@@ -102,14 +102,20 @@ export async function buildIndexBlock(
   };
 }
 
-// Index time (roadmap Phase 2a): after a push re-index, the packs agents are most likely to ask for (features in
-// progress) are built ahead, so the first read is one row. Bounded; a failure here never fails the index job.
+// Index time (roadmap Phase 2a): when an index step ends (CLI grouping or summaries, push job), the packs agents are
+// most likely to ask for are built ahead: features in progress first, then the rest by name, at most WARM_FEATURES.
+// Bounded; callers never let a failure here fail the index step.
 const WARM_FEATURES = 20;
 export async function warmContextPacks(db: BrainDb, projectId: string): Promise<number> {
-  const features = await featuresRepo.listInProgress(db, projectId, WARM_FEATURES);
+  const inProgress = await featuresRepo.listInProgress(db, projectId, WARM_FEATURES);
+  const ids = new Set(inProgress.map((f) => f.id));
+  if (ids.size < WARM_FEATURES) {
+    const { features } = await featuresRepo.listSummaries(db, projectId, WARM_FEATURES);
+    for (const f of features) if (ids.size < WARM_FEATURES) ids.add(f.id);
+  }
   let warmed = 0;
-  for (const f of features) {
-    await writeCache(db, projectId, f.id, await buildIndexBlock(db, projectId, f.id));
+  for (const id of ids) {
+    await writeCache(db, projectId, id, await buildIndexBlock(db, projectId, id));
     warmed++;
   }
   return warmed;
