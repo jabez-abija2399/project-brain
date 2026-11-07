@@ -325,6 +325,22 @@ export const criteriaRepo = {
       );
   },
 
+  /** A feature's active criteria (the context pack shows them). */
+  async activeForFeature(db: BlueprintTx, projectId: string, featureId: string, limit = 30) {
+    return db
+      .select({ id: criteria.id, text: criteria.text, kind: criteria.kind })
+      .from(criteria)
+      .where(
+        and(
+          eq(criteria.projectId, projectId),
+          eq(criteria.featureId, featureId),
+          eq(criteria.status, "active"),
+        ),
+      )
+      .orderBy(asc(criteria.position), asc(criteria.createdAt))
+      .limit(limit);
+  },
+
   /** Every criterion of the project (any status), for restore. */
   async all(db: BlueprintTx, projectId: string): Promise<Criterion[]> {
     return db.select().from(criteria).where(eq(criteria.projectId, projectId));
@@ -363,6 +379,15 @@ export const boundariesRepo = {
 
   async all(db: BlueprintTx, projectId: string): Promise<Boundary[]> {
     return db.select().from(boundaries).where(eq(boundaries.projectId, projectId));
+  },
+
+  async active(db: BlueprintTx, projectId: string, limit = 50) {
+    return db
+      .select({ kind: boundaries.kind, pattern: boundaries.pattern })
+      .from(boundaries)
+      .where(and(eq(boundaries.projectId, projectId), eq(boundaries.status, "active")))
+      .orderBy(asc(boundaries.createdAt))
+      .limit(limit);
   },
 
   async countOpenProposals(db: BlueprintTx, projectId: string): Promise<number> {
