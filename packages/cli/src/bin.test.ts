@@ -1,3 +1,4 @@
+// @slow: end-to-end or process-spawning test; skipped in quick mode unless its package changed
 import { spawn } from "node:child_process";
 import {
   cpSync,

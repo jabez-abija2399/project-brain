@@ -100,3 +100,24 @@ refused connection fails fast; a server that accepts but never answers would wai
 (283–310 ms) and session-start (≈ 300 ms) are at or over budget on the native binary even without network work. The
 tool definitions (≈ 2,560 tokens, 40% of them `generate_receipt`) are the largest part of the start cost. Phase 2
 addresses both.
+
+## 3. Phase 1 results (fast verification, 2026-11-06)
+
+Same machine, same day as the baseline. All 884 web tests and 82 db tests pass in every run.
+
+| What | Baseline | After | Change |
+|---|---|---|---|
+| `apps/web` tests | 14 min 35 s (files one at a time) | **5 min 21 s** (migrated database image, 4 workers) | 2.7× faster |
+| `apps/web` tests, 2 workers | — | 6 min 33 s | 4 workers kept |
+| `packages/db` tests | 1 min 24 s | 1 min 12 s (migrated image) | |
+| Full local gate (`verify.sh`, CI-only steps excluded) | ≈ 21 min (sum of steps) | **10 min 38 s** with the owner-pending script | 2× faster |
+| `--quick` on the Phase 1 branch (4 changed packages: web, cli, db, sandbox) | — | 8 min 12 s | tests of changed packages only |
+| `--quick`, docs-only change | full typecheck + tests | kit guard only (≈ 3 s) | |
+
+`--quick` costs what the changed packages' own tests cost: about 5.5 min when `apps/web` changed, 1–1.5 min for
+`packages/db`, 40 s for `packages/cli`, 25 s for `packages/sandbox`, 3.5 min for `packages/core`. The CI number
+depends on the owner-pending parallel workflow (owner action 5); the slowest job is expected to be the web tests plus
+setup, about 7 min, against 27.5 min today. It will be measured on its first run.
+
+Not done here: running package test suites in parallel inside one local gate (needs `scripts/verify.config`, protected;
+noted in `agent/later.md`).
