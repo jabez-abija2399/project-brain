@@ -154,3 +154,24 @@ start note a saved fallback when the server is slow. Users get it through the re
 
 **Check:** https://www.npmjs.com/package/codeceipt shows 0.3.5 with provenance; `codeceipt --version` after
 `codeceipt update` prints 0.3.5.
+
+---
+
+## 9. Apply migration 0054 (Project Blueprint) — pending, optional
+
+**Why:** Phase 3a stores the Project Blueprint (criteria, boundaries, build order, version history). Until 0054 is in
+production, everything else works as before; Blueprint calls answer "being set up" and `/api/health` stays 200 with
+0054 under `migrations.pending` and `optional: true`.
+
+**Steps:** if action 1 is done, approve the `migrate-production` run that follows the merge. Otherwise, Neon
+**SQL Editor** on `production` → paste
+[packages/db/migrations/0054_blueprint.sql](../packages/db/migrations/0054_blueprint.sql) → **Run** → then run
+`INSERT INTO "_brain_migrations" (id) VALUES ('0054_blueprint');`.
+
+**What to expect in the SQL (review before approving):** seven `CREATE TABLE` (`blueprints`, `blueprint_versions`,
+`feature_dependencies`, `feature_areas`, `criteria`, `criterion_tests`, `boundaries`), unique indexes (one on the
+existing `checklist_items (project_id, id)`, which is already unique by `id`), and one function plus trigger that
+refuse edits to a saved Blueprint version. Nothing is dropped or changed; no source code is stored.
+
+**Check:** `https://codeceipts.vercel.app/api/health` no longer lists `0054_blueprint`.
+

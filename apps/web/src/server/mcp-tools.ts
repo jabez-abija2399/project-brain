@@ -2,6 +2,7 @@ import { oauthRepo, projectTokensRepo, projectsRepo } from "@brain/db";
 import { type AuthInfo, type McpServer, ProtocolError } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { appOriginOf } from "./auth";
+import { blueprintSummary, proposeBlueprint } from "./blueprint-agent";
 import { checkPackage } from "./check-package";
 import { createChecklist, proposeChecklistChange } from "./checklist";
 import { findSimilarComponents } from "./components";
@@ -182,11 +183,24 @@ export function registerBrainTools(server: McpServer): void {
       inputSchema: z.object({
         projectId,
         features: z.literal(true).optional().describe("Return the feature list instead"),
+        blueprint: z.literal(true).optional().describe("The Blueprint instead"),
       }),
     },
     async (args, ctx) =>
       run("where_did_we_stop", ctx.http?.authInfo, async (token) => {
-        const { features, ...rest } = (args ?? {}) as { features?: unknown };
+        const { features, blueprint, ...rest } = (args ?? {}) as {
+          features?: unknown;
+          blueprint?: unknown;
+        };
+        if (blueprint !== undefined) {
+          if (blueprint !== true || features !== undefined) {
+            throw new AppError(400, "invalid_input", "blueprint must be true, without features");
+          }
+          const { projectId: pid, ...extra } = rest as { projectId?: string };
+          if (Object.keys(extra).length > 0)
+            throw new AppError(400, "invalid_input", "unknown field");
+          return blueprintSummary(getDb(), token, pid);
+        }
         if (features === undefined) return whereDidWeStop(getDb(), token, rest);
         if (features !== true) throw new AppError(400, "invalid_input", "features must be true");
         return JSON.stringify(await listFeatures(getDb(), token, rest));
@@ -327,6 +341,32 @@ export function registerBrainTools(server: McpServer): void {
     async (args, ctx) =>
       run("propose_checklist_change", ctx.http?.authInfo, async (token) =>
         JSON.stringify(await proposeChecklistChange(getDb(), token, args)),
+      ),
+  );
+
+  server.registerTool(
+    "propose_blueprint",
+    {
+      description:
+        "Propose a criterion, a rewording (replaces) or a boundary; the owner approves it.",
+      inputSchema: z.object({
+        projectId,
+        feature: z.string().optional().describe(FEATURE_REF),
+        text: z.string().describe("EARS sentence, or path/package"),
+        kind: z.enum([
+          "behaviour",
+          "must_never",
+          "security",
+          "protected_path",
+          "allowed_dependency",
+          "disallowed_dependency",
+        ]),
+        replaces: z.string().optional(),
+      }),
+    },
+    async (args, ctx) =>
+      run("propose_blueprint", ctx.http?.authInfo, async (token) =>
+        JSON.stringify(await proposeBlueprint(getDb(), token, args)),
       ),
   );
 

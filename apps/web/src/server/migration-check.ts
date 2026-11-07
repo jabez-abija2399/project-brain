@@ -38,3 +38,11 @@ export async function explainMissingMigrations<T>(
     throw new Error(hint, { cause: err });
   }
 }
+
+// Roadmap Phase 3a: the Blueprint works once migration 0054 is in the database. Before that (it is optional, so the
+// app stays up), every Blueprint path answers "not set up yet" instead of failing on a missing table.
+export const BLUEPRINT_MIGRATION = "0054_blueprint";
+export async function blueprintEnabled(db: BrainDb, now = Date.now()): Promise<boolean> {
+  const pending = await missingMigrations(db, now);
+  return !pending.includes(BLUEPRINT_MIGRATION);
+}

@@ -99,6 +99,7 @@ describe("/mcp remote MCP server (FEAT-011)", () => {
         "get_context_pack",
         "list_features",
         "plan_project",
+        "propose_blueprint",
         "propose_checklist_change",
         "save_progress",
         "where_did_we_stop",
