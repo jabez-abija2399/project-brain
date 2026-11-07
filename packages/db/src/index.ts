@@ -11,4 +11,6 @@ export {
   migrationHint,
   pendingMigrations,
   pendingMigrationsAt,
+  OPTIONAL_MIGRATIONS,
+  requiredPending,
 } from "./migration-check";

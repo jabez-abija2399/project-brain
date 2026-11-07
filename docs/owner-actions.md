@@ -105,6 +105,40 @@ prints a time next to every step and a `TOTAL` line.
 
 ---
 
+## 6. Apply migration 0051 (context-pack cache) — pending, optional
+
+**Why:** Phase 2a caches each feature's context-pack file and component lines so `get_context_pack` is one row read.
+Until 0051 is in production, packs are built live exactly as before, and `/api/health` stays 200 but lists it under
+`migrations.pending` with `optional: true`.
+
+**Steps:** if action 1 is done, approve the `migrate-production` run that follows the merge. Otherwise, Neon
+**SQL Editor** on `production` → paste
+[packages/db/migrations/0051_context_pack_cache.sql](../packages/db/migrations/0051_context_pack_cache.sql) → **Run**
+→ then run `INSERT INTO "_brain_migrations" (id) VALUES ('0051_context_pack_cache');`.
+
+**What to expect in the SQL (review before approving):** one `CREATE TABLE "context_pack_cache"` (paths, component
+lines, counts; never source code), one `CREATE FUNCTION "context_pack_cache_clear"` (it only deletes rows of that
+table), and four `CREATE TRIGGER` lines on `files`, `symbols`, `feature_files`, `features`. Nothing is dropped or
+changed.
+
+**Check:** `https://codeceipts.vercel.app/api/health` shows no `migrations` field.
+
+---
+
+## 7. Let `list_features` leave the tool list next release — pending, low priority (needs a computer)
+
+**Why:** acceptance criterion AC-011-01 names `list_features` in the tool list, so it stays listed (as a one-line
+"old name of where_did_we_stop with features: true"). Removing it saves about 70 tokens per session but needs the
+criterion reworded, which only the owner may approve.
+
+**Steps (on a computer, in the repo):** add `agent/plan.json` with FEAT-011's AC-011-01 check reading "An MCP client
+(Claude Code) connects to /mcp and lists the tools where_did_we_stop, get_context_pack, find_similar_component,
+save_progress, add_decision, create_checklist, propose_checklist_change, generate_receipt (list_features may be
+absent; where_did_we_stop with features: true answers it)", then run
+`SPEC_CHANGE_APPROVED=1 python3 scripts/kit.py import`. Tell Claude afterwards; it then drops the old tool.
+
+**Check:** `python3 scripts/kit.py show FEAT-011` shows the new wording.
+
 ## 8. Release CLI 0.3.5 (fast hooks) — pending
 
 **Why:** Phase 2b makes every hook start about 5× faster (the indexer loads only for `codeceipt index`) and gives the

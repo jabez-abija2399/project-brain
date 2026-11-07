@@ -12,6 +12,8 @@ const web = fileURLToPath(new URL("../..", import.meta.url));
 const root = join(web, "../..");
 const PACKAGES: Record<string, string> = {
   "@brain/core": join(root, "packages/core/src/index.ts"),
+  // The indexer's own entry (roadmap Phase 2b): the barrel no longer re-exports it.
+  "@brain/core/indexer": join(root, "packages/core/src/indexer/index.ts"),
   "@brain/db": join(root, "packages/db/src/index.ts"),
   "@brain/db/schema": join(root, "packages/db/src/schema/index.ts"),
 };
