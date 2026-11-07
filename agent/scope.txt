@@ -88,3 +88,5 @@ packages/db/src/repos/* # Phase 3a
 apps/web/src/server/* # Phase 3a: Blueprint service, MCP touchpoints
 apps/web/src/app/* # Phase 3a: Blueprint routes
 docs/* # Phase 3a docs
+packages/core/src/blueprint/* # Phase 3a: Blueprint core (EARS, flags, proof, snapshots)
+packages/core/src/plan.ts # Phase 3a: planKindToCriterion
