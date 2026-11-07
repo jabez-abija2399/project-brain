@@ -15,7 +15,7 @@ import {
   projectsRepo,
 } from "@brain/db";
 import { sql } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionUser } from "./auth";
 import { blueprintView, editBlueprint } from "./blueprint";
 import { setLlmForTests } from "./llm";
@@ -214,5 +214,30 @@ describe("Phase 3b: owner route attacks", () => {
       }),
     ).rejects.toMatchObject({ status: 400 });
     expect(await blueprintRepo.currentVersion(world.db, pid)).toBe(0);
+  });
+
+  it("BP-3B-16 attack: if the Blueprint cannot be written, the plan approval is rolled back whole", async () => {
+    const spy = vi.spyOn(criteriaRepo, "insert").mockRejectedValueOnce(new Error("boom"));
+    await expect(approvedPlan()).rejects.toThrow("boom");
+    spy.mockRestore();
+    expect((await featuresRepo.listSummaries(world.db, pid, 10)).total).toBe(0);
+    expect((await planDraftsRepo.latest(world.db, pid, "draft"))?.status).toBe("draft");
+    expect(await blueprintRepo.currentVersion(world.db, pid)).toBe(0);
+  });
+
+  it("BP-3B-17 attack: Discover and the safety check never show another project's data", async () => {
+    const other = (await projectsRepo.create(world.db, stranger.id, { name: "Vault" })).id;
+    await featuresRepo.insert(world.db, other, { name: "SecretVaultFeature" });
+    await world.db.execute(
+      sql`INSERT INTO db_tables (id, project_id, path, schema, name, rls_enabled) VALUES ('t9', ${other}, 'x.sql', 'public', 'vault_rows', false)`,
+    );
+    await featuresRepo.insert(world.db, pid, { name: "Orders" });
+    const d = await (await call(discoverRoute, pid)).text();
+    const s = await (await call(safetyRoute, pid)).text();
+    for (const body of [d, s]) {
+      expect(body).not.toContain("SecretVaultFeature");
+      expect(body).not.toContain("vault_rows");
+    }
+    expect(JSON.parse(d)).toMatchObject({ truncated: false });
   });
 });

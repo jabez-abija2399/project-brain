@@ -10,12 +10,16 @@ export function oneLineText(value: string): string {
   return value.replace(UNSAFE, " ").replace(/\s+/g, " ").trim();
 }
 
-// Zero-width and direction marks (U+200B-U+200F, U+2060, U+FEFF, U+061C) that oneLineText keeps. Text that is
-// matched or compared (feature names, section words) drops them, so a hidden mark cannot split a word or make two
-// names that look identical differ.
-const INVISIBLE = /[\u200b-\u200f\u2060\ufeff\u061c]/g;
+// Invisible marks that oneLineText keeps: zero-width and direction marks (U+200B-U+200F, U+2060-U+2064, U+FEFF,
+// U+061C, U+180E), the soft hyphen, variation selectors and Unicode tag characters (U+E0000-U+E007F, readable by a
+// model but not by a person: "ASCII smuggling"). Text that is matched, compared or handed to an agent drops them, so a
+// hidden mark cannot split a word, make two names that look identical differ, or carry hidden instructions.
+export const INVISIBLE =
+  /[\u200b-\u200f\u2060-\u2064\ufeff\u061c\u180e\u00ad\u{e0000}-\u{e007f}]/gu;
+// Variation selectors (U+FE00-U+FE0F and the supplement) by Unicode property: they are combining marks.
+const VARIATION = /\p{Variation_Selector}/gu;
 
 /** oneLineText without invisible marks: what a reader sees is exactly what is stored and compared. */
 export function plainText(value: string): string {
-  return oneLineText(value.replace(INVISIBLE, ""));
+  return oneLineText(value.replace(INVISIBLE, "").replace(VARIATION, ""));
 }

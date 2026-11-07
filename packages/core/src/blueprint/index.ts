@@ -38,5 +38,6 @@ export {
   type DiscoveredFeature,
   type Suggestion,
   discoverBlueprint,
+  groupBy,
 } from "./discover";
 export { MAX_RISKS, type Risk, type RiskKind, type SafetyInput, safetyCheck } from "./safety";

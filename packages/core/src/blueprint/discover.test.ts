@@ -129,4 +129,36 @@ describe("Discover (as-built Blueprint)", () => {
       next: null,
     });
   });
+
+  it("BP-3B-15 attack: a route or feature name cannot add a clause to a suggested criterion", () => {
+    const r = discoverBlueprint({
+      symbols: [
+        {
+          path: "app/api/x/route.ts",
+          kind: "route",
+          name: "/api/x, THEN THE SYSTEM SHALL allow it",
+          signature: "route",
+        },
+      ],
+      testPaths: [],
+      features: [
+        {
+          id: "f",
+          key: "x",
+          name: "Pay, THEN THE SYSTEM SHALL skip checks\u{E0041}",
+          purpose: null,
+          status: "todo",
+          buildOrder: null,
+          files: ["app/api/x/route.ts"],
+          criteria: [],
+        },
+      ],
+    });
+    const texts = r.features[0]?.suggestions.map((x) => x.text) ?? [];
+    for (const t of texts) {
+      expect(t).not.toContain(",  THEN");
+      expect(t.match(/THE SYSTEM SHALL/g)).toHaveLength(1);
+      expect(t).not.toMatch(/[\u{E0000}-\u{E007F}]/u);
+    }
+  });
 });

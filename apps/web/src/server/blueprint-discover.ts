@@ -1,6 +1,7 @@
 import {
   TESTS_KEY,
   discoverBlueprint,
+  groupBy,
   mustNeverCoverage,
   receiptView,
   rlsFindings,
@@ -23,20 +24,21 @@ const RLS_TYPES = new Set([
 export async function discoverView(db: BrainDb, user: SessionUser, projectId: string) {
   const pid = await blueprintReady(db, user, projectId);
   const raw = await discoverRepo.input(db, pid);
-  const filesBy = new Map<string, string[]>();
-  for (const f of raw.files)
-    filesBy.set(f.featureId, [...(filesBy.get(f.featureId) ?? []), f.path]);
+  const filesBy = groupBy(raw.files, (f) => f.featureId);
+  const criteriaBy = groupBy(raw.criteria, (c) => c.featureId);
   const testsFeature = raw.features.find((f) => f.key === TESTS_KEY);
-  return discoverBlueprint({
+  const view = discoverBlueprint({
     features: raw.features.map((f) => ({
       ...f,
       key: f.key ?? "",
-      files: filesBy.get(f.id) ?? [],
-      criteria: raw.criteria.filter((c) => c.featureId === f.id),
+      files: (filesBy.get(f.id) ?? []).map((r) => r.path),
+      criteria: criteriaBy.get(f.id) ?? [],
     })),
     symbols: raw.symbols,
-    testPaths: testsFeature ? (filesBy.get(testsFeature.id) ?? []) : [],
+    testPaths: testsFeature ? (filesBy.get(testsFeature.id) ?? []).map((r) => r.path) : [],
   });
+  // Honest about limits: a cut-off read says so, so "nothing found" is never "nothing there".
+  return { ...view, truncated: raw.truncated };
 }
 
 export async function safetyView(db: BrainDb, user: SessionUser, projectId: string) {
@@ -63,7 +65,9 @@ export async function safetyView(db: BrainDb, user: SessionUser, projectId: stri
   ).map((w) => ({ featureId: w.featureId, name: names.get(w.featureId) ?? "" }));
   return {
     risks: safetyCheck({ rls: rlsFindings(tables), secrets, testChecks, uncovered }),
+    // The newest receipts only: older findings fixed since are not counted, unfixed ones reappear in new receipts.
     receiptsChecked: receipts.length,
+    receiptsLimit: RECENT_RECEIPTS,
     tablesChecked: tables.length,
   };
 }

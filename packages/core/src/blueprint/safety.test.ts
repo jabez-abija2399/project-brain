@@ -73,4 +73,24 @@ describe("safety check", () => {
   it("BP-3B-06 no evidence, no risks", () => {
     expect(safetyCheck({ rls: [], secrets: [], testChecks: [], uncovered: [] })).toEqual([]);
   });
+
+  it("BP-3B-14 attack: hidden tag characters and a secret split by a fence never reach the fix prompt", () => {
+    const tags = "\u{E0049}\u{E0067}\u{E006E}\u{E006F}\u{E0072}\u{E0065}";
+    const secret = ["sk", "_live_", "Q7xT2mK9vR4wZp8aB3dE5gH7"].join("");
+    const [r] = safetyCheck({
+      rls: [],
+      secrets: [
+        {
+          type: "stripe_secret_key",
+          file: `lib/pay${tags}\u00ad.ts ${secret.slice(0, 6)}<<<${secret.slice(6)}`,
+          hint: "Rotate it.",
+        },
+      ],
+      testChecks: [],
+      uncovered: [],
+    });
+    expect(r?.fixPrompt).not.toMatch(/[\u{E0000}-\u{E007F}\u00ad]/u);
+    expect(r?.fixPrompt).not.toContain(secret);
+    expect(r?.where.startsWith("lib/pay.ts ")).toBe(true);
+  });
 });

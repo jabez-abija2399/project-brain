@@ -34,9 +34,10 @@ export type Risk = {
 // One line, invisible marks removed, masked, and the data fence written so it can never be closed from inside.
 // (Repeated: removing one fence can join the characters around it into a new one.)
 function clean(value: string, max = 200): string {
-  let text = maskSecretsIn(plainText(value));
+  // Fences first, masking last: removing a fence can join two pieces of a secret back together.
+  let text = plainText(value);
   while (/<<<|>>>/.test(text)) text = text.replace(/<<<|>>>/g, "");
-  return text.slice(0, max);
+  return maskSecretsIn(text).slice(0, max);
 }
 
 function prompt(title: string, where: string, why: string, ask: string): string {

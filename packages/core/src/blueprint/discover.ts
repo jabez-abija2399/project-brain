@@ -45,7 +45,15 @@ const clean = (value: string, max = 120) => maskSecretsIn(plainText(value)).slic
 
 function suggestionsFor(name: string, apiRoutes: string[], kinds: Set<string>): Suggestion[] {
   const out: Suggestion[] = [];
-  const thing = clean(name, 80);
+  // Names go into a sentence the owner may accept: only plain name characters, and a name carrying sentence keywords
+  // gets a neutral word instead, so a name can never add or change a clause.
+  const plainName = clean(name, 80)
+    .replace(/[^\p{L}\p{N} _.-]/gu, "")
+    .trim();
+  const thing =
+    plainName && !/\b(shall|then|when|if|while|not)\b/i.test(plainName)
+      ? plainName
+      : "this feature's";
   if (!kinds.has("must_never") && !kinds.has("security")) {
     out.push({
       kind: "must_never",
@@ -57,9 +65,20 @@ function suggestionsFor(name: string, apiRoutes: string[], kinds: Set<string>): 
   if (api && !kinds.has("security")) {
     out.push({
       kind: "security",
-      text: `IF a request to ${clean(api, 120)} comes from someone who is not signed in, THEN THE SYSTEM SHALL refuse it`,
+      text: `IF a request to ${clean(api, 120).replace(/[^\w/[\]().:@-]/g, "")} comes from someone who is not signed in, THEN THE SYSTEM SHALL refuse it`,
       why: "This feature has an API route; who may call it should be written down.",
     });
+  }
+  return out;
+}
+
+export function groupBy<T>(rows: readonly T[], key: (row: T) => string): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const row of rows) {
+    const k = key(row);
+    const list = out.get(k);
+    if (list) list.push(row);
+    else out.set(k, [row]);
   }
   return out;
 }
@@ -69,10 +88,16 @@ export function discoverBlueprint(input: DiscoverInput): {
   features: DiscoveredFeature[];
   next: string | null;
 } {
-  const symbolsByPath = new Map<string, DiscoverInput["symbols"]>();
-  for (const s of input.symbols)
-    symbolsByPath.set(s.path, [...(symbolsByPath.get(s.path) ?? []), s]);
-  const subjects = input.testPaths.map((t) => ({ test: t, subjects: new Set(testSubjects(t)) }));
+  // Grouped once (push, never copy), so the work grows with the number of rows, not its square.
+  const symbolsByPath = groupBy(input.symbols, (s) => s.path);
+  const testsByPath = new Map<string, Set<string>>();
+  for (const t of input.testPaths) {
+    for (const p of [t, ...testSubjects(t)]) {
+      const set = testsByPath.get(p) ?? new Set<string>();
+      set.add(t);
+      testsByPath.set(p, set);
+    }
+  }
 
   const features = input.features
     .filter((f) => !f.key.startsWith(AUTO_PREFIX))
@@ -89,9 +114,9 @@ export function discoverBlueprint(input: DiscoverInput): {
       const components = [
         ...new Set(syms.filter((s) => s.kind === "component").map((s) => clean(s.name))),
       ].sort();
-      const tests = subjects.filter(
-        (t) => files.has(t.test) || [...t.subjects].some((p) => files.has(p)),
-      ).length;
+      const related = new Set<string>();
+      for (const p of files) for (const t of testsByPath.get(p) ?? []) related.add(t);
+      const tests = related.size;
       const active = f.criteria.filter((c) => c.status === "active");
       return {
         featureId: f.id,
