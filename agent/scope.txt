@@ -69,3 +69,14 @@ AGENTS.md # Phase 1: gate wording (quick vs full)
 docs/build-checklist.md # Phase 1: running the gate
 docs/owner-pending/verify/* # Phase 1: owner-pending verify.sh and parallel verify.yml
 agent/later.md # Phase 1: parallel package tests idea
+apps/web/src/app/mcp/* # Phase 2a: tool footprint tests, shared MCP test client
+apps/web/src/server/mcp-tools.ts # Phase 2a: short descriptions, features flag, agent-facing receipt fields
+apps/web/src/server/context-pack.ts # Phase 2a: cached index block, warm after push
+apps/web/src/server/push-index.ts # Phase 2a: warm context packs after re-index
+apps/web/src/server/migration-check.test.ts # Phase 2a: optional migrations keep health 200
+apps/web/src/app/api/health/route.ts # Phase 2a: optional migrations keep health 200
+packages/db/migrations/0051_context_pack_cache.sql # Phase 2a
+packages/db/src/* # Phase 2a: context-pack cache table, repo, optional migrations
+packages/db/src/repos/* # Phase 2a: context-pack cache repo
+packages/db/src/schema/* # Phase 2a: context-pack cache table
+packages/core/src/handoff.ts # Phase 2a: feature list pointer

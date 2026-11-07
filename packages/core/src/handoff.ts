@@ -36,7 +36,8 @@ export type HandoffInput = {
   directives: string[];
 };
 
-type ListPiece = { prefix: string; items: string[] };
+// `more` names where the rest of a cut list is (a pointer instead of pasted content, roadmap Phase 2a).
+type ListPiece = { prefix: string; items: string[]; more?: string };
 
 type Piece = {
   section: number;
@@ -147,7 +148,11 @@ function pieces(input: HandoffInput): Piece[] {
       head: null,
       full: "",
       must: false,
-      list: { prefix: "ALL FEATURES: ", items: names.map(oneLine) },
+      list: {
+        prefix: "ALL FEATURES: ",
+        items: names.map(oneLine),
+        more: "where_did_we_stop features: true",
+      },
     });
   return out;
 }
@@ -180,7 +185,16 @@ export function buildHandoffNote(input: HandoffInput): string {
   for (const p of byPriority) {
     const headCost = p.head && !headPrinted.has(p.section) ? p.head.length + 1 : 0;
     if (p.list) {
-      const text = fitList(p.list, remaining - headCost - 1);
+      const room = remaining - headCost - 1;
+      let text = fitList(p.list, room);
+      // A cut list says where the rest is (a pointer, not more names), with room kept for that line. When not even
+      // one name fits, the count and the pointer still do.
+      const pointer = p.list.more ? `(full list: ${p.list.more})` : "";
+      if (pointer && (text === null || / more$/.test(text))) {
+        const cut = fitList(p.list, room - pointer.length - 1);
+        const countOnly = `${p.list.prefix}${p.list.items.length} ${pointer}`;
+        text = cut !== null ? `${cut}\n${pointer}` : countOnly.length <= room ? countOnly : null;
+      }
       if (text === null) continue;
       p.out = text;
       remaining -= headCost + text.length + 1;

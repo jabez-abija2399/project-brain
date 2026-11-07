@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { OPTIONAL_MIGRATIONS } from "@brain/db";
 import { createTestDb, fromPglite, servePgliteOverTcp } from "@brain/db/testing";
 import { PGlite } from "@electric-sql/pglite";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,10 +16,13 @@ const ids = readdirSync(dir)
   .sort()
   .map((f) => f.replace(/\.sql$/, ""));
 
-async function behindByOne() {
+// The newest migration the app cannot work without (optional ones, e.g. caches, do not make the service unready).
+const newestRequired = ids.filter((id) => !OPTIONAL_MIGRATIONS.has(id)).at(-1) as string;
+
+async function behindByOne(missing: string = newestRequired) {
   const pg = new PGlite();
   await pg.exec(`CREATE TABLE "_brain_migrations" ("id" text PRIMARY KEY NOT NULL)`);
-  for (const id of ids.slice(0, -1)) {
+  for (const id of ids.filter((i) => i !== missing)) {
     await pg.exec(readFileSync(join(dir, `${id}.sql`), "utf8"));
     await pg.query(`insert into "_brain_migrations" (id) values ($1)`, [id]);
   }
@@ -42,10 +46,10 @@ describe("missing migrations", () => {
         throw new Error("Failed to get session");
       },
     ).catch((e: Error) => e);
-    expect((err as Error).message).toContain(`missing 1 migration(s): ${ids.at(-1)}`);
+    expect((err as Error).message).toContain(`missing 1 migration(s): ${newestRequired}`);
     expect((err as Error).message).toContain("pnpm --filter @brain/db migrate");
     expect(((err as Error).cause as Error).message).toBe("Failed to get session");
-    expect(log).toHaveBeenCalledWith(expect.stringContaining(String(ids.at(-1))));
+    expect(log).toHaveBeenCalledWith(expect.stringContaining(newestRequired));
     await pg.close();
   });
 
@@ -79,7 +83,34 @@ describe("missing migrations", () => {
       const res = await GET();
       expect(res.status).toBe(503);
       const body = await res.json();
-      expect(body).toMatchObject({ ok: false, db: true, migrations: { pending: [ids.at(-1)] } });
+      expect(body).toMatchObject({
+        ok: false,
+        db: true,
+        migrations: { pending: [newestRequired] },
+      });
+    } finally {
+      process.env.DATABASE_URL = url;
+      await server.close();
+      await pg.close();
+    }
+  });
+
+  it("PERF-2A-20 /api/health stays 200 while only an optional migration (a cache) is pending, and names it", async () => {
+    const optional = [...OPTIONAL_MIGRATIONS][0] as string;
+    const pg = await behindByOne(optional);
+    const server = await servePgliteOverTcp(pg);
+    const url = process.env.DATABASE_URL;
+    process.env.DATABASE_URL = server.url;
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { GET } = await import("@/app/api/health/route");
+      const res = await GET();
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        ok: true,
+        db: true,
+        migrations: { pending: [optional], optional: true },
+      });
     } finally {
       process.env.DATABASE_URL = url;
       await server.close();

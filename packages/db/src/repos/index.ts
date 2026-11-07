@@ -18,6 +18,7 @@ export {
   type FeatureUpdate,
 } from "./features";
 export { featureFilesRepo } from "./feature-files";
+export { CONTEXT_PACK_CACHE_TTL_MS, contextPackCacheRepo } from "./context-pack-cache";
 export { requestsRepo } from "./requests";
 export { checklistItemsRepo } from "./checklist-items";
 export type { ShownProposal } from "./checklist-items";
