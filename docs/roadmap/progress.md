@@ -10,8 +10,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 0 | Audit: kit migration map, baselines | merged | [#57](https://github.com/jabez-abija2399/project-brain/pull/57) | Baselines: CI 27.5 min, local ≈ 21 min (web tests 14.6 min); ≈ 2,990 tokens at session start; hooks 0.3–0.6 s |
 | 1 | Fast verification (supersedes PRs #51, #53, #55) | merged | [#58](https://github.com/jabez-abija2399/project-brain/pull/58) | Web tests 14.6→5.4 min; full local gate ≈21→10.6 min; CI 27.5→14 min from faster tests alone; parallel workflow waits on owner action 5 |
 | 2a | Footprint: start note budget, compact MCP tools, cached context packs (server) | merged | [#59](https://github.com/jabez-abija2399/project-brain/pull/59) | tools/list 10,247→5,754 chars; ≈2,990→1,870 tokens at start; context pack p95 26.6→14.1 ms; migration 0051 optional (owner action 6) |
-| 2b | Footprint: cached start note, fast hooks (CLI) | in progress | [#60](https://github.com/jabez-abija2399/project-brain/pull/60) | Hooks 520–600 ms → 70–120 ms (Node), ≈ 300 → 135–165 ms (native); offline start note ≤ 1.6 s with a saved note; CLI 0.3.5 (owner action 8) |
-| 3a | Blueprint: versioned model, EARS criteria, proof status, flags | not started | | |
+| 2b | Footprint: cached start note, fast hooks (CLI) | merged | [#60](https://github.com/jabez-abija2399/project-brain/pull/60) | Hooks 520–600 ms → 70–120 ms (Node), ≈ 300 → 135–165 ms (native); offline start note ≤ 1.6 s with a saved note; CLI 0.3.5 (owner action 8) |
+| 3a | Blueprint: versioned model, EARS criteria, proof status, flags | in progress | | Migration 0054 optional (owner action 9); `propose_blueprint` MCP tool; tools/list 6,479 chars (budget 6,500) |
 | 3b | Blueprint: Discover, interview, safety check | not started | | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | not started | | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | not started | | |
@@ -52,3 +52,17 @@ Status values: not started, in progress, merged, blocked (with reason).
   callable for one release but hidden from `tools/list`; start note lists features in progress and points to the
   full list; context-pack file/component block precomputed per feature after indexing (migration 0051, live
   fallback when missing); budget tests for tool definitions, start note size and read latency.
+
+### Phase 2b: footprint (CLI)
+- Done: code splitting (`dist/chunks/`), `@brain/core` `sideEffects: false` and `@brain/core/indexer` subpath, start
+  note fetched in parallel with a 1.5 s cap and a saved fallback in `.git` (one project, ≤ 7 days, mode 0600), CLI 0.3.5.
+
+### Phase 3a: Blueprint model (schema, core, service, MCP)
+- Design: `docs/roadmap/phase3a-design.md`.
+- Built: migration 0054 (optional; Blueprint calls answer `blueprint_not_ready` until it is applied), repos, core
+  rules (EARS forms, ambiguity flags with rewrites, contradictions, must-never coverage, proof status, snapshots),
+  owner service (edit in batches of ≤ 50 operations against a base version, accept/reject proposals, restore as a new
+  version that retires and never deletes, history), agent side (`propose_blueprint`, `where_did_we_stop
+  {blueprint:true}`), owner-approved CRITERIA and BOUNDARIES in context packs as data.
+- Deferred to 3b: plan approval writing criteria, Discover, interview, 0054 becoming required. Web pages are 3c.
+
