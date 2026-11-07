@@ -118,10 +118,14 @@ export function ambiguityFlags(text: string, ears: Ears | null): Flag[] {
     const word = m[0];
     if (seen.has(word.toLowerCase())) continue;
     seen.add(word.toLowerCase());
+    // Rewritten at the match's own position (no regex built from text).
+    const start = m.index ?? 0;
+    const before = t.slice(0, start);
+    const after = t.slice(start + word.length);
     const rewrite =
       word.toLowerCase() === "ideally"
-        ? t.replace(new RegExp(`\\s*\\b${word}\\b,?`, "i"), "").trim()
-        : t.replace(new RegExp(`\\b${word}\\b`), "SHALL");
+        ? `${before.trimEnd()}${after.replace(/^,/, "")}`.trim()
+        : `${before}SHALL${after}`;
     flags.push({
       code: "weak_modal",
       span: word,
