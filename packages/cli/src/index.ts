@@ -31,11 +31,10 @@ import {
   sessionIdOf,
   sessionStart,
 } from "./hooks";
-import { runIndex } from "./index-command";
 import { AGENTS, type Agent, initReport, runInit } from "./init-command";
 import { attentionLines } from "./last-attention";
 import { evidenceLines } from "./last-evidence";
-import { type LiveDb, connectLiveDb, readLiveRls } from "./live-rls";
+import type { LiveDb, readLiveRls } from "./live-rls";
 import { runMcpProxy } from "./mcp-proxy";
 import { configCommand, updateCommand } from "./native/commands";
 import { codeceiptsOnPath, runDoctor } from "./native/doctor";
@@ -375,6 +374,8 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
           `Cleared the stored index (${Number(cleared.removed) || 0} files); rebuilding it from this repo.`,
         );
       }
+      // Loaded on demand: the indexer brings in typescript (≈ 300 ms), which hooks never need (roadmap Phase 2b).
+      const { runIndex } = await import("./index-command");
       await runIndex(deps.fetch, config, dir, deps.stdout, deps.homedir ?? osHomedir(), deps.sleep);
     } else if (command === "init") {
       const config = await projectConfig(deps, path, deps.cwd);
@@ -967,10 +968,12 @@ async function runLiveRls(deps: CliDeps, path: string): Promise<number> {
     timer = setTimeout(() => reject(new Error("timeout")), limit);
   });
   // Kept, so a connection that opens after the time limit is still closed (security review).
-  const connecting = (deps.liveDb ?? connectLiveDb)(url);
+  // Loaded on demand: the RLS reader brings in libpg-query, which hooks never need (roadmap Phase 2b).
+  const live = await import("./live-rls");
+  const connecting = (deps.liveDb ?? live.connectLiveDb)(url);
   let flags: Awaited<ReturnType<typeof readLiveRls>>;
   try {
-    flags = await Promise.race([connecting.then(readLiveRls), timeout]);
+    flags = await Promise.race([connecting.then(live.readLiveRls), timeout]);
   } catch {
     // Codeceipt's own words only: a driver error can include the host or user name.
     throw new CliError(

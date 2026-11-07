@@ -4,7 +4,8 @@ import { PATCH as patchFeature } from "@/app/api/projects/[id]/features/[fid]/ro
 import { POST as createFeature } from "@/app/api/projects/[id]/features/route";
 import { POST as createProject } from "@/app/api/projects/route";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
-import { groupFeatures, indexRepo } from "@brain/core";
+import { groupFeatures } from "@brain/core";
+import { indexRepo } from "@brain/core/indexer";
 import {
   MAX_FEATURES_PER_PROJECT,
   featureFilesRepo,

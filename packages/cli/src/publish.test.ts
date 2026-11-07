@@ -23,14 +23,15 @@ afterAll(() => {
 const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
 describe("publish-ready CLI", () => {
-  it("the package is codeceipt 0.3.4 with one command, codeceipt, and no workspace dependencies", () => {
+  it("the package is codeceipt 0.3.5 with one command, codeceipt, and no workspace dependencies", () => {
     const manifest = json(join(outDir, "package.json"));
     expect(manifest.name).toBe("codeceipt");
-    expect(manifest.version).toBe("0.3.4");
-    expect(VERSION).toBe("0.3.4");
-    expect(json(join(pkgDir, "package.json")).version).toBe("0.3.4");
+    expect(manifest.version).toBe("0.3.5");
+    expect(VERSION).toBe("0.3.5");
+    expect(json(join(pkgDir, "package.json")).version).toBe("0.3.5");
     expect(manifest.bin).toEqual({ codeceipt: "./codeceipt.mjs" });
-    expect(manifest.files).toEqual(["codeceipt.mjs", "child.mjs", "README.md"]);
+    // Phase 2b: on-demand chunks (the indexer, the RLS reader) ship in chunks/ next to the entry.
+    expect(manifest.files).toEqual(["codeceipt.mjs", "chunks/", "child.mjs", "README.md"]);
     expect(Object.keys(manifest.dependencies).filter((d) => d.startsWith("@brain/"))).toEqual([]);
     expect(JSON.stringify(manifest)).not.toContain("workspace:");
     expect(manifest.private).toBeUndefined();
@@ -59,10 +60,15 @@ describe("publish-ready CLI", () => {
       version: string;
       files: { path: string }[];
     }[];
-    expect([pack?.name, pack?.version]).toEqual(["codeceipt", "0.3.4"]);
-    expect(pack?.files.map((f) => f.path).sort()).toEqual(
+    expect([pack?.name, pack?.version]).toEqual(["codeceipt", "0.3.5"]);
+    const paths = pack?.files.map((f) => f.path) ?? [];
+    expect(paths.filter((p) => !p.startsWith("chunks/")).sort()).toEqual(
       ["README.md", "child.mjs", "codeceipt.mjs", "package.json"].sort(),
     );
+    // Only built chunks, nothing else, in chunks/.
+    const chunks = paths.filter((p) => p.startsWith("chunks/"));
+    expect(chunks.length).toBeGreaterThan(0);
+    for (const c of chunks) expect(c).toMatch(/^chunks\/[\w-]+\.mjs$/);
     const readme = readFileSync(join(outDir, "README.md"), "utf8");
     expect(readme).toContain("npx codeceipt");
     expect(readme).not.toContain("CODECEIPT_TOKEN=");

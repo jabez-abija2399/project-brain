@@ -81,3 +81,13 @@ packages/db/src/repos/* # Phase 2a: context-pack cache repo
 packages/db/src/schema/* # Phase 2a: context-pack cache table
 packages/core/src/handoff.ts # Phase 2a: feature list pointer
 apps/web/src/app/api/index/* # Phase 2a: warm context packs after grouping and summaries
+packages/cli/build.mjs # Phase 2b: code splitting (on-demand chunks)
+packages/cli/src/* # Phase 2b: on-demand indexer and RLS reader, start note fallback, version 0.3.5
+packages/core/package.json # Phase 2b: sideEffects false, indexer subpath
+packages/core/src/index.ts # Phase 2b: indexer leaves the barrel
+packages/core/src/indexer/index.ts # Phase 2b: indexer subpath entry
+apps/web/src/server/push-index.ts # Phase 2b: indexer subpath import
+apps/web/src/app/api/projects/[[]id]/features/features.test.ts # Phase 2b: indexer subpath import
+apps/web/src/server/real-test-replay.test.ts # Phase 2b: npx fallback pinned to 0.3.5
+packages/agent-plugins/marketplace/* # Phase 2b: plugin versions follow the CLI
+apps/web/src/server/server-imports.test.ts # Phase 2b: the import walk follows the @brain/core/indexer subpath

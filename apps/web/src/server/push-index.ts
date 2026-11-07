@@ -1,4 +1,5 @@
-import { type SourceFile, indexSources, pathSkipReason, toUpload } from "@brain/core";
+import { toUpload } from "@brain/core";
+import { type SourceFile, indexSources, pathSkipReason } from "@brain/core/indexer";
 import { type BrainDb, codeIndexRepo, dbTablesRepo, filesRepo, githubRepo } from "@brain/db";
 import { groupProject, saveIndexBatch, uploadSchema } from "./code-index";
 import { warmContextPacks } from "./context-pack";

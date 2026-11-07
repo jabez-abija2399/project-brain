@@ -1,8 +1,8 @@
 export const PACKAGE = "@brain/core";
 export const VERSION = "0.0.0";
 
-export { indexRepo, indexSources } from "./indexer";
-export { pathSkipReason } from "./indexer/walker";
+// The indexer (typescript, ignore) is imported from "@brain/core/indexer", never from this barrel: anything that imports
+// the barrel (every CLI hook) must not load typescript at start-up (roadmap Phase 2b, docs/performance.md).
 export type { SourceFile } from "./indexer";
 export { toUpload } from "./upload";
 export {

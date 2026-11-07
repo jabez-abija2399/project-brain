@@ -1,9 +1,17 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { writeConfig } from "./config";
+import { START_NOTE_WAIT_MS } from "./hooks";
 import { type CliDeps, main } from "./index";
 import { linkRepo } from "./test-support";
 
@@ -231,5 +239,97 @@ describe("FEAT-016 agent hooks", () => {
       }),
     ).toBe(0);
     expect(JSON.parse(out[0] ?? "{}")).toEqual({ Authorization: `Bearer ${TOKEN}` });
+  });
+});
+
+// Roadmap Phase 2b: the start note never waits long. The last note is kept in the repo's .git folder (per project) and
+// shown, marked as saved earlier, when the server is unreachable or slower than START_NOTE_WAIT_MS.
+describe("Phase 2b: start note with a saved fallback", () => {
+  const noteFile = (repo: string) => join(repo, ".git", "codeceipt-start-note.json");
+  const down: CliDeps["fetch"] = async () => {
+    throw new TypeError("fetch failed");
+  };
+  const hangs: CliDeps["fetch"] = () => new Promise<Response>(() => {});
+
+  it("PERF-2B-01 a note from the server is shown and saved for later sessions", async () => {
+    const { fetchImpl } = server();
+    const { repo, out, hook } = setup(fetchImpl);
+    await hook("session-start", "claude");
+    expect(out.join("\n")).toContain("Goal: add reviews");
+    expect(JSON.parse(readFileSync(noteFile(repo), "utf8"))).toMatchObject({ projectId: "proj-1" });
+  });
+
+  it("PERF-2B-02 server unreachable: the saved note is shown, marked as saved earlier", async () => {
+    const { fetchImpl } = server();
+    const first = setup(fetchImpl);
+    await first.hook("session-start", "claude");
+    const saved = readFileSync(noteFile(first.repo), "utf8");
+    const { repo, out, hook } = setup(down);
+    writeFileSync(noteFile(repo), saved);
+    await hook("session-start", "claude");
+    expect(out.join("\n")).toContain("Goal: add reviews");
+    expect(out.join("\n")).toMatch(/saved .*earlier|server unreachable/i);
+  });
+
+  it("PERF-2B-03 a server that never answers costs at most the wait limit, then the saved note", async () => {
+    const { fetchImpl } = server();
+    const first = setup(fetchImpl);
+    await first.hook("session-start", "claude");
+    const saved = readFileSync(noteFile(first.repo), "utf8");
+    const { repo, out, hook } = setup(hangs);
+    writeFileSync(noteFile(repo), saved);
+    const t0 = Date.now();
+    await hook("session-start", "claude");
+    expect(Date.now() - t0).toBeLessThan(START_NOTE_WAIT_MS + 1500);
+    expect(out.join("\n")).toContain("Goal: add reviews");
+  });
+
+  it("PERF-2B-04 attack: a saved note of another project is never shown", async () => {
+    const { repo, out, hook } = setup(down);
+    writeFileSync(
+      noteFile(repo),
+      JSON.stringify({
+        projectId: "other",
+        note: "OTHER-PROJECT note",
+        savedAt: new Date().toISOString(),
+      }),
+    );
+    await hook("session-start", "claude");
+    expect(out.join("\n")).not.toContain("OTHER-PROJECT");
+  });
+
+  it("PERF-2B-05 attack: a symlink planted at the saved note is not followed", async () => {
+    const { fetchImpl } = server();
+    const { repo, hook } = setup(fetchImpl);
+    const target = join(mkdtempSync(join(tmpdir(), "pb-target-")), "victim.txt");
+    writeFileSync(target, "untouched");
+    symlinkSync(target, noteFile(repo));
+    await hook("session-start", "claude");
+    expect(readFileSync(target, "utf8")).toBe("untouched");
+  });
+
+  it("PERF-2B-08 attack: a refused token never gets the saved note, and the saved note is deleted", async () => {
+    const { fetchImpl } = server();
+    const first = setup(fetchImpl);
+    await first.hook("session-start", "claude");
+    const saved = readFileSync(noteFile(first.repo), "utf8");
+    const refused: CliDeps["fetch"] = async () => new Response("unauthorized", { status: 401 });
+    const { repo, out, err, hook } = setup(refused);
+    writeFileSync(noteFile(repo), saved);
+    await hook("session-start", "claude");
+    expect(out.join("\n")).not.toContain("Goal: add reviews");
+    expect(existsSync(noteFile(repo))).toBe(false);
+    expect(err.join("\n")).not.toMatch(/unreachable|slow/);
+  });
+
+  it("PERF-2B-06 a saved note older than a week is not shown", async () => {
+    const { repo, out, hook } = setup(down);
+    const old = new Date(Date.now() - 8 * 24 * 3600 * 1000).toISOString();
+    writeFileSync(
+      noteFile(repo),
+      JSON.stringify({ projectId: "proj-1", note: "STALE note", savedAt: old }),
+    );
+    await hook("session-start", "claude");
+    expect(out.join("\n")).not.toContain("STALE");
   });
 });
