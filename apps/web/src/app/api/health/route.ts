@@ -1,5 +1,5 @@
 import { configuredServices } from "@/server/env";
-import { checkDb, migrationHint, pendingMigrationsAt } from "@brain/db";
+import { checkDb, migrationHint, pendingMigrationsAt, requiredPending } from "@brain/db";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +19,19 @@ export async function GET() {
   if (result.ok) {
     // The database answers; is it also up to date with this code's migrations (ids only, never data)?
     const pending = (await pendingMigrationsAt(url, TIMEOUT_MS)) ?? [];
-    if (pending.length > 0) {
+    if (requiredPending(pending).length > 0) {
       console.error(`[/api/health] ${migrationHint(pending)}`);
       return NextResponse.json(
         { ok: false, db: true, services, migrations: { pending } },
         { status: 503 },
+      );
+    }
+    if (pending.length > 0) {
+      // Only optional migrations (a cache with a fallback): ready, but say what is missing.
+      console.warn(`[/api/health] ${migrationHint(pending)}`);
+      return NextResponse.json(
+        { ok: true, db: true, services, migrations: { pending, optional: true } },
+        { status: 200 },
       );
     }
     return NextResponse.json({ ok: true, db: true, services }, { status: 200 });

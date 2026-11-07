@@ -121,3 +121,16 @@ setup, about 7 min, against 27.5 min today. It will be measured on its first run
 
 Not done here: running package test suites in parallel inside one local gate (needs `scripts/verify.config`, protected;
 noted in `agent/later.md`).
+
+## 4. Phase 2a results (Codeceipt footprint, server side, 2026-11-07)
+
+| What | Baseline | After | Budget |
+|---|---|---|---|
+| MCP tool definitions (`tools/list`) | 10,247 chars ≈ 2,560 tokens | **5,754 chars ≈ 1,440 tokens** (−44%) | ≤ 6,500 chars (test PERF-2A-01) |
+| `generate_receipt` definition | 4,059 chars | agent-facing fields only; hook fields accepted, not advertised | — |
+| Start note, worst case | 1,498 chars | ≤ 1,500 chars, cut feature list points to `where_did_we_stop features: true` | ≤ 2,000 chars ≈ 500 tokens (PERF-2A-09) |
+| `get_context_pack` p95 (in-process, PGlite) | 26.6 ms | 14.1 ms (cache hit: 1 read + live decisions, rules, checklist in one round) | < 150 ms (PERF-2A-13) |
+| `get_context_pack` database round trips | 4 in a row | 2 on a cache hit | — |
+
+Tokens at session start for Claude Code drop from ≈ 2,990 to ≈ 1,870 (tool definitions ≈ 1,440 + start note ≈ 375 +
+skill frontmatter ≈ 52). Production latency (Neon) is not measured here.

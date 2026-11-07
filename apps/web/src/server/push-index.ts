@@ -1,6 +1,7 @@
 import { type SourceFile, indexSources, pathSkipReason, toUpload } from "@brain/core";
 import { type BrainDb, codeIndexRepo, dbTablesRepo, filesRepo, githubRepo } from "@brain/db";
 import { groupProject, saveIndexBatch, uploadSchema } from "./code-index";
+import { warmContextPacks } from "./context-pack";
 import type { PushEventData } from "./inngest";
 
 // Files fetched and indexed per step (the spec splits big pushes into steps).
@@ -101,6 +102,8 @@ export async function runPushIndex(
   });
 
   await step.run("group-features", () => groupProject(db, data.projectId));
+  // Roadmap Phase 2a: build the likely-needed context packs now, so agents' first reads are one row.
+  await step.run("warm-context-packs", () => warmContextPacks(db, data.projectId).catch(() => 0));
   return finish(data, { indexed, skippedFiles, deleted, rlsUnknown, ms: 0 }, started, clock);
 }
 

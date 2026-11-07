@@ -5,9 +5,11 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
+  timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { files } from "./code-index";
@@ -83,3 +85,30 @@ export type Feature = typeof features.$inferSelect;
 export type NewFeature = typeof features.$inferInsert;
 export type FeatureFile = typeof featureFiles.$inferSelect;
 export type NewFeatureFile = typeof featureFiles.$inferInsert;
+
+// Roadmap Phase 2a (0051): a feature's context-pack FILES and COMPONENTS lines, cached so get_context_pack is one
+// read. Database triggers clear a project's rows whenever its files, symbols, feature files or features change.
+export const contextPackCache = pgTable(
+  "context_pack_cache",
+  {
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    featureId: text("feature_id").notNull(),
+    files: jsonb("files").$type<string[]>().notNull(),
+    filesTotal: integer("files_total").notNull(),
+    components: jsonb("components").$type<string[]>().notNull(),
+    computedAt: timestamp("computed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.featureId] }),
+    foreignKey({
+      columns: [t.projectId, t.featureId],
+      foreignColumns: [features.projectId, features.id],
+    }).onDelete("cascade"),
+  ],
+);
+export type ContextPackCacheEntry = Pick<
+  typeof contextPackCache.$inferSelect,
+  "files" | "filesTotal" | "components"
+>;

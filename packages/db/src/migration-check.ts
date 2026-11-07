@@ -31,7 +31,18 @@ export const MIGRATION_IDS = [
   "0044_receipt_share_links",
   "0045_billing",
   "0048_mcp_oauth",
+  "0051_context_pack_cache",
 ] as const;
+
+// Migrations the app works without (caches and other speed-ups with a built-in fallback). While one is pending,
+// /api/health still answers 200 and lists it, so merging one never makes the service "not ready". Roadmap Phase 2a.
+// Only a migration the code can run without belongs here, and no later required migration may depend on it.
+export const OPTIONAL_MIGRATIONS: ReadonlySet<string> = new Set(["0051_context_pack_cache"]);
+
+/** The pending migrations the app cannot work without. */
+export function requiredPending(pending: readonly string[]): string[] {
+  return pending.filter((id) => !OPTIONAL_MIGRATIONS.has(id));
+}
 
 // The runner's tracking table (migrations-core.mjs); read only, never part of the app schema.
 const applied = pgTable("_brain_migrations", { id: text("id").primaryKey() });
