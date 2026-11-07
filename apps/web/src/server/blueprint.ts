@@ -99,6 +99,7 @@ export const MAX_RESTORE_ROWS = 2_000;
 
 // Saved text is one line, without invisible marks, masked (AGENTS.md: secrets are masked before they are stored).
 const clean = (value: string, max = 300) => maskSecretsIn(plainText(value)).slice(0, max);
+export const cleanBlueprintText = (value: string) => clean(value);
 
 function parseInput<T>(schema: z.ZodType<T>, raw: unknown): T {
   const r = schema.safeParse(raw);
@@ -108,7 +109,7 @@ function parseInput<T>(schema: z.ZodType<T>, raw: unknown): T {
   throw new AppError(400, "invalid_input", "input validation failed", fields);
 }
 
-async function ready(db: BrainDb, user: SessionUser, projectId: string) {
+export async function blueprintReady(db: BrainDb, user: SessionUser, projectId: string) {
   const project = await requireProjectAccess(db, projectId, user);
   if (!(await blueprintEnabled(db))) {
     throw new AppError(
@@ -169,10 +170,11 @@ function toSnapshot(
 
 /** The Blueprint as the dashboard shows it: live rows, version, flags per feature and proof per criterion. */
 export async function blueprintView(db: BrainDb, user: SessionUser, projectId: string) {
-  const pid = await ready(db, user, projectId);
-  const [live, version] = await Promise.all([
+  const pid = await blueprintReady(db, user, projectId);
+  const [live, version, items] = await Promise.all([
     blueprintRepo.live(db, pid),
     blueprintRepo.currentVersion(db, pid),
+    criteriaRepo.itemStatuses(db, pid),
   ]);
   const checks = checkBlueprint({
     features: live.features.map((f) => ({
@@ -187,7 +189,12 @@ export async function blueprintView(db: BrainDb, user: SessionUser, projectId: s
     const tests = live.tests
       .filter((t) => t.criterionId === c.id)
       .map(() => ({ present: true, lastResult: null }));
-    proof[c.id] = proofStatus({ tests, itemStatus: null, contradicted: contradicted.has(c.id) });
+    // Phase 3b: a linked checklist item that receipts (or the owner) marked done is "done, not proven".
+    proof[c.id] = proofStatus({
+      tests,
+      itemStatus: items.get(c.id) ?? null,
+      contradicted: contradicted.has(c.id),
+    });
   }
   return { version, ...live, checks, proof };
 }
@@ -295,19 +302,19 @@ async function applyOp(tx: BlueprintTx, pid: string, o: BlueprintOp, featureIds:
   }
 }
 
-async function commit(
-  db: BrainDb,
-  user: SessionUser,
+export async function commitBlueprint(
+  db: BlueprintTx,
+  userId: string,
   pid: string,
   baseVersion: number,
-  reason: "edit" | "accept_proposal" | "restore",
+  reason: "edit" | "accept_proposal" | "restore" | "plan_approve",
   apply: (tx: BlueprintTx) => Promise<void>,
   restoredFrom?: number,
 ) {
   try {
     let snap: BlueprintSnapshot | null = null;
     const version = await blueprintRepo.commit(db, pid, {
-      userId: user.id,
+      userId,
       baseVersion,
       reason,
       restoredFrom,
@@ -358,9 +365,9 @@ export async function editBlueprint(
   projectId: string,
   raw: z.input<typeof editSchema>,
 ) {
-  const pid = await ready(db, user, projectId);
+  const pid = await blueprintReady(db, user, projectId);
   const input = parseInput(editSchema, raw);
-  return commit(db, user, pid, input.baseVersion, "edit", async (tx) => {
+  return commitBlueprint(db, user.id, pid, input.baseVersion, "edit", async (tx) => {
     const featureIds = new Set((await blueprintRepo.live(tx, pid)).features.map((f) => f.id));
     for (const o of input.ops) await applyOp(tx, pid, o, featureIds);
   });
@@ -373,9 +380,9 @@ export async function decideProposal(
   projectId: string,
   raw: { kind: "criterion" | "boundary"; id: string; accept: boolean; baseVersion: number },
 ) {
-  const pid = await ready(db, user, projectId);
+  const pid = await blueprintReady(db, user, projectId);
   const input = parseInput(decideSchema, raw);
-  return commit(db, user, pid, input.baseVersion, "accept_proposal", async (tx) => {
+  return commitBlueprint(db, user.id, pid, input.baseVersion, "accept_proposal", async (tx) => {
     if (input.kind === "boundary") {
       const b = await boundariesRepo.get(tx, pid, input.id);
       if (!b || b.status !== "proposal") throw new AppError(404, "not_found", "no such proposal");
@@ -405,7 +412,7 @@ export async function restoreVersion(
   projectId: string,
   raw: { version: number; baseVersion: number },
 ) {
-  const pid = await ready(db, user, projectId);
+  const pid = await blueprintReady(db, user, projectId);
   const input = parseInput(restoreSchema, raw);
   const row = await blueprintRepo.getVersion(db, pid, input.version);
   if (!row) throw new AppError(404, "not_found", "no such version");
@@ -421,9 +428,9 @@ export async function restoreVersion(
       "this version is too large to restore in one step",
     );
   }
-  return commit(
+  return commitBlueprint(
     db,
-    user,
+    user.id,
     pid,
     input.baseVersion,
     "restore",
@@ -500,6 +507,6 @@ async function restoreInto(tx: BlueprintTx, pid: string, snap: BlueprintSnapshot
 }
 
 export async function versionHistory(db: BrainDb, user: SessionUser, projectId: string) {
-  const pid = await ready(db, user, projectId);
+  const pid = await blueprintReady(db, user, projectId);
   return { versions: await blueprintRepo.listVersions(db, pid) };
 }

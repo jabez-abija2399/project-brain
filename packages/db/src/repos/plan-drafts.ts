@@ -11,6 +11,14 @@ import {
 } from "../schema";
 import { MAX_FEATURES_PER_PROJECT } from "./features";
 
+/** A feature the approval created, for the Blueprint (Phase 3b): its new checklist items keep the draft's kinds. */
+export type PlannedFeatureCreated = {
+  featureId: string;
+  name: string;
+  dependsOn: string[];
+  items: { id: string; text: string; kind: string }[];
+};
+
 export type ApproveResult =
   | { ok: true; featureIds: string[]; existing: string[] }
   | { ok: false; reason: "not_found" | "changed" | "too_many_features" };
@@ -124,6 +132,11 @@ export const planDraftsRepo = {
     draftHash: string,
     userId: string,
     now: Date,
+    // Runs inside the same transaction after the features are created; a throw rolls the whole approval back.
+    after?: (
+      tx: Parameters<Parameters<BrainDb["transaction"]>[0]>[0],
+      created: PlannedFeatureCreated[],
+    ) => Promise<void>,
   ): Promise<ApproveResult> {
     return db.transaction(async (tx) => {
       await tx.execute(
@@ -167,6 +180,7 @@ export const planDraftsRepo = {
             ).map((f) => f.name),
       );
       const featureIds: string[] = [];
+      const created: PlannedFeatureCreated[] = [];
       const existing = row.draftJson.features.filter((f) => f.existing).map((f) => f.name);
       // A later plan continues after the build order already approved; it never jumps ahead of it.
       const [last] = await tx
@@ -190,16 +204,30 @@ export const planDraftsRepo = {
           .values({ projectId, featureId: feature.id, text: `Planned feature: ${f.name}` })
           .returning({ id: requests.id });
         if (!request) throw new Error("insert requests returned no row");
-        await tx.insert(checklistItems).values(
-          f.items.map((item, position) => ({
-            projectId,
-            requestId: request.id,
-            text: item.text,
-            position,
-          })),
-        );
+        const items = await tx
+          .insert(checklistItems)
+          .values(
+            f.items.map((item, position) => ({
+              projectId,
+              requestId: request.id,
+              text: item.text,
+              position,
+            })),
+          )
+          .returning({ id: checklistItems.id, position: checklistItems.position });
         featureIds.push(feature.id);
+        created.push({
+          featureId: feature.id,
+          name: f.name,
+          dependsOn: f.depends_on,
+          items: items.map((row) => ({
+            id: row.id,
+            text: f.items[row.position]?.text ?? "",
+            kind: f.items[row.position]?.kind ?? "happy",
+          })),
+        });
       }
+      if (after) await after(tx, created);
       await tx
         .update(planDrafts)
         .set({ status: "approved", approvedBy: userId, approvedAt: now })

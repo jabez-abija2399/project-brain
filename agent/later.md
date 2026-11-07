@@ -177,3 +177,4 @@
 - 2026-11-05 (KI, LOW): on Windows the SQL sandbox child cannot have a truly empty environment: Node/libuv always adds the system variables (SYSTEMROOT, PATH, TEMP, USERNAME...). No secrets pass; the native smoke check allows exactly that set on Windows (cli 0.3.2).
 - 2026-11-06 (Phase 1): run package test suites concurrently in the full local gate (`pnpm -r --workspace-concurrency=2 test` in scripts/verify.config, protected) once CPU contention with the web suite's 4 workers is measured.
 - 2026-11-07 Phase 3a: batch restoreInto's per-row updates (today capped at MAX_RESTORE_ROWS = 2,000 rows; larger Blueprints are edited instead of restored).
+- 2026-11-07 Phase 3b: index package.json dependencies and README/AGENTS.md headings in the CLI (next CLI release) so Discover can show them.

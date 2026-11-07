@@ -7,6 +7,7 @@ import {
   blueprintVersions,
   blueprints,
   boundaries,
+  checklistItems,
   criteria,
   criterionTests,
   featureAreas,
@@ -30,6 +31,7 @@ export type BlueprintTx = Tx | BrainDb;
 export type LiveBlueprint = {
   features: {
     id: string;
+    key: string | null;
     name: string;
     description: string | null;
     buildOrder: number | null;
@@ -52,6 +54,7 @@ export const blueprintRepo = {
         db
           .select({
             id: features.id,
+            key: features.key,
             name: features.name,
             description: features.description,
             buildOrder: features.buildOrder,
@@ -153,8 +156,10 @@ export const blueprintRepo = {
    * One owner change as one transaction under the project's feature lock: refuses a stale base version (someone else
    * saved first), applies the change, builds the snapshot from the rows as they now are, and writes the next version.
    */
+  // db may be a transaction (plan approval commits its version inside its own): drizzle nests it as a savepoint, and
+  // the advisory lock is re-entrant for the same connection.
   async commit(
-    db: BrainDb,
+    db: BlueprintTx,
     projectId: string,
     opts: {
       userId: string | null;
@@ -306,6 +311,22 @@ export const criteriaRepo = {
       .update(criteria)
       .set(set)
       .where(and(eq(criteria.projectId, projectId), eq(criteria.id, id)));
+  },
+
+  /** Phase 3b: the status of each criterion's checklist item (from receipts and the owner), for proof status. */
+  async itemStatuses(db: BlueprintTx, projectId: string): Promise<Map<string, string>> {
+    const rows = await db
+      .select({ id: criteria.id, status: checklistItems.status })
+      .from(criteria)
+      .innerJoin(
+        checklistItems,
+        and(
+          eq(checklistItems.projectId, criteria.projectId),
+          eq(checklistItems.id, criteria.checklistItemId),
+        ),
+      )
+      .where(eq(criteria.projectId, projectId));
+    return new Map(rows.map((r) => [r.id, r.status]));
   },
 
   async countOpenProposals(db: BlueprintTx, projectId: string): Promise<number> {
