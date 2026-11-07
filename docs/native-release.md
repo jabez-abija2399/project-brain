@@ -145,11 +145,11 @@ exists on npm (0.1.2 is published), so this is a setting on it. Do this shortly 
 2. Tag the merge commit and push the tag:
 
    ```bash
-   git tag cli-v0.3.4
+   git tag cli-v0.3.5
    ```
 
    ```bash
-   git push origin cli-v0.3.4
+   git push origin cli-v0.3.5
    ```
 
 3. Approve the `release` environment when the workflow asks (**Review deployments** → tick `release` → **Approve

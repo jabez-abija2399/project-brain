@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { dirname, isAbsolute, join, relative, sep } from "node:path";
-import { type IndexResult, type MigrationSandbox, indexRepo, toUpload } from "@brain/core";
+import { type MigrationSandbox, toUpload } from "@brain/core";
+// Subpath, not the barrel: the indexer (typescript, ignore) stays in this command's on-demand chunk (Phase 2b).
+import { type IndexResult, indexRepo } from "@brain/core/indexer";
 import { CliError, EXIT, type RetryOn429, request } from "./api";
 import type { CliConfig } from "./config";
 import { uploadSupabaseFlags } from "./supabase-upload";

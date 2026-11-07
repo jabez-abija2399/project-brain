@@ -7,7 +7,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./supabase": "./src/supabase/index.ts"
+    "./supabase": "./src/supabase/index.ts",
+    "./indexer": "./src/indexer/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -24,5 +25,6 @@
     "@brain/sandbox": "workspace:*",
     "@types/node": "^22.9.0",
     "vitest": "^4.1.12"
-  }
+  },
+  "sideEffects": false
 }

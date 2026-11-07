@@ -134,3 +134,23 @@ noted in `agent/later.md`).
 
 Tokens at session start for Claude Code drop from ≈ 2,990 to ≈ 1,870 (tool definitions ≈ 1,440 + start note ≈ 375 +
 skill frontmatter ≈ 52). Production latency (Neon) is not measured here.
+
+## 5. Phase 2b results (CLI hooks, 2026-11-07)
+
+Same method as section 2 (median of 5, temp HOME and git repo). "Reachable" uses a local fake server and a linked repo
+with 200 files; "never answers" a server that accepts and never replies.
+
+| Command | Node before | Node after | Native before | Native after | Budget |
+|---|---|---|---|---|---|
+| `codeceipt --version` | 519 ms | **68 ms** | 276 ms | **134 ms** | — |
+| `hook session-start` (not linked) | 565 ms | **115 ms** | 316 ms | **164 ms** | < 300 ms |
+| `hook session-start` (server reachable, linked) | not measured | **121 ms** | — | — | < 300 ms |
+| `hook session-start` (server never answers) | up to 8 s | **1.58 s**, then the saved note | — | — | ≤ 2 s |
+| `hook stop` (not linked) | 532 ms | **83 ms** | 283 ms | **149 ms** | < 200 ms |
+| `hook prompt` (not linked) | 521 ms | **71 ms** | 295 ms | **144 ms** | never blocks (request sent by a background worker) |
+
+Why: every hook used to load `typescript` (≈ 310 ms), `libpg-query` and `ignore` at start-up. The CLI bundle is now
+split; the indexer and the RLS reader load only for `codeceipt index` and `codeceipt rls` (test PERF-2B-07 checks the
+built bundle). The start note is asked for while the snapshot is taken, waits at most 1.5 s, and otherwise shows the
+note saved last time (per project, at most 7 days old). Not measured: the stop hook with a linked repo and changes
+(it still builds a receipt on the server; making the done gate AI-free and < 200 ms is Phase 4).

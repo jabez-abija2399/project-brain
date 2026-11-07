@@ -11,7 +11,6 @@ import {
   request,
 } from "./api";
 import { type CliConfig, readProjectToken, saveProjectToken } from "./config";
-import { runIndex } from "./index-command";
 import { INSTALL_PS1, INSTALL_SH } from "./native/install-info";
 import { setupAgents } from "./plugins";
 import { gitDirOf, readRepoLink, repoFingerprint, writeRepoLink } from "./repo-link";
@@ -303,6 +302,7 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
 
   // Index and init print their details into a list; only the summary is shown.
   const detail: string[] = [];
+  const { runIndex } = await import("./index-command"); // on demand: keeps typescript out of hook start-up
   await runIndex(deps.fetch, config, root, (l) => detail.push(l), deps.home, deps.sleep);
   const files = detail.join("\n").match(/Indexing (\d+) files/)?.[1] ?? "0";
   const features = detail.join("\n").match(/Grouped into (\d+) features/)?.[1];
