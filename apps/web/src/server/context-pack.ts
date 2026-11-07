@@ -1,4 +1,4 @@
-import { maskSecretsIn, oneLineText } from "@brain/core";
+import { maskSecretsIn, plainText } from "@brain/core";
 import {
   type BrainDb,
   type ContextPackCacheEntry,
@@ -136,12 +136,19 @@ export async function warmContextPacks(db: BrainDb, projectId: string): Promise<
 
 // Phase 3a: the feature's active criteria and the project's active boundaries; nothing before migration 0054.
 async function blueprintPart(db: BrainDb, projectId: string, featureId: string) {
-  if (!(await blueprintEnabled(db))) return { criteria: [], boundaries: [] };
-  const [criteria, boundaries] = await Promise.all([
-    criteriaRepo.activeForFeature(db, projectId, featureId),
-    boundariesRepo.active(db, projectId),
-  ]);
-  return { criteria, boundaries };
+  const none = { criteria: [], boundaries: [] };
+  if (!(await blueprintEnabled(db))) return none;
+  // The migration check fails open when it cannot read; a missing table must not fail the whole pack.
+  try {
+    const [criteria, boundaries] = await Promise.all([
+      criteriaRepo.activeForFeature(db, projectId, featureId),
+      boundariesRepo.active(db, projectId),
+    ]);
+    return { criteria, boundaries };
+  } catch (err) {
+    if (isMissingTable(err)) return none;
+    throw err;
+  }
 }
 
 // The cache is an optimisation: when it cannot be read or written (for example before migration 0051 is applied in
@@ -182,7 +189,7 @@ const HEADING_WORDS =
 
 // One line, masked, with heading words lowercased.
 function clean(value: string): string {
-  return maskSecretsIn(oneLineText(value)).replace(HEADING_WORDS, (w) => w.toLowerCase());
+  return maskSecretsIn(plainText(value)).replace(HEADING_WORDS, (w) => w.toLowerCase());
 }
 
 // Writes whole lines until the next one would pass the limit, then says how much was left out.

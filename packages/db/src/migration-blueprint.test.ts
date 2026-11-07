@@ -38,6 +38,10 @@ describe("migration 0054 (Blueprint)", () => {
       db.exec(`INSERT INTO "blueprint_versions" ("id","project_id","version","snapshot","snapshot_hash","reason")
                VALUES ('v2','p1',1,'{}','h','edit')`),
     ).rejects.toThrow();
+    // Not deletable on its own either; only the project's own delete removes its history.
+    await expect(db.exec(`DELETE FROM "blueprint_versions" WHERE "id" = 'v1'`)).rejects.toThrow(
+      /immutable/,
+    );
     await db.exec(`DELETE FROM "projects" WHERE "id" = 'p1'`);
     const r = await db.query<{ n: number }>(`SELECT count(*)::int AS n FROM "blueprint_versions"`);
     expect(r.rows[0]?.n).toBe(0);

@@ -1,4 +1,4 @@
-import { ambiguityFlags, formatEars, maskSecretsIn, oneLineText, parseEars } from "@brain/core";
+import { ambiguityFlags, formatEars, maskSecretsIn, parseEars, plainText } from "@brain/core";
 import { type BrainDb, blueprintRepo, boundariesRepo, criteriaRepo } from "@brain/db";
 import { z } from "zod";
 import { AppError } from "./errors";
@@ -26,9 +26,9 @@ const proposeSchema = z
 // 503 and 409 reach MCP clients as their fixed code (blueprint_not_ready, too_many_proposals), not a generic one.
 const notReady = () =>
   new AppError(503, "blueprint_not_ready", "the Blueprint is being set up; try again later");
-// One line, masked, and heading words lowercased, so stored text can never pass for a heading of the summary.
+// One line, invisible marks removed, masked, and heading words lowercased, so stored text can never pass for a heading of the summary.
 const clean = (value: string) =>
-  maskSecretsIn(oneLineText(value))
+  maskSecretsIn(plainText(value))
     .replace(/\b(BLUEPRINT|BOUNDARIES|CRITERIA)\b/gi, (w) => w.toLowerCase())
     .slice(0, 300);
 
@@ -49,57 +49,76 @@ export async function proposeBlueprint(db: BrainDb, token: ToolToken, raw: unkno
   bindToken(token, input.projectId);
   const pid = token.projectId;
   if (!(await blueprintEnabled(db))) throw notReady();
-  const open =
-    (await criteriaRepo.countOpenProposals(db, pid)) +
-    (await boundariesRepo.countOpenProposals(db, pid));
-  if (open >= MAX_OPEN_PROPOSALS) {
-    throw new AppError(409, "too_many_proposals", "the owner has 20 proposals to review first");
-  }
   const text = clean(input.text);
-  if ((BOUNDARY_KINDS as readonly string[]).includes(input.kind)) {
-    const row = await boundariesRepo.insert(db, pid, {
-      kind: input.kind as (typeof BOUNDARY_KINDS)[number],
-      pattern: text.slice(0, 200),
-      note: null,
+  // Resolved before the lock (a plain read); the insert below re-checks the feature through its project FK.
+  const feature =
+    input.feature && !input.replaces && !(BOUNDARY_KINDS as readonly string[]).includes(input.kind)
+      ? await resolveFeature(db, pid, input.feature)
+      : null;
+  // The cap's count and the insert run under one per-project lock, so parallel calls cannot pass it.
+  return blueprintRepo.withProposalLock(db, pid, async (tx) => {
+    const open =
+      (await criteriaRepo.countOpenProposals(tx, pid)) +
+      (await boundariesRepo.countOpenProposals(tx, pid));
+    if (open >= MAX_OPEN_PROPOSALS) {
+      throw new AppError(409, "too_many_proposals", "the owner has 20 proposals to review first");
+    }
+    if ((BOUNDARY_KINDS as readonly string[]).includes(input.kind)) {
+      const row = await boundariesRepo.insert(tx, pid, {
+        kind: input.kind as (typeof BOUNDARY_KINDS)[number],
+        pattern: text.slice(0, 200),
+        note: null,
+        createdBy: "agent",
+        status: "proposal",
+      });
+      return { ok: true, id: row.id, status: "proposal" };
+    }
+    const ears = parseEars(text);
+    const flags = ambiguityFlags(text, ears).map((f) => ({
+      code: f.code,
+      message: f.message,
+      rewrite: f.rewrite,
+    }));
+    if (input.replaces) {
+      const existing = await criteriaRepo.get(tx, pid, input.replaces);
+      if (!existing || existing.status !== "active")
+        throw new AppError(404, "not_found", "no such criterion");
+      // One open change per criterion: a second one could swap the text the owner is reviewing before they accept.
+      if (existing.proposedChange)
+        throw new AppError(
+          409,
+          "change_already_proposed",
+          "the owner has a change to this criterion to review first",
+        );
+      await criteriaRepo.update(tx, pid, existing.id, {
+        proposedChange: { text },
+        proposedAt: new Date(),
+      });
+      return {
+        ok: true,
+        id: existing.id,
+        status: "change_proposed",
+        ears: ears ? formatEars(ears) : null,
+        flags,
+      };
+    }
+    if (!feature) throw new AppError(400, "invalid_input", "feature is required for a criterion");
+    const row = await criteriaRepo.insert(tx, pid, {
+      featureId: feature.id,
+      text,
+      ears,
+      kind: input.kind as (typeof CRITERION_KINDS)[number],
       createdBy: "agent",
       status: "proposal",
     });
-    return { ok: true, id: row.id, status: "proposal" };
-  }
-  const ears = parseEars(text);
-  const flags = ambiguityFlags(text, ears).map((f) => ({
-    code: f.code,
-    message: f.message,
-    rewrite: f.rewrite,
-  }));
-  if (input.replaces) {
-    const existing = await criteriaRepo.get(db, pid, input.replaces);
-    if (!existing || existing.status !== "active")
-      throw new AppError(404, "not_found", "no such criterion");
-    await criteriaRepo.update(db, pid, existing.id, {
-      proposedChange: { text },
-      proposedAt: new Date(),
-    });
     return {
       ok: true,
-      id: existing.id,
-      status: "change_proposed",
+      id: row.id,
+      status: "proposal",
       ears: ears ? formatEars(ears) : null,
       flags,
     };
-  }
-  if (!input.feature)
-    throw new AppError(400, "invalid_input", "feature is required for a criterion");
-  const feature = await resolveFeature(db, pid, input.feature);
-  const row = await criteriaRepo.insert(db, pid, {
-    featureId: feature.id,
-    text,
-    ears,
-    kind: input.kind as (typeof CRITERION_KINDS)[number],
-    createdBy: "agent",
-    status: "proposal",
   });
-  return { ok: true, id: row.id, status: "proposal", ears: ears ? formatEars(ears) : null, flags };
 }
 
 /**

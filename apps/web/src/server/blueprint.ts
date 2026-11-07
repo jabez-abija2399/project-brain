@@ -1,12 +1,13 @@
 import {
   type BlueprintSnapshot,
   type Proof,
+  SNAPSHOT_LIMITS,
   buildSnapshot,
   checkBlueprint,
   maskSecretsIn,
-  oneLineText,
   parseEars,
   parseSnapshot,
+  plainText,
   proofStatus,
   snapshotHash,
 } from "@brain/core";
@@ -82,9 +83,30 @@ export const editSchema = z
   .object({ baseVersion: z.number().int().min(0), ops: z.array(op).min(1).max(50) })
   .strict();
 export type BlueprintOp = z.infer<typeof op>;
+const decideSchema = z
+  .object({
+    kind: z.enum(["criterion", "boundary"]),
+    id,
+    accept: z.boolean(),
+    baseVersion: z.number().int().min(0),
+  })
+  .strict();
+const restoreSchema = z
+  .object({ version: z.number().int().min(1), baseVersion: z.number().int().min(0) })
+  .strict();
+// Restore runs inside the project's lock; past this many rows the owner edits instead (batched restore: later.md).
+export const MAX_RESTORE_ROWS = 2_000;
 
-// Saved text is one line, masked (AGENTS.md: secrets are masked before they are stored).
-const clean = (value: string) => maskSecretsIn(oneLineText(value)).slice(0, 300);
+// Saved text is one line, without invisible marks, masked (AGENTS.md: secrets are masked before they are stored).
+const clean = (value: string, max = 300) => maskSecretsIn(plainText(value)).slice(0, max);
+
+function parseInput<T>(schema: z.ZodType<T>, raw: unknown): T {
+  const r = schema.safeParse(raw);
+  if (r.success) return r.data;
+  const fields: Record<string, string> = {};
+  for (const i of r.error.issues) fields[i.path.join(".") || "_"] = i.message;
+  throw new AppError(400, "invalid_input", "input validation failed", fields);
+}
 
 async function ready(db: BrainDb, user: SessionUser, projectId: string) {
   const project = await requireProjectAccess(db, projectId, user);
@@ -106,7 +128,7 @@ async function snapshotFor(db: BlueprintTx, projectId: string, live: LiveBluepri
   ]);
   return toSnapshot(
     live,
-    directives.map((d) => ({ id: d.id, text: d.text })),
+    directives.map((d) => ({ id: d.id, text: clean(d.text) })),
     decisions.map((d) => d.id),
   );
 }
@@ -214,7 +236,7 @@ async function applyOp(tx: BlueprintTx, pid: string, o: BlueprintOp, featureIds:
     case "setAreas":
       feature(o.featureId);
       return blueprintRepo.setAreas(tx, pid, o.featureId, [
-        ...new Set(o.patterns.map(oneLineText)),
+        ...new Set(o.patterns.map((p) => clean(p, SNAPSHOT_LIMITS.pattern))),
       ]);
     case "addCriterion": {
       feature(o.featureId);
@@ -261,7 +283,7 @@ async function applyOp(tx: BlueprintTx, pid: string, o: BlueprintOp, featureIds:
     case "addBoundary":
       await boundariesRepo.insert(tx, pid, {
         kind: o.kind,
-        pattern: oneLineText(o.pattern),
+        pattern: clean(o.pattern, SNAPSHOT_LIMITS.pattern),
         note: o.note ? clean(o.note) : null,
         createdBy: "owner",
         status: "active",
@@ -298,7 +320,18 @@ async function commit(
             "invalid_input",
             "features cannot depend on each other in a circle",
           );
-        snap = await snapshotFor(tx, pid, live);
+        const built = await snapshotFor(tx, pid, live);
+        // A version that could not be restored later is refused now (all or nothing).
+        try {
+          parseSnapshot(built);
+        } catch {
+          throw new AppError(
+            413,
+            "blueprint_too_large",
+            "the Blueprint would be too large to save; retire criteria or tests first",
+          );
+        }
+        snap = built;
       },
       snapshot: () => {
         if (!snap) throw new Error("snapshot not built");
@@ -323,9 +356,10 @@ export async function editBlueprint(
   db: BrainDb,
   user: SessionUser,
   projectId: string,
-  input: z.infer<typeof editSchema>,
+  raw: z.input<typeof editSchema>,
 ) {
   const pid = await ready(db, user, projectId);
+  const input = parseInput(editSchema, raw);
   return commit(db, user, pid, input.baseVersion, "edit", async (tx) => {
     const featureIds = new Set((await blueprintRepo.live(tx, pid)).features.map((f) => f.id));
     for (const o of input.ops) await applyOp(tx, pid, o, featureIds);
@@ -337,9 +371,10 @@ export async function decideProposal(
   db: BrainDb,
   user: SessionUser,
   projectId: string,
-  input: { kind: "criterion" | "boundary"; id: string; accept: boolean; baseVersion: number },
+  raw: { kind: "criterion" | "boundary"; id: string; accept: boolean; baseVersion: number },
 ) {
   const pid = await ready(db, user, projectId);
+  const input = parseInput(decideSchema, raw);
   return commit(db, user, pid, input.baseVersion, "accept_proposal", async (tx) => {
     if (input.kind === "boundary") {
       const b = await boundariesRepo.get(tx, pid, input.id);
@@ -368,12 +403,24 @@ export async function restoreVersion(
   db: BrainDb,
   user: SessionUser,
   projectId: string,
-  input: { version: number; baseVersion: number },
+  raw: { version: number; baseVersion: number },
 ) {
   const pid = await ready(db, user, projectId);
+  const input = parseInput(restoreSchema, raw);
   const row = await blueprintRepo.getVersion(db, pid, input.version);
   if (!row) throw new AppError(404, "not_found", "no such version");
   const snap = parseSnapshot(row.snapshot);
+  const rows =
+    snap.features.length +
+    snap.boundaries.length +
+    snap.features.reduce((n, f) => n + f.criteria.length, 0);
+  if (rows > MAX_RESTORE_ROWS) {
+    throw new AppError(
+      413,
+      "blueprint_too_large",
+      "this version is too large to restore in one step",
+    );
+  }
   return commit(
     db,
     user,

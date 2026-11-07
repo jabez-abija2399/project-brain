@@ -28,12 +28,16 @@ CREATE TABLE "blueprint_versions" (
   CONSTRAINT "blueprint_versions_size_check" CHECK (octet_length("snapshot"::text) <= 262144)
 );
 CREATE UNIQUE INDEX "blueprint_versions_project_version_uniq" ON "blueprint_versions" ("project_id", "version");
+-- No update, and no delete except when the project itself is gone (its ON DELETE CASCADE still works).
 CREATE FUNCTION "blueprint_versions_immutable"() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+  IF TG_OP = 'DELETE' AND NOT EXISTS (SELECT 1 FROM "projects" WHERE "id" = OLD."project_id") THEN
+    RETURN OLD;
+  END IF;
   RAISE EXCEPTION 'blueprint_versions rows are immutable';
 END;
 $$;
-CREATE TRIGGER "blueprint_versions_no_update" BEFORE UPDATE ON "blueprint_versions"
+CREATE TRIGGER "blueprint_versions_no_update" BEFORE UPDATE OR DELETE ON "blueprint_versions"
   FOR EACH ROW EXECUTE FUNCTION "blueprint_versions_immutable"();
 
 -- depends_on between features of the same project (a feature never depends on itself).

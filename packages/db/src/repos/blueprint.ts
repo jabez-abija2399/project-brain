@@ -194,6 +194,23 @@ export const blueprintRepo = {
     });
   },
 
+  /**
+   * Runs fn in a transaction holding the project's proposal lock, so a count-then-insert (the open-proposal cap)
+   * cannot be passed by parallel calls.
+   */
+  async withProposalLock<T>(
+    db: BrainDb,
+    projectId: string,
+    fn: (tx: Tx) => Promise<T>,
+  ): Promise<T> {
+    return db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT pg_advisory_xact_lock(hashtextextended(${`blueprint-proposals:${projectId}`}, 0))`,
+      );
+      return fn(tx);
+    });
+  },
+
   async setPurpose(db: BlueprintTx, projectId: string, featureId: string, purpose: string | null) {
     await db
       .update(features)
