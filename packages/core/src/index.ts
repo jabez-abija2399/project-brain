@@ -141,6 +141,7 @@ export {
   checkDraft,
   draftHash,
   parseStage1,
+  planKindToCriterion,
   planStage1,
   planStage2,
 } from "./plan";
@@ -182,6 +183,9 @@ export {
   tokenFromHashed,
 } from "./repo-fingerprint";
 export { askedForCheck, askedForFile, namesFile } from "./asked-for";
+
+// Phase 3a: Blueprint core (EARS criteria, ambiguity flags, contradictions, coverage, proof, snapshots; pure).
+export * from "./blueprint";
 
 // H1/H2 (2026-11-02): near-duplicate checklist items and the one-time open-items cleanup plan (pure).
 export {

@@ -5,6 +5,7 @@
 // otherwise rejected, never shown.
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import type { CriterionKind } from "./blueprint/coverage";
 import type { Llm } from "./llm";
 import { maskSecretsIn } from "./mask";
 import { plainText } from "./text";
@@ -286,4 +287,12 @@ export async function planStage2(
     problems = checked.problems;
   }
   throw new PlanRejectedError(problems);
+}
+
+/** Phase 3a: a plan item's kind -> its Blueprint criterion kind (attack/permission: security; negative/boundary: must never). */
+export function planKindToCriterion(kind: string): CriterionKind {
+  const k = kind.trim().toLowerCase();
+  if (k === "attack" || k === "permission") return "security";
+  if (k === "negative" || k === "boundary") return "must_never";
+  return "behaviour";
 }
