@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 const TABS = [
   { href: "overview", label: "Overview" },
   { href: "features", label: "Features" },
+  { href: "blueprint", label: "Blueprint" },
   { href: "receipts", label: "Receipts" },
   { href: "proposals", label: "Proposals" },
   { href: "plan", label: "Plan" },
@@ -16,6 +17,7 @@ const TABS = [
 export const PURPOSE: Record<(typeof TABS)[number]["href"], string> = {
   overview: "What needs your attention this week, and how each feature is going.",
   features: "Every part of your app, how much of it is done and what is still open.",
+  blueprint: "What your app must do and must never do, and how sure we are of each rule.",
   receipts: "One receipt per agent session: what you asked, what changed and what is missing.",
   proposals: "Changes to the feature map your agent suggested. Accept or reject each one.",
   plan: "The build plan your agent drafted. Approve it to turn it into features.",

@@ -1,7 +1,7 @@
 // Phase 3b: the safety check shown with Discover. The most important risks already in the project, from stored
 // evidence only (RLS flags, secrets and test checks from recent receipts, features with no must-never criterion),
 // each with a prompt the owner can hand to their agent ("Fix with my agent"). Deterministic: no AI.
-import { maskSecretsIn } from "../mask";
+import { maskPath, maskSecretsIn } from "../mask";
 import { plainText } from "../text";
 
 export const MAX_RISKS = 5;
@@ -40,6 +40,14 @@ function clean(value: string, max = 200): string {
   return maskSecretsIn(text).slice(0, max);
 }
 
+// Where: paths and table names, masked like every stored path (maskPath): URL credentials and "name = value" secrets on
+// the whole text first, then each path segment, so a dated migration name stays readable and a secret never does.
+function cleanWhere(value: string): string {
+  let text = plainText(value);
+  while (/<<<|>>>/.test(text)) text = text.replace(/<<<|>>>/g, "");
+  return maskPath(text).slice(0, 200);
+}
+
 function prompt(title: string, where: string, why: string, ask: string): string {
   const text = [
     `Codeceipt's safety check found a risk in this project: ${title}.`,
@@ -61,7 +69,7 @@ function risk(
   why: string,
   ask: string,
 ): Risk {
-  const w = clean(where);
+  const w = cleanWhere(where);
   const y = clean(why, 300);
   return { kind, severity, title, where: w, why: y, fixPrompt: prompt(title, w, y, ask) };
 }

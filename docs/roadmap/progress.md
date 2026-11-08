@@ -13,7 +13,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 2b | Footprint: cached start note, fast hooks (CLI) | merged | [#60](https://github.com/jabez-abija2399/project-brain/pull/60) | Hooks 520–600 ms → 70–120 ms (Node), ≈ 300 → 135–165 ms (native); offline start note ≤ 1.6 s with a saved note; CLI 0.3.5 (owner action 8) |
 | 3a | Blueprint: versioned model, EARS criteria, proof status, flags | merged | [#61](https://github.com/jabez-abija2399/project-brain/pull/61) | Migration 0054 optional (owner action 9); `propose_blueprint` MCP tool; tools/list 6,479 chars (budget 6,500) |
 | 3b | Blueprint: Discover, interview, safety check | in progress | | |
-| 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | not started | | |
+| 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | in progress | | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | not started | | |
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | not started | | |
 | 6 | Approval policies | not started | | |
@@ -82,4 +82,23 @@ Status values: not started, in progress, merged, blocked (with reason).
   It becomes required after the owner applies it.
 - Not possible yet without a CLI change and a release: package.json dependencies and README/AGENTS.md are not
   indexed, so Discover does not show them. Logged in `agent/later.md` for a CLI release.
+
+### Phase 3c: Blueprint pages
+- Built:
+  - **Blueprint tab:** the first visit asks "Do you usually read the code your AI writes?". The answer picks Simple
+    or Detailed, is remembered in a display-only cookie, and can be switched any time.
+    - **Simple:** per feature, rules and how many are proven, plus warnings.
+    - **Detailed:** adds each rule in EARS form with its proof, kind and wording advice, dependencies, files and
+      boundaries.
+    - Agent proposals wait with Accept and Dismiss.
+  - **Discover page:** the safety check with "Fix with my agent", and the next feature to confirm with "Add this
+    rule".
+  - **History page:** versions with Restore. Restore asks for confirmation.
+  - Every action sends the version the page was loaded at, so a change made elsewhere meanwhile gets a clear
+    message (409) and a too-large Blueprint gets 413.
+- Acceptance (`blueprint-acceptance.test.ts`, @slow): the real CLI indexes `tests/fixtures/next-app` with the
+  realistic Supabase migrations, and `tests/fixtures/vite-app`. Discover and the safety check show their routes,
+  components and open tables.
+- Checked at 375 and 1280 px with no sideways scrolling: `docs/screenshots/blueprint/`. This found and fixed a dated
+  migration path that was masked as a secret.
 
