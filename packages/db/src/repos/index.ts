@@ -42,7 +42,7 @@ export type { PolicyFlagsRow, TableFlagsRow } from "./db-schema";
 export { MAX_PAGE_SIZE, type Page, type PageOptions } from "./page";
 export { dashboardRepo, type BoardSort, type FeatureProgress, type ItemStatus } from "./dashboard";
 export type { BoardRow, FeedRow } from "./dashboard";
-export { type ApproveResult, planDraftsRepo } from "./plan-drafts";
+export { type ApproveResult, type PlannedFeatureCreated, planDraftsRepo } from "./plan-drafts";
 export { type PollResult, deviceCodesRepo } from "./device-codes";
 export { waitlistRepo } from "./waitlist";
 export { type ConnectedComputer, EXPORT_LIMITS, MAX_CONNECTED, accountRepo } from "./account";
@@ -71,3 +71,4 @@ export {
   type BlueprintTx,
   type LiveBlueprint,
 } from "./blueprint";
+export { DISCOVER_MAX_FEATURES, discoverRepo } from "./discover";

@@ -32,3 +32,12 @@ export {
   snapshotHash,
 } from "./snapshot";
 export { MAX_REWRITE_ITEMS, REWRITE_SYSTEM, rewritePrompt, suggestRewrites } from "./rewrite-llm";
+export {
+  DISCOVER_LIST_MAX,
+  type DiscoverInput,
+  type DiscoveredFeature,
+  type Suggestion,
+  discoverBlueprint,
+  groupBy,
+} from "./discover";
+export { MAX_RISKS, type Risk, type RiskKind, type SafetyInput, safetyCheck } from "./safety";

@@ -16,9 +16,11 @@ import {
 import { type BrainDb, featuresRepo, planDraftsRepo } from "@brain/db";
 import { z } from "zod";
 import { type SessionUser, isPlausibleId, requireProjectAccess } from "./auth";
+import { commitPlanToBlueprint } from "./blueprint-plan";
 import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
 import { getPlanningLlm } from "./llm";
+import { blueprintEnabled } from "./migration-check";
 import { reserveDaily } from "./rate-limit";
 import { type ToolToken, bindToken } from "./session-tools";
 
@@ -246,6 +248,10 @@ export async function approvePlan(
     shown.draftHash,
     user.id,
     now,
+    // Phase 3b: with the Blueprint set up, the approved plan is its next version (criteria, dependencies).
+    (await blueprintEnabled(db))
+      ? (tx, created) => commitPlanToBlueprint(tx, user.id, project.id, created)
+      : undefined,
   );
   console.info(
     "[dashboard]",

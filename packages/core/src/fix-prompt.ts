@@ -2,7 +2,7 @@ import { maskPath, maskSecretsIn } from "./mask";
 // FEAT-017: the dashboard's view of a stored receipt and the "Send fix to agent" prompt. Pure. The stored summary is
 // read defensively (anything of the wrong shape is dropped) and every text is cleaned and masked again before display.
 import { NO_TEST_CHANGED } from "./receipt";
-import { oneLineText } from "./text";
+import { oneLineText, plainText } from "./text";
 
 export type ReceiptItemStatus =
   | "done"
@@ -109,8 +109,7 @@ const STATUSES = new Set([
 ]);
 
 // Zero-width and direction marks that oneLineText keeps (U+200B-U+200F, U+2060, U+FEFF, U+061C).
-const INVISIBLE = /[\u200b-\u200f\u2060\ufeff\u061c]/g;
-const plain = (value: string) => oneLineText(value.replace(INVISIBLE, ""));
+const plain = plainText;
 
 export const safeDisplay = (value: unknown, max = MAX_TEXT): string =>
   typeof value === "string" ? maskSecretsIn(plain(value)).slice(0, max) : "";
