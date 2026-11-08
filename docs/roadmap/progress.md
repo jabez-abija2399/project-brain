@@ -12,7 +12,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 2a | Footprint: start note budget, compact MCP tools, cached context packs (server) | merged | [#59](https://github.com/jabez-abija2399/project-brain/pull/59) | tools/list 10,247→5,754 chars; ≈2,990→1,870 tokens at start; context pack p95 26.6→14.1 ms; migration 0051 optional (owner action 6) |
 | 2b | Footprint: cached start note, fast hooks (CLI) | merged | [#60](https://github.com/jabez-abija2399/project-brain/pull/60) | Hooks 520–600 ms → 70–120 ms (Node), ≈ 300 → 135–165 ms (native); offline start note ≤ 1.6 s with a saved note; CLI 0.3.5 (owner action 8) |
 | 3a | Blueprint: versioned model, EARS criteria, proof status, flags | merged | [#61](https://github.com/jabez-abija2399/project-brain/pull/61) | Migration 0054 optional (owner action 9); `propose_blueprint` MCP tool; tools/list 6,479 chars (budget 6,500) |
-| 3b | Blueprint: Discover, interview, safety check | in progress | | |
+| 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | in progress | | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | not started | | |
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | not started | | |
