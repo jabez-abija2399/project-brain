@@ -68,6 +68,9 @@ export type ReceiptView = {
   filesNotChecked: number;
   // FEAT-025: the plan's monthly AI-judged receipts were used up, so the AI judge did not run.
   judgeSkipped: boolean;
+  // Roadmap Phase 4c: changed files under a protected path and packages the owner's boundaries do not allow.
+  // Present only when there is at least one hit (receipts made before Phase 4c have none).
+  boundaryHits?: BoundaryHitView[];
   // FEAT-022: the repo's own check command (build or tests), run after the session; "not_run" when none ran.
   checkRun: {
     status: "passed" | "failed" | "timed_out" | "not_run";
@@ -272,6 +275,7 @@ export function receiptView(
       ];
     }),
     checkRun: checkRunOf(s.check_run),
+    ...boundaryHitsOf(s.boundary_hits),
     fromPush: s.from_push === true,
     judgeSkipped: s.judge_skipped === "plan_limit",
     filesNotChecked: countOrNull(s.files_not_checked) ?? 0,
@@ -322,4 +326,28 @@ export function fixPrompt(asked: string | null, view: ReceiptView): string | nul
     ">>>",
     "Please finish them, add or update a test for each, and then end the session so Codeceipt writes a new receipt.",
   ].join("\n");
+}
+
+export type BoundaryHitView = {
+  kind: "protected_path" | "disallowed_dependency" | "not_allowed_dependency";
+  subject: string;
+  pattern: string;
+};
+const HIT_KINDS = new Set<string>([
+  "protected_path",
+  "disallowed_dependency",
+  "not_allowed_dependency",
+]);
+
+// Roadmap Phase 4c: the stored boundary hits, cleaned like every other path on the receipt.
+function boundaryHitsOf(raw: unknown): { boundaryHits?: BoundaryHitView[] } {
+  const hits = list(raw)
+    .flatMap((r): BoundaryHitView[] => {
+      const h = obj(r);
+      const subject = safePath(h.subject);
+      if (typeof h.kind !== "string" || !HIT_KINDS.has(h.kind) || !subject) return [];
+      return [{ kind: h.kind as BoundaryHitView["kind"], subject, pattern: safePath(h.pattern) }];
+    })
+    .slice(0, 20);
+  return hits.length > 0 ? { boundaryHits: hits } : {};
 }

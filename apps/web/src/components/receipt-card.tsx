@@ -203,6 +203,22 @@ export function ReceiptCard({
             </p>
           )}
           <ReviewFirst view={view} />
+          {view.boundaryHits && view.boundaryHits.length > 0 && (
+            <Section title="Blueprint boundaries">
+              <ul className="stack m0 list-indent gap-4">
+                {view.boundaryHits.map((h) => (
+                  <li key={`${h.kind}-${h.subject}`} className="wrap">
+                    <code className="wrap">{h.subject}</code>
+                    {h.kind === "protected_path"
+                      ? ` is under a protected path (${h.pattern})`
+                      : h.kind === "disallowed_dependency"
+                        ? " is a package the owner disallowed"
+                        : " is not on the owner's allowed packages"}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
           {view.filesByFeature.length > 0 && (
             <Section title="Changed files by feature">
               <ul className="stack m0 list-indent gap-4">

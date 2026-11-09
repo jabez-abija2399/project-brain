@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  type BoundaryHit,
   type Finding,
   MAX_SUMMARY_SYMBOLS,
   type ReceiptFileInput,
@@ -7,9 +8,11 @@ import {
   askedForCheck,
   askedForFile,
   buildReceipt,
+  checkBoundaries,
   errorType,
   featureFromPath,
   isCodeceiptSetupPath,
+  maskPath,
   maskSecretsIn,
   namesFile,
   safePath,
@@ -18,6 +21,7 @@ import {
 } from "@brain/core";
 import {
   type BrainDb,
+  boundariesRepo,
   checklistItemsRepo,
   featureFilesRepo,
   featuresRepo,
@@ -36,6 +40,7 @@ import { repoPath } from "./code-index-input";
 import { dailyAiBudget } from "./code-index-limits";
 import { AppError } from "./errors";
 import { getLlm } from "./llm";
+import { blueprintEnabled } from "./migration-check";
 import { reserveDaily } from "./rate-limit";
 import { receiptFindings, secretFindingsInput } from "./receipt-findings";
 import { testIntegrity, testIntegrityInput } from "./receipt-integrity";
@@ -353,6 +358,14 @@ export async function generateReceipt(
       !f.table && askedForFile(asked, f.file) ? { ...f, asked: true } : f,
     ),
   };
+  // Roadmap Phase 4c: the changed files and new packages checked against the Blueprint's active boundaries.
+  const boundaryHits = await receiptBoundaryHits(
+    db,
+    pid,
+    paths,
+    newDependencies.map((d) => d.name),
+  );
+  const blueprint = boundaryHits.length > 0 ? { boundary_hits: boundaryHits } : {};
   let receipt: Awaited<ReturnType<typeof buildReceipt>>;
   try {
     // Real-test F: with no changed file, an item already done in an earlier request is "already present".
@@ -457,6 +470,7 @@ export async function generateReceipt(
       new_dependencies: newDependencies,
       new_dependencies_omitted: omitted,
       ...security,
+      ...blueprint,
       test_integrity: integrity,
       ...(overPlan ? { judge_skipped: "plan_limit" } : {}),
     },
@@ -497,6 +511,29 @@ export async function generateReceipt(
     new_dependencies: newDependencies,
     new_dependencies_omitted: omitted,
     ...security,
+    ...blueprint,
     test_integrity: integrity,
   };
+}
+
+// Boundary hits for a receipt: empty before the Blueprint is set up, and on any read error (a receipt never fails
+// because of it). Paths and names are masked per segment before they are stored.
+async function receiptBoundaryHits(
+  db: BrainDb,
+  pid: string,
+  files: string[],
+  dependencies: string[],
+): Promise<BoundaryHit[]> {
+  if (!(await blueprintEnabled(db))) return [];
+  try {
+    const boundaries = await boundariesRepo.active(db, pid);
+    if (boundaries.length === 0) return [];
+    return checkBoundaries({ files, dependencies, boundaries }).map((h) => ({
+      kind: h.kind,
+      subject: maskPath(h.subject),
+      pattern: maskPath(h.pattern),
+    }));
+  } catch {
+    return [];
+  }
 }

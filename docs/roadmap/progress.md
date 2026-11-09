@@ -14,7 +14,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3a | Blueprint: versioned model, EARS criteria, proof status, flags | merged | [#61](https://github.com/jabez-abija2399/project-brain/pull/61) | Migration 0054 optional (owner action 9); `propose_blueprint` MCP tool; tools/list 6,479 chars (budget 6,500) |
 | 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
-| 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | 4a merged [#64](https://github.com/jabez-abija2399/project-brain/pull/64); 4b in progress | | |
+| 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65) merged; 4c in progress | | |
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | not started | | |
 | 6 | Approval policies | not started | | |
 | 7 | Kit workflows as product features | not started | | |
@@ -134,4 +134,18 @@ Status values: not started, in progress, merged, blocked (with reason).
     release).
   - Opt-in "prove it" test runs.
   - Receipts checked against the Blueprint.
+
+### Phase 4c: receipts checked against the Blueprint (server)
+- **What every receipt is checked for:** the Blueprint's active boundaries.
+  - Changed files under a protected path.
+  - New packages the owner disallowed.
+  - When the owner keeps an allowed list, new packages that are not on it.
+- **Where it shows:** the receipt card's "Blueprint boundaries" section, ranked in "Review here first" right after
+  security findings.
+- **How it works:** the glob matcher (`packages/core/src/blueprint/boundary-check.ts`) never builds a regular
+  expression from stored text, and its run time grows at most with pattern length times path length. Stored hits
+  are masked per segment. Before migration 0054 receipts are unchanged, and the check never fails a receipt.
+- **Moved to Phase 5's CLI release:** a definition of done handed to the agent when a request is captured, and
+  opt-in "prove it" test runs. Blocking a protected path before the edit (PreToolUse) is Phase 5's main goal; this
+  check catches what got through.
 
