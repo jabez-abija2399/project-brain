@@ -6,6 +6,13 @@
         "command": "sh \"${PLUGIN_ROOT}/scripts/codeceipt.sh\" hook session-start antigravity",
         "timeout": 30
       }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "sh \"${PLUGIN_ROOT}/scripts/codeceipt.sh\" hook stop antigravity",
+        "timeout": 30
+      }
     ]
   }
 }

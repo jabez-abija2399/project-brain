@@ -62,6 +62,8 @@ export type HookDeps = {
   done?: (summary: { files: number; receiptId: string | null }) => void;
   // FEAT-020: whether the Stop gate is on for this user (default off here; the CLI passes the user's setting).
   stopGate?: boolean;
+  // Roadmap Phase 4a: gentle mode tells the agent what is missing without blocking it (Claude Code).
+  gentleGate?: boolean;
   // FEAT-022: starts the repo's check command in the background for a receipt (absent when none is set).
   startCheck?: (receiptId: string) => void;
 };
@@ -104,7 +106,9 @@ const clean = (text: string, max: number) =>
     .slice(0, max);
 const line = (text: string) => oneLineText(text).replace(MARKS, "").slice(0, MAX_LINE_CHARS);
 
-async function hookInput(deps: HookDeps): Promise<{ sessionId: string; cwd: string }> {
+async function hookInput(
+  deps: HookDeps,
+): Promise<{ sessionId: string; cwd: string; loopCount: number | null }> {
   let raw: unknown = {};
   try {
     const text = await deps.readStdin();
@@ -125,7 +129,14 @@ async function hookInput(deps: HookDeps): Promise<{ sessionId: string; cwd: stri
     repoRoot(deps.git, claimed).catch(() => claimed),
   ]);
   const cwd = own === other ? claimed : deps.cwd;
-  return { sessionId: sessionIdOf(input), cwd };
+  // Roadmap Phase 4a: Cursor counts the follow-ups its stop hooks caused (loop_count); the gate respects it as well.
+  const loopCount =
+    typeof input.loop_count === "number" &&
+    Number.isInteger(input.loop_count) &&
+    input.loop_count >= 0
+      ? input.loop_count
+      : null;
+  return { sessionId: sessionIdOf(input), cwd, loopCount };
 }
 
 /**
@@ -583,6 +594,15 @@ const wellFormed = (open: OpenItems) =>
 
 // Work items neither done nor parked, as clean short lines; anything of the wrong shape is dropped. Real-test H:
 // questions are not work, and the same item from a repeated request is listed once (newest request first).
+// Only this session's requests (by id), so the gate never holds an agent back for another session's open work.
+function sessionOnly(open: OpenItems, own: { id: string }[]): OpenItems {
+  const ids = new Set(own.map((r) => r.id));
+  return {
+    ...open,
+    requests: (Array.isArray(open?.requests) ? open.requests : []).filter((r) => ids.has(r?.id)),
+  };
+}
+
 function openList(open: OpenItems): { text: string; status: string }[] {
   const requests = Array.isArray(open?.requests) ? open.requests : [];
   const seen = new Set<string>();
@@ -611,7 +631,9 @@ export async function sessionEnd(
   // made before is replaced, and nothing is sent when nothing changed since then.
   opts: { stop?: boolean } = {},
 ): Promise<boolean> {
-  const { sessionId, cwd } = await hookInput(deps);
+  const { sessionId, cwd, loopCount } = await hookInput(deps);
+  // Roadmap Phase 4a: the agent's own count of hook-caused continuations, when it sends one, also caps the gate.
+  const loopsUsed = Math.max(loopCount ?? 0, 0);
   if (!deps.config) {
     deps.stderr(`${WARN} ${problemOf(deps)}; progress was not saved.`);
     return true;
@@ -771,6 +793,7 @@ export async function sessionEnd(
     let receiptId: string | null = null;
     let gate: { instruction: string; blocks: number } | null = null;
     let gaveUp = false;
+    let receiptMade = false;
     const summary: string[] = [];
     const warnings: string[] = [];
     // A session that changed files always gets a receipt (dogfooding): one per request made in this session (newest
@@ -847,12 +870,14 @@ export async function sessionEnd(
         } catch {}
       }
       if (receipts.length > 0) {
+        receiptMade = true;
         const combined = combineReceipts(receipts);
         summary.push(...receiptSummary(combined, config, receiptId, receiptFiles.length));
         // FEAT-020: at Stop, unfinished work keeps the agent going, at most MAX_GATE_BLOCKS times per session.
         if (opts.stop && deps.stopGate) {
           const instruction = gateInstruction(combined);
-          if (instruction && previous.gateBlocks >= MAX_GATE_BLOCKS) gaveUp = true;
+          if (instruction && Math.max(previous.gateBlocks, loopsUsed) >= MAX_GATE_BLOCKS)
+            gaveUp = true;
           else if (instruction) gate = { instruction, blocks: previous.gateBlocks + 1 };
         }
         if (noSnapshot) warnings.push(`${WARN} ${NO_SNAPSHOT_NOTE}`);
@@ -868,6 +893,21 @@ export async function sessionEnd(
         ? await request<OpenItems>(timed(deps.fetch, OPEN_ITEMS_TIMEOUT_MS), config, "GET", base)
         : open;
     const loose = openList(after);
+    // Roadmap Phase 4a: no receipt (AI unavailable, budget used up): the gate still holds the agent back from what
+    // Codeceipt knows without AI: this session's open checklist items, removed or weakened tests and new secrets.
+    if (opts.stop && deps.stopGate && !gate && !gaveUp && !receiptMade) {
+      const instruction = gateInstruction({
+        items: openList(sessionOnly(after, own)).map((i) => ({ text: i.text, status: i.status })),
+        test_integrity: { flags: integrity?.flags ?? [] },
+        findings: sessionFindings.map((f) => ({
+          type: f.type,
+          file: f.file,
+          masked_value: f.masked_value,
+        })),
+      });
+      if (instruction && Math.max(previous.gateBlocks, loopsUsed) >= MAX_GATE_BLOCKS) gaveUp = true;
+      else if (instruction) gate = { instruction, blocks: previous.gateBlocks + 1 };
+    }
     await callTool(timed(deps.fetch, SAVE_TIMEOUT_MS), config, "save_progress", {
       goal: (req ? line(req.text) : "") || "Agent session",
       done: `Changed ${receiptFiles.length} file${receiptFiles.length === 1 ? "" : "s"}${receiptNote}`.slice(
@@ -920,7 +960,7 @@ export async function sessionEnd(
     if (gaveUp) warnings.push(`${WARN} ${GAVE_UP}`);
     // The receipt summary first (journey part 4), then the warnings.
     for (const line of [...summary, ...warnings]) deps.stderr(line);
-    const answer = gate ? gateAnswer(_agent, gate.instruction) : null;
+    const answer = gate ? gateAnswer(_agent, gate.instruction, deps.gentleGate === true) : null;
     if (gate && answer && stateFilePath) {
       try {
         const raw = JSON.parse(readFileSync(stateFilePath, "utf8")) as Record<string, unknown>;

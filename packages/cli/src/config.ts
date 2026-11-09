@@ -126,15 +126,28 @@ export function saveProjectToken(path: string, config: CliConfig): void {
 // D-027: user settings kept in the same file, beside the logins. Only known keys are read and written; everything
 // else in the file is kept as it is.
 // FEAT-020: stopGate (default on when absent). FEAT-022: checks, the check command per repo (by a hash of its folder).
+// Roadmap Phase 4a: stopGate may also be "gentle" (tell the agent what is missing without blocking it).
 export type CheckSettings = Record<string, { command: string; timeoutSec?: number }>;
-export type UserSettings = { autoUpdate?: boolean; stopGate?: boolean; checks?: CheckSettings };
+export type UserSettings = {
+  autoUpdate?: boolean;
+  stopGate?: boolean | "gentle";
+  checks?: CheckSettings;
+};
+export type GateMode = "off" | "gentle" | "strict";
+/** The stop gate's mode: off, gentle, or strict (on; the default when nothing is set). */
+export function gateMode(settings: UserSettings): GateMode {
+  if (settings.stopGate === false) return "off";
+  return settings.stopGate === "gentle" ? "gentle" : "strict";
+}
 export function readSettings(path: string): UserSettings {
   const file = readFile(path) as
     | (ConfigFile & { autoUpdate?: unknown; stopGate?: unknown; checks?: unknown })
     | null;
   return {
     ...(typeof file?.autoUpdate === "boolean" ? { autoUpdate: file.autoUpdate } : {}),
-    ...(typeof file?.stopGate === "boolean" ? { stopGate: file.stopGate } : {}),
+    ...(typeof file?.stopGate === "boolean" || file?.stopGate === "gentle"
+      ? { stopGate: file.stopGate }
+      : {}),
     ...(file?.checks ? { checks: validChecks(file.checks) } : {}),
   };
 }

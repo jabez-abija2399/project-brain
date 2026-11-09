@@ -139,21 +139,29 @@ absent; where_did_we_stop with features: true answers it)", then run
 
 **Check:** `python3 scripts/kit.py show FEAT-011` shows the new wording.
 
-## 8. Release CLI 0.3.5 (fast hooks) — pending
+## 8. Release CLI 0.3.6 (fast hooks, stop gate modes) — pending
 
-**Why:** Phase 2b makes every hook start about 5× faster (the indexer loads only for `codeceipt index`) and gives the
-start note a saved fallback when the server is slow. Users get it through the release.
+**Why:** it replaces 0.3.5, which was never released, and contains:
+- **Phase 2b:** every hook starts about 5× faster (the indexer loads only for `codeceipt index`), and the start note
+  has a saved fallback when the server is slow.
+- **Phase 4a:** the stop gate has a gentle mode. Codex and Antigravity are also held back when work is unfinished.
+  The gate respects Cursor's own loop count, and still works when the AI receipt cannot be made.
 
-**Steps (after the Phase 2b PR is merged):**
-1. GitHub → **Releases** → **Draft a new release** → **Choose a tag** → type `cli-v0.3.5` → **Create new tag on
-   publish**, target `main` → **Publish release** is not needed: just create the tag. (From a computer instead:
-   `git checkout main && git pull && git tag cli-v0.3.5 && git push origin cli-v0.3.5`.)
-2. Actions → the **release-cli** run → approve **release** twice (GitHub release, then npm).
-3. Tell Claude "0.3.5 is released"; it pins the website installers to it (`apps/web/src/lib/cli-release.json`)
-   from the signed manifest and opens the PR.
+Users get all of this through the release.
 
-**Check:** https://www.npmjs.com/package/codeceipt shows 0.3.5 with provenance; `codeceipt --version` after
-`codeceipt update` prints 0.3.5.
+**Steps (after the Phase 4a PR is merged):**
+1. **Create the tag** on GitHub: **Releases** → **Draft a new release** → **Choose a tag** → type `cli-v0.3.6` →
+   **Create new tag on publish**, target `main`. Creating the tag is enough; you don't need to publish the release.
+   From a computer instead:
+   `git checkout main && git pull && git tag cli-v0.3.6 && git push origin cli-v0.3.6`
+2. **Approve the run:** Actions → the **release-cli** run → approve **release** twice (GitHub release, then npm).
+3. **Tell Claude** "0.3.6 is released". It pins the website installers to it from the signed manifest
+   (`apps/web/src/lib/cli-release.json`) and opens the PR.
+4. **Update the plugins:** users of the Codex and Antigravity plugins update them from their marketplace to get the
+   new Stop hook.
+
+**Check:** https://www.npmjs.com/package/codeceipt shows 0.3.6 with provenance, and `codeceipt --version` prints
+0.3.6 after `codeceipt update`.
 
 ---
 
@@ -174,4 +182,25 @@ existing `checklist_items (project_id, id)`, which is already unique by `id`), a
 refuse edits to a saved Blueprint version. Nothing is dropped or changed; no source code is stored.
 
 **Check:** `https://codeceipts.vercel.app/api/health` no longer lists `0054_blueprint`.
+
+---
+
+## 10. Choose the stop gate's default mode — pending, a decision only
+
+**Why:** the roadmap asks for "gentle (default), strict, off". The gate's existing criteria (FEAT-020, AC-020-04)
+say "on" (strict: the agent is blocked) is the default. Phase 4a keeps strict as the default, because changing it
+would mean rewording an accepted criterion. Users can choose for themselves today with
+`codeceipt config stop-gate gentle|on|off`.
+
+**What the modes do:**
+- **gentle:** Claude Code is told what is missing, without a blocking error.
+- **strict (on):** Claude Code is blocked until the work is finished or explained.
+- **off:** nothing is held back.
+
+In every mode that holds the agent back, it is held back at most twice per session.
+
+**Steps:** reply "gentle by default" or "keep strict". For "gentle by default", Claude proposes the criterion change
+through `agent/plan.json`, and you approve it with `SPEC_CHANGE_APPROVED`. Claude cannot set that variable.
+
+**Check:** `codeceipt config stop-gate` with no setting prints the default you chose.
 

@@ -13,8 +13,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 2b | Footprint: cached start note, fast hooks (CLI) | merged | [#60](https://github.com/jabez-abija2399/project-brain/pull/60) | Hooks 520–600 ms → 70–120 ms (Node), ≈ 300 → 135–165 ms (native); offline start note ≤ 1.6 s with a saved note; CLI 0.3.5 (owner action 8) |
 | 3a | Blueprint: versioned model, EARS criteria, proof status, flags | merged | [#61](https://github.com/jabez-abija2399/project-brain/pull/61) | Migration 0054 optional (owner action 9); `propose_blueprint` MCP tool; tools/list 6,479 chars (budget 6,500) |
 | 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
-| 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | in progress | | |
-| 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | not started | | |
+| 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
+| 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | in progress (4a) | | |
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | not started | | |
 | 6 | Approval policies | not started | | |
 | 7 | Kit workflows as product features | not started | | |
@@ -101,4 +101,20 @@ Status values: not started, in progress, merged, blocked (with reason).
   components and open tables.
 - Checked at 375 and 1280 px with no sideways scrolling: `docs/screenshots/blueprint/`. This found and fixed a dated
   migration path that was masked as a secret.
+
+### Phase 4a: the done gate
+- **Gentle mode:** `codeceipt config stop-gate gentle|on|off` (`strict` means on). Gentle tells Claude Code what is
+  missing through `additionalContext`, without a blocking error. Strict is still the default; owner action 10 asks
+  the owner to decide.
+- **Every agent with a Stop event is held back, each in its own format:** Claude Code, Cursor, Codex
+  (`decision:block`) and Antigravity (`decision:continue`). The Codex and Antigravity plugins get a Stop hook.
+  OpenCode stays "report only", because it has no documented way to continue.
+- **Loop safety:** at most 2 continuations per session, counted locally and also checked against Cursor's
+  `loop_count`. Without a session start (no state file) the gate never blocks.
+- **No AI needed:** when the receipt cannot be made, the gate still holds the agent back for this session's open
+  checklist items, removed or weakened tests, and new secrets. All of these come from local checks and the
+  database.
+- **CLI 0.3.6** replaces the unreleased 0.3.5 (owner action 8).
+- **Next (4b):** start note and context pack from the Blueprint, definition of done per request, opt-in "prove it"
+  runs, receipts checked against the Blueprint, and "Review here first".
 

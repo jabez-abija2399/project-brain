@@ -37,6 +37,8 @@ export function gateFindings(receipt: Record<string, unknown>): string[] {
     if (item.question === true) continue;
     if (item.status === "missed") lines.push(`Missed: ${quoted(str(item.text))}`);
     else if (item.status === "partial") lines.push(`Partly done: ${quoted(str(item.text))}`);
+    // Roadmap Phase 4a: an item of the session's request that is still open in Codeceipt (no receipt needed).
+    else if (item.status === "open") lines.push(`Not done: ${quoted(str(item.text))}`);
   }
   const integrity =
     typeof receipt.test_integrity === "object" && receipt.test_integrity !== null
@@ -79,9 +81,23 @@ export function gateInstruction(receipt: Record<string, unknown>): string | null
   ].join("\n");
 }
 
-/** The hook's answer for the agent: Claude Code blocks the stop, Cursor sends a follow-up message. */
-export function gateAnswer(agent: string, instruction: string): string | null {
-  if (agent === "claude") return JSON.stringify({ decision: "block", reason: instruction });
+/**
+ * The hook's answer for the agent, in each agent's own Stop format (docs/roadmap/research-agent-hooks.md):
+ * - Claude Code: strict blocks the stop ({"decision":"block"}); gentle adds the findings as context
+ *   (hookSpecificOutput.additionalContext), so the agent goes on without an error banner.
+ * - Cursor: a follow-up message. Codex: {"decision":"block","reason"} (sent as a new prompt).
+ * - Antigravity: {"decision":"continue","reason"} (added as a system message).
+ */
+export function gateAnswer(agent: string, instruction: string, gentle = false): string | null {
+  if (agent === "claude") {
+    return gentle
+      ? JSON.stringify({
+          hookSpecificOutput: { hookEventName: "Stop", additionalContext: instruction },
+        })
+      : JSON.stringify({ decision: "block", reason: instruction });
+  }
   if (agent === "cursor") return JSON.stringify({ followup_message: instruction });
+  if (agent === "codex") return JSON.stringify({ decision: "block", reason: instruction });
+  if (agent === "antigravity") return JSON.stringify({ decision: "continue", reason: instruction });
   return null;
 }
