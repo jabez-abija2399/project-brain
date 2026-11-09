@@ -1,8 +1,9 @@
-import { DIRECTIVE_BUDGET, buildHandoffNote, maskSecretsIn } from "@brain/core";
+import { DIRECTIVE_BUDGET, buildHandoffNote, maskSecretsIn, plainText } from "@brain/core";
 import {
   type BrainDb,
   agentSessionsRepo,
   checklistItemsRepo,
+  criteriaRepo,
   decisionsRepo,
   directivesRepo,
   featuresRepo,
@@ -10,6 +11,7 @@ import {
 import { z } from "zod";
 import { type SessionUser, requireProjectAccess } from "./auth";
 import { AppError } from "./errors";
+import { blueprintEnabled } from "./migration-check";
 
 // Field caps (FEAT-010 threat model: unbounded free text is noise). Over-length input returns 400.
 const CAP = {
@@ -258,6 +260,7 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
       featuresRepo.nextByBuildOrder(db, pid),
     ]);
     const last = sessions[0];
+    const nextRules = next ? await nextFeatureRules(db, pid, next.id) : [];
     const items = startNoteItems(checklist);
     // Real-test H: the next step is the first truly open item; a saved step naming finished work is not repeated.
     // The "(xN)" count is not part of an item's text, so it is left off before the keys are compared.
@@ -290,8 +293,22 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
       ),
       // FEAT-019: the approved plan's next feature by build order (AC-019-05).
       nextFeature: next ? maskSecretsIn(next.name) : null,
+      nextRules,
     });
   });
+}
+
+// Roadmap Phase 4b: the next feature's owner-approved must-never and security criteria for the start note (DB read,
+// at most 3). Empty before the Blueprint is set up, and on any read error: the note never fails because of it.
+async function nextFeatureRules(db: BrainDb, pid: string, featureId: string): Promise<string[]> {
+  if (!(await blueprintEnabled(db))) return [];
+  try {
+    const rows = await criteriaRepo.guardsForFeature(db, pid, featureId);
+    // Invisible marks out first, then masking: a hidden mark inside a key can never keep it from being masked.
+    return rows.map((c) => maskSecretsIn(plainText(c.text)));
+  } catch {
+    return [];
+  }
 }
 
 // MCP list_features: the token's project's features by name, with primary file counts and status. DB read only.

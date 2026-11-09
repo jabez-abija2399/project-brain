@@ -14,7 +14,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3a | Blueprint: versioned model, EARS criteria, proof status, flags | merged | [#61](https://github.com/jabez-abija2399/project-brain/pull/61) | Migration 0054 optional (owner action 9); `propose_blueprint` MCP tool; tools/list 6,479 chars (budget 6,500) |
 | 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
-| 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | in progress (4a) | | |
+| 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | 4a merged [#64](https://github.com/jabez-abija2399/project-brain/pull/64); 4b in progress | | |
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | not started | | |
 | 6 | Approval policies | not started | | |
 | 7 | Kit workflows as product features | not started | | |
@@ -117,4 +117,21 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **CLI 0.3.6** replaces the unreleased 0.3.5 (owner action 8).
 - **Next (4b):** start note and context pack from the Blueprint, definition of done per request, opt-in "prove it"
   runs, receipts checked against the Blueprint, and "Review here first".
+
+### Phase 4b: following the Blueprint (server)
+- **Review here first:** each receipt card now starts with at most three places to look at first, each with a
+  plain reason. They come only from the receipt's own evidence, most serious first: secrets and open tables, then
+  weakened tests, a failed check, missed, not done or partly done work, done but untested work, and changes outside
+  the feature. Built by `packages/core/src/review-first.ts`.
+- **Start note:** after the next feature, it lists that feature's owner-approved must-never and security criteria
+  (at most 3). They are marked as data, and saved text cannot fake a heading. The note stays within its limit.
+- **Context pack:**
+  - Files are ranked: the feature's own files first, then files with components, then by path.
+  - A new "TESTS THAT PROVE THESE CRITERIA" section lists linked test paths and names. Together with CRITERIA,
+    BOUNDARIES and CHECKLIST (which includes past misses), the pack is the feature's definition of done.
+- **Next (4c):**
+  - A definition of done handed to the agent when a request is captured (prompt hook context; CLI change and
+    release).
+  - Opt-in "prove it" test runs.
+  - Receipts checked against the Blueprint.
 

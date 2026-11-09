@@ -3,6 +3,7 @@ import {
   NO_SNAPSHOT_NOTE,
   type ReceiptView,
   receiptNeedsAttention,
+  reviewFirst,
 } from "@brain/core";
 import type { ReactNode } from "react";
 import { ChecklistItem } from "./checklist-item";
@@ -48,6 +49,23 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       <h3 className="muted m0">{title}</h3>
       {children}
     </section>
+  );
+}
+
+// Roadmap Phase 4b: at most three places to look at first, each with a reason, from this receipt's own evidence.
+function ReviewFirst({ view }: { view: ReceiptView }) {
+  const places = reviewFirst(view);
+  if (places.length === 0) return null;
+  return (
+    <Section title="Review here first">
+      <ol className="stack m0 list-indent gap-4">
+        {places.map((p) => (
+          <li key={p.where} className="wrap">
+            <code className="wrap">{p.where}</code>: {p.why}
+          </li>
+        ))}
+      </ol>
+    </Section>
   );
 }
 
@@ -184,6 +202,7 @@ export function ReceiptCard({
               in an earlier request) or not verified.
             </p>
           )}
+          <ReviewFirst view={view} />
           {view.filesByFeature.length > 0 && (
             <Section title="Changed files by feature">
               <ul className="stack m0 list-indent gap-4">
