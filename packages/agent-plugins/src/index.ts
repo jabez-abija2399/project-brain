@@ -55,11 +55,20 @@ const hookCmd = (root: string, event: string, agent: PluginAgent) =>
   `sh ${root} hook ${event} ${agent}`;
 
 // Claude Code and Codex share a hook shape: event -> [{ hooks: [{ type, command, timeout }] }].
-const grouped = (root: string, agent: PluginAgent, events: [string, string, number][]) => ({
+const grouped = (
+  root: string,
+  agent: PluginAgent,
+  events: ([string, string, number] | [string, string, number, string])[],
+) => ({
   hooks: Object.fromEntries(
-    events.map(([event, ours, timeout]) => [
+    events.map(([event, ours, timeout, matcher]) => [
       event,
-      [{ hooks: [{ type: "command", command: hookCmd(root, ours, agent), timeout }] }],
+      [
+        {
+          ...(matcher ? { matcher } : {}),
+          hooks: [{ type: "command", command: hookCmd(root, ours, agent), timeout }],
+        },
+      ],
     ]),
   ),
 });
@@ -90,6 +99,8 @@ function claude(): Map<string, string> {
           ["Stop", "stop", 60],
           // All SessionEnd hooks share 1.5 s unless one asks for more (60 s at most).
           ["SessionEnd", "session-end", 60],
+          // Roadmap Phase 5b: edits under a protected path are denied before they happen.
+          ["PreToolUse", "pre-tool", 10, "Edit|Write|MultiEdit|NotebookEdit"],
         ]),
       ),
     ],
@@ -136,6 +147,8 @@ function cursor(): Map<string, string> {
           // FEAT-020: the Stop gate (Cursor reads followup_message from a stop hook).
           stop: hook("stop", 60),
           sessionEnd: hook("session-end", 60),
+          // Roadmap Phase 5b: Cursor reads {"permission":"deny"} from a preToolUse hook.
+          preToolUse: hook("pre-tool", 10),
         },
       }),
     ],
@@ -182,6 +195,8 @@ function codex(): Map<string, string> {
           ["Stop", "stop", 60],
           // Codex allows 3 s at most: codeceipt starts the receipt in the background and returns.
           ["SessionEnd", "session-end", 3],
+          // Roadmap Phase 5b: apply_patch writes under a protected path are denied before they happen.
+          ["PreToolUse", "pre-tool", 10, "apply_patch"],
         ]),
       ),
     ],
@@ -227,6 +242,14 @@ function antigravity(): Map<string, string> {
                 "antigravity",
               ),
               timeout: 30,
+            },
+          ],
+          // Roadmap Phase 5b: file writes under a protected path are denied ({"decision":"deny","reason"}).
+          PreToolUse: [
+            {
+              type: "command",
+              command: hookCmd('"${PLUGIN_ROOT}/scripts/codeceipt.sh"', "pre-tool", "antigravity"),
+              timeout: 10,
             },
           ],
           // Roadmap Phase 4a: the Stop gate ({"decision":"continue","reason"}); Antigravity allows 30 s.

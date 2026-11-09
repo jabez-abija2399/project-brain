@@ -15,15 +15,9 @@ import {
   guardCheck,
   newPackageNames,
 } from "@brain/core";
-import { CliError, EXIT, request } from "./api";
+import { CliError, EXIT } from "./api";
 import type { CliConfig } from "./config";
-import {
-  type Boundary,
-  gitDirOf,
-  readBoundaryCache,
-  validBoundaries,
-  writeBoundaryCache,
-} from "./repo-link";
+import { type Boundary, gitDirOf, readBoundaryCache, refreshBoundaries } from "./repo-link";
 import { type Git, changedFiles, repoRoot } from "./scan-secrets";
 import { shellHook } from "./templates";
 
@@ -196,23 +190,11 @@ async function changed(
 async function boundaries(deps: GuardDeps, gitDir: string | null): Promise<Boundary[] | null> {
   const config = await deps.config().catch(() => null);
   if (!config) return null;
-  try {
-    const res = await request<{ ready?: unknown; boundaries?: unknown }>(
-      (url, init) => deps.fetch(url, { ...init, signal: AbortSignal.timeout(BOUNDARY_TIMEOUT_MS) }),
-      config,
-      "GET",
-      `/api/hooks/${encodeURIComponent(config.projectId)}/boundaries`,
-    );
-    // Before migration 0054 the server answers "not ready": the boundaries are unknown, not empty.
-    const list = res.ready === true ? validBoundaries(res.boundaries) : null;
-    if (list) {
-      if (gitDir) writeBoundaryCache(gitDir, config.projectId, list);
-      return list;
-    }
-  } catch {
-    // Offline or a slow server: the last boundaries kept for this project.
-  }
-  return gitDir ? readBoundaryCache(gitDir, config.projectId) : null;
+  // Offline, a slow server or one before migration 0054: the last boundaries kept for this project.
+  return (
+    (await refreshBoundaries(deps.fetch, config, gitDir, BOUNDARY_TIMEOUT_MS)) ??
+    (gitDir ? readBoundaryCache(gitDir, config.projectId) : null)
+  );
 }
 
 const SOURCE_NAME = {

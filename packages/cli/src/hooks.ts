@@ -25,6 +25,7 @@ import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 import { dependencyChanges } from "./dependency-changes";
 import { callTool } from "./mcp-client";
+import { gitDirOf, refreshBoundaries } from "./repo-link";
 import { type Git, changedFiles, repoRoot, scanFiles } from "./scan-secrets";
 import {
   type Snapshot,
@@ -437,6 +438,19 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
       callTool(timed(deps.fetch, START_NOTE_WAIT_MS), deps.config, "where_did_we_stop", {})
     : null;
   asked?.catch(() => {}); // settled later; never an unhandled rejection
+  // Roadmap Phase 5b: the Blueprint's boundaries are kept on disk for the pre-tool hook (no server call per edit).
+  // Bounded as a whole (finding the git folder included), so it never adds to the start note's wait.
+  const bounds = deps.config
+    ? within(
+        gitDirOf(deps.git, cwd).then((gitDir) =>
+          deps.config
+            ? refreshBoundaries(deps.fetch, deps.config, gitDir, START_NOTE_WAIT_MS)
+            : null,
+        ),
+        START_NOTE_WAIT_MS,
+      )
+    : null;
+  bounds?.catch(() => {});
   let saved: string | null = null;
   try {
     const root = await repoRoot(deps.git, cwd);
@@ -469,7 +483,8 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
   if (!deps.config || !asked) return deps.stderr(`${WARN} ${problemOf(deps)}; no handoff note.`);
   const now = deps.now?.() ?? new Date();
   let note: string;
-  const fresh = await within(asked, START_NOTE_WAIT_MS);
+  // Both are bounded by START_NOTE_WAIT_MS, so the session start waits no longer than before.
+  const [fresh] = await Promise.all([within(asked, START_NOTE_WAIT_MS), bounds?.catch(() => null)]);
   // A refused token (revoked, project deleted or suspended) is not "slow": the saved note is deleted and never shown.
   if (!fresh.ok && fresh.reason instanceof CliError && fresh.reason.exitCode === EXIT.auth) {
     if (saved) rmSync(saved, { force: true });

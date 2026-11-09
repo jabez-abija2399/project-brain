@@ -15,7 +15,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | merged | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65), 4c [#66](https://github.com/jabez-abija2399/project-brain/pull/66) | Definition of done and "prove it" runs moved to Phase 5b (CLI) |
-| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | 5a in progress | | |
+| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | 5a merged, 5b in progress | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67) | |
 | 6 | Approval policies | not started | | |
 | 7 | Kit workflows as product features | not started | | |
 | 8 | Import, export, sync | not started | | |
@@ -177,3 +177,44 @@ Status values: not started, in progress, merged, blocked (with reason).
     report-only), from the same cached boundaries;
   - a definition of done when a request is captured;
   - opt-in "prove it" runs.
+
+### Phase 5b: protected paths blocked before the edit (pre-tool-use hooks)
+- **New hook:** `codeceipt hook pre-tool --agent <agent>` runs before an agent writes a file.
+  - It reads the target files from the hook input: `file_path` / `notebook_path`, Cursor's `target_file`,
+    Antigravity's `TargetFile`, and every file in a Codex `apply_patch`.
+  - It resolves `..`, then checks each file against the Blueprint's protected paths kept in `.git/codeceipt/`.
+  - No server call and no AI: it answers in under 200 ms (PH5B-10).
+- **Where it blocks** (strict, the default):
+
+  | Agent | Hook | Strict | Gentle |
+  |---|---|---|---|
+  | Claude Code | `PreToolUse`, matcher `Edit\|Write\|MultiEdit\|NotebookEdit` | `permissionDecision: "deny"` | `"ask"` (the person decides) |
+  | Cursor | `preToolUse` | `permission: "deny"` | allowed, with a note to the agent |
+  | Codex | `PreToolUse`, matcher `apply_patch` | `permissionDecision: "deny"` | nothing (Codex cannot ask) |
+  | Antigravity (plugin) | `PreToolUse` | `decision: "deny"` | `"ask"` |
+  | OpenCode | none | report only (no documented way to block) | |
+
+- **Where blocking is not possible:**
+  - Shell commands are not parsed, since a command can write anywhere. `codeceipt guard` catches them at commit
+    time.
+  - A hook that times out or fails lets the tool run (each agent's own rule).
+  - Antigravity set up per repo (not by plugin) has only the session start hook, as before.
+- **Not covered:**
+  - Edits through other tools (MCP file tools, a shell-wrapped patch) are not checked.
+  - A write into another linked repo is checked against this repo's rules only.
+- **Security review (fresh context): all findings fixed, each with an attack test (PH5B-11..15).**
+  - **Large edits:** the hook reads up to 8 MB; a larger edit is refused, never let through unread.
+  - **Real paths:** targets and the root are resolved through symlinks, `~` is expanded, and letter case is ignored on
+    macOS and Windows. Windows' trailing dots and spaces are dropped.
+  - **Never cut silently:** more than 500 files in one call is refused, long paths count as hits, and indented patch
+    headers are read.
+  - **Codeceipt's own files:** `.git/` and Codeceipt's settings file are never written by an agent's file tool, so the
+    check cannot be switched off that way.
+  - **Smaller fixes:** Cursor gentle mode leaves Cursor's own approval in place, and the boundary refresh is bounded
+    as a whole.
+- **Modes:** the same setting as the guard (`codeceipt config guard strict|gentle|off`).
+- **Boundaries on disk:** session start refreshes them alongside the start note, within the same wait limit. A server
+  before migration 0054 leaves the kept copy as is. The answer is read up to 256 KB only.
+- **Registration:** `codeceipt init` writes the hook for Claude Code, Codex and Cursor; the four plugins carry it
+  too. `codeceipt init --remove-repo-files` removes it like the others.
+- **Moved to 5c:** a definition of done when a request is captured, and opt-in "prove it" runs.

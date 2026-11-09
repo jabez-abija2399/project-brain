@@ -26,6 +26,8 @@ export const END_HOOK = hook(BRAND, "session-end");
 // Owner, 2026-11-01 (VS Code): Claude Code in VS Code may not fire SessionEnd; Stop (Claude finished responding)
 // creates or updates the session's receipt.
 export const STOP_HOOK = hook(BRAND, "stop");
+// Roadmap Phase 5b: before a file edit, protected paths from the Blueprint are denied (no server call).
+export const PRE_TOOL_HOOK = hook(BRAND, "pre-tool");
 export const LEGACY_START_HOOK = hook(LEGACY, "session-start");
 export const LEGACY_END_HOOK = hook(LEGACY, "session-end");
 

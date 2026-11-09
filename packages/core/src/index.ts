@@ -213,3 +213,6 @@ export { guardCheck, MAX_GUARD_FINDINGS, newLines, newPackageNames } from "./gua
 export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
 export { findHiddenChars } from "./hidden-chars";
 export type { HiddenChar, HiddenKind } from "./hidden-chars";
+// Roadmap Phase 5b: protected paths blocked before an agent edits them (pre-tool-use hooks).
+export { patchTargets, preToolAnswer, preToolHit, repoRelative, toolTargets } from "./pre-tool";
+export type { PreToolAgent, PreToolHit, PreToolMode } from "./pre-tool";

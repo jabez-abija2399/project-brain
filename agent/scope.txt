@@ -107,3 +107,6 @@ apps/web/src/app/api/hooks/[[]projectId]/boundaries/* # Phase 5a: the guard's bo
 apps/web/src/server/hook-boundaries* # Phase 5a
 packages/agent-plugins/marketplace/* # Phase 5a: plugin versions follow the CLI (0.3.7)
 apps/web/src/server/real-test-replay.test.ts # Phase 5a: npx fallback pinned to 0.3.7
+packages/core/src/pre-tool* # Phase 5b: pre-tool-use boundaries
+packages/cli/src/* # Phase 5b: pre-tool hook, boundary cache refresh at session start, hook registration
+packages/agent-plugins/* # Phase 5b: PreToolUse hooks in the plugins

@@ -97,6 +97,8 @@ export async function request<T>(
   path: string,
   body?: unknown,
   retry?: RetryOn429,
+  // A smaller limit for answers known to be small (the Blueprint's boundaries).
+  maxBytes = MAX_RESPONSE_BYTES,
 ): Promise<T> {
   let res: Response;
   for (let attempt = 0; ; attempt++) {
@@ -108,7 +110,7 @@ export async function request<T>(
   }
   let json: ({ code?: string } & T) | null = null;
   try {
-    json = JSON.parse((await readCapped(res, MAX_RESPONSE_BYTES)) ?? "null");
+    json = JSON.parse((await readCapped(res, maxBytes)) ?? "null");
   } catch {}
   if (!res.ok || json === null) throw fromStatus(res.status, json?.code);
   return json;

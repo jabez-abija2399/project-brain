@@ -11,6 +11,8 @@ import {
 } from "node:fs";
 import { join, sep } from "node:path";
 import { type RepoFingerprint, fingerprintOf } from "@brain/core";
+import { request } from "./api";
+import type { CliConfig } from "./config";
 import type { Git } from "./scan-secrets";
 
 // D-020: one project per repo. The repo's link to its Codeceipt project lives in its own .git folder (never committed,
@@ -185,5 +187,44 @@ export function writeBoundaryCache(gitDir: string, projectId: string, list: Boun
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * The Blueprint's active boundaries from the server, kept on disk for the guard and the pre-tool hook. Null when the
+ * server cannot be reached in `ms` or answers "not ready" (before migration 0054): the kept copy is then left as is.
+ */
+export async function refreshBoundaries(
+  fetchImpl: (url: string, init?: RequestInit) => Promise<Response>,
+  config: CliConfig,
+  gitDir: string | null,
+  ms: number,
+): Promise<Boundary[] | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    // The signal ends the request; the timer also ends the wait when a fetch ignores its signal.
+    const res = await Promise.race([
+      request<{ ready?: unknown; boundaries?: unknown }>(
+        (url, init) => fetchImpl(url, { ...init, signal: AbortSignal.timeout(ms) }),
+        config,
+        "GET",
+        `/api/hooks/${encodeURIComponent(config.projectId)}/boundaries`,
+        undefined,
+        undefined,
+        // At most 500 boundaries of a few hundred characters: a larger answer is not read.
+        MAX_BOUNDARY_BYTES,
+      ),
+      new Promise<never>((_, fail) => {
+        timer = setTimeout(() => fail(new Error("timeout")), ms);
+        timer.unref?.();
+      }),
+    ]);
+    const list = res.ready === true ? validBoundaries(res.boundaries) : null;
+    if (list && gitDir) writeBoundaryCache(gitDir, config.projectId, list);
+    return list;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
