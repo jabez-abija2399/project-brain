@@ -147,7 +147,9 @@ export function readSettings(path: string): UserSettings {
     ...(typeof file?.autoUpdate === "boolean" ? { autoUpdate: file.autoUpdate } : {}),
     ...(typeof file?.stopGate === "boolean" || file?.stopGate === "gentle"
       ? { stopGate: file.stopGate }
-      : {}),
+      : file?.stopGate === "off"
+        ? { stopGate: false }
+        : {}),
     ...(file?.checks ? { checks: validChecks(file.checks) } : {}),
   };
 }

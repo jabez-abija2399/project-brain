@@ -43,7 +43,7 @@ export function configCommand(args: string[], configFile: string, out: Out): voi
     if (value === "gentle") {
       writeSettings(configFile, { stopGate: "gentle" });
       out.stdout(
-        "The stop gate is gentle: when a receipt shows unfinished work, the agent is told what is missing (at most twice per session), without a blocking error.",
+        "The stop gate is gentle: when a receipt shows unfinished work, the agent is told what is missing (at most twice per session); Claude Code gets no blocking error.",
       );
       return;
     }

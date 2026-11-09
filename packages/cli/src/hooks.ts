@@ -130,12 +130,13 @@ async function hookInput(
   ]);
   const cwd = own === other ? claimed : deps.cwd;
   // Roadmap Phase 4a: Cursor counts the follow-ups its stop hooks caused (loop_count); the gate respects it as well.
+  // Antigravity numbers each execution of the conversation (executionNum); a second one is a continuation.
+  const counted = (v: unknown) =>
+    typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
+  const loops = counted(input.loop_count);
+  const execution = counted(input.executionNum);
   const loopCount =
-    typeof input.loop_count === "number" &&
-    Number.isInteger(input.loop_count) &&
-    input.loop_count >= 0
-      ? input.loop_count
-      : null;
+    loops === null && execution === null ? null : Math.max(loops ?? 0, (execution ?? 1) - 1);
   return { sessionId: sessionIdOf(input), cwd, loopCount };
 }
 
@@ -443,7 +444,14 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     // Next to the session state folder, inside .git (never shown to the user, never committed).
     saved = join(dirname(dirname(file)), "codeceipt-start-note.json");
     const passing = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
+    // Security review (Phase 4a): Claude Code and Codex fire SessionStart again on resume, compact and clear with the
+    // same session id. The stop gate's count (and the receipt it replaces) carry over, so a session is never held
+    // back more than MAX_GATE_BLOCKS times by starting again.
+    const before = readState(file);
     const state = {
+      ...(before.gateBlocks > 0 ? { gateBlocks: before.gateBlocks } : {}),
+      ...(before.receiptId ? { receiptId: before.receiptId } : {}),
+      ...(before.stopKey ? { stopKey: before.stopKey } : {}),
       start: await head(deps.git, root),
       passing,
       startedAt: (deps.now?.() ?? new Date()).toISOString(),
@@ -801,11 +809,20 @@ export async function sessionEnd(
     // Real-test F: a session with a recorded request gets a receipt even when it changed no file ("No files changed").
     if (receiptFiles.length > 0 || own.length > 0) {
       const receipts: Record<string, unknown>[] = [];
+      // Security review (Phase 4a): a Stop hook has a time limit (Antigravity 30 s, Codex and Claude Code 60 s as
+      // installed). Receipts get only what is left of a budget below it, keeping time for the gate and the state.
+      const stopBudget = opts.stop ? (_agent === "antigravity" ? 20_000 : 45_000) : null;
+      const startedAt = Date.now();
+      const receiptTimeout = () =>
+        stopBudget === null
+          ? RECEIPT_TIMEOUT_MS
+          : Math.min(RECEIPT_TIMEOUT_MS, stopBudget - (Date.now() - startedAt));
       for (const requestId of own.length > 0 ? own.map((r) => r.id) : [undefined]) {
+        if (receiptTimeout() < 3_000) break;
         // A receipt that fails (AI budget used up, judging unavailable) does not stop progress from being saved.
         try {
           const receipt = JSON.parse(
-            await callTool(timed(deps.fetch, RECEIPT_TIMEOUT_MS), config, "generate_receipt", {
+            await callTool(timed(deps.fetch, receiptTimeout()), config, "generate_receipt", {
               ...(requestId ? { requestId } : {}),
               // One receipt per session: a later Stop or the session end replaces the one made before.
               ...(previous.receiptId && requestId === own[0]?.id
