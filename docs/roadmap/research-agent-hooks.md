@@ -30,3 +30,26 @@ Notes:
   beforeSubmitPrompt/stop/sessionEnd; Codex start/prompt/end (no Stop yet); OpenCode `session.created`; Antigravity
   SessionStart. Gaps to fill: PreToolUse everywhere (Phase 5), Stop for Codex and Antigravity (Phase 4),
   `last_assistant_message` for the claim checker (Phase 10), Codex token usage (Phase 12).
+
+## Re-checked 2026-11-08 (before Phase 4a)
+Sources:
+- Claude Code: https://code.claude.com/docs/en/hooks
+- Cursor: https://cursor.com/docs/agent/hooks
+- Codex: https://learn.chatgpt.com/docs/hooks
+- OpenCode: https://docs.opencode.ai/docs/plugins
+- Antigravity: https://antigravity.google/docs/hooks
+
+| Agent | Stop: input, continue with | Pre-tool: what it sees, how to deny | Prompt hook in the background |
+|---|---|---|---|
+| Claude Code | `stop_hook_active`, `last_assistant_message`. Strict: `{"decision":"block","reason"}`. Gentle: `hookSpecificOutput.additionalContext`. Cap: 8 in a row, reset on any tool call. 10,000-character output. | `tool_name`, `tool_input.file_path` (absolute), `command`. Deny: `permissionDecision:"deny"` plus a reason. A timeout lets the tool run unless `onFailure:"block"`. | Yes: `async:true`, which cannot block. |
+| Cursor | `status`, `loop_count`. Continue: `{"followup_message"}`. `loop_limit` 5 by default. | `preToolUse`: `tool_name`, `tool_input`. Deny: `permission:"deny"`. `ask` is not enforced. `beforeShellExecution`. | No. |
+| Codex | `stop_hook_active`, `last_assistant_message`. Continue: `{"decision":"block","reason"}` (sent as a new prompt). Output capped at about 2,500 tokens. | Bash and `apply_patch` (the patch text is in `tool_input.command`). Deny: `permissionDecision:"deny"`. | No. |
+| OpenCode | Only `session.idle`; no documented way to continue. | `tool.execute.before` (blocking by throwing is undocumented). | No. |
+| Antigravity | `executionNum`, `terminationReason`. Continue: `{"decision":"continue","reason"}`. 30 s timeout. No loop limit. | `toolCall.args.TargetFile` / `CommandLine`. Decisions: allow, deny, ask, and more. | No prompt hook. |
+
+**What Phase 4a does with this:**
+- The gate answers in each agent's own format: `gateAnswer` in `packages/cli/src/stop-gate.ts`.
+- Codex and Antigravity get Stop hooks.
+- The local cap of 2 is also checked against Cursor's `loop_count`.
+- OpenCode stays "report only": it has no documented way to continue.
+

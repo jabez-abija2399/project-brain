@@ -93,13 +93,20 @@ describe("one plugin per agent, from shared templates", () => {
     expect(files.get(`${root}/rules/codeceipt.mdc`)).toMatch(/alwaysApply: true/);
   });
 
-  it("Codex and Antigravity: their own manifest paths and hook shapes (Antigravity: SessionStart only, keyed by hook name)", () => {
+  it("Codex and Antigravity: their own manifest paths and hook shapes (Antigravity: SessionStart and Stop, keyed by hook name)", () => {
     expect(json("plugins/codex/.codex-plugin/plugin.json")).toMatchObject({ name: "codeceipt" });
     const codex = json("plugins/codex/hooks/hooks.json").hooks as Record<
       string,
       { hooks: { timeout: number }[] }[]
     >;
-    expect(Object.keys(codex).sort()).toEqual(["SessionEnd", "SessionStart", "UserPromptSubmit"]);
+    expect(Object.keys(codex).sort()).toEqual([
+      "SessionEnd",
+      "SessionStart",
+      "Stop",
+      "UserPromptSubmit",
+    ]);
+    // Roadmap Phase 4a: the Stop gate for Codex.
+    expect(codex.Stop?.[0]?.hooks[0]?.timeout).toBe(60);
     // Codex allows a SessionEnd hook 3 s at most; codeceipt finishes the receipt in the background.
     expect(codex.SessionEnd?.[0]?.hooks[0]?.timeout).toBe(3);
     expect(files.get("plugins/codex/skills/codeceipt/SKILL.md")).toMatch(/^---\nname: codeceipt\n/);
@@ -113,6 +120,13 @@ describe("one plugin per agent, from shared templates", () => {
           {
             type: "command",
             command: 'sh "${PLUGIN_ROOT}/scripts/codeceipt.sh" hook session-start antigravity',
+            timeout: 30,
+          },
+        ],
+        Stop: [
+          {
+            type: "command",
+            command: 'sh "${PLUGIN_ROOT}/scripts/codeceipt.sh" hook stop antigravity',
             timeout: 30,
           },
         ],
@@ -158,8 +172,8 @@ describe("one plugin per agent, from shared templates", () => {
           k === "command" && typeof x === "string" ? commands.push(x) : walk(x);
     };
     for (const [path, text] of files) if (path.endsWith("hooks.json")) walk(JSON.parse(text));
-    // Claude Code 4, Cursor 4 (with the FEAT-020 stop hook), Codex 3, Antigravity 1.
-    expect(commands.length).toBe(4 + 4 + 3 + 1);
+    // Claude Code 4, Cursor 4 (with the FEAT-020 stop hook), Codex 4 and Antigravity 2 (with the Phase 4a stop hook).
+    expect(commands.length).toBe(4 + 4 + 4 + 2);
     for (const c of commands) {
       expect(c).toMatch(
         /^sh "\$\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\}\/scripts\/codeceipt\.sh" hook (?:session-start|session-end|prompt|stop) (?:claude|cursor|codex|antigravity)$/,

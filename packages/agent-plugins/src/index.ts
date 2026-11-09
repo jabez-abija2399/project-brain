@@ -178,6 +178,8 @@ function codex(): Map<string, string> {
         grouped(root, "codex", [
           ["SessionStart", "session-start", 30],
           ["UserPromptSubmit", "prompt", 10],
+          // Roadmap Phase 4a: the Stop gate ({"decision":"block","reason"} is sent back as a new prompt).
+          ["Stop", "stop", 60],
           // Codex allows 3 s at most: codeceipt starts the receipt in the background and returns.
           ["SessionEnd", "session-end", 3],
         ]),
@@ -209,7 +211,7 @@ function antigravity(): Map<string, string> {
         repository: HOMEPAGE,
       }),
     ],
-    // Antigravity has no prompt-submit or session-end event.
+    // Antigravity has no prompt-submit or session-end event; its Stop event runs the receipt and the gate.
     [
       "hooks.json",
       json({
@@ -224,6 +226,14 @@ function antigravity(): Map<string, string> {
                 "session-start",
                 "antigravity",
               ),
+              timeout: 30,
+            },
+          ],
+          // Roadmap Phase 4a: the Stop gate ({"decision":"continue","reason"}); Antigravity allows 30 s.
+          Stop: [
+            {
+              type: "command",
+              command: hookCmd('"${PLUGIN_ROOT}/scripts/codeceipt.sh"', "stop", "antigravity"),
               timeout: 30,
             },
           ],

@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { CliError, EXIT } from "../api";
-import { readSettings, writeSettings } from "../config";
+import { gateMode, readSettings, writeSettings } from "../config";
 import { INSTALL_PS1, INSTALL_SH, installKind, nativeBuild } from "./install-info";
 import { RELEASE_PUBLIC_KEY } from "./release-key";
 import { type UpdateDeps, type UpdateState, runUpdate, shouldCheck } from "./self-update";
@@ -19,7 +19,8 @@ import { type UpdateDeps, type UpdateState, runUpdate, shouldCheck } from "./sel
 type Out = { stdout: (line: string) => void; stderr: (line: string) => void };
 
 const CONFIG_USAGE =
-  "Usage: codeceipt config auto-update [on|off] | codeceipt config stop-gate [on|off]";
+  "Usage: codeceipt config auto-update [on|off] | codeceipt config stop-gate [on|gentle|off]";
+const GATE_VALUES = new Set(["on", "off", "gentle", "strict"]);
 
 /** `codeceipt config auto-update [on|off]` and (FEAT-020) `codeceipt config stop-gate [on|off]`. */
 export function configCommand(args: string[], configFile: string, out: Out): void {
@@ -27,19 +28,28 @@ export function configCommand(args: string[], configFile: string, out: Out): voi
   if (
     (key !== "auto-update" && key !== "stop-gate") ||
     rest.length > 0 ||
-    (value !== undefined && value !== "on" && value !== "off")
+    (value !== undefined && value !== "on" && value !== "off" && key === "auto-update") ||
+    (value !== undefined && !GATE_VALUES.has(value) && key === "stop-gate")
   ) {
     throw new CliError(EXIT.usage, CONFIG_USAGE);
   }
   if (key === "stop-gate") {
     if (value === undefined) {
-      const on = readSettings(configFile).stopGate !== false;
-      out.stdout(`The stop gate is ${on ? "on" : "off"}.`);
+      const mode = gateMode(readSettings(configFile));
+      out.stdout(`The stop gate is ${mode === "strict" ? "on" : mode}.`);
       return;
     }
-    writeSettings(configFile, { stopGate: value === "on" });
+    // Roadmap Phase 4a: "gentle" tells the agent what is missing without blocking it; "strict" is the same as "on".
+    if (value === "gentle") {
+      writeSettings(configFile, { stopGate: "gentle" });
+      out.stdout(
+        "The stop gate is gentle: when a receipt shows unfinished work, the agent is told what is missing (at most twice per session); Claude Code gets no blocking error.",
+      );
+      return;
+    }
+    writeSettings(configFile, { stopGate: value !== "off" });
     out.stdout(
-      value === "on"
+      value !== "off"
         ? "The stop gate is on: when a receipt shows unfinished work, the agent is told to finish it before stopping (at most twice per session)."
         : "The stop gate is off: receipts are still made, but the agent is never held back.",
     );

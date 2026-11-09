@@ -22,6 +22,17 @@
         ]
       }
     ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh \"${PLUGIN_ROOT}/scripts/codeceipt.sh\" hook stop codex",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [

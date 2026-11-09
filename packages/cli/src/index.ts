@@ -13,6 +13,7 @@ import { DEFAULT_TIMEOUT_S, MAX_TIMEOUT_S, MIN_TIMEOUT_S, checkKey, runCheck } f
 import {
   type CliConfig,
   configPath,
+  gateMode,
   hasAnyLogin,
   legacyConfigPath,
   readConfig,
@@ -514,7 +515,7 @@ async function runAnyHook(
     }),
   );
   return await runHook("hook", args, hookDeps, resolved.config, resolved.problem, {
-    stopGate: readSettings(path).stopGate !== false,
+    ...gateSettings(path),
     ...(await checkStarter(deps, path, deps.cwd)),
   });
 }
@@ -537,7 +538,11 @@ async function runHook(
   deps: CliDeps,
   saved: CliConfig | null,
   problem: string | undefined,
-  settings: { stopGate?: boolean; startCheck?: (receiptId: string) => void } = {},
+  settings: {
+    stopGate?: boolean;
+    gentleGate?: boolean;
+    startCheck?: (receiptId: string) => void;
+  } = {},
 ): Promise<number> {
   const config = saved && isSafeApiUrl(saved.apiUrl) ? saved : null;
   const hookDeps = {
@@ -551,6 +556,7 @@ async function runHook(
     stdout: deps.stdout,
     stderr: deps.stderr,
     ...(settings.stopGate ? { stopGate: true } : {}),
+    ...(settings.gentleGate ? { gentleGate: true } : {}),
     ...(settings.startCheck ? { startCheck: settings.startCheck } : {}),
   };
   try {
@@ -644,11 +650,14 @@ async function runAgentHook(args: string[], deps: CliDeps, path: string): Promis
     stdout: deps.stdout,
     stderr: deps.stderr,
     ...(await checkStarter(deps, path, dir)),
+    ...gateSettings(path),
   };
   try {
     if (event === "session-start") await sessionStart(agent, hookDeps);
     else if (event === "session-end") await sessionEnd(agent, hookDeps);
-    else deps.stderr("Codeceipt: unknown hook (use session-start or session-end).");
+    // Roadmap Phase 4a: Codex and Antigravity Stop events run the same receipt and gate as Claude Code's.
+    else if (event === "stop") await sessionEnd(agent, hookDeps, { stop: true });
+    else deps.stderr("Codeceipt: unknown hook (use session-start, stop or session-end).");
   } catch {
     deps.stderr("Codeceipt: the hook failed; the session goes on without it.");
   }
@@ -1004,4 +1013,11 @@ async function runLiveRls(deps: CliDeps, path: string): Promise<number> {
     `Live database: ${flags.tables.length} tables; ${open.length > 0 ? `open to anyone: ${open.join(", ")}` : "none open to anyone"}.`,
   );
   return EXIT.ok;
+}
+
+// The stop gate's settings for a hook: off, gentle (tell without blocking) or strict (on; the default).
+function gateSettings(path: string): { stopGate?: boolean; gentleGate?: boolean } {
+  const mode = gateMode(readSettings(path));
+  if (mode === "off") return {};
+  return mode === "gentle" ? { stopGate: true, gentleGate: true } : { stopGate: true };
 }
