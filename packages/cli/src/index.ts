@@ -514,6 +514,16 @@ async function runAnyHook(
       return EXIT.ok;
     }
   }
+  // Roadmap Phase 5b: runs before every file edit, so it is kept apart (no run record, no server, no AI).
+  if (event === "pre-tool") {
+    const { runPreToolHook } = await import("./pre-tool-hook");
+    await runPreToolHook(agent, await input(), folder, {
+      git: deps.git ?? runGit,
+      stdout: deps.stdout,
+      configFile: path,
+    }).catch(() => {});
+    return EXIT.ok;
+  }
   if (event && !args.includes("--worker")) {
     const git = deps.git ?? runGit;
     const root = await repoRoot(git, folder).catch(() => folder);
