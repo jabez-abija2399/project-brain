@@ -28,6 +28,7 @@ const STOP = new Set([
 const words = (text: string) =>
   (
     plainText(text)
+      .normalize("NFC")
       .toLowerCase()
       .match(/[\p{L}\p{N}]+/gu) ?? []
   ).filter((w) => w.length >= 3 && !STOP.has(w));
@@ -48,7 +49,13 @@ export function matchFeatureByWords<F extends { id: string; name: string }>(
   let tie = false;
   for (const f of features) {
     const need = [...new Set(words(f.name))];
-    if (need.length === 0 || !need.every(has)) continue;
+    if (need.length === 0) continue;
+    // Security review (Phase 5c): a one-word name ("api", "users") needs the exact word and at least 4 letters, so a
+    // common word does not hand the agent an unrelated feature's rules.
+    if (need.length === 1) {
+      const [only] = need;
+      if (!only || only.length < 4 || !said.has(only)) continue;
+    } else if (!need.every(has)) continue;
     if (need.length > bestScore) {
       best = f;
       bestScore = need.length;
@@ -89,7 +96,9 @@ export function definitionOfDone(input: DoneNoteInput): string | null {
     ],
   ];
   if (sections.every(([, items]) => items.length === 0)) return null;
-  const out = [`Codeceipt (project data): definition of done for "${line(input.feature)}".`];
+  // The name is shown without double quotes, so it cannot close the quotes and read as text of its own.
+  const name = line(input.feature).replace(/"/g, "'");
+  const out = [`Codeceipt (project data): definition of done for "${name}".`];
   for (const [title, items] of sections) {
     if (items.length === 0) continue;
     const next = [`${title}:`, ...items.map((i) => `- ${i}`)];

@@ -235,4 +235,12 @@ Status values: not started, in progress, merged, blocked (with reason).
   - Any failure means no note, and the prompt is never held up longer or blocked.
   - Recording the request still runs in the background, unchanged.
 - **Not covered:** Cursor (its prompt hook cannot add context) and the other agents.
+- **Security review (fresh context): all 6 findings fixed, with attack tests (PH5C-11, PH5C-12).**
+  - **Moderate:** the whole lookup (git included) is bounded by the 1.5 s limit.
+  - **Minor:**
+    - A one-word feature name needs the exact word, at least 4 letters long.
+    - A name's quotes cannot close the note's header.
+    - The request body is read up to 32 KB.
+    - Up to 1,000 features and all active boundaries are read.
+    - The CLI also strips zero-width and tag characters, and names match in NFC.
 - **Moved to 5d:** opt-in "prove it" runs.

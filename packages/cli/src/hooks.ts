@@ -19,6 +19,7 @@ import {
   brandEnv,
   isCodeceiptSetupPath,
   oneLineText,
+  plainText,
   withoutAgentsSection,
 } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
@@ -102,7 +103,8 @@ const MARKS = /[\u061c\u200e\u200f]/g;
 export const clean = (text: string, max: number) =>
   text
     .split("\n")
-    .map((l) => oneLineText(l).replace(MARKS, ""))
+    // plainText also drops zero-width marks, variation selectors and tag characters (security review, Phase 5c).
+    .map((l) => plainText(l).replace(MARKS, ""))
     .join("\n")
     .slice(0, max);
 const line = (text: string) => oneLineText(text).replace(MARKS, "").slice(0, MAX_LINE_CHARS);

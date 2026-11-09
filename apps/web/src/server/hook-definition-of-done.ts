@@ -9,7 +9,8 @@ import { AppError } from "./errors";
 import { blueprintEnabled } from "./migration-check";
 
 const MAX_REQUEST = 8_000;
-const MAX_FEATURES = 200;
+// Every feature of a project is compared (names only): one beyond the first 200 by name must still match.
+const MAX_FEATURES = 1_000;
 
 export async function hookDefinitionOfDone(
   db: BrainDb,
@@ -30,7 +31,8 @@ export async function hookDefinitionOfDone(
   if (!feature) return { feature: null, note: null };
   const [criteria, boundaries, tests] = await Promise.all([
     criteriaRepo.activeForFeature(db, projectId, feature.id, 30),
-    boundariesRepo.active(db, projectId, 50),
+    // Every active boundary (the Blueprint keeps at most 500), so dependency rules never push protected paths out.
+    boundariesRepo.active(db, projectId, 500),
     criteriaRepo.testsForFeature(db, projectId, feature.id, 5),
   ]);
   const note = definitionOfDone({
