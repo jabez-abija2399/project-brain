@@ -41,3 +41,10 @@ export {
   groupBy,
 } from "./discover";
 export { MAX_RISKS, type Risk, type RiskKind, type SafetyInput, safetyCheck } from "./safety";
+export {
+  type BoundaryHit,
+  type BoundaryHitKind,
+  MAX_BOUNDARY_HITS,
+  checkBoundaries,
+  globMatch,
+} from "./boundary-check";

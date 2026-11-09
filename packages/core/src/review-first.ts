@@ -35,6 +35,12 @@ export function reviewFirst(view: ReceiptView): ReviewPlace[] {
       add(f.file, "a database table's protection is off or open to anyone");
     } else add(f.file, "a secret key was found in this file");
   }
+  const boundaryWhy = {
+    protected_path: "changed a path the owner protected",
+    disallowed_dependency: "added a package the owner disallowed",
+    not_allowed_dependency: "added a package that is not on the owner's allowed list",
+  } as const;
+  for (const h of view.boundaryHits ?? []) add(h.subject, boundaryWhy[h.kind]);
   for (const c of view.testChecks) {
     if (!c.asked) add(c.file, `tests changed here: ${short(c.label).toLowerCase()} (${c.count})`);
   }
