@@ -139,29 +139,31 @@ absent; where_did_we_stop with features: true answers it)", then run
 
 **Check:** `python3 scripts/kit.py show FEAT-011` shows the new wording.
 
-## 8. Release CLI 0.3.6 (fast hooks, stop gate modes) — pending
+## 8. Release CLI 0.3.7 (fast hooks, stop gate modes, Codeceipt Guard) — pending
 
-**Why:** it replaces 0.3.5, which was never released, and contains:
+**Why:** it replaces 0.3.5 and 0.3.6, which were never released, and contains:
 - **Phase 2b:** every hook starts about 5× faster (the indexer loads only for `codeceipt index`), and the start note
   has a saved fallback when the server is slow.
 - **Phase 4a:** the stop gate has a gentle mode. Codex and Antigravity are also held back when work is unfinished.
   The gate respects Cursor's own loop count, and still works when the AI receipt cannot be made.
+- **Phase 5a:** `codeceipt guard` checks a commit (`--staged`, as a pre-commit hook offered at setup) or a branch
+  (`--ci`) for weakened tests, new secrets, hidden characters and the Blueprint's boundaries.
 
 Users get all of this through the release.
 
-**Steps (after the Phase 4a PR is merged):**
-1. **Create the tag** on GitHub: **Releases** → **Draft a new release** → **Choose a tag** → type `cli-v0.3.6` →
+**Steps (after the Phase 5a PR is merged):**
+1. **Create the tag** on GitHub: **Releases** → **Draft a new release** → **Choose a tag** → type `cli-v0.3.7` →
    **Create new tag on publish**, target `main`. Creating the tag is enough; you don't need to publish the release.
    From a computer instead:
-   `git checkout main && git pull && git tag cli-v0.3.6 && git push origin cli-v0.3.6`
+   `git checkout main && git pull && git tag cli-v0.3.7 && git push origin cli-v0.3.7`
 2. **Approve the run:** Actions → the **release-cli** run → approve **release** twice (GitHub release, then npm).
-3. **Tell Claude** "0.3.6 is released". It pins the website installers to it from the signed manifest
+3. **Tell Claude** "0.3.7 is released". It pins the website installers to it from the signed manifest
    (`apps/web/src/lib/cli-release.json`) and opens the PR.
 4. **Update the plugins:** users of the Codex and Antigravity plugins update them from their marketplace to get the
    new Stop hook.
 
-**Check:** https://www.npmjs.com/package/codeceipt shows 0.3.6 with provenance, and `codeceipt --version` prints
-0.3.6 after `codeceipt update`.
+**Check:** https://www.npmjs.com/package/codeceipt shows 0.3.7 with provenance, and `codeceipt --version` prints
+0.3.7 after `codeceipt update`.
 
 ---
 

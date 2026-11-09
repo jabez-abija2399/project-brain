@@ -100,3 +100,10 @@ apps/web/src/app/api/projects/[[]id]/features/features.test.ts # Phase 2b: index
 apps/web/src/server/real-test-replay.test.ts # Phase 2b: npx fallback pinned to 0.3.5
 packages/agent-plugins/marketplace/* # Phase 2b: plugin versions follow the CLI
 apps/web/src/server/server-imports.test.ts # Phase 2b: the import walk follows the @brain/core/indexer subpath
+packages/core/src/guard*.ts # Phase 5a: Codeceipt Guard checks
+packages/core/src/hidden-chars.ts # Phase 5a: hidden and lookalike characters
+packages/cli/src/* # Phase 5a: codeceipt guard, boundary cache, config guard, setup offer, CLI 0.3.7
+apps/web/src/app/api/hooks/[[]projectId]/boundaries/* # Phase 5a: the guard's boundaries
+apps/web/src/server/hook-boundaries* # Phase 5a
+packages/agent-plugins/marketplace/* # Phase 5a: plugin versions follow the CLI (0.3.7)
+apps/web/src/server/real-test-replay.test.ts # Phase 5a: npx fallback pinned to 0.3.7

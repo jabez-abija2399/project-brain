@@ -208,3 +208,8 @@ export {
   isPlanId,
   monthStart,
 } from "./plans";
+// Roadmap Phase 5: Codeceipt Guard (checks a change before it is committed or merged).
+export { guardCheck, MAX_GUARD_FINDINGS, newLines, newPackageNames } from "./guard";
+export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
+export { findHiddenChars } from "./hidden-chars";
+export type { HiddenChar, HiddenKind } from "./hidden-chars";
