@@ -36,11 +36,16 @@ describe("one plugin per agent, from shared templates", () => {
       { hooks: { command: string; timeout: number }[] }[]
     >;
     expect(Object.keys(hooks).sort()).toEqual([
+      "PreToolUse",
       "SessionEnd",
       "SessionStart",
       "Stop",
       "UserPromptSubmit",
     ]);
+    // Roadmap Phase 5b: only file-writing tools are checked before they run.
+    expect((hooks.PreToolUse?.[0] as { matcher?: string } | undefined)?.matcher).toBe(
+      "Edit|Write|MultiEdit|NotebookEdit",
+    );
     expect(hooks.SessionStart?.[0]?.hooks[0]?.command).toBe(
       'sh "${CLAUDE_PLUGIN_ROOT}/scripts/codeceipt.sh" hook session-start claude',
     );
@@ -76,6 +81,7 @@ describe("one plugin per agent, from shared templates", () => {
     const hooks = doc.hooks as Record<string, { command: string }[]>;
     expect(Object.keys(hooks).sort()).toEqual([
       "beforeSubmitPrompt",
+      "preToolUse",
       "sessionEnd",
       "sessionStart",
       "stop",
@@ -100,11 +106,15 @@ describe("one plugin per agent, from shared templates", () => {
       { hooks: { timeout: number }[] }[]
     >;
     expect(Object.keys(codex).sort()).toEqual([
+      "PreToolUse",
       "SessionEnd",
       "SessionStart",
       "Stop",
       "UserPromptSubmit",
     ]);
+    expect((codex.PreToolUse?.[0] as { matcher?: string } | undefined)?.matcher).toBe(
+      "apply_patch",
+    );
     // Roadmap Phase 4a: the Stop gate for Codex.
     expect(codex.Stop?.[0]?.hooks[0]?.timeout).toBe(60);
     // Codex allows a SessionEnd hook 3 s at most; codeceipt finishes the receipt in the background.
@@ -121,6 +131,13 @@ describe("one plugin per agent, from shared templates", () => {
             type: "command",
             command: 'sh "${PLUGIN_ROOT}/scripts/codeceipt.sh" hook session-start antigravity',
             timeout: 30,
+          },
+        ],
+        PreToolUse: [
+          {
+            type: "command",
+            command: 'sh "${PLUGIN_ROOT}/scripts/codeceipt.sh" hook pre-tool antigravity',
+            timeout: 10,
           },
         ],
         Stop: [
@@ -172,11 +189,11 @@ describe("one plugin per agent, from shared templates", () => {
           k === "command" && typeof x === "string" ? commands.push(x) : walk(x);
     };
     for (const [path, text] of files) if (path.endsWith("hooks.json")) walk(JSON.parse(text));
-    // Claude Code 4, Cursor 4 (with the FEAT-020 stop hook), Codex 4 and Antigravity 2 (with the Phase 4a stop hook).
-    expect(commands.length).toBe(4 + 4 + 4 + 2);
+    // Claude Code 5, Cursor 5, Codex 5 and Antigravity 3: the earlier hooks plus the Phase 5b pre-tool hook.
+    expect(commands.length).toBe(5 + 5 + 5 + 3);
     for (const c of commands) {
       expect(c).toMatch(
-        /^sh "\$\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\}\/scripts\/codeceipt\.sh" hook (?:session-start|session-end|prompt|stop) (?:claude|cursor|codex|antigravity)$/,
+        /^sh "\$\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\}\/scripts\/codeceipt\.sh" hook (?:session-start|session-end|prompt|stop|pre-tool) (?:claude|cursor|codex|antigravity)$/,
       );
     }
   });

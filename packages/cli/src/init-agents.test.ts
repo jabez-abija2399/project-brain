@@ -105,7 +105,11 @@ describe("D-021 init: OpenAI Codex", () => {
 
     const hooks = json(t.repo, ".codex/hooks.json");
     expect(hooks.description).toBe("mine");
-    expect(hooks.hooks.PreToolUse).toEqual(userHooks.hooks.PreToolUse);
+    // The user's own PreToolUse hook stays first; Phase 5b adds codeceipt's apply_patch check after it.
+    expect(hooks.hooks.PreToolUse[0]).toEqual(userHooks.hooks.PreToolUse[0]);
+    expect(hooks.hooks.PreToolUse).toHaveLength(2);
+    expect(hooks.hooks.PreToolUse[1].matcher).toBe("apply_patch");
+    expect(hooks.hooks.PreToolUse[1].hooks[0].command).toContain("hook pre-tool --agent codex");
     expect(hooks.hooks.SessionStart).toEqual([
       userHooks.hooks.SessionStart[0],
       {

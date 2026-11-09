@@ -209,6 +209,10 @@ export async function refreshBoundaries(
         config,
         "GET",
         `/api/hooks/${encodeURIComponent(config.projectId)}/boundaries`,
+        undefined,
+        undefined,
+        // At most 500 boundaries of a few hundred characters: a larger answer is not read.
+        MAX_BOUNDARY_BYTES,
       ),
       new Promise<never>((_, fail) => {
         timer = setTimeout(() => fail(new Error("timeout")), ms);

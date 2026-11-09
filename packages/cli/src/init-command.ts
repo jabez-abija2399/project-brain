@@ -34,6 +34,7 @@ import {
   OPENCODE_PLUGIN,
   OPENCODE_PLUGIN_PATH,
   OPENCODE_PLUGIN_V1,
+  PRE_TOOL_HOOK,
   PROMPT_HOOK,
   SERVER_NAME,
   SHARED_SKILL,
@@ -501,7 +502,13 @@ const groupHooks =
       return { added: [], problems: ["hooks is not an object; left unchanged"] };
     }
     // An event whose list has an odd shape leaves the whole file as it is (nothing half set up).
-    const odd = oddHookLists(doc.hooks, ["SessionStart", "SessionEnd", "UserPromptSubmit", "Stop"]);
+    const odd = oddHookLists(doc.hooks, [
+      "SessionStart",
+      "SessionEnd",
+      "UserPromptSubmit",
+      "Stop",
+      "PreToolUse",
+    ]);
     if (odd.length > 0) return { added: [], problems: odd };
     doc.hooks ??= {};
     const hooks = doc.hooks as Json;
@@ -545,6 +552,17 @@ const groupHooks =
       ...(agent === "claude"
         ? [addHook(hooks, "Stop", entry(STOP_HOOK(agent), 60), ours(STOP_HOOK(agent)), () => false)]
         : []),
+      // Roadmap Phase 5b: file edits under a protected path are denied before they happen (Codex: apply_patch).
+      addHook(
+        hooks,
+        "PreToolUse",
+        {
+          matcher: agent === "claude" ? "Edit|Write|MultiEdit|NotebookEdit" : "apply_patch",
+          ...entry(PRE_TOOL_HOOK(agent), 10),
+        },
+        ours(PRE_TOOL_HOOK(agent)),
+        () => false,
+      ),
     );
   };
 
@@ -552,7 +570,13 @@ const cursorHooks = (doc: Json): Change => {
   if (doc.hooks !== undefined && !isObject(doc.hooks)) {
     return { added: [], problems: ["hooks is not an object; left unchanged"] };
   }
-  const odd = oddHookLists(doc.hooks, ["sessionStart", "sessionEnd", "beforeSubmitPrompt", "stop"]);
+  const odd = oddHookLists(doc.hooks, [
+    "sessionStart",
+    "sessionEnd",
+    "beforeSubmitPrompt",
+    "stop",
+    "preToolUse",
+  ]);
   if (odd.length > 0) return { added: [], problems: odd };
   const hooks = (isObject(doc.hooks) ? doc.hooks : {}) as Json;
   const ours = (command: string) => (item: unknown) =>
@@ -587,6 +611,14 @@ const cursorHooks = (doc: Json): Change => {
       "stop",
       { command: shellHook(STOP_HOOK("cursor")), timeout: 60 },
       ours(STOP_HOOK("cursor")),
+      () => false,
+    ),
+    // Roadmap Phase 5b: Cursor reads {"permission":"deny"} from a preToolUse hook.
+    addHook(
+      hooks,
+      "preToolUse",
+      { command: shellHook(PRE_TOOL_HOOK("cursor")), timeout: 10 },
+      ours(PRE_TOOL_HOOK("cursor")),
       () => false,
     ),
   );

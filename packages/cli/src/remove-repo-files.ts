@@ -26,6 +26,7 @@ import {
   CURSOR_RULE_PATH,
   END_HOOK,
   OPENCODE_PLUGIN_PATH,
+  PRE_TOOL_HOOK,
   PROMPT_HOOK,
   SERVER_NAME,
   SHARED_SKILL,
@@ -214,6 +215,7 @@ export function removeRepoFiles(root: string, home: string): string[] {
         ["SessionEnd", END_HOOK("claude")],
         ["UserPromptSubmit", PROMPT_HOOK("claude")],
         ["Stop", STOP_HOOK("claude")],
+        ["PreToolUse", PRE_TOOL_HOOK("claude")],
       ];
       r.json(".claude/settings.json", hooksIn(events, true));
       r.json(".mcp.json", removeServer("mcpServers", claudeServer));
@@ -224,6 +226,7 @@ export function removeRepoFiles(root: string, home: string): string[] {
         ["sessionEnd", END_HOOK("cursor")],
         ["beforeSubmitPrompt", PROMPT_HOOK("cursor")],
         ["stop", STOP_HOOK("cursor")],
+        ["preToolUse", PRE_TOOL_HOOK("cursor")],
       ];
       r.json(".cursor/hooks.json", hooksIn(events, false));
       r.json(
@@ -236,6 +239,7 @@ export function removeRepoFiles(root: string, home: string): string[] {
         ["SessionStart", START_HOOK("codex")],
         ["SessionEnd", END_HOOK("codex")],
         ["UserPromptSubmit", PROMPT_HOOK("codex")],
+        ["PreToolUse", PRE_TOOL_HOOK("codex")],
       ];
       r.json(".codex/hooks.json", hooksIn(events, true));
       r.codexToml(".codex/config.toml");
