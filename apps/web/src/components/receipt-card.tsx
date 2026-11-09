@@ -210,7 +210,7 @@ export function ReceiptCard({
                   <li key={`${h.kind}-${h.subject}`} className="wrap">
                     <code className="wrap">{h.subject}</code>
                     {h.kind === "protected_path"
-                      ? ` is under a protected path (${h.pattern})`
+                      ? ` is under a protected path${readOnly ? "" : ` (${h.pattern})`}`
                       : h.kind === "disallowed_dependency"
                         ? " is a package the owner disallowed"
                         : " is not on the owner's allowed packages"}

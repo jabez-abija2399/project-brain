@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_BOUNDARY_HITS, checkBoundaries, globMatch } from "./boundary-check";
+import { MATCH_BUDGET, MAX_BOUNDARY_HITS, checkBoundaries, globMatch } from "./boundary-check";
 
 describe("Blueprint boundaries checked on a receipt (roadmap Phase 4c)", () => {
   it("PH4C-01 glob patterns: ** crosses folders, * and ? stay within one, a bare name matches anywhere", () => {
@@ -48,5 +48,27 @@ describe("Blueprint boundaries checked on a receipt (roadmap Phase 4c)", () => {
     const started = Date.now();
     expect(globMatch(`${"*".repeat(100)}b`, "a".repeat(400))).toBe(false);
     expect(Date.now() - started).toBeLessThan(200);
+  });
+
+  it("PH4C-07 folders are matched however the owner types them; **/ only continues at a folder start", () => {
+    for (const p of ["./supabase/**", "/supabase/**", "supabase/", "supabase", "Supabase/**"]) {
+      expect(globMatch(p, "supabase/a.sql"), p).toBe(true);
+    }
+    expect(globMatch("**/.env", "config.env")).toBe(false);
+    expect(globMatch("**/.env", "apps/web/.env")).toBe(true);
+    expect(globMatch("src/**/secret.ts", "src/mysecret.ts")).toBe(false);
+  });
+
+  it("PH4C-08 attack: crafted long paths and patterns stay within a work budget", () => {
+    const patterns = Array.from({ length: 50 }, (_, i) => ({
+      kind: "protected_path",
+      pattern: `${"a/*?".repeat(49)}${i}`,
+    }));
+    const files = Array.from({ length: 300 }, (_, i) => `${"a/".repeat(510)}${i}`);
+    const started = Date.now();
+    const hits = checkBoundaries({ files, dependencies: [], boundaries: patterns });
+    expect(Date.now() - started).toBeLessThan(1500);
+    expect(hits).toEqual([]);
+    expect(MATCH_BUDGET).toBeGreaterThan(0);
   });
 });

@@ -526,7 +526,8 @@ async function receiptBoundaryHits(
 ): Promise<BoundaryHit[]> {
   if (!(await blueprintEnabled(db))) return [];
   try {
-    const boundaries = await boundariesRepo.active(db, pid);
+    // Every active boundary (the Blueprint keeps at most 500), not only the oldest 50.
+    const boundaries = await boundariesRepo.active(db, pid, 500);
     if (boundaries.length === 0) return [];
     return checkBoundaries({ files, dependencies, boundaries }).map((h) => ({
       kind: h.kind,
