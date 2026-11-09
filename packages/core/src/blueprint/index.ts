@@ -45,6 +45,7 @@ export {
   type BoundaryHit,
   type BoundaryHitKind,
   MAX_BOUNDARY_HITS,
+  boundaryCheck,
   checkBoundaries,
   globMatch,
 } from "./boundary-check";

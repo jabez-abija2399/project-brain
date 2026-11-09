@@ -3,7 +3,7 @@
 // disallowed, and no file too large to review. Pure and deterministic: the CLI passes the before/after texts of the
 // changed files; every finding names the file (masked), the line when there is one, what is wrong and the exact fix.
 // Never the source line or a secret value.
-import { checkBoundaries } from "./blueprint/boundary-check";
+import { boundaryCheck } from "./blueprint/boundary-check";
 import { safeDisplay, safePath } from "./fix-prompt";
 import { findHiddenChars } from "./hidden-chars";
 import { addedDependencies } from "./package-check";
@@ -23,7 +23,10 @@ export type GuardRule =
   | "protected_path"
   | "disallowed_dependency"
   | "not_allowed_dependency"
-  | "file_too_large";
+  | "boundaries_incomplete"
+  | "file_too_large"
+  | "file_unreadable"
+  | "too_many_files";
 
 export type GuardFinding = {
   rule: GuardRule;
@@ -39,10 +42,18 @@ export type GuardFile = {
   after: string | null;
   /** Bigger than the CLI reads (1 MB): reported, never scanned. */
   tooLarge?: boolean;
+  /** Could not be read (a symlink, a folder, a read error): reported, since it was not checked. */
+  unreadable?: boolean;
+  /** Binary by kind (an image, a font, an archive): not read as text and not reported. */
+  binary?: boolean;
 };
 
 export type GuardInput = {
   files: GuardFile[];
+  /** Every changed path, for the boundaries (defaults to the files' paths). */
+  paths?: string[];
+  /** How many changed files were not read at all (the CLI reads at most 500). */
+  unreadFiles?: number;
   /** Package names this change added (see newPackageNames). */
   dependencies?: string[];
   /** The Blueprint's active boundaries; null or absent when they could not be read. */
@@ -149,7 +160,7 @@ const BOUNDARY = {
 export function guardCheck(input: GuardInput): GuardFinding[] {
   const out: GuardFinding[] = [];
   const changes: FileChange[] = input.files
-    .filter((f) => !f.tooLarge)
+    .filter((f) => !f.tooLarge && !f.unreadable && !f.binary)
     .map((f) => ({ path: f.path, before: f.before, after: f.after }));
   out.push(...checkTestIntegrity(changes).map(integrityFinding));
   const order: GuardRule[] = [
@@ -161,7 +172,7 @@ export function guardCheck(input: GuardInput): GuardFinding[] {
   ];
   out.sort((a, b) => order.indexOf(a.rule) - order.indexOf(b.rule));
   for (const f of input.files) {
-    if (f.tooLarge || f.after === null) continue;
+    if (f.tooLarge || f.unreadable || f.binary || f.after === null) continue;
     const added = newLines(f.before, f.after);
     if (added.size === 0) continue;
     for (const s of scanSecrets(f.path, f.after)) {
@@ -188,8 +199,8 @@ export function guardCheck(input: GuardInput): GuardFinding[] {
     }
   }
   if (input.boundaries && input.boundaries.length > 0) {
-    const hits = checkBoundaries({
-      files: input.files.map((f) => f.path),
+    const { hits, complete } = boundaryCheck({
+      files: input.paths ?? input.files.map((f) => f.path),
       dependencies: input.dependencies ?? [],
       boundaries: input.boundaries,
     });
@@ -202,6 +213,14 @@ export function guardCheck(input: GuardInput): GuardFinding[] {
         fix: b.fix,
       });
     }
+    if (!complete) {
+      out.push({
+        rule: "boundaries_incomplete",
+        file: "(this change)",
+        what: "The Blueprint's boundaries could not be checked in full (very long paths, or too many to compare).",
+        fix: "Shorten the long paths or split the change into smaller commits, then run the guard again.",
+      });
+    }
   }
   for (const f of input.files) {
     if (!f.tooLarge) continue;
@@ -212,5 +231,25 @@ export function guardCheck(input: GuardInput): GuardFinding[] {
       fix: "Keep generated or binary files out of the repo (add them to .gitignore), or split the file.",
     });
   }
-  return out.slice(0, MAX_GUARD_FINDINGS);
+  for (const f of input.files) {
+    if (!f.unreadable) continue;
+    out.push({
+      rule: "file_unreadable",
+      file: safePath(f.path),
+      what: "This file could not be read (a symlink, a folder or a read error), so it was not checked.",
+      fix: "Replace the symlink with the real file, or check the file's permissions, then run the guard again.",
+    });
+  }
+  if ((input.unreadFiles ?? 0) > 0) {
+    out.push({
+      rule: "too_many_files",
+      file: "(this change)",
+      what: `${input.unreadFiles} more changed files were not checked (at most 500 are read).`,
+      fix: "Split the change into smaller commits so every file is checked.",
+    });
+  }
+  // The "could not check" findings come last but are never cut off by the limit.
+  const meta = out.filter((f) => f.rule === "too_many_files" || f.rule === "boundaries_incomplete");
+  const rest = out.filter((f) => !meta.includes(f));
+  return [...rest.slice(0, MAX_GUARD_FINDINGS - meta.length), ...meta];
 }

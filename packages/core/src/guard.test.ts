@@ -130,4 +130,47 @@ describe("Codeceipt Guard (roadmap Phase 5)", () => {
     ]);
     expect(findHiddenChars('const ok = "\u2764\ufe0f";')).toEqual([]);
   });
+
+  it("PH5-19 attack (security review): blank-looking identifiers, joiner tricks and all-lookalike words are flagged", () => {
+    const lines = [
+      "const \u3164 = 1;",
+      "const a\u034fb = 2;",
+      "const x = 'a\ufe0f\ufe0f';",
+      "user.\u0430\u0441\u0441\u0435\u0455\u0455 = true;",
+      "const ok = t('\u043f\u0440\u0438\u0432\u0435\u0442');",
+    ].join("\n");
+    expect(findHiddenChars(lines).map((h) => `${h.line} ${h.kind}`)).toEqual([
+      "1 invisible",
+      "2 invisible",
+      "3 invisible",
+      "4 lookalike",
+    ]);
+  });
+
+  it("PH5-20 attack (security review): an unread file, a cut-off change and an incomplete boundary check are problems", () => {
+    const long = `${"deep/".repeat(210)}x.ts`;
+    const findings = guardCheck({
+      files: [{ path: "link.ts", before: null, after: null, unreadable: true }],
+      paths: [long, "supabase/migrations/1.sql"],
+      unreadFiles: 3,
+      boundaries: [{ kind: "protected_path", pattern: "supabase/migrations/**" }],
+    });
+    expect(findings.map((f) => f.rule)).toEqual([
+      "protected_path",
+      "file_unreadable",
+      "boundaries_incomplete",
+      "too_many_files",
+    ]);
+  });
+
+  it("PH5-21 binary files by kind are skipped without a finding; text with a NUL byte is still scanned", () => {
+    const nul = "\u0000";
+    const findings = guardCheck({
+      files: [
+        { path: "logo.png", before: null, after: null, binary: true },
+        { path: "src/a.ts", before: null, after: `// ${nul}\nconst k = "${fakeKey()}";` },
+      ],
+    });
+    expect(findings.map((f) => `${f.rule} ${f.file}:${f.line}`)).toEqual(["secret src/a.ts:2"]);
+  });
 });

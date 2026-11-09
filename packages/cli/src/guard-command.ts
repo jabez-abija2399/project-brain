@@ -91,12 +91,37 @@ const show = (git: Git, root: string, spec: string) =>
     (t) => t,
     () => null,
   );
+// The object's size, before reading it (a file larger than git's read buffer would otherwise fail unseen); null when
+// the path does not exist in that version.
+const sizeOf = (git: Git, root: string, spec: string) =>
+  git(["cat-file", "-s", spec], root).then(
+    (o) => Number.parseInt(o.trim(), 10),
+    () => null,
+  );
+
+// Files that are binary by kind (images, fonts, archives, media) are not read as text; anything else with a NUL byte
+// is still scanned (JavaScript allows NUL in strings and comments, so it is no reason to skip a file).
+const BINARY =
+  /\.(png|jpe?g|gif|webp|avif|ico|bmp|tiff?|pdf|zip|gz|tgz|bz2|xz|7z|rar|jar|woff2?|ttf|otf|eot|mp[34]|m4a|mov|webm|ogg|wav|flac|wasm)$/i;
 
 /** The before and after text of one changed file; binary files have none, files over 1 MB are only named. */
-async function readFile(git: Git, root: string, path: string, source: Source, base: string | null) {
+async function readFile(
+  git: Git,
+  root: string,
+  path: string,
+  source: Source,
+  base: string | null,
+): Promise<GuardFile> {
+  if (BINARY.test(path)) return { path, before: null, after: null, binary: true };
   // "<commit>:./<path>" and ":./<path>" (the staged copy): git reads them from its objects, never from a path outside.
   const beforeSpec = base ? `${base}:./${path}` : null;
-  const before = beforeSpec ? await show(git, root, beforeSpec) : null;
+  const beforeSize = beforeSpec ? await sizeOf(git, root, beforeSpec) : null;
+  if (beforeSize !== null && beforeSize > MAX_SCAN_BYTES) {
+    return { path, before: null, after: null, tooLarge: true };
+  }
+  const before = beforeSpec && beforeSize !== null ? await show(git, root, beforeSpec) : null;
+  if (beforeSize !== null && before === null)
+    return { path, before: null, after: null, unreadable: true };
   let after: string | null;
   if (source.kind === "worktree") {
     const abs = join(root, path);
@@ -109,23 +134,29 @@ async function readFile(git: Git, root: string, path: string, source: Source, ba
       }
     })();
     const st = lstatSync(abs, { throwIfNoEntry: false });
-    if (!st?.isFile() || !real || !real.startsWith(realpathSync(root) + sep)) after = null;
-    else if (st.size > MAX_SCAN_BYTES) return { path, before: null, after: null, tooLarge: true };
+    if (!st) after = null;
+    else if (!st.isFile() || !real || !real.startsWith(realpathSync(root) + sep)) {
+      return { path, before: null, after: null, unreadable: true };
+    } else if (st.size > MAX_SCAN_BYTES) return { path, before: null, after: null, tooLarge: true };
     else {
       try {
         after = readFileSync(abs, "utf8");
       } catch {
-        after = null;
+        return { path, before: null, after: null, unreadable: true };
       }
     }
   } else {
-    after = await show(git, root, source.kind === "staged" ? `:./${path}` : `HEAD:./${path}`);
+    const spec = source.kind === "staged" ? `:./${path}` : `HEAD:./${path}`;
+    const size = await sizeOf(git, root, spec);
+    if (size !== null && size > MAX_SCAN_BYTES)
+      return { path, before: null, after: null, tooLarge: true };
+    after = size === null ? null : await show(git, root, spec);
+    if (size !== null && after === null)
+      return { path, before: null, after: null, unreadable: true };
   }
   if ((after?.length ?? 0) > MAX_SCAN_BYTES)
     return { path, before: null, after: null, tooLarge: true };
-  const text = (t: string | null) =>
-    t !== null && !t.includes("\0") && t.length <= MAX_SCAN_BYTES ? t : null;
-  return { path, before: text(before), after: text(after) };
+  return { path, before, after };
 }
 
 async function changed(
@@ -172,7 +203,8 @@ async function boundaries(deps: GuardDeps, gitDir: string | null): Promise<Bound
       "GET",
       `/api/hooks/${encodeURIComponent(config.projectId)}/boundaries`,
     );
-    const list = validBoundaries(res.boundaries);
+    // Before migration 0054 the server answers "not ready": the boundaries are unknown, not empty.
+    const list = res.ready === true ? validBoundaries(res.boundaries) : null;
     if (list) {
       if (gitDir) writeBoundaryCache(gitDir, config.projectId, list);
       return list;
@@ -243,12 +275,13 @@ export async function runGuard(args: string[], deps: GuardDeps): Promise<number>
       : { kind: "worktree" };
   const { files, base } = await changed(deps.git, root, source);
   const gitDir = await gitDirOf(deps.git, root);
+  const safe = files.filter((f) => !f.startsWith("../") && !isAbsolute(f));
   const [loaded, bounds] = await Promise.all([
     (async () => {
       const out: GuardFile[] = [];
-      const safe = files.filter((f) => !f.startsWith("../") && !isAbsolute(f)).slice(0, MAX_FILES);
-      for (let i = 0; i < safe.length; i += PARALLEL) {
-        const chunk = safe.slice(i, i + PARALLEL);
+      const read = safe.slice(0, MAX_FILES);
+      for (let i = 0; i < read.length; i += PARALLEL) {
+        const chunk = read.slice(i, i + PARALLEL);
         out.push(
           ...(await Promise.all(chunk.map((f) => readFile(deps.git, root, f, source, base)))),
         );
@@ -260,13 +293,21 @@ export async function runGuard(args: string[], deps: GuardDeps): Promise<number>
   const dependencies = loaded
     .filter((f) => f.path === "package.json" || f.path.endsWith("/package.json"))
     .flatMap((f) => newPackageNames(f.before, f.after));
-  const findings = guardCheck({ files: loaded, dependencies, boundaries: bounds });
+  // Every changed path is checked against the boundaries (paths only); a change too large to read in full fails.
+  const findings = guardCheck({
+    files: loaded,
+    paths: safe,
+    unreadFiles: Math.max(0, safe.length - MAX_FILES),
+    dependencies,
+    boundaries: bounds,
+  });
   if (opts.json) {
     deps.stdout(
       JSON.stringify({
         mode,
         source: source.kind,
         files: files.length,
+        truncated: safe.length > MAX_FILES,
         boundaries_checked: bounds !== null,
         findings,
       }),
@@ -274,8 +315,6 @@ export async function runGuard(args: string[], deps: GuardDeps): Promise<number>
   } else {
     for (const line of report(findings, files.length, mode, bounds !== null, source))
       deps.stdout(line);
-    if (files.length > MAX_FILES)
-      deps.stdout(`  Only the first ${MAX_FILES} changed files were checked.`);
   }
   return findings.length > 0 && mode === "strict" ? EXIT.failure : EXIT.ok;
 }
@@ -316,7 +355,33 @@ export async function installHook(
     if (!ours) deps.stdout("  codeceipt guard --staged");
     return EXIT.ok;
   }
+  // Only inside this repo or its git folder: a global core.hooksPath (shared by every repo) or a symlinked hooks folder
+  // that leads elsewhere gets the line to add instead.
+  const gitDir = await gitDirOf(deps.git, root);
+  const realRoot = realpathSync(root);
+  const existing = (() => {
+    let d = dir;
+    while (!existsSync(d) && resolve(d, "..") !== d) d = resolve(d, "..");
+    try {
+      return realpathSync(d);
+    } catch {
+      return null;
+    }
+  })();
+  const within = (r: string | null, top: string | null) =>
+    r !== null && top !== null && (r === top || r.startsWith(top + sep));
+  if (!within(existing, realRoot) && !within(existing, gitDir)) {
+    deps.stdout(
+      `This repo's hooks folder (${dir}) is outside the repo, so no hook was written. Add this line to its pre-commit hook:`,
+    );
+    deps.stdout("  codeceipt guard --staged");
+    return EXIT.ok;
+  }
   mkdirSync(dir, { recursive: true });
+  if (!within(realpathSync(dir), realRoot) && !within(realpathSync(dir), gitDir)) {
+    deps.stdout("This repo's hooks folder leads outside the repo, so no hook was written.");
+    return EXIT.ok;
+  }
   writeFileSync(file, `#!/bin/sh\n${HOOK_MARK}\n${line}\n`, { flag: "wx", mode: 0o755 });
   chmodSync(file, 0o755);
   deps.stdout("Codeceipt Guard now checks every commit in this repo (a pre-commit hook).");

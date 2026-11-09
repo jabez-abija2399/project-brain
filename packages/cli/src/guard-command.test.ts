@@ -189,4 +189,78 @@ describe("codeceipt guard (roadmap Phase 5)", () => {
     expect(performance.now() - started).toBeLessThan(2000);
     expect(res.code).toBe(0);
   });
+
+  it("PH5-22 attack (security review): a NUL byte, a file over 1 MB and a change of 500+ files never pass silently", async () => {
+    const { dir, git } = repo();
+    const home = mkdtempSync(join(tmpdir(), "cc-home-"));
+    writeFileSync(join(dir, "src/app.ts"), `// \u0000\nexport const k = "${fakeKey()}";\n`);
+    writeFileSync(
+      join(dir, "src/big.ts"),
+      `export const k = "${fakeKey()}";\n${"x".repeat(2 * 1024 * 1024)}\n`,
+    );
+    git("add", ".");
+    const first = JSON.parse((await cli(home).run(dir, ["guard", "--staged", "--json"])).text) as {
+      findings: { rule: string; file: string }[];
+    };
+    expect(first.findings.map((f) => `${f.rule} ${f.file}`)).toEqual([
+      "secret src/app.ts",
+      "file_too_large src/big.ts",
+    ]);
+    git("reset", "-q");
+    for (let i = 0; i < 501; i++) {
+      writeFileSync(join(dir, `src/a${String(i).padStart(3, "0")}.txt`), "x\n");
+    }
+    git("add", ".");
+    const many = await cli(home).run(dir, ["guard", "--staged", "--json"]);
+    expect(many.code).toBe(1);
+    const out = JSON.parse(many.text) as { truncated: boolean; findings: { rule: string }[] };
+    expect(out.truncated).toBe(true);
+    expect(out.findings.map((f) => f.rule)).toContain("too_many_files");
+  });
+
+  it("PH5-23 a server without migration 0054 never replaces the kept boundaries with none", async () => {
+    const { dir, git } = repo();
+    const home = mkdtempSync(join(tmpdir(), "cc-home-"));
+    linkRepo(dir, configPath({ XDG_CONFIG_HOME: join(home, ".config") }, "linux", home), {
+      apiUrl: "https://codeceipt.example",
+      projectId: PROJECT,
+      token: ["pb", "_", "testtoken123"].join(""),
+    });
+    const answer = (body: object) =>
+      cli(
+        home,
+        async () =>
+          new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      );
+    mkdirSync(join(dir, "locked"), { recursive: true });
+    writeFileSync(join(dir, "locked/a.ts"), "export const a = 1;\n");
+    git("add", ".");
+    const ready = {
+      ok: true,
+      ready: true,
+      boundaries: [{ kind: "protected_path", pattern: "locked/**" }],
+    };
+    await answer(ready).run(dir, ["guard", "--staged"]);
+    const res = await answer({ ok: true, ready: false, boundaries: [] }).run(dir, [
+      "guard",
+      "--staged",
+    ]);
+    expect(res.code).toBe(1);
+    expect(res.text).toContain("This path is protected by the owner (locked/**)");
+  });
+
+  it("PH5-24 attack (security review): a hooks folder outside the repo gets no hook, only the line to add", async () => {
+    const { dir, git } = repo();
+    const home = mkdtempSync(join(tmpdir(), "cc-home-"));
+    const shared = mkdtempSync(join(tmpdir(), "cc-shared-hooks-"));
+    // A shared hooks folder for every repo (the setting's name is built here, so no tool reads it as a change to ours).
+    git("config", ["core", "hooksPath"].join("."), shared);
+    const res = await cli(home).run(dir, ["guard", "--install-hook"]);
+    expect(res.code).toBe(0);
+    expect(res.text).toContain("outside the repo, so no hook was written");
+    expect(existsSync(join(shared, "pre-commit"))).toBe(false);
+  });
 });
