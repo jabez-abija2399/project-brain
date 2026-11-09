@@ -148,10 +148,12 @@ absent; where_did_we_stop with features: true answers it)", then run
   The gate respects Cursor's own loop count, and still works when the AI receipt cannot be made.
 - **Phase 5a:** `codeceipt guard` checks a commit (`--staged`, as a pre-commit hook offered at setup) or a branch
   (`--ci`) for weakened tests, new secrets, hidden characters and the Blueprint's boundaries.
+- **Phase 5b:** edits under a protected path are stopped before they happen, through each agent's pre-tool-use hook
+  (Claude Code, Cursor, Codex, Antigravity).
 
 Users get all of this through the release.
 
-**Steps (after the Phase 5a PR is merged):**
+**Steps (after the Phase 5b PR is merged):**
 1. **Create the tag** on GitHub: **Releases** → **Draft a new release** → **Choose a tag** → type `cli-v0.3.7` →
    **Create new tag on publish**, target `main`. Creating the tag is enough; you don't need to publish the release.
    From a computer instead:
@@ -159,8 +161,7 @@ Users get all of this through the release.
 2. **Approve the run:** Actions → the **release-cli** run → approve **release** twice (GitHub release, then npm).
 3. **Tell Claude** "0.3.7 is released". It pins the website installers to it from the signed manifest
    (`apps/web/src/lib/cli-release.json`) and opens the PR.
-4. **Update the plugins:** users of the Codex and Antigravity plugins update them from their marketplace to get the
-   new Stop hook.
+4. **Update the plugins:** plugin users update them from their marketplace to get the new Stop and pre-tool hooks.
 
 **Check:** https://www.npmjs.com/package/codeceipt shows 0.3.7 with provenance, and `codeceipt --version` prints
 0.3.7 after `codeceipt update`.
