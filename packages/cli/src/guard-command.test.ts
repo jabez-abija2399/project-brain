@@ -190,7 +190,7 @@ describe("codeceipt guard (roadmap Phase 5)", () => {
     expect(res.code).toBe(0);
   });
 
-  it("PH5-22 attack (security review): a NUL byte, a file over 1 MB and a change of 500+ files never pass silently", async () => {
+  it("PH5-22 attack (security review): a NUL byte and a file over 1 MB never pass silently", async () => {
     const { dir, git } = repo();
     const home = mkdtempSync(join(tmpdir(), "cc-home-"));
     writeFileSync(join(dir, "src/app.ts"), `// \u0000\nexport const k = "${fakeKey()}";\n`);
@@ -206,17 +206,26 @@ describe("codeceipt guard (roadmap Phase 5)", () => {
       "secret src/app.ts",
       "file_too_large src/big.ts",
     ]);
-    git("reset", "-q");
-    for (let i = 0; i < 501; i++) {
-      writeFileSync(join(dir, `src/a${String(i).padStart(3, "0")}.txt`), "x\n");
-    }
-    git("add", ".");
-    const many = await cli(home).run(dir, ["guard", "--staged", "--json"]);
-    expect(many.code).toBe(1);
-    const out = JSON.parse(many.text) as { truncated: boolean; findings: { rule: string }[] };
-    expect(out.truncated).toBe(true);
-    expect(out.findings.map((f) => f.rule)).toContain("too_many_files");
   });
+
+  // Reading 500 staged files is many git calls: on CI's slower runners this takes longer than vitest's 5 s default.
+  it(
+    "PH5-25 attack (security review): a change of 500+ files never passes silently",
+    { timeout: 60_000 },
+    async () => {
+      const { dir, git } = repo();
+      const home = mkdtempSync(join(tmpdir(), "cc-home-"));
+      for (let i = 0; i < 501; i++) {
+        writeFileSync(join(dir, `src/a${String(i).padStart(3, "0")}.txt`), "x\n");
+      }
+      git("add", ".");
+      const many = await cli(home).run(dir, ["guard", "--staged", "--json"]);
+      expect(many.code).toBe(1);
+      const out = JSON.parse(many.text) as { truncated: boolean; findings: { rule: string }[] };
+      expect(out.truncated).toBe(true);
+      expect(out.findings.map((f) => f.rule)).toContain("too_many_files");
+    },
+  );
 
   it("PH5-23 a server without migration 0054 never replaces the kept boundaries with none", async () => {
     const { dir, git } = repo();
