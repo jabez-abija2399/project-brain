@@ -325,6 +325,20 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     agents = "none found here (run `codeceipt init --claude` or `codeceipt init --cursor`)";
     start = "Start Claude Code or Cursor in this folder (then run `codeceipt init` once).";
   }
+  // Roadmap Phase 5: the pre-commit guard is offered, never installed without a yes in the terminal.
+  if (deps.ask) {
+    const yes = await deps.ask(
+      "Check every commit with Codeceipt Guard (weakened tests, secrets, hidden characters)? It adds a pre-commit hook to this repo. [Y/n]",
+    );
+    if (yes) {
+      const { installHook } = await import("./guard-command");
+      await installHook({ git: deps.git, stdout: (line) => notes.push(line) }, root).catch(() => {
+        notes.push(
+          "  The pre-commit hook could not be written; run `codeceipt guard --install-hook` later.",
+        );
+      });
+    }
+  }
   deps.stdout("Codeceipt is set up for this repo.");
   deps.stdout(`  Project: ${apiUrl}/projects/${config.projectId}`);
   deps.stdout(

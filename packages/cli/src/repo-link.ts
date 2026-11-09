@@ -127,3 +127,63 @@ export async function repoFingerprint(git: Git, root: string): Promise<RepoFinge
   const origin = await git(["config", "--get", "remote.origin.url"], root).catch(() => "");
   return fingerprintOf(roots, origin.trim() || null);
 }
+
+// Roadmap Phase 5: the Blueprint's active boundaries, kept beside the link so the guard still checks them offline.
+// Tied to the project they came from; written like the link (no symlinks followed), read with a size limit.
+export type Boundary = { kind: string; pattern: string };
+const MAX_BOUNDARY_BYTES = 256 * 1024;
+const BOUNDARY_KINDS = new Set(["protected_path", "disallowed_dependency", "allowed_dependency"]);
+
+export function validBoundaries(raw: unknown): Boundary[] | null {
+  if (!Array.isArray(raw)) return null;
+  return raw
+    .slice(0, 500)
+    .filter(
+      (b): b is Boundary =>
+        typeof b === "object" &&
+        b !== null &&
+        typeof (b as Boundary).kind === "string" &&
+        BOUNDARY_KINDS.has((b as Boundary).kind) &&
+        typeof (b as Boundary).pattern === "string" &&
+        (b as Boundary).pattern.length > 0 &&
+        (b as Boundary).pattern.length <= 300,
+    )
+    .map((b) => ({ kind: b.kind, pattern: b.pattern }));
+}
+
+export function readBoundaryCache(gitDir: string, projectId: string): Boundary[] | null {
+  const dir = linkDir(gitDir, false);
+  if (!dir) return null;
+  try {
+    const file = join(dir, "boundaries.json");
+    const st = lstatSync(file);
+    if (!st.isFile() || st.size > MAX_BOUNDARY_BYTES) return null;
+    const raw = JSON.parse(readFileSync(file, "utf8")) as {
+      projectId?: unknown;
+      boundaries?: unknown;
+    };
+    return raw.projectId === projectId ? validBoundaries(raw.boundaries) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeBoundaryCache(gitDir: string, projectId: string, list: Boundary[]): boolean {
+  const dir = linkDir(gitDir, true);
+  if (!dir) return false;
+  try {
+    const fd = openSync(
+      join(dir, "boundaries.json"),
+      constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW,
+      0o600,
+    );
+    try {
+      writeSync(fd, `${JSON.stringify({ projectId, boundaries: validBoundaries(list) ?? [] })}\n`);
+    } finally {
+      closeSync(fd);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -132,6 +132,8 @@ export type UserSettings = {
   autoUpdate?: boolean;
   stopGate?: boolean | "gentle";
   checks?: CheckSettings;
+  // Roadmap Phase 5: Codeceipt Guard's mode (strict when absent).
+  guard?: "strict" | "gentle" | "off";
 };
 export type GateMode = "off" | "gentle" | "strict";
 /** The stop gate's mode: off, gentle, or strict (on; the default when nothing is set). */
@@ -141,7 +143,7 @@ export function gateMode(settings: UserSettings): GateMode {
 }
 export function readSettings(path: string): UserSettings {
   const file = readFile(path) as
-    | (ConfigFile & { autoUpdate?: unknown; stopGate?: unknown; checks?: unknown })
+    | (ConfigFile & { autoUpdate?: unknown; stopGate?: unknown; checks?: unknown; guard?: unknown })
     | null;
   return {
     ...(typeof file?.autoUpdate === "boolean" ? { autoUpdate: file.autoUpdate } : {}),
@@ -151,6 +153,9 @@ export function readSettings(path: string): UserSettings {
         ? { stopGate: false }
         : {}),
     ...(file?.checks ? { checks: validChecks(file.checks) } : {}),
+    ...(file?.guard === "strict" || file?.guard === "gentle" || file?.guard === "off"
+      ? { guard: file.guard }
+      : {}),
   };
 }
 function validChecks(raw: unknown): CheckSettings {

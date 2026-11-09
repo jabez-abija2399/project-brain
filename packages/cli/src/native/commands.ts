@@ -19,12 +19,30 @@ import { type UpdateDeps, type UpdateState, runUpdate, shouldCheck } from "./sel
 type Out = { stdout: (line: string) => void; stderr: (line: string) => void };
 
 const CONFIG_USAGE =
-  "Usage: codeceipt config auto-update [on|off] | codeceipt config stop-gate [on|gentle|off]";
+  "Usage: codeceipt config auto-update [on|off] | codeceipt config stop-gate [on|gentle|off] | codeceipt config guard [strict|gentle|off]";
+const GUARD_TEXT = {
+  strict: "Codeceipt Guard is strict: a commit or CI run with problems fails until they are fixed.",
+  gentle: "Codeceipt Guard is gentle: problems are reported, nothing is blocked.",
+  off: "Codeceipt Guard is off: `codeceipt guard` checks nothing.",
+} as const;
 const GATE_VALUES = new Set(["on", "off", "gentle", "strict"]);
 
 /** `codeceipt config auto-update [on|off]` and (FEAT-020) `codeceipt config stop-gate [on|off]`. */
 export function configCommand(args: string[], configFile: string, out: Out): void {
   const [key, value, ...rest] = args;
+  if (key === "guard") {
+    if (rest.length > 0 || (value !== undefined && !(value in GUARD_TEXT))) {
+      throw new CliError(EXIT.usage, CONFIG_USAGE);
+    }
+    if (value === undefined) {
+      out.stdout(GUARD_TEXT[readSettings(configFile).guard ?? "strict"]);
+      return;
+    }
+    const mode = value as keyof typeof GUARD_TEXT;
+    writeSettings(configFile, { guard: mode });
+    out.stdout(GUARD_TEXT[mode]);
+    return;
+  }
   if (
     (key !== "auto-update" && key !== "stop-gate") ||
     rest.length > 0 ||

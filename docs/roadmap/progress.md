@@ -14,8 +14,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3a | Blueprint: versioned model, EARS criteria, proof status, flags | merged | [#61](https://github.com/jabez-abija2399/project-brain/pull/61) | Migration 0054 optional (owner action 9); `propose_blueprint` MCP tool; tools/list 6,479 chars (budget 6,500) |
 | 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
-| 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65) merged; 4c in progress | | |
-| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | not started | | |
+| 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | merged | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65), 4c [#66](https://github.com/jabez-abija2399/project-brain/pull/66) | Definition of done and "prove it" runs moved to Phase 5b (CLI) |
+| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | 5a in progress | | |
 | 6 | Approval policies | not started | | |
 | 7 | Kit workflows as product features | not started | | |
 | 8 | Import, export, sync | not started | | |
@@ -149,3 +149,31 @@ Status values: not started, in progress, merged, blocked (with reason).
   opt-in "prove it" test runs. Blocking a protected path before the edit (PreToolUse) is Phase 5's main goal; this
   check catches what got through.
 
+
+### Phase 5a: Codeceipt Guard (`codeceipt guard`)
+- **What it checks**, only in the changed files and only on the user's machine:
+  - tests deleted, removed, newly skipped or focused, or with fewer assertions, and changed test settings (the
+    existing FEAT-018 check);
+  - secrets added by the change (the existing FEAT-015 scanner, new lines only);
+  - hidden or lookalike characters on added lines: bidi controls, zero-width marks, tag characters, and letters
+    from another alphabet inside a Latin word (`packages/core/src/hidden-chars.ts`);
+  - the Blueprint's protected paths and package rules (the 4c matcher);
+  - files over 1 MB.
+- **Each problem** names the file, the line when there is one, what is wrong and the exact fix. Secrets, source
+  lines and raw characters are never printed.
+- **Where it runs:** `--staged` (the pre-commit hook), `--ci [--base <branch>]` (the branch against its base) or,
+  with no flag, the uncommitted changes. `--json` gives machine-readable output.
+- **Modes:** strict (problems fail the command, the default), gentle (problems are only reported) and off. Set with
+  `--mode` or `codeceipt config guard`.
+- **Pre-commit hook:** setup asks whether to add it; it is never installed without a yes.
+  `codeceipt guard --install-hook` adds it later. An existing hook is never changed; the line to add is printed
+  instead.
+- **Boundaries:** read from a new token route, `GET /api/hooks/:projectId/boundaries` (active boundaries only;
+  "not ready" before migration 0054), and cached in `.git/codeceipt/` so the guard still checks them offline.
+- **Speed:** 100 changed files in under 2 s (test PH5-17).
+- **Release:** CLI 0.3.7 (owner action 8, which replaces the unreleased 0.3.6).
+- **Next (5b):**
+  - pre-tool-use blocking of protected paths per agent (Claude Code, Cursor, Codex, Antigravity; OpenCode is
+    report-only), from the same cached boundaries;
+  - a definition of done when a request is captured;
+  - opt-in "prove it" runs.

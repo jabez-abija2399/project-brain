@@ -82,16 +82,34 @@ export function checkBoundaries(input: {
   dependencies: string[];
   boundaries: { kind: string; pattern: string }[];
 }): BoundaryHit[] {
+  return boundaryCheck(input).hits;
+}
+
+/**
+ * The hits, and whether every path and package was really compared (false when the work budget ran out or a path is
+ * longer than MAX_PATH): a receipt simply shows fewer hits, Codeceipt Guard treats an incomplete check as a problem.
+ */
+export function boundaryCheck(input: {
+  files: string[];
+  dependencies: string[];
+  boundaries: { kind: string; pattern: string }[];
+}): { hits: BoundaryHit[]; complete: boolean } {
   const hits: BoundaryHit[] = [];
   let spent = 0;
+  let complete = true;
   const within = (pattern: string, subject: string) => {
     spent += (pattern.length + 1) * (Math.min(subject.length, MAX_PATH) + 1);
-    return spent <= MATCH_BUDGET && globMatch(pattern, subject);
+    if (spent > MATCH_BUDGET) {
+      complete = false;
+      return false;
+    }
+    return globMatch(pattern, subject);
   };
   const of = (kind: string) =>
     input.boundaries.filter((b) => b.kind === kind).map((b) => b.pattern);
   const protectedPaths = of("protected_path");
   for (const file of input.files) {
+    if (protectedPaths.length > 0 && file.length > MAX_PATH) complete = false;
     const pattern = protectedPaths.find((p) => within(p, file));
     if (pattern !== undefined) hits.push({ kind: "protected_path", subject: file, pattern });
   }
@@ -105,5 +123,5 @@ export function checkBoundaries(input: {
       hits.push({ kind: "not_allowed_dependency", subject: name, pattern: "" });
     }
   }
-  return hits.slice(0, MAX_BOUNDARY_HITS);
+  return { hits: hits.slice(0, MAX_BOUNDARY_HITS), complete };
 }
