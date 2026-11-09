@@ -93,4 +93,57 @@ describe("safety check", () => {
     expect(r?.fixPrompt).not.toContain(secret);
     expect(r?.where.startsWith("lib/pay.ts ")).toBe(true);
   });
+
+  it("BP-3C-09 a dated migration path stays readable; a secret in one path segment is still masked", () => {
+    const secret = ["sk", "_live_", "Q7xT2mK9vR4wZp8aB3dE5gH7"].join("");
+    const [rls, sec] = [
+      safetyCheck({
+        rls: [
+          {
+            type: "rls_disabled",
+            file: "supabase/migrations/20240101000000_init.sql",
+            table: "public.orders",
+            hint: "RLS is off.",
+          },
+        ],
+        secrets: [],
+        testChecks: [],
+        uncovered: [],
+      })[0],
+      safetyCheck({
+        rls: [],
+        secrets: [{ type: "stripe_secret_key", file: `lib/${secret}/pay.ts`, hint: "Rotate it." }],
+        testChecks: [],
+        uncovered: [],
+      })[0],
+    ];
+    expect(rls?.where).toBe("public.orders (supabase/migrations/20240101000000_init.sql)");
+    expect(sec?.where).not.toContain(secret);
+    expect(sec?.where.startsWith("lib/")).toBe(true);
+  });
+
+  it("BP-3C-10 attack: credentials in a URL and name = value secrets in a path are masked", () => {
+    // Made-up values, built at run time so no secret-shaped literal sits in the source (build checklist rule 3).
+    const [pass, key, pw] = [
+      ["hunter2", "pass"],
+      ["abcd1234", "efgh"],
+      ["Sup3r", "SecretPw"],
+    ].map((p) => p.join(""));
+    for (const file of [
+      `postgres://admin:${pass}@db.example.com/app`,
+      `config/api_key = ${key}.ts`,
+      `lib/password: ${pw} (x).ts`,
+    ]) {
+      const [r] = safetyCheck({
+        rls: [],
+        secrets: [{ type: "stripe_secret_key", file, hint: "Rotate it." }],
+        testChecks: [],
+        uncovered: [],
+      });
+      for (const leaked of [pass, key, pw]) {
+        expect(r?.where).not.toContain(leaked);
+        expect(r?.fixPrompt).not.toContain(leaked);
+      }
+    }
+  });
 });

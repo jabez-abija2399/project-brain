@@ -106,6 +106,7 @@ describe("app shell", () => {
     for (const current of [
       "overview",
       "features",
+      "blueprint",
       "receipts",
       "proposals",
       "plan",
