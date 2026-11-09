@@ -364,6 +364,33 @@ export const criteriaRepo = {
   },
 
   /** A feature's active criteria (the context pack shows them). */
+  /** Roadmap Phase 4b: the test files (and names) linked to a feature's active criteria, for its context pack. */
+  async testsForFeature(db: BlueprintTx, projectId: string, featureId: string, limit = 20) {
+    return db
+      .selectDistinct({ path: files.path, testName: criterionTests.testName })
+      .from(criterionTests)
+      .innerJoin(
+        criteria,
+        and(
+          eq(criteria.projectId, criterionTests.projectId),
+          eq(criteria.id, criterionTests.criterionId),
+        ),
+      )
+      .innerJoin(
+        files,
+        and(eq(files.projectId, criterionTests.projectId), eq(files.id, criterionTests.fileId)),
+      )
+      .where(
+        and(
+          eq(criterionTests.projectId, projectId),
+          eq(criteria.featureId, featureId),
+          eq(criteria.status, "active"),
+        ),
+      )
+      .orderBy(asc(files.path))
+      .limit(limit);
+  },
+
   async activeForFeature(db: BlueprintTx, projectId: string, featureId: string, limit = 30) {
     return db
       .select({ id: criteria.id, text: criteria.text, kind: criteria.kind })

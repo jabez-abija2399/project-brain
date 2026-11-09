@@ -70,6 +70,7 @@ export { oneLineText, plainText } from "./text";
 export { checkTestIntegrity, isTestConfig, isTestFile } from "./test-integrity";
 export type { FileChange, IntegrityFlag, IntegrityKind } from "./test-integrity";
 export { fixPrompt, itemIdsOf, receiptView, safeDisplay, safePath } from "./fix-prompt";
+export { MAX_REVIEW_PLACES, type ReviewPlace, reviewFirst } from "./review-first";
 export type { ReceiptItemStatus, ReceiptView } from "./fix-prompt";
 export { isLocalEnvFile, MAX_SCAN_BYTES, scanSecrets, SECRET_TYPES } from "./secrets";
 export type { SecretFinding, SecretType } from "./secrets";

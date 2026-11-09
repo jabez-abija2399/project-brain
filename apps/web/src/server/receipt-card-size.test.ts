@@ -57,4 +57,21 @@ describe("receipt card size (INP)", () => {
     expect(open).toContain("Widget199.tsx");
     expect(open).toContain("Send fix to agent");
   });
+
+  it("PH4B-05 an open card starts with Review here first: at most three places, each with its reason", () => {
+    const open = card(true);
+    expect(open).toContain("Review here first");
+    expect(open.indexOf("Review here first")).toBeLessThan(
+      open.indexOf("Changed files by feature"),
+    );
+    expect(open).toContain(
+      "src/features/f0/Widget0.tsx</code>: &quot;Item 0&quot; is marked missed",
+    );
+    const section = open.slice(
+      open.indexOf("Review here first"),
+      open.indexOf("Changed files by feature"),
+    );
+    expect(section.match(/<li/g)).toHaveLength(3);
+    expect(card(false)).not.toContain("Review here first");
+  });
 });

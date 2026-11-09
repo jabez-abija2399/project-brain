@@ -18,9 +18,11 @@ import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionUser } from "./auth";
 import { blueprintView, editBlueprint } from "./blueprint";
+import { getContextPack } from "./context-pack";
 import { setLlmForTests } from "./llm";
 import { resetMigrationCheckForTests } from "./migration-check";
 import { approvePlan, planProject } from "./plan";
+import { whereDidWeStop } from "./session-tools";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
 let world: TestWorld;
@@ -239,5 +241,71 @@ describe("Phase 3b: owner route attacks", () => {
       expect(body).not.toContain("vault_rows");
     }
     expect(JSON.parse(d)).toMatchObject({ truncated: false });
+  });
+
+  it("PH4B-07 the start note lists the next feature's must-never and security rules from the Blueprint", async () => {
+    await approvedPlan();
+    const note = await whereDidWeStop(world.db, tok, {});
+    expect(note).toContain("NEXT FEATURE (approved plan, build order): Accounts");
+    expect(note).toContain("MUST NEVER IN THE NEXT FEATURE");
+    expect(note).toContain("- Booking a full class is refused");
+    expect(note).toContain("- A member cannot cancel another member's booking");
+    // The behaviour criterion is open checklist work (listed elsewhere), never one of the must-never rules.
+    const lines = note.split("\n");
+    const start = lines.findIndex((l) => l.startsWith("MUST NEVER IN THE NEXT FEATURE"));
+    const end = lines.findIndex((l, i) => i > start && !l.startsWith("- "));
+    const rules = lines.slice(start + 1, end === -1 ? undefined : end);
+    expect(rules).toHaveLength(2);
+    expect(rules.join(" ")).not.toContain("WHEN a member books a class");
+  });
+
+  it("PH4B-08 the context pack ranks the feature's own files first and lists the tests that prove its criteria", async () => {
+    const f = await featuresRepo.insert(world.db, pid, { name: "Checkout" });
+    const shared = await filesRepo.insert(world.db, pid, { path: "src/aaa/shared.ts", hash: "h" });
+    const own = await filesRepo.insert(world.db, pid, { path: "src/checkout/pay.ts", hash: "h" });
+    const test = await filesRepo.insert(world.db, pid, {
+      path: "src/checkout/pay.test.ts",
+      hash: "h",
+    });
+    await featureFilesRepo.link(world.db, pid, {
+      featureId: f.id,
+      fileId: shared.id,
+      role: "shared",
+      placedBy: "auto",
+    });
+    await featureFilesRepo.link(world.db, pid, {
+      featureId: f.id,
+      fileId: own.id,
+      role: "primary",
+      placedBy: "auto",
+    });
+    await editBlueprint(world.db, owner, pid, {
+      baseVersion: 0,
+      ops: [
+        {
+          op: "addCriterion",
+          featureId: f.id,
+          text: "THE SYSTEM SHALL NOT store card numbers",
+          kind: "must_never",
+        },
+      ],
+    });
+    const [c] = await criteriaRepo.all(world.db, pid);
+    await editBlueprint(world.db, owner, pid, {
+      baseVersion: 1,
+      ops: [
+        {
+          op: "linkTest",
+          criterionId: c?.id ?? "",
+          fileId: test.id,
+          testName: "never stores card numbers",
+        },
+      ],
+    });
+    const pack = await getContextPack(world.db, pid, "Checkout");
+    expect(pack.indexOf("- src/checkout/pay.ts")).toBeLessThan(pack.indexOf("- src/aaa/shared.ts"));
+    expect(pack).toContain(
+      "TESTS THAT PROVE THESE CRITERIA:\n- src/checkout/pay.test.ts (never stores card numbers)",
+    );
   });
 });
