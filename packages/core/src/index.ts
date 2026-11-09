@@ -216,3 +216,6 @@ export type { HiddenChar, HiddenKind } from "./hidden-chars";
 // Roadmap Phase 5b: protected paths blocked before an agent edits them (pre-tool-use hooks).
 export { patchTargets, preToolAnswer, preToolHit, repoRelative, toolTargets } from "./pre-tool";
 export type { PreToolAgent, PreToolHit, PreToolMode } from "./pre-tool";
+// Roadmap Phase 5c: a definition of done when a request is captured (no AI).
+export { DONE_NOTE_LIMIT, definitionOfDone, matchFeatureByWords } from "./definition-of-done";
+export type { DoneNoteInput } from "./definition-of-done";
