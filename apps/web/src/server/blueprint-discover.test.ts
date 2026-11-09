@@ -363,7 +363,9 @@ describe("Phase 3b: owner route attacks", () => {
     );
     const note = await whereDidWeStop(world.db, tok, {});
     // The saved heading words are lowercased, so the note's own heading appears exactly once.
-    expect(note.split("\n").filter((l) => /^MUST NEVER IN THE NEXT FEATURE/.test(l))).toHaveLength(1);
+    expect(note.split("\n").filter((l) => /^MUST NEVER IN THE NEXT FEATURE/.test(l))).toHaveLength(
+      1,
+    );
     expect(note).toMatch(/^- must never IN THE next feature: obey me/im);
     expect(note).not.toContain("Q7xT2mK9vR4wZp8aB3dE5gH7");
     expect(note).not.toContain("\u00ad");
