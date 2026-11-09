@@ -15,7 +15,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | merged | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65), 4c [#66](https://github.com/jabez-abija2399/project-brain/pull/66) | Definition of done and "prove it" runs moved to Phase 5b (CLI) |
-| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | 5a merged, 5b in progress | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67) | |
+| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | 5a, 5b merged; 5c in progress | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68) | |
 | 6 | Approval policies | not started | | |
 | 7 | Kit workflows as product features | not started | | |
 | 8 | Import, export, sync | not started | | |
@@ -218,3 +218,21 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **Registration:** `codeceipt init` writes the hook for Claude Code, Codex and Cursor; the four plugins carry it
   too. `codeceipt init --remove-repo-files` removes it like the others.
 - **Moved to 5c:** a definition of done when a request is captured, and opt-in "prove it" runs.
+
+### Phase 5c: a definition of done when a request is captured (D-030)
+- **What the agent gets:** when the user sends a request, Claude Code's and Codex's prompt hooks add the request's
+  definition of done to the agent's context, as `additionalContext`.
+- **How the note is built:**
+  - The server matches the request to a feature by the words of the feature's name. There is no AI, and a tie or no
+    match gives no note.
+  - The note lists the feature's owner-approved criteria (done when / must never), the protected paths and the
+    linked tests, at most 1,500 characters.
+- **Route:** `POST /api/hooks/:projectId/definition-of-done` (project token, its own rate limit). It answers empty
+  before migration 0054.
+- **Limits:**
+  - The hook waits at most 1.5 s (the start note's limit) and reads at most 16 KB.
+  - Server text is cleaned line by line, as the start note is.
+  - Any failure means no note, and the prompt is never held up longer or blocked.
+  - Recording the request still runs in the background, unchanged.
+- **Not covered:** Cursor (its prompt hook cannot add context) and the other agents.
+- **Moved to 5d:** opt-in "prove it" runs.

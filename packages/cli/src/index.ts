@@ -820,6 +820,20 @@ async function runPromptHook(args: string[], deps: CliDeps, path: string): Promi
   )
     return answer();
   const dir = await promptFolder(deps, sessionFolder(stdin, deps.cwd));
+  // Roadmap Phase 5c: Claude Code and Codex get the request's definition of done before the agent starts.
+  if (!args.includes("--worker") && (agent === "claude" || agent === "codex")) {
+    const config = await projectConfig(deps, path, dir, { linkedOnly: true }).catch(() => null);
+    if (config && isSafeApiUrl(config.apiUrl)) {
+      const { definitionOfDoneAnswer } = await import("./done-note");
+      const note = await definitionOfDoneAnswer(
+        deps.fetch,
+        config,
+        agent,
+        maskSecretsIn(prompt),
+      ).catch(() => null);
+      if (note) deps.stdout(note);
+    }
+  }
   if (!args.includes("--worker") && deps.spawnBackground) {
     try {
       deps.spawnBackground(["hook", "prompt", "--agent", agent, "--worker"], stdin, dir);

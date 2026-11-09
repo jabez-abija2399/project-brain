@@ -38,6 +38,11 @@ function setup(opts: { sessionRequests?: unknown[]; requests?: unknown[] } = {})
       sent.push({ path: u.pathname, method, body: JSON.parse(String(init?.body)) });
       return Response.json({ ok: true, recorded: true });
     }
+    // Roadmap Phase 5c (D-030): the prompt hook's definition of done; no matching feature answers no note.
+    if (u.pathname.endsWith("/definition-of-done")) {
+      sent.push({ path: u.pathname, method, body: JSON.parse(String(init?.body)) });
+      return Response.json({ ok: true, feature: null, note: null });
+    }
     if (u.pathname.endsWith("/open-items")) {
       sent.push({ path: u.pathname, method, query: u.search });
       return Response.json({
@@ -98,7 +103,15 @@ describe("prompt-submit hooks record the user's requests", () => {
     input.cwd = t.repo;
     expect(await t.run(["hook", "prompt", "--agent", "claude"], input)).toBe(0);
     expect(t.out).toEqual([]);
-    expect(t.sent).toEqual([]);
+    // D-030: the only foreground call asks for a definition of done; with no matching feature nothing is printed.
+    expect(t.sent).toEqual([
+      {
+        path: "/api/hooks/proj-1/definition-of-done",
+        method: "POST",
+        body: { request: "Add a dark mode toggle" },
+      },
+    ]);
+    t.sent.length = 0;
     expect(t.background).toEqual([
       { args: ["hook", "prompt", "--agent", "claude", "--worker"], input: JSON.stringify(input) },
     ]);
