@@ -115,7 +115,7 @@ export async function buildIndexBlock(
   });
   // Files with components (what an agent most often changes) first, then by path; stable either way.
   const withComponents = new Set(components.map((c) => c.path));
-  const role = new Map(ranked.map((l, n) => [l.fileId, n]));
+  const role = new Map(links.map((l) => [l.fileId, l.role === "primary" ? 0 : 1]));
   const ordered = [...fileRows].sort(
     (a, b) =>
       (role.get(a.id) ?? 0) - (role.get(b.id) ?? 0) ||

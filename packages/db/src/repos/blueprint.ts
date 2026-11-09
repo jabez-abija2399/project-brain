@@ -363,7 +363,6 @@ export const criteriaRepo = {
       );
   },
 
-  /** A feature's active criteria (the context pack shows them). */
   /** Roadmap Phase 4b: the test files (and names) linked to a feature's active criteria, for its context pack. */
   async testsForFeature(db: BlueprintTx, projectId: string, featureId: string, limit = 20) {
     return db
@@ -391,6 +390,24 @@ export const criteriaRepo = {
       .limit(limit);
   },
 
+  /** Roadmap Phase 4b: a feature's active must-never and security criteria only (the start note shows up to 3). */
+  async guardsForFeature(db: BlueprintTx, projectId: string, featureId: string, limit = 3) {
+    return db
+      .select({ id: criteria.id, text: criteria.text, kind: criteria.kind })
+      .from(criteria)
+      .where(
+        and(
+          eq(criteria.projectId, projectId),
+          eq(criteria.featureId, featureId),
+          eq(criteria.status, "active"),
+          inArray(criteria.kind, ["must_never", "security"]),
+        ),
+      )
+      .orderBy(asc(criteria.position), asc(criteria.createdAt))
+      .limit(limit);
+  },
+
+  /** A feature's active criteria (the context pack shows them). */
   async activeForFeature(db: BlueprintTx, projectId: string, featureId: string, limit = 30) {
     return db
       .select({ id: criteria.id, text: criteria.text, kind: criteria.kind })

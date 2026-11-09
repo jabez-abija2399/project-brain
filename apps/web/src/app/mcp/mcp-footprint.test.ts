@@ -161,6 +161,31 @@ describe("Phase 2a: start note within budget", () => {
     expect(note.length / 4).toBeLessThanOrEqual(500);
     expect(note).toContain("where_did_we_stop features: true");
   });
+
+  it("PERF-4B-01 the same worst case with the next feature and its three must-never rules stays within budget", () => {
+    const many = Array.from({ length: 100 }, (_, i) => `Feature number ${i} (id f${i})`);
+    const note = buildHandoffNote({
+      session: {
+        goal: "g".repeat(400),
+        done: "d".repeat(400),
+        unfinished: "u".repeat(400),
+        nextStep: "n",
+      },
+      checklist: Array.from({ length: 40 }, (_, i) => `item ${i}`),
+      featuresInProgress: many.slice(0, 10),
+      decisions: [],
+      directives: [],
+      features: many,
+      nextFeature: "Checkout and payments for returning customers",
+      nextRules: Array.from(
+        { length: 3 },
+        (_, i) => `THE SYSTEM SHALL NOT ${"x".repeat(170)} ${i}`,
+      ),
+    });
+    expect(note.length / 4).toBeLessThanOrEqual(500);
+    expect(note).toContain("MUST NEVER IN THE NEXT FEATURE");
+    expect(note).toContain("where_did_we_stop features: true");
+  });
 });
 
 describe("Phase 2a: context packs cached at index time", () => {

@@ -1,4 +1,4 @@
-import { DIRECTIVE_BUDGET, buildHandoffNote, maskSecretsIn } from "@brain/core";
+import { DIRECTIVE_BUDGET, buildHandoffNote, maskSecretsIn, plainText } from "@brain/core";
 import {
   type BrainDb,
   agentSessionsRepo,
@@ -303,11 +303,9 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
 async function nextFeatureRules(db: BrainDb, pid: string, featureId: string): Promise<string[]> {
   if (!(await blueprintEnabled(db))) return [];
   try {
-    const rows = await criteriaRepo.activeForFeature(db, pid, featureId);
-    return rows
-      .filter((c) => c.kind !== "behaviour")
-      .slice(0, 3)
-      .map((c) => maskSecretsIn(c.text));
+    const rows = await criteriaRepo.guardsForFeature(db, pid, featureId);
+    // Invisible marks out first, then masking: a hidden mark inside a key can never keep it from being masked.
+    return rows.map((c) => maskSecretsIn(plainText(c.text)));
   } catch {
     return [];
   }

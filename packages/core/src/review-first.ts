@@ -3,7 +3,7 @@
 // findings, weakened tests, a failed check, work marked missed or partly done, work done without a test, and changes
 // outside the request's feature. Paths and texts are already masked and one line in the ReceiptView.
 import type { ReceiptView } from "./fix-prompt";
-import { maskSecretsIn } from "./mask";
+import { maskPath, maskSecretsIn } from "./mask";
 import { plainText } from "./text";
 
 export const MAX_REVIEW_PLACES = 3;
@@ -19,8 +19,14 @@ const short = (text: string) => {
 /** At most MAX_REVIEW_PLACES places, most serious first, one per place (the first reason found for it wins). */
 export function reviewFirst(view: ReceiptView): ReviewPlace[] {
   const out: ReviewPlace[] = [];
+  // Paths are masked per segment, like every stored path; a long path keeps its end (the file name), so two
+  // different long paths never merge into one entry.
+  const place = (where: string) => {
+    const w = maskPath(plainText(where));
+    return w.length > 120 ? `…${w.slice(-119)}` : w;
+  };
   const add = (where: string, why: string) => {
-    const w = short(where);
+    const w = place(where);
     if (w && !out.some((p) => p.where === w)) out.push({ where: w, why });
   };
   for (const f of view.findings) {

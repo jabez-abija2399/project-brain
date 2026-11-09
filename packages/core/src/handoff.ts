@@ -121,6 +121,13 @@ function oneLine(value: string): string {
   return plainText(value).replace(SECTION_WORDS, (word) => word.toLowerCase());
 }
 
+// At most `max` characters, never ending in half of an emoji (a lone high surrogate).
+function cutWhole(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const end = /[\uD800-\uDBFF]/.test(text.charAt(max - 1)) ? max - 1 : max;
+  return text.slice(0, end);
+}
+
 function pieces(input: HandoffInput): Piece[] {
   const out: Piece[] = [];
   const add = (section: number, full: string, must = false) => {
@@ -141,7 +148,7 @@ function pieces(input: HandoffInput): Piece[] {
     add(NEXT_FEATURE, `NEXT FEATURE (approved plan, build order): ${oneLine(input.nextFeature)}`);
   if (input.nextFeature)
     for (const r of (input.nextRules ?? []).slice(0, 3))
-      add(NEXT_RULES, `- ${oneLine(r).slice(0, 200)}`);
+      add(NEXT_RULES, `- ${cutWhole(oneLine(r), 200)}`);
   for (const item of input.checklist) add(CHECKLIST, `- ${oneLine(item)}`);
   for (const q of input.questions ?? []) add(QUESTIONS, `- ${oneLine(q)}`);
   for (const u of input.untested ?? []) add(UNTESTED, `- ${oneLine(u)}`);
