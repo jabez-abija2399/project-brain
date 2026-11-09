@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { createInterface } from "node:readline";
 import { configPath } from "./config";
+import { PRE_TOOL_INPUT_TOO_LARGE, PRE_TOOL_MAX_INPUT } from "./hook-input";
 import { main } from "./index";
 import { maybeStartBackgroundUpdate } from "./native/commands";
 import { nativeBuild } from "./native/install-info";
@@ -20,16 +21,19 @@ async function readStdin(): Promise<string> {
 }
 
 // Hooks read the agent's JSON event: never a token prompt on a terminal, and no more than 64 KB (larger input is
-// ignored by the hook anyway).
+// ignored by the hook anyway). Roadmap Phase 5b: the pre-tool hook's input holds the file being written, so it reads
+// up to 8 MB, and a larger input is passed on as "too large" (the hook refuses that edit instead of skipping it).
 async function readHookInput(): Promise<string> {
   if (process.stdin.isTTY) return "";
+  const preTool = process.argv[3] === "pre-tool";
+  const limit = preTool ? PRE_TOOL_MAX_INPUT : 64 * 1024;
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of process.stdin) {
     size += (chunk as Buffer).length;
-    if (size > 64 * 1024) {
+    if (size > limit) {
       process.stdin.destroy();
-      return "";
+      return preTool ? PRE_TOOL_INPUT_TOO_LARGE : "";
     }
     chunks.push(chunk as Buffer);
   }

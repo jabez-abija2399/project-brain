@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { patchTargets, preToolAnswer, preToolHit, repoRelative, toolTargets } from "./pre-tool";
+import {
+  MAX_TARGETS,
+  patchTargets,
+  preToolAnswer,
+  preToolHit,
+  repoRelative,
+  toolTargets,
+} from "./pre-tool";
 
 // Roadmap Phase 5b: protected paths blocked before an agent edits them.
 const ROOT = "/work/shop";
@@ -76,7 +83,10 @@ describe("pre-tool-use boundaries (roadmap Phase 5b)", () => {
         .permissionDecision,
     ).toBe("ask");
     expect(JSON.parse(preToolAnswer("cursor", "strict", hit) ?? "{}").permission).toBe("deny");
-    expect(JSON.parse(preToolAnswer("cursor", "gentle", hit) ?? "{}").permission).toBe("allow");
+    // Gentle: no permission field, so Cursor's own approval rules still apply; the agent is told why.
+    const cursorGentle = JSON.parse(preToolAnswer("cursor", "gentle", hit) ?? "{}");
+    expect(cursorGentle.permission).toBeUndefined();
+    expect(cursorGentle.agent_message).toContain("supabase/migrations/1.sql");
     expect(
       JSON.parse(preToolAnswer("codex", "strict", hit) ?? "{}").hookSpecificOutput
         .permissionDecision,
@@ -95,5 +105,41 @@ describe("pre-tool-use boundaries (roadmap Phase 5b)", () => {
       .permissionDecisionReason as string;
     expect(reason).not.toContain("\n");
     expect(reason).not.toContain("\u202e");
+  });
+
+  it("PH5B-11 attack (security review): a patch with more files than can be checked is refused, not cut", () => {
+    const headers = Array.from({ length: MAX_TARGETS + 5 }, (_, n) => `*** Update File: f${n}.txt`);
+    const patch = [
+      "*** Begin Patch",
+      ...headers,
+      "*** Update File: supabase/migrations/x.sql",
+      "*** End Patch",
+    ];
+    const targets = toolTargets({ tool_input: { command: ["apply_patch", patch.join("\n")] } });
+    expect(preToolHit(targets, PROTECTED)?.pattern).toBe("(too many files to check)");
+  });
+
+  it("PH5B-12 attack (security review): long paths, indented patch headers and Windows name tricks are still checked", () => {
+    const long = `supabase/migrations/${"d/".repeat(600)}x.sql`;
+    const rel = repoRelative(`${ROOT}/${long}`, ROOT, ROOT);
+    expect(rel).toBe(long);
+    expect(preToolHit([rel ?? ""], PROTECTED)?.pattern).toBe("(path too long to check)");
+    expect(
+      patchTargets("*** Begin Patch\n   *** Add File: supabase/migrations/2.sql\n*** End Patch"),
+    ).toEqual(["supabase/migrations/2.sql"]);
+    expect(
+      repoRelative("C:\\app\\supabase.\\migrations \\x.sql", "C:/app", "C:/app", { windows: true }),
+    ).toBe("supabase/migrations/x.sql");
+    expect(
+      repoRelative("/Users/me/APP/supabase/x.sql", "/Users/me/app", "/", { caseInsensitive: true }),
+    ).toBe("supabase/x.sql");
+  });
+
+  it("PH5B-13 attack (security review): Codeceipt's own files in .git are never written by an agent", () => {
+    expect(preToolHit([".git/codeceipt/boundaries.json"], [])).toEqual({
+      path: ".git/codeceipt/boundaries.json",
+      pattern: "(the repo's .git folder)",
+    });
+    expect(preToolHit([".gitignore"], [])).toBeNull();
   });
 });

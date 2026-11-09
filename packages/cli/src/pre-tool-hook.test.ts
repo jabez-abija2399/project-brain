@@ -1,9 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { configPath } from "./config";
+import { PRE_TOOL_INPUT_TOO_LARGE } from "./hook-input";
 import { type CliDeps, main } from "./index";
 import { writeBoundaryCache } from "./repo-link";
 import { linkRepo } from "./test-support";
@@ -29,7 +30,7 @@ function setup(boundaries = [{ kind: "protected_path", pattern: "supabase/migrat
     token: ["pb", "_", "testtoken123"].join(""),
   });
   writeBoundaryCache(join(repo, ".git"), PROJECT, boundaries);
-  const run = async (agent: string, input: object, argv: string[] = []) => {
+  const run = async (agent: string, input: object | string, argv: string[] = []) => {
     const out: string[] = [];
     const code = await main(["hook", "pre-tool", "--agent", agent, ...argv], {
       fetch: async () => {
@@ -41,11 +42,11 @@ function setup(boundaries = [{ kind: "protected_path", pattern: "supabase/migrat
       platform: "linux",
       stdout: (l) => out.push(l),
       stderr: () => {},
-      readStdin: async () => JSON.stringify(input),
+      readStdin: async () => (typeof input === "string" ? input : JSON.stringify(input)),
     } satisfies CliDeps);
     return { code, out };
   };
-  return { repo, home, run };
+  return { repo, home, configFile, run };
 }
 
 describe("codeceipt hook pre-tool (roadmap Phase 5b)", () => {
@@ -157,5 +158,43 @@ describe("codeceipt hook pre-tool (roadmap Phase 5b)", () => {
     const res = await run("claude", input);
     expect(performance.now() - t0).toBeLessThan(200);
     expect(res.out.length).toBe(1);
+  });
+
+  it("PH5B-14 attack (security review): a symlinked folder, an edit too large to read and the settings file are refused", async () => {
+    const { repo, configFile, run } = setup();
+    mkdirSync(join(repo, "supabase/migrations"), { recursive: true });
+    symlinkSync(join(repo, "supabase"), join(repo, "db"));
+    const viaLink = await run("claude", {
+      tool_name: "Write",
+      cwd: repo,
+      tool_input: { file_path: join(repo, "db/migrations/x.sql") },
+    });
+    expect(JSON.parse(viaLink.out[0] ?? "{}").hookSpecificOutput.permissionDecision).toBe("deny");
+    const tooLarge = await run("claude", PRE_TOOL_INPUT_TOO_LARGE);
+    expect(
+      JSON.parse(tooLarge.out[0] ?? "{}").hookSpecificOutput.permissionDecisionReason,
+    ).toContain("too large to check");
+    const settings = await run("claude", {
+      tool_name: "Write",
+      cwd: repo,
+      tool_input: { file_path: configFile },
+    });
+    expect(JSON.parse(settings.out[0] ?? "{}").hookSpecificOutput.permissionDecision).toBe("deny");
+    const cache = await run("claude", {
+      tool_name: "Write",
+      cwd: repo,
+      tool_input: { file_path: join(repo, ".git/codeceipt/boundaries.json") },
+    });
+    expect(JSON.parse(cache.out[0] ?? "{}").hookSpecificOutput.permissionDecision).toBe("deny");
+  });
+
+  it("PH5B-15 a path written with ~ is the home folder (here a link into the repo), so it is still checked", async () => {
+    const { repo, home, run } = setup();
+    symlinkSync(repo, join(home, "shop"));
+    const res = await run("claude", {
+      tool_name: "Write",
+      tool_input: { file_path: "~/shop/supabase/migrations/x.sql" },
+    });
+    expect(JSON.parse(res.out[0] ?? "{}").hookSpecificOutput.permissionDecision).toBe("deny");
   });
 });

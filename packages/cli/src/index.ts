@@ -521,6 +521,8 @@ async function runAnyHook(
       git: deps.git ?? runGit,
       stdout: deps.stdout,
       configFile: path,
+      ...(deps.homedir ? { home: deps.homedir } : {}),
+      ...(deps.platform ? { platform: deps.platform } : {}),
     }).catch(() => {});
     return EXIT.ok;
   }

@@ -439,9 +439,15 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     : null;
   asked?.catch(() => {}); // settled later; never an unhandled rejection
   // Roadmap Phase 5b: the Blueprint's boundaries are kept on disk for the pre-tool hook (no server call per edit).
+  // Bounded as a whole (finding the git folder included), so it never adds to the start note's wait.
   const bounds = deps.config
-    ? gitDirOf(deps.git, cwd).then((gitDir) =>
-        deps.config ? refreshBoundaries(deps.fetch, deps.config, gitDir, START_NOTE_WAIT_MS) : null,
+    ? within(
+        gitDirOf(deps.git, cwd).then((gitDir) =>
+          deps.config
+            ? refreshBoundaries(deps.fetch, deps.config, gitDir, START_NOTE_WAIT_MS)
+            : null,
+        ),
+        START_NOTE_WAIT_MS,
       )
     : null;
   bounds?.catch(() => {});

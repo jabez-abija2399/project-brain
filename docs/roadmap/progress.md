@@ -199,6 +199,19 @@ Status values: not started, in progress, merged, blocked (with reason).
     time.
   - A hook that times out or fails lets the tool run (each agent's own rule).
   - Antigravity set up per repo (not by plugin) has only the session start hook, as before.
+- **Not covered:**
+  - Edits through other tools (MCP file tools, a shell-wrapped patch) are not checked.
+  - A write into another linked repo is checked against this repo's rules only.
+- **Security review (fresh context): all findings fixed, each with an attack test (PH5B-11..15).**
+  - **Large edits:** the hook reads up to 8 MB; a larger edit is refused, never let through unread.
+  - **Real paths:** targets and the root are resolved through symlinks, `~` is expanded, and letter case is ignored on
+    macOS and Windows. Windows' trailing dots and spaces are dropped.
+  - **Never cut silently:** more than 500 files in one call is refused, long paths count as hits, and indented patch
+    headers are read.
+  - **Codeceipt's own files:** `.git/` and Codeceipt's settings file are never written by an agent's file tool, so the
+    check cannot be switched off that way.
+  - **Smaller fixes:** Cursor gentle mode leaves Cursor's own approval in place, and the boundary refresh is bounded
+    as a whole.
 - **Modes:** the same setting as the guard (`codeceipt config guard strict|gentle|off`).
 - **Boundaries on disk:** session start refreshes them alongside the start note, within the same wait limit. A server
   before migration 0054 leaves the kept copy as is. The answer is read up to 256 KB only.
