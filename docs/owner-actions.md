@@ -150,6 +150,8 @@ absent; where_did_we_stop with features: true answers it)", then run
   (`--ci`) for weakened tests, new secrets, hidden characters and the Blueprint's boundaries.
 - **Phase 5b:** edits under a protected path are stopped before they happen, through each agent's pre-tool-use hook
   (Claude Code, Cursor, Codex, Antigravity).
+- **Phase 8a:** `codeceipt import` turns an existing spec (the kit's features.json, Spec Kit, Kiro, OpenSpec,
+  AGENTS.md, a README) into a plan draft for you to approve.
 - **Phase 7a:** `codeceipt review` prints the build checklist and size flags for a change, and the plugins get the
   `/codeceipt-feature`, `/codeceipt-fix` and `/codeceipt-review` workflows.
 

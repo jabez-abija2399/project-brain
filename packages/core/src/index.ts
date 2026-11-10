@@ -136,6 +136,7 @@ export type {
   TableSchema,
 } from "./supabase";
 export {
+  ITEM_KINDS,
   MAX_ANSWER_CHARS,
   MAX_IDEA_CHARS,
   PlanRejectedError,
@@ -212,6 +213,21 @@ export {
 export { guardCheck, MAX_GUARD_FINDINGS, newLines, newPackageNames } from "./guard";
 export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
 export { findHiddenChars } from "./hidden-chars";
+export {
+  IMPORT_SOURCES,
+  MAX_IMPORT_FILE_CHARS,
+  MAX_IMPORT_FILES,
+  importDraft,
+  importFeatures,
+  importPathMatches,
+} from "./import";
+export type {
+  ImportDraft,
+  ImportFile,
+  ImportSource,
+  ImportedFeature,
+  ImportedItem,
+} from "./import";
 export {
   LARGE_CHANGE_LINES,
   LONG_FILE_LINES,
