@@ -332,7 +332,7 @@ export function ReceiptCard({
           )}
           {view.claims.length > 0 && (
             // Roadmap Phase 10: what the agent said it did, checked against the change on the user's machine.
-            <Section title="What the agent said, checked">
+            <Section title="What the agent said, checked on your machine">
               <ul className="stack plain-list">
                 {view.claims.map((c, n) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: claims have no stable id in a stored receipt

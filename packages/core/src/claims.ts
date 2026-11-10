@@ -1,5 +1,3 @@
-import { TEST_FILE } from "./receipt";
-
 // Roadmap Phase 10: the claim checker. An agent's final summary says things ("added tests", "all tests pass",
 // "updated src/cart.ts", "did not touch the migrations"). This reads that summary on the user's machine and checks each
 // claim against what git shows: confirmed, contradicted, or cannot be checked. Deterministic, no AI. The summary's
@@ -13,11 +11,17 @@ export type Claim = { kind: ClaimKind; path?: string };
 export type CheckedClaim = Claim & { verdict: ClaimVerdict };
 
 export type ClaimEvidence = {
-  /** Repo-relative paths the session changed. */
-  changedFiles: string[];
-  /** Passing tests before and after, when a test report was found (else null). */
+  /** Repo-relative paths the session changed; null when that cannot be known (no git, no start snapshot). */
+  changedFiles: string[] | null;
+  /** Every file of the repo (tracked, plus the changed ones). A claim's path is only ever one of these. */
+  knownFiles: string[];
+  /** Test files (code, still present) the session added or changed; null when unknown. */
+  testFilesChanged: number | null;
+  /** The test report named by the user, if any: counts, and whether it was written during this session. */
   passingBefore: number | null;
   passingAfter: number | null;
+  failedAfter: number | null;
+  reportFresh: boolean;
   /** Tests deleted, skipped or weakened in this session (the count of such flags). */
   weakenedTests: number;
 };
@@ -31,10 +35,9 @@ const MAX_PATH = 200;
 const PATH = /(?:^|[\s`'"(])((?:[\w.@-]+\/)+[\w.@-]+|[\w@-]+\.[a-z]{1,5})(?=$|[\s`'"),.:;])/gi;
 const CHANGED =
   /\b(updated?|changed?|modif(?:y|ied)|edit(?:ed)?|creat(?:e|ed)|add(?:ed)?|wrote|rewr(?:o|i)te|refactor(?:ed)?|fix(?:ed)?)\b/i;
+// "did not touch X", "without changing X", "no changes to X", "left X untouched", "X is unchanged".
 const UNTOUCHED =
-  /\b(did(?: not|n't)|have(?: not|n't)|has(?: not|n't)|without|no changes? to|left|untouched|unchanged)\b/i;
-const UNTOUCHED_VERB =
-  /\b(touch(?:ed|ing)?|chang(?:e|ed|ing)|modif(?:y|ied|ying)|edit(?:ed|ing)?|untouched|unchanged|alone|as (?:it|they) (?:is|are|was|were))\b/i;
+  /\b(?:did(?: not|n't)|do(?: not|n't)|have(?: not|n't)|has(?: not|n't)|without|never)\s+(?:touch|chang|modif|edit)\w*|\bno changes? to\b|\b(?:untouched|unchanged)\b|\bleft\b[^.]{0,80}\balone\b/i;
 const TESTS_ADDED = /\b(add(?:ed)?|wrote|written|creat(?:e|ed)|new)\b[^.]{0,40}\btests?\b/i;
 const TESTS_PASS =
   /\b(?:all\s+)?(?:the\s+)?tests?(?:\s+suite)?\s+(?:now\s+|all\s+|still\s+)?(?:are\s+)?(?:pass(?:es|ing|ed)?|green|succeed(?:s|ed)?)\b/i;
@@ -60,57 +63,94 @@ export function extractClaims(summary: string): Claim[] {
   for (const raw of sentences) {
     const s = raw.slice(0, MAX_SENTENCE);
     if (s.trim().length === 0) continue;
-    const untouched = UNTOUCHED.test(s) && UNTOUCHED_VERB.test(s);
+    const untouched = UNTOUCHED.test(s);
     if (!untouched && TESTS_PASS.test(s) && !NEGATED.test(s)) add({ kind: "tests_pass" });
     if (!untouched && TESTS_ADDED.test(s) && !NEGATED.test(s)) add({ kind: "tests_added" });
+    const paths: string[] = [];
     for (const m of s.matchAll(PATH)) {
       const path = normal(m[1] ?? "");
       // Only paths inside the repo: no "." or ".." parts (a claim never names a file outside it).
       if (path.split("/").some((part) => part === "" || part === "." || part === "..")) continue;
-      // Version numbers, sentences ending in a word and URLs are not paths.
-      if (path.length > MAX_PATH || /^\d+(\.\d+)*$/.test(path) || /^(https?|www)\b/i.test(path))
-        continue;
-      if (
-        !path.includes("/") &&
-        !/\.(ts|tsx|js|jsx|mjs|cjs|json|sql|md|css|html|py|go|rs|yml|yaml|toml|sh)$/i.test(path)
-      )
-        continue;
+      if (path.length > 0 && path.length <= MAX_PATH) paths.push(path);
+    }
+    const changedVerb = CHANGED.test(s);
+    // "Fixed a.ts without changing b.ts": which file was left alone cannot be told from the sentence, so neither
+    // is claimed (security review: an honest claim must not show as contradicted).
+    if (untouched && changedVerb && paths.length > 1) continue;
+    for (const path of paths) {
       if (untouched) add({ kind: "left_untouched", path });
-      else if (CHANGED.test(s)) add({ kind: "changed_file", path });
+      else if (changedVerb) add({ kind: "changed_file", path });
     }
   }
   return out;
 }
 
-/** True when `claimed` names `changed`: the same path, or its ending at a folder boundary (agents shorten paths). */
-const names = (claimed: string, changed: string) =>
-  changed === claimed || changed.endsWith(`/${claimed}`) || changed.startsWith(`${claimed}/`);
+/**
+ * The repo file or folder a claimed path names, or null. Security review: a "path" read from the agent's message
+ * could be any words with a slash or a dot (a key, an email, a date), so it is used only to look up a real path of
+ * this repo, and that real path is what the claim carries. Exact file, exact folder, or one unique file ending.
+ */
+function resolve(claimed: string, known: Set<string>, list: string[]): string | null {
+  if (known.has(claimed)) return claimed;
+  if (list.some((f) => f.startsWith(`${claimed}/`))) return claimed;
+  const endings = list.filter((f) => f.endsWith(`/${claimed}`));
+  // "page.tsx" in a repo with many: which one is meant cannot be told.
+  return endings.length === 1 ? (endings[0] as string) : null;
+}
 
-/** Each claim against the evidence. Fail closed: without evidence the verdict is "cannot check", never "confirmed". */
+/**
+ * Each claim against the evidence. Fail closed: without evidence the verdict is "cannot check", never "confirmed".
+ * A file claim whose path is not a file or folder of this repo is dropped (nothing of the agent's words is kept).
+ */
 export function checkClaims(claims: Claim[], evidence: ClaimEvidence): CheckedClaim[] {
-  const changed = evidence.changedFiles.map(normal);
-  return claims.slice(0, MAX_CLAIMS).map((c): CheckedClaim => {
+  const changed = evidence.changedFiles?.map(normal) ?? null;
+  const list = [...new Set([...evidence.knownFiles.map(normal), ...(changed ?? [])])];
+  const known = new Set(list);
+  const out: CheckedClaim[] = [];
+  for (const c of claims.slice(0, MAX_CLAIMS)) {
     if (c.kind === "tests_added") {
-      return {
-        ...c,
-        verdict: changed.some((f) => TEST_FILE.test(f)) ? "confirmed" : "contradicted",
-      };
+      const n = evidence.testFilesChanged;
+      out.push({
+        kind: c.kind,
+        verdict: n === null ? "cannot_check" : n > 0 ? "confirmed" : "contradicted",
+      });
+      continue;
     }
     if (c.kind === "tests_pass") {
-      const { passingBefore: before, passingAfter: after } = evidence;
-      // Fewer passing tests than before, or tests skipped or weakened on the way, contradicts "tests pass".
-      if (before !== null && after !== null && after < before)
-        return { ...c, verdict: "contradicted" };
-      if (evidence.weakenedTests > 0) return { ...c, verdict: "contradicted" };
-      // No test report on this machine: nothing shows it either way.
-      return { ...c, verdict: after !== null && after > 0 ? "confirmed" : "cannot_check" };
+      const { passingBefore: before, passingAfter: after, failedAfter: failed } = evidence;
+      const fresh = evidence.reportFresh;
+      // Fewer passing tests than before, failing tests in this session's report, or tests skipped or weakened on
+      // the way, contradict "tests pass".
+      const worse = before !== null && after !== null && after < before;
+      const failing = fresh && failed !== null && failed > 0;
+      // Confirmed only by a report written in this session with tests passing and none failing; an old report, or
+      // none, shows nothing either way.
+      const proven = fresh && failed === 0 && after !== null && after > 0;
+      out.push({
+        kind: c.kind,
+        verdict:
+          worse || failing || evidence.weakenedTests > 0
+            ? "contradicted"
+            : proven
+              ? "confirmed"
+              : "cannot_check",
+      });
+      continue;
     }
-    const path = c.path ? normal(c.path) : "";
-    if (!path) return { ...c, verdict: "cannot_check" };
-    const hit = changed.some((f) => names(path, f));
-    if (c.kind === "changed_file") return { ...c, verdict: hit ? "confirmed" : "contradicted" };
-    return { ...c, verdict: hit ? "contradicted" : "confirmed" };
-  });
+    const path = c.path ? resolve(normal(c.path), known, list) : null;
+    if (!path) continue;
+    if (changed === null) {
+      out.push({ kind: c.kind, path, verdict: "cannot_check" });
+      continue;
+    }
+    const hit = changed.some((f) => f === path || f.startsWith(`${path}/`));
+    out.push({
+      kind: c.kind,
+      path,
+      verdict: (c.kind === "changed_file") === hit ? "confirmed" : "contradicted",
+    });
+  }
+  return out;
 }
 
 /** One plain sentence for a claim (fixed words; the path is shown as data by the caller). */

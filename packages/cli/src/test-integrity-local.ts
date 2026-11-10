@@ -124,3 +124,26 @@ export async function passingTests(
     return null;
   }
 }
+
+/**
+ * Roadmap Phase 10 (security review): the same report's failed-test count and when it was written, for the claim
+ * checker. "Tests pass" is confirmed only by a report written during the session with no failed tests.
+ */
+export async function testReportState(
+  root: string,
+  reportPath: string | undefined,
+): Promise<{ failed: number | null; writtenAt: number } | null> {
+  if (!reportPath) return null;
+  const abs = await inside(root, reportPath.replace(/^\.\//, ""));
+  if (!abs) return null;
+  const st = await lstat(abs).catch(() => null);
+  if (!st?.isFile() || st.size > MAX_REPORT_BYTES) return null;
+  try {
+    const n = (JSON.parse(await readFile(abs, "utf8")) as { numFailedTests?: unknown })
+      .numFailedTests;
+    const failed = typeof n === "number" && Number.isInteger(n) && n >= 0 ? n : null;
+    return { failed, writtenAt: st.mtimeMs };
+  } catch {
+    return null;
+  }
+}

@@ -481,11 +481,11 @@ Status values: not started, in progress, merged, blocked (with reason).
 ### Phase 10a: the claim checker
 - **What it does:** when an agent stops, Codeceipt reads its final message on the user's machine and checks what it
   says against the session's changes. Four kinds of claim:
-  - "added tests": confirmed when a test file changed, else contradicted;
-  - "tests pass": contradicted when fewer tests pass than before or tests were skipped or weakened; confirmed only
-    with a test report; otherwise "cannot check";
+  - "added tests": confirmed when a test file with code was added or changed and still exists;
+  - "tests pass": confirmed only by a test report written during this session with no failed tests; contradicted
+    when tests fail, fewer pass than before, or tests were skipped or weakened; otherwise "cannot check";
   - "changed <file>": confirmed when that file changed;
-  - "did not touch <file>": contradicted when it changed.
+  - "did not touch <file or folder>": contradicted when it changed.
 - **Privacy:** the message's words never leave the machine. A claim on the receipt is only its kind, a repo path
   when it names one, and the verdict. The server refuses free text, unknown kinds and paths outside the repo.
 - **Where it shows:** a "What the agent said, checked" section on the receipt, contradicted claims first.
@@ -494,3 +494,19 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **No AI call:** deterministic patterns only (`packages/core/src/claims.ts`). Vague claims ("done", "fixed the
   bug") are not claims here; a single optional AI call for them is in `agent/later.md`.
 - **Part of the unreleased CLI 0.3.7** (owner action 8).
+- **Security review (fresh context): two HIGH and four MEDIUM findings, all fixed, with attack tests (PH10-04..07,
+  PH10-08, PH10-12).**
+  - **HIGH 1:** a "path" read from the message could be any words with a slash or a dot (a key, an email, a date).
+    Now a claim's path is only ever a real file or folder of this repo, looked up in git; anything else is dropped.
+  - **HIGH 2:** "tests pass" was confirmed by any report with passing tests. Now it needs a report written during
+    the session with zero failed tests.
+  - **MEDIUM:**
+    - When the session's changes are unknown (no git, no start snapshot), every verdict is "cannot check".
+    - A sentence that mixes changed and untouched files claims neither; "left a TODO in X" is not "left untouched".
+    - "Added tests" needs a test file with code that still exists (not a fixture or a deleted test).
+    - A bare file name shared by several files names none of them.
+  - **LOW:**
+    - The section is titled "checked on your machine" (a project token could send its own verdicts, as with the
+      test checks).
+    - Recorded in `agent/later.md`: a final message over 64 KB makes the whole hook input be ignored (this predates
+      the change).
