@@ -74,6 +74,7 @@ export function helpText(): string {
     "  codeceipt guard [--staged|--ci]     checks changed files: weakened tests, secrets, hidden characters, boundaries",
     "  codeceipt guard --install-hook      checks every commit in this repo (a pre-commit hook; asks nothing, changes no existing hook)",
     '  codeceipt prove [--for "<request>"] runs only the tests for this change with your check command; prints the result',
+    "  codeceipt export --to <kind>        writes the approved Blueprint into AGENTS.md, OpenSpec or Spec Kit (--write, --check)",
     "  codeceipt import [--from <kind>]    turns agent/features.json, Spec Kit, Kiro, OpenSpec, AGENTS.md or a README into a plan draft",
     "  codeceipt review [--staged|--ci]    the build checklist and size flags for the changed files (nothing is sent)",
     "  codeceipt approvals                 the link to approve, reject or pause what your agents ask for (owner only)",
@@ -464,6 +465,16 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         env: deps.env,
         config: () => projectConfig(deps, path, deps.cwd, { linkedOnly: true }),
         savedMode: readSettings(path).guard ?? "strict",
+      });
+    } else if (command === "export") {
+      // Roadmap Phase 8: the owner-approved Blueprint into AGENTS.md, OpenSpec or Spec Kit files in this repo.
+      const { runExport } = await import("./export-command");
+      return await runExport(args, {
+        git: deps.git ?? runGit,
+        cwd: deps.cwd,
+        stdout: deps.stdout,
+        fetch: deps.fetch,
+        config: () => projectConfig(deps, path, deps.cwd, { linkedOnly: true }),
       });
     } else if (command === "import") {
       // Roadmap Phase 8: a spec from this repo becomes the project's plan draft; only the owner approves it.

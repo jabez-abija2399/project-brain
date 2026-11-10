@@ -214,6 +214,17 @@ export { guardCheck, MAX_GUARD_FINDINGS, newLines, newPackageNames } from "./gua
 export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
 export { findHiddenChars } from "./hidden-chars";
 export {
+  EXPORT_TARGETS,
+  GENERATED_MARK,
+  SECTION_END,
+  SECTION_START,
+  agentsSection,
+  isGenerated,
+  mergeAgents,
+  specFiles,
+} from "./export";
+export type { ExportBlueprint, ExportTarget } from "./export";
+export {
   IMPORT_SOURCES,
   MAX_IMPORT_FILE_CHARS,
   MAX_IMPORT_FILES,
