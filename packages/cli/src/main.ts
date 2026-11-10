@@ -4,6 +4,7 @@ import { createInterface } from "node:readline";
 import { configPath } from "./config";
 import { PRE_TOOL_INPUT_TOO_LARGE, PRE_TOOL_MAX_INPUT } from "./hook-input";
 import { main } from "./index";
+import { menuChoice } from "./menu";
 import { maybeStartBackgroundUpdate } from "./native/commands";
 import { nativeBuild } from "./native/install-info";
 import { readHiddenLine } from "./prompt";
@@ -69,6 +70,17 @@ const code = await main(process.argv.slice(2), {
             rl.question(`${question} `, (answer) => {
               rl.close();
               resolve(/^(y|yes)?$/i.test(answer.trim()));
+            });
+          }),
+        // Roadmap Phase 9: the menu of `codeceipt` with no arguments in a connected repo.
+        choose: (question: string, options: string[]) =>
+          new Promise<number | null>((resolve) => {
+            process.stdout.write(`${question}\n`);
+            for (const [i, o] of options.entries()) process.stdout.write(`  ${i + 1}. ${o}\n`);
+            const rl = createInterface({ input: process.stdin, output: process.stdout });
+            rl.question(`Type a number and press Enter (Enter alone quits): `, (answer) => {
+              rl.close();
+              resolve(menuChoice(answer, options.length));
             });
           }),
       }

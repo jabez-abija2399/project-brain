@@ -1498,3 +1498,11 @@ a.stat-card:hover {
   overflow-x: auto;
   max-width: 100%;
 }
+
+/* Roadmap Phase 9: the "How do you build?" buttons sit in a fieldset without its default frame. */
+.build-choice {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}

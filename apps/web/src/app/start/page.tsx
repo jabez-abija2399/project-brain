@@ -6,8 +6,11 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { onboarding } from "@/server/onboarding";
+import { BUILD_COOKIE, BUILD_LABELS, buildGuide, buildStyle } from "@brain/core";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
+import { BuildChoice } from "./build-choice";
 import { LiveStatus } from "./live-status";
 
 export const dynamic = "force-dynamic";
@@ -35,13 +38,25 @@ const RECEIPT_GUIDE: [string, string][] = [
 
 // Journey part 1: the guided start page a new user sees after signing in. Each step turns done by itself (project
 // linked, first index, first receipt); the first receipt is then shown with what each part means.
-export default async function StartPage() {
+// The remembered "How do you build?" answer; none when no request cookies can be read (a display preference only).
+async function rememberedBuild(): Promise<string | undefined> {
+  try {
+    return (await cookies()).get(BUILD_COOKIE)?.value;
+  } catch {
+    return undefined;
+  }
+}
+
+export default async function StartPage({
+  searchParams,
+}: { searchParams?: Promise<{ build?: string }> } = {}) {
   const user = await pageUser();
   const { project, steps, receipt } = await onboarding(getDb(), user);
   const allDone = steps.linked && steps.indexed && steps.receipt;
   const current = [steps.linked, steps.indexed, steps.receipt].map((d) => (d ? "1" : "0")).join("");
   const receipts = project ? `/projects/${project.id}/receipts` : null;
   const doneCount = [steps.linked, steps.indexed, steps.receipt].filter(Boolean).length;
+  const style = buildStyle((await searchParams)?.build, await rememberedBuild());
   return (
     <main className="page page-narrow stack stack-lg">
       <PageHeader
@@ -72,6 +87,34 @@ export default async function StartPage() {
           <ProgressBar done={doneCount} total={3} label={`${doneCount} of 3 steps done`} />
           <span className="muted">{doneCount} of 3 steps done</span>
         </div>
+      )}
+      {allDone ? null : (
+        // Roadmap Phase 9: "How do you build?" picks the first steps for that way of building.
+        <section className="card stack" aria-labelledby="build-how">
+          <h2 className="section-title m0" id="build-how">
+            How do you build?
+          </h2>
+          <BuildChoice current={style} />
+          {style ? (
+            <>
+              <h3 className="subhead m0">{BUILD_LABELS[style]}: your first steps</h3>
+              <ol className="stack m0">
+                {buildGuide(style).map((line) => (
+                  <li key={line}>
+                    {line.split("`").map((part, i) =>
+                      // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one fixed sentence, in order
+                      i % 2 === 1 ? <code key={i}>{part}</code> : <span key={i}>{part}</span>,
+                    )}
+                  </li>
+                ))}
+              </ol>
+            </>
+          ) : (
+            <p className="muted m0">
+              Pick one and we show the first steps for it. You can change it any time.
+            </p>
+          )}
+        </section>
       )}
       <JourneySteps steps={steps} />
       <LiveStatus on={!allDone} current={current} />
