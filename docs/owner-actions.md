@@ -207,3 +207,26 @@ through `agent/plan.json`, and you approve it with `SPEC_CHANGE_APPROVED`. Claud
 
 **Check:** `codeceipt config stop-gate` with no setting prints the default you chose.
 
+
+---
+
+## 11. Apply migration 0055 (approval policies) — pending, optional
+
+**Why:** Phase 6a stores each project's approval policy, the requests agents make and an append-only audit log. Until
+0055 is in production, everything else works as before: approval calls answer "being set up", and `/api/health`
+stays 200, with 0055 listed under `migrations.pending` and `optional: true`.
+
+**Steps:**
+- If action 1 is done, approve the `migrate-production` run that follows the merge.
+- Otherwise:
+  1. In the Neon **SQL Editor**, on `production`, paste
+     [packages/db/migrations/0055_approvals.sql](../packages/db/migrations/0055_approvals.sql) and click **Run**.
+  2. Then run `INSERT INTO "_brain_migrations" (id) VALUES ('0055_approvals');`.
+
+**What to expect in the SQL (review before approving):**
+- Three `CREATE TABLE`: `approval_policies`, `approval_requests` and `approval_audit`.
+- Two indexes.
+- One function and trigger that refuse any edit or delete of an audit row (except when its project is deleted).
+- Nothing is dropped or changed.
+
+**Check:** `https://codeceipts.vercel.app/api/health` no longer lists `0055_approvals`.

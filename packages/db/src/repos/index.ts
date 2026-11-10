@@ -72,3 +72,10 @@ export {
   type LiveBlueprint,
 } from "./blueprint";
 export { DISCOVER_MAX_FEATURES, discoverRepo } from "./discover";
+
+export {
+  type ApprovalTx,
+  approvalAuditRepo,
+  approvalPoliciesRepo,
+  approvalRequestsRepo,
+} from "./approvals";

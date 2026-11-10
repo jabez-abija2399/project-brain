@@ -219,3 +219,24 @@ export type { PreToolAgent, PreToolHit, PreToolMode } from "./pre-tool";
 // Roadmap Phase 5c: a definition of done when a request is captured (no AI).
 export { DONE_NOTE_LIMIT, definitionOfDone, matchFeatureByWords } from "./definition-of-done";
 export type { DoneNoteInput } from "./definition-of-done";
+// Roadmap Phase 6: approval policies (risk levels, presets, rules; agents only ask, the owner decides).
+export {
+  APPROVAL_ACTIONS,
+  DEFAULT_POLICY,
+  MAX_RULES,
+  PRESETS,
+  REQUEST_TTL_MS,
+  decide,
+  isApprovalAction,
+  loosens,
+  parsePolicy,
+} from "./approvals";
+export type {
+  ApprovalAction,
+  ApprovalRule,
+  ApprovalSubject,
+  Choice,
+  Policy,
+  Preset,
+  Risk,
+} from "./approvals";
