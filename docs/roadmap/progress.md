@@ -15,7 +15,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | merged | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65), 4c [#66](https://github.com/jabez-abija2399/project-brain/pull/66) | Definition of done and "prove it" runs moved to Phase 5b (CLI) |
-| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | 5a, 5b merged; 5c in progress | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68) | |
+| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | 5a, 5b, 5c merged; 5d in progress | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68), 5c [#69](https://github.com/jabez-abija2399/project-brain/pull/69) | |
 | 6 | Approval policies | not started | | |
 | 7 | Kit workflows as product features | not started | | |
 | 8 | Import, export, sync | not started | | |
@@ -244,3 +244,19 @@ Status values: not started, in progress, merged, blocked (with reason).
     - Up to 1,000 features and all active boundaries are read.
     - The CLI also strips zero-width and tag characters, and names match in NFC.
 - **Moved to 5d:** opt-in "prove it" runs.
+
+### Phase 5d: opt-in "prove it" runs (`codeceipt prove`)
+- **What runs:** `codeceipt prove [--for "<request>"] [--json]` runs only the tests for the current change:
+  - changed test files;
+  - the test files next to changed source files (`a.ts` → `a.test.ts` / `a.spec.ts`);
+  - with `--for`, the tests the owner linked to the request's feature (from the 5c route, which now also returns test
+    paths).
+- **How:**
+  - It uses the repo's own check command (`codeceipt config check`) with its time limit.
+  - It works only with commands that take file names: vitest, jest, or npm/pnpm/yarn test. Any other command gets a
+    plain message and nothing runs.
+- **Opt-in:** it runs only when someone runs it. Nothing is uploaded: counts and failing test names are printed here
+  only.
+- **Safety:**
+  - Test paths are plain characters only and quoted; a path starting with `-` or containing `..` never runs.
+  - At most 100 files, and the check command's process-tree kill on timeout.

@@ -16,7 +16,7 @@ export async function hookDefinitionOfDone(
   db: BrainDb,
   projectId: string,
   body: unknown,
-): Promise<{ feature: string | null; note: string | null }> {
+): Promise<{ feature: string | null; note: string | null; tests: string[] }> {
   const request = (body as { request?: unknown } | null)?.request;
   if (typeof request !== "string" || request.length === 0 || request.length > MAX_REQUEST) {
     throw new AppError(
@@ -25,10 +25,10 @@ export async function hookDefinitionOfDone(
       "send { request: <text of at most 8,000 characters> }",
     );
   }
-  if (!(await blueprintEnabled(db))) return { feature: null, note: null };
+  if (!(await blueprintEnabled(db))) return { feature: null, note: null, tests: [] };
   const { features } = await featuresRepo.listSummaries(db, projectId, MAX_FEATURES);
   const feature = matchFeatureByWords(request, features);
-  if (!feature) return { feature: null, note: null };
+  if (!feature) return { feature: null, note: null, tests: [] };
   const [criteria, boundaries, tests] = await Promise.all([
     criteriaRepo.activeForFeature(db, projectId, feature.id, 30),
     // Every active boundary (the Blueprint keeps at most 500), so dependency rules never push protected paths out.
@@ -41,5 +41,10 @@ export async function hookDefinitionOfDone(
     protectedPaths: boundaries.filter((b) => b.kind === "protected_path").map((b) => b.pattern),
     tests,
   });
-  return { feature: note ? feature.name : null, note };
+  // Roadmap Phase 5d: the linked test files too, for `codeceipt prove --for` (paths only, already in the project's index).
+  return {
+    feature: note ? feature.name : null,
+    note,
+    tests: [...new Set(tests.map((t) => t.path))],
+  };
 }
