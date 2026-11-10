@@ -14,7 +14,13 @@ type Ctx = { params: Promise<{ projectId: string }> };
 // the body or the token), one error shape.
 export function indexRoute(
   name: string,
-  handle: (db: BrainDb, projectId: string, req: Request) => Promise<Record<string, unknown>>,
+  handle: (
+    db: BrainDb,
+    projectId: string,
+    req: Request,
+    // The token that called (its id for audit fields such as created_by; never trust it for the project).
+    token: { id: string },
+  ) => Promise<Record<string, unknown>>,
   // limit: a separate rate-limit bucket (the guard's boundaries read must not use up the indexer's quota).
   opts: { replaceRepo?: boolean; limit?: string } = {},
 ) {
@@ -28,7 +34,7 @@ export function indexRoute(
       const bucket = opts.limit ?? "index";
       await rateLimit(db, `${bucket}:${token.id}`, INDEX_REQUESTS_PER_MINUTE);
       await rateLimit(db, `${bucket}-project:${projectId}`, INDEX_REQUESTS_PER_MINUTE);
-      return NextResponse.json({ ok: true, ...(await handle(db, projectId, req)) });
+      return NextResponse.json({ ok: true, ...(await handle(db, projectId, req, token)) });
     } catch (err) {
       const res = toResponse(err);
       status = res.status;

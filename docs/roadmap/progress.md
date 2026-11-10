@@ -17,8 +17,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | merged | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65), 4c [#66](https://github.com/jabez-abija2399/project-brain/pull/66) | Definition of done and "prove it" runs moved to Phase 5b (CLI) |
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | merged | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68), 5c [#69](https://github.com/jabez-abija2399/project-brain/pull/69), 5d [#70](https://github.com/jabez-abija2399/project-brain/pull/70) | CLI 0.3.7 (owner action 8) |
 | 6 | Approval policies | merged (email notifications wait on owner action 12) | 6a [#71](https://github.com/jabez-abija2399/project-brain/pull/71), 6b [#72](https://github.com/jabez-abija2399/project-brain/pull/72) | Migration 0055 optional (owner action 11); email needs owner action 12 |
-| 7 | Kit workflows as product features | in progress (7a) | | |
-| 8 | Import, export, sync | not started | | |
+| 7 | Kit workflows as product features | merged (receipt flags later) | 7a [#73](https://github.com/jabez-abija2399/project-brain/pull/73) | `/codeceipt-feature`, `-fix`, `-review`; `codeceipt review` |
+| 8 | Import, export, sync | in progress (8a) | | |
 | 9 | Easy everywhere (parity, menu, next step) | not started | | |
 | 10 | Claim checker and PR receipts | not started | | |
 | 11 | VS Code extension | not started | | |
@@ -360,3 +360,32 @@ Status values: not started, in progress, merged, blocked (with reason).
   - **LOW:**
     - The skills say outright: never change Guard or `codeceipt config`, never approve, never send code.
     - Holding the whole changed-file list in memory is the same as in Guard; recorded in `agent/later.md`.
+
+### Phase 8a: importers
+- **Command:** `codeceipt import [--from kit|speckit|kiro|openspec|agents|readme] [--dry-run]` reads an existing spec on
+  this machine. Sources:
+  - the AI Build Kit's `agent/features.json`;
+  - Spec Kit `specs/*/spec.md`;
+  - Kiro `.kiro/specs/*/requirements.md`;
+  - OpenSpec `openspec/specs/*/spec.md`;
+  - the rules in `AGENTS.md` / `CLAUDE.md`;
+  - a README's feature list.
+- **What is sent:** feature names, short criterion texts (240 characters) and file:line. The server cleans it again
+  and saves it as the project's plan draft.
+- **Approval:** nothing is active until the owner approves it on the Plan tab (approve_import is high risk; a token
+  cannot approve).
+  - Each approved criterion keeps `[from path:line]`.
+  - Features the project already has are skipped.
+  - A draft holds 20 features with 8 criteria each; run the import again for the rest.
+- **Readers:** deterministic, no AI (`packages/core/src/import/`). Tested on this repo's own `agent/features.json`
+  and `AGENTS.md`, plus fixtures for Spec Kit, Kiro, OpenSpec and README.
+- **Next (8b):** exports (managed AGENTS.md section, OpenSpec, Spec Kit), and sync suggestions after index/push.
+- **Security review (fresh context): no HIGH findings; all others fixed, with attack tests (PH8-17, PH8-18).**
+  - **MEDIUM:**
+    - An import no longer silently replaces a `plan_project` plan the owner has not decided on: 409 `plan_pending`
+      unless `--replace` is used. The draft records the token that imported it.
+    - The rules check no longer backtracks over long lines. Lines over 2,000 characters are skipped by every reader.
+  - **LOW:**
+    - The kit reader reads at most 50 checks per feature and finds lines in one pass.
+    - The CLI reads at most 200 files of 256 KB.
+    - Server counts are printed as numbers only.

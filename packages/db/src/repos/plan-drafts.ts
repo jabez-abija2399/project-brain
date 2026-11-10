@@ -105,6 +105,21 @@ export const planDraftsRepo = {
     });
   },
 
+  /** Roadmap Phase 8: the project's open plan rows (a question set or an unapproved draft), newest first. */
+  async open(db: BrainDb, projectId: string): Promise<PlanDraft[]> {
+    return db
+      .select()
+      .from(planDrafts)
+      .where(
+        and(
+          eq(planDrafts.projectId, projectId),
+          inArray(planDrafts.status, ["questions", "draft"]),
+        ),
+      )
+      .orderBy(desc(planDrafts.createdAt), desc(planDrafts.id))
+      .limit(5);
+  },
+
   /** The project's unapproved draft (at most one), or its newest approved plan when `status` is "approved". */
   async latest(
     db: BrainDb,
