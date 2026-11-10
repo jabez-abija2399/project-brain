@@ -40,14 +40,29 @@ describe("approval policies (roadmap Phase 6)", () => {
         { action: "*", path: "supabase/**", choice: "never" },
       ],
     };
-    expect(decide(policy, { action: "add_dependency", agent: "codex" }, NOW).choice).toBe("auto");
+    // Restrictive rules (ask on Checkout, never under supabase/) also apply when the agent leaves that field out.
+    const src = "src/a.ts";
     expect(
-      decide(policy, { action: "add_dependency", agent: "codex", feature: "checkout" }, NOW).choice,
+      decide(policy, { action: "add_dependency", agent: "codex", path: src }, NOW).choice,
+    ).toBe("ask");
+    expect(decide(policy, { action: "add_dependency", agent: "codex" }, NOW).choice).toBe("never");
+    expect(
+      decide(policy, { action: "add_dependency", agent: "codex", feature: "Cart", path: src }, NOW)
+        .choice,
+    ).toBe("auto");
+    expect(
+      decide(
+        policy,
+        { action: "add_dependency", agent: "codex", feature: "checkout", path: src },
+        NOW,
+      ).choice,
     ).toBe("ask");
     expect(
       decide(policy, { action: "link_test", path: "supabase/migrations/1.sql" }, NOW).choice,
     ).toBe("never");
-    expect(decide(policy, { action: "link_test", path: "src/a.ts" }, NOW).choice).toBe("auto");
+    expect(
+      decide(policy, { action: "link_test", path: "src/a.ts", feature: "Cart" }, NOW).choice,
+    ).toBe("auto");
   });
 
   it("PH6-04 attack: a rule cannot make a locked action automatic; a pause makes nothing automatic", () => {
@@ -112,5 +127,57 @@ describe("approval policies (roadmap Phase 6)", () => {
       }),
     ).toBeNull();
     expect(parsePolicy({ preset: "fast", pausedUntil: "not a date" })).toBeNull();
+  });
+
+  it("PH6-18 attack (security review): path spellings and left-out fields cannot dodge a never rule", () => {
+    const policy: Policy = {
+      preset: "balanced",
+      rules: [{ action: "add_dependency", path: "src/auth/**", choice: "never" }],
+    };
+    for (const path of [
+      "src/auth/a.ts",
+      "./src/auth/a.ts",
+      "src//auth/a.ts",
+      "/src/auth/a.ts",
+      "src/x/../auth/a.ts",
+      "../../etc/passwd",
+      undefined,
+    ]) {
+      expect(decide(policy, { action: "add_dependency", path }, NOW).choice, String(path)).toBe(
+        "never",
+      );
+    }
+    expect(decide(policy, { action: "add_dependency", path: "src/ui/a.ts" }, NOW).choice).toBe(
+      "auto_tell",
+    );
+    expect(decide(policy, { action: "add_dependency" }, NOW).reason).not.toContain("src/auth");
+  });
+
+  it("PH6-19 attack (security review): removing, moving or reordering a rule is loosening", () => {
+    const never: Policy = {
+      preset: "fast",
+      rules: [{ action: "add_dependency", feature: "payments", choice: "never" }],
+    };
+    expect(loosens(never, { preset: "fast", rules: [] }, NOW)).toBe(true);
+    expect(
+      loosens(
+        never,
+        {
+          preset: "fast",
+          rules: [{ action: "add_dependency", feature: "other", choice: "never" }],
+        },
+        NOW,
+      ),
+    ).toBe(true);
+    const ask: Policy = {
+      preset: "balanced",
+      rules: [{ action: "*", path: "src/auth/**", choice: "ask" }],
+    };
+    expect(loosens(ask, DEFAULT_POLICY, NOW)).toBe(true);
+    const grant: Policy = {
+      preset: "balanced",
+      rules: [{ action: "delete_feature", agent: "codex", choice: "auto" }],
+    };
+    expect(loosens(grant, DEFAULT_POLICY, NOW)).toBe(false);
   });
 });

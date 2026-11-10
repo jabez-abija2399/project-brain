@@ -63,3 +63,6 @@ END;
 $$;
 CREATE TRIGGER "approval_audit_no_change" BEFORE UPDATE OR DELETE ON "approval_audit"
   FOR EACH ROW EXECUTE FUNCTION "approval_audit_append_only"();
+-- TRUNCATE skips row triggers, so it is refused by a statement trigger of its own.
+CREATE TRIGGER "approval_audit_no_truncate" BEFORE TRUNCATE ON "approval_audit"
+  FOR EACH STATEMENT EXECUTE FUNCTION "approval_audit_append_only"();

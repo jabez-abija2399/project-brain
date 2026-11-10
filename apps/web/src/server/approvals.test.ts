@@ -123,10 +123,19 @@ describe("Phase 6a: approvals on the server", () => {
     ).rejects.toMatchObject({ status: 404 });
     world.signInAs(stranger);
     expect((await ownerCall(overviewRoute, "GET")).status).toBe(404);
+    // Remembering an approval of a high-risk action needs the owner's confirmation (security review).
+    await expect(
+      decideRequest(world.db, owner, pid, {
+        requestId: asked.id,
+        decision: "approve",
+        remember: true,
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "confirm_remember" });
     const done = await decideRequest(world.db, owner, pid, {
       requestId: asked.id,
       decision: "approve",
       remember: true,
+      confirm: true,
     });
     expect(done.request.status).toBe("approved");
     await expect(
@@ -154,6 +163,7 @@ describe("Phase 6a: approvals on the server", () => {
       requestId: asked.id,
       decision: "approve",
       remember: true,
+      confirm: true,
     });
     const next = (await (await ask({ action: "turn_off_guard", summary: "y" })).json()) as {
       status: string;
@@ -210,9 +220,36 @@ describe("Phase 6a: approvals on the server", () => {
     expect((await ask({ action: "rm_rf", summary: "x" })).status).toBe(400);
     await world.db.execute(sql`DELETE FROM "_brain_migrations" WHERE id = '0055_approvals'`);
     resetMigrationCheckForTests();
+    // Not set up, and never "approved": an agent must not act on it.
     expect(await agentAsk(world.db, pid, { action: "link_test", summary: "x" })).toEqual({
       ready: false,
+      approved: false,
     });
-    expect(await approvalsOverview(world.db, owner, pid)).toEqual({ ready: false });
+    expect(await approvalsOverview(world.db, owner, pid)).toMatchObject({ ready: false });
+  });
+
+  it("PH6-20 attack (security review): a full policy is never silently trimmed by remember", async () => {
+    const rules = Array.from({ length: 100 }, (_, n) => ({
+      action: "add_decision" as const,
+      feature: `f${n}`,
+      choice: "never" as const,
+    }));
+    await setPolicy(world.db, owner, pid, { policy: { preset: "careful", rules } });
+    const asked = (await agentAsk(world.db, pid, {
+      action: "delete_feature",
+      summary: "x",
+      feature: "Cart",
+    })) as { id: string };
+    await expect(
+      decideRequest(world.db, owner, pid, {
+        requestId: asked.id,
+        decision: "reject",
+        remember: true,
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "policy_full" });
+    const overview = (await approvalsOverview(world.db, owner, pid)) as {
+      policy: { rules: unknown[] };
+    };
+    expect(overview.policy.rules).toHaveLength(100);
   });
 });

@@ -4,9 +4,11 @@
 // approve, change or bypass a policy. Every change and decision is written to the append-only audit log. Before
 // migration 0055 every path answers "not set up yet".
 import {
+  APPROVAL_ACTIONS,
   type ApprovalAction,
   type ApprovalRule,
   DEFAULT_POLICY,
+  MAX_RULES,
   type Policy,
   REQUEST_TTL_MS,
   decide,
@@ -18,6 +20,7 @@ import {
   plainText,
 } from "@brain/core";
 import {
+  type ApprovalTx,
   type BrainDb,
   approvalAuditRepo,
   approvalPoliciesRepo,
@@ -29,7 +32,10 @@ import { missingMigrations } from "./migration-check";
 
 export const APPROVALS_MIGRATION = "0055_approvals";
 const MAX_PENDING = 200;
-const NOT_READY = { ready: false as const };
+// Finished requests are kept 30 days (the audit log keeps every event for good).
+const PRUNE_AFTER_MS = 30 * 24 * 3_600_000;
+// Before migration 0055: not set up, and never "approved" (an agent must not act on it).
+const NOT_READY = { ready: false as const, approved: false as const };
 
 export async function approvalsEnabled(db: BrainDb): Promise<boolean> {
   return !(await missingMigrations(db)).includes(APPROVALS_MIGRATION);
@@ -41,17 +47,30 @@ async function requireReady(db: BrainDb) {
   }
 }
 
-async function currentPolicy(db: BrainDb, projectId: string): Promise<Policy> {
+// Security review (Phase 6a): a stored policy that no longer reads (an action renamed in a later version) asks for
+// everything rather than falling back to the looser default.
+const ASK_EVERYTHING: Policy = { preset: "careful", rules: [{ action: "*", choice: "ask" }] };
+
+async function currentPolicy(db: ApprovalTx, projectId: string): Promise<Policy> {
   const row = await approvalPoliciesRepo.get(db, projectId);
   if (!row) return DEFAULT_POLICY;
-  return (
-    parsePolicy({
-      preset: row.preset,
-      rules: row.rules,
-      pausedUntil: row.pausedUntil?.toISOString() ?? null,
-    }) ?? DEFAULT_POLICY
-  );
+  const policy = parsePolicy({
+    preset: row.preset,
+    rules: row.rules,
+    pausedUntil: row.pausedUntil?.toISOString() ?? null,
+  });
+  if (!policy)
+    console.error("[approvals] stored policy unreadable; asking for everything", projectId);
+  return policy ?? ASK_EVERYTHING;
 }
+
+const save = (tx: ApprovalTx, projectId: string, policy: Policy, userId: string) =>
+  approvalPoliciesRepo.upsert(tx, projectId, {
+    preset: policy.preset,
+    rules: policy.rules,
+    pausedUntil: policy.pausedUntil ? new Date(policy.pausedUntil) : null,
+    updatedBy: userId,
+  });
 
 const view = (r: Awaited<ReturnType<typeof approvalRequestsRepo.list>>[number]) => ({
   id: r.id,
@@ -89,28 +108,25 @@ export async function setPolicy(db: BrainDb, user: SessionUser, projectId: strin
   const next = parsePolicy(b.policy);
   if (!next)
     throw new AppError(400, "invalid_policy", "The policy is not valid; nothing was changed.");
-  const before = await currentPolicy(db, projectId);
-  const looser = loosens(before, next);
-  if (looser && b.confirm !== true) {
-    throw new AppError(
-      409,
-      "confirm_loosening",
-      "This allows more than before: confirm the change.",
-    );
-  }
-  await approvalPoliciesRepo.upsert(db, projectId, {
-    preset: next.preset,
-    rules: next.rules,
-    pausedUntil: next.pausedUntil ? new Date(next.pausedUntil) : null,
-    updatedBy: user.id,
+  return approvalPoliciesRepo.withLock(db, projectId, async (tx) => {
+    const before = await currentPolicy(tx, projectId);
+    const looser = loosens(before, next);
+    if (looser && b.confirm !== true) {
+      throw new AppError(
+        409,
+        "confirm_loosening",
+        "This allows more than before: confirm the change.",
+      );
+    }
+    await save(tx, projectId, next, user.id);
+    await approvalAuditRepo.append(tx, projectId, {
+      event: "policy_changed",
+      actorKind: "owner",
+      actorId: user.id,
+      detail: { preset: next.preset, rules: next.rules.slice(0, 20), loosened: looser },
+    });
+    return { ok: true, policy: next };
   });
-  await approvalAuditRepo.append(db, projectId, {
-    event: "policy_changed",
-    actorKind: "owner",
-    actorId: user.id,
-    detail: { preset: next.preset, rules: next.rules.length, loosened: looser },
-  });
-  return { ok: true, policy: next };
 }
 
 /** Owner: pause automatic approvals for 1, 2 or 4 hours (everything is asked meanwhile), or end the pause. */
@@ -126,26 +142,29 @@ export async function pauseApprovals(
   if (hours !== null && hours !== 1 && hours !== 2 && hours !== 4) {
     throw new AppError(400, "invalid_input", "send { hours: 1 | 2 | 4 | null }");
   }
-  const policy = await currentPolicy(db, projectId);
   const pausedUntil = hours === null ? null : new Date(Date.now() + hours * 3_600_000);
-  await approvalPoliciesRepo.upsert(db, projectId, {
-    preset: policy.preset,
-    rules: policy.rules,
-    pausedUntil,
-    updatedBy: user.id,
-  });
-  await approvalAuditRepo.append(db, projectId, {
-    event: hours === null ? "pause_ended" : "paused",
-    actorKind: "owner",
-    actorId: user.id,
-    detail: { hours },
+  await approvalPoliciesRepo.withLock(db, projectId, async (tx) => {
+    const policy = await currentPolicy(tx, projectId);
+    await save(
+      tx,
+      projectId,
+      { ...policy, pausedUntil: pausedUntil?.toISOString() ?? null },
+      user.id,
+    );
+    await approvalAuditRepo.append(tx, projectId, {
+      event: hours === null ? "pause_ended" : "paused",
+      actorKind: "owner",
+      actorId: user.id,
+      detail: { hours },
+    });
   });
   return { ok: true, pausedUntil: pausedUntil?.toISOString() ?? null };
 }
 
 /**
- * Owner: approve or reject a pending request. `remember: true` also adds a rule for the same kind of request (an
- * always-approve rule cannot make a locked action automatic: the engine keeps asking for those).
+ * Owner: approve or reject a pending request. `remember: true` also adds a rule for the same kind of request, scoped to
+ * its feature, path and agent. A remembered approval that would make a high-risk action, or an unscoped one,
+ * automatic needs `confirm: true` (the answer shows the rule). Locked actions stay asked whatever is remembered.
  */
 export async function decideRequest(
   db: BrainDb,
@@ -155,43 +174,76 @@ export async function decideRequest(
 ) {
   await requireProjectAccess(db, projectId, user);
   await requireReady(db);
-  const b = (body ?? {}) as { requestId?: unknown; decision?: unknown; remember?: unknown };
+  const b = (body ?? {}) as {
+    requestId?: unknown;
+    decision?: unknown;
+    remember?: unknown;
+    confirm?: unknown;
+  };
   if (typeof b.requestId !== "string" || (b.decision !== "approve" && b.decision !== "reject")) {
     throw new AppError(400, "invalid_input", 'send { requestId, decision: "approve" | "reject" }');
   }
-  const row = await approvalRequestsRepo.decide(
-    db,
-    projectId,
-    b.requestId,
-    b.decision === "approve" ? "approved" : "rejected",
-    user.id,
-    new Date(),
-  );
-  if (!row)
-    throw new AppError(409, "not_pending", "This request was already decided or has expired.");
-  if (b.remember === true && isApprovalAction(row.action)) {
-    const policy = await currentPolicy(db, projectId);
-    const rule: ApprovalRule = {
-      action: row.action,
-      ...(row.feature ? { feature: row.feature } : {}),
-      ...(row.agent ? { agent: row.agent } : {}),
-      choice: b.decision === "approve" ? "auto" : "never",
-    };
-    await approvalPoliciesRepo.upsert(db, projectId, {
-      preset: policy.preset,
-      rules: [...policy.rules, rule].slice(-100),
-      pausedUntil: policy.pausedUntil ? new Date(policy.pausedUntil) : null,
-      updatedBy: user.id,
+  const requestId = b.requestId;
+  const approve = b.decision === "approve";
+  return approvalPoliciesRepo.withLock(db, projectId, async (tx) => {
+    const pending = await approvalRequestsRepo.get(tx, projectId, requestId);
+    let rule: ApprovalRule | null = null;
+    let policy: Policy | null = null;
+    if (b.remember === true && pending && isApprovalAction(pending.action)) {
+      rule = {
+        action: pending.action,
+        ...(pending.feature ? { feature: pending.feature } : {}),
+        ...(pending.path ? { path: pending.path } : {}),
+        ...(pending.agent ? { agent: pending.agent } : {}),
+        choice: approve ? "auto" : "never",
+      };
+      policy = await currentPolicy(tx, projectId);
+      if (policy.rules.length >= MAX_RULES) {
+        throw new AppError(
+          409,
+          "policy_full",
+          `The policy already has ${MAX_RULES} rules: remove one first.`,
+        );
+      }
+      const risk = APPROVAL_ACTIONS[pending.action];
+      const unscoped = !pending.feature && !pending.path && !pending.agent;
+      if (approve && (risk === "high" || unscoped) && b.confirm !== true) {
+        throw new AppError(
+          409,
+          "confirm_remember",
+          `Remembering this makes "${pending.action}" automatic${unscoped ? " for every feature, path and agent" : ""}: confirm it.`,
+        );
+      }
+    }
+    const row = await approvalRequestsRepo.decide(
+      tx,
+      projectId,
+      requestId,
+      approve ? "approved" : "rejected",
+      user.id,
+      new Date(),
+    );
+    if (!row)
+      throw new AppError(409, "not_pending", "This request was already decided or has expired.");
+    if (rule && policy) {
+      await save(tx, projectId, { ...policy, rules: [...policy.rules, rule] }, user.id);
+      await approvalAuditRepo.append(tx, projectId, {
+        event: "policy_changed",
+        requestId: row.id,
+        actorKind: "owner",
+        actorId: user.id,
+        detail: { rule, remembered: true },
+      });
+    }
+    await approvalAuditRepo.append(tx, projectId, {
+      event: approve ? "approved" : "rejected",
+      requestId: row.id,
+      actorKind: "owner",
+      actorId: user.id,
+      detail: { action: row.action, remembered: rule !== null },
     });
-  }
-  await approvalAuditRepo.append(db, projectId, {
-    event: b.decision === "approve" ? "approved" : "rejected",
-    requestId: row.id,
-    actorKind: "owner",
-    actorId: user.id,
-    detail: { action: row.action, remembered: b.remember === true },
+    return { ok: true, request: view(row) };
   });
-  return { ok: true, request: view(row) };
 }
 
 /** Owner: undo an automatic approval (recorded once; the action it allowed is reverted by its own feature). */
@@ -238,39 +290,51 @@ export async function agentAsk(db: BrainDb, projectId: string, body: unknown) {
   const agent =
     typeof b.agent === "string" && /^[a-z][a-z0-9-]{0,39}$/.test(b.agent) ? b.agent : null;
   const now = new Date();
-  await approvalRequestsRepo.expire(db, projectId, now);
-  const pending = await approvalRequestsRepo.list(db, projectId, "pending", MAX_PENDING);
-  if (pending.length >= MAX_PENDING) {
-    throw new AppError(
-      429,
-      "too_many_pending",
-      "The owner has too many open requests; try again later.",
+  return approvalPoliciesRepo.withLock(db, projectId, async (tx) => {
+    await approvalRequestsRepo.expire(tx, projectId, now);
+    await approvalRequestsRepo.prune(tx, projectId, new Date(now.getTime() - PRUNE_AFTER_MS));
+    const pending = await approvalRequestsRepo.list(tx, projectId, "pending", MAX_PENDING);
+    if (pending.length >= MAX_PENDING) {
+      throw new AppError(
+        429,
+        "too_many_pending",
+        "The owner has too many open requests; try again later.",
+      );
+    }
+    const policy = await currentPolicy(tx, projectId);
+    const { choice, risk, reason } = decide(
+      policy,
+      { action: b.action as ApprovalAction, feature, path, agent },
+      now,
     );
-  }
-  const policy = await currentPolicy(db, projectId);
-  const { choice, risk, reason } = decide(
-    policy,
-    { action: b.action as ApprovalAction, feature, path, agent },
-    now,
-  );
-  const status = choice === "never" ? "never" : choice === "ask" ? "pending" : "auto";
-  const row = await approvalRequestsRepo.insert(db, projectId, {
-    action: b.action as string,
-    risk,
-    feature,
-    path,
-    agent,
-    summary,
-    status,
-    expiresAt: new Date(now.getTime() + REQUEST_TTL_MS),
+    const status = choice === "never" ? "never" : choice === "ask" ? "pending" : "auto";
+    const row = await approvalRequestsRepo.insert(tx, projectId, {
+      action: b.action as string,
+      risk,
+      feature,
+      path,
+      agent,
+      summary,
+      status,
+      expiresAt: new Date(now.getTime() + REQUEST_TTL_MS),
+    });
+    await approvalAuditRepo.append(tx, projectId, {
+      event: `asked_${status}`,
+      requestId: row.id,
+      actorKind: "agent",
+      detail: { action: row.action, choice },
+    });
+    // "approved" is true only when the action may go ahead now; anything else (asked, refused) means: do not do it.
+    return {
+      ready: true as const,
+      id: row.id,
+      status,
+      choice,
+      reason,
+      approved: status === "auto",
+      tell: choice === "auto_tell",
+    };
   });
-  await approvalAuditRepo.append(db, projectId, {
-    event: `asked_${status}`,
-    requestId: row.id,
-    actorKind: "agent",
-    detail: { action: row.action, choice },
-  });
-  return { ready: true as const, id: row.id, status, choice, reason, tell: choice === "auto_tell" };
 }
 
 /** Agent (project token): the current status of one of its project's requests. */

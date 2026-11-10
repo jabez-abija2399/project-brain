@@ -299,3 +299,16 @@ Status values: not started, in progress, merged, blocked (with reason).
   - the pre-tool hook's "ask" becoming an approval request;
   - undo wired to each action;
   - the daily summary and notifications.
+- **Security review (fresh context): all findings fixed, with attack tests (PH6-18..20 and TRUNCATE in PH6-08).**
+  - **HIGH 1:** restrictive rules now also apply when the agent leaves a field out; paths are normalised before
+    matching; the answer never names the rule.
+  - **HIGH 2:** removing, changing or reordering rules counts as loosening, so it needs confirmation.
+  - **MEDIUM:**
+    - A remembered rule keeps the request's path and needs confirmation for high-risk or unscoped automatic rules.
+    - A full policy refuses new remembered rules (no silent trim).
+    - Policy changes and new requests run under one per-project lock.
+  - **LOW:**
+    - An unreadable stored policy asks for everything.
+    - TRUNCATE of the audit log is refused.
+    - The open-request limit is checked under the lock, and finished requests are pruned after 30 days.
+    - Before 0055 the answer is `approved: false`.

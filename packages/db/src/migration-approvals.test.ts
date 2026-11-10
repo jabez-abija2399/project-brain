@@ -48,6 +48,7 @@ describe("migration 0055 (approvals)", () => {
       /append-only/,
     );
     await expect(pg.exec(`DELETE FROM "approval_audit"`)).rejects.toThrow(/append-only/);
+    await expect(pg.exec(`TRUNCATE "approval_audit"`)).rejects.toThrow(/append-only/);
     await pg.exec(`DELETE FROM "projects" WHERE "id" = 'p1'`);
     const r = await pg.query<{ n: number }>(`SELECT count(*)::int AS n FROM "approval_audit"`);
     expect(r.rows[0]?.n).toBe(0);

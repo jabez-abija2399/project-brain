@@ -71,11 +71,45 @@ export const MAX_RULES = 100;
 export const DEFAULT_POLICY: Policy = { preset: "balanced", rules: [] };
 const ORDER: Choice[] = ["never", "ask", "auto_tell", "auto"];
 
-const ruleMatches = (r: ApprovalRule, s: ApprovalSubject) =>
-  (r.action === undefined || r.action === "*" || r.action === s.action) &&
-  (r.feature === undefined || (s.feature ?? "").toLowerCase() === r.feature.toLowerCase()) &&
-  (r.agent === undefined || (s.agent ?? "").toLowerCase() === r.agent.toLowerCase()) &&
-  (r.path === undefined || (s.path ? globMatch(r.path, s.path) : false));
+/**
+ * A path as the policy compares it: no leading "./" or "/", no repeated slashes, ".." resolved. A path that climbs out
+ * of the project is "unknown" (null) and so matches every restrictive rule that names a path.
+ */
+export function normalizeRulePath(path: string | null | undefined): string | null {
+  if (!path) return null;
+  const parts: string[] = [];
+  for (const seg of path.replace(/\\/g, "/").split("/")) {
+    if (seg === "" || seg === ".") continue;
+    if (seg === "..") {
+      if (parts.length === 0) return null;
+      parts.pop();
+    } else parts.push(seg);
+  }
+  return parts.length > 0 ? parts.join("/") : null;
+}
+
+// Security review (Phase 6a): the agent fills in feature, path and agent itself. A rule that grants (auto, auto_tell)
+// needs every field it names to match; a rule that restricts (never, ask) also applies when the agent left that
+// field out, so an agent cannot dodge an owner's "never" by not saying which feature or path it touches.
+function ruleMatches(r: ApprovalRule, s: ApprovalSubject): boolean {
+  if (r.action !== undefined && r.action !== "*" && r.action !== s.action) return false;
+  const restrictive = r.choice === "never" || r.choice === "ask";
+  const field = (
+    want: string | undefined,
+    have: string | null | undefined,
+    eq: (h: string) => boolean,
+  ) => {
+    if (want === undefined) return true;
+    if (!have) return restrictive;
+    return eq(have);
+  };
+  const path = normalizeRulePath(s.path);
+  return (
+    field(r.feature, s.feature, (h) => h.toLowerCase() === (r.feature ?? "").toLowerCase()) &&
+    field(r.agent, s.agent, (h) => h.toLowerCase() === (r.agent ?? "").toLowerCase()) &&
+    (r.path === undefined || (path === null ? restrictive : globMatch(r.path, path)))
+  );
+}
 
 /**
  * The decision for one action. Matching rules are evaluated never first, then ask, then the automatic choices (the
@@ -95,7 +129,8 @@ export function decide(
     const rule = matching.find((r) => r.choice === level);
     if (rule) {
       choice = level;
-      reason = "a rule of the owner's policy";
+      // The rule itself is not named: an agent must not learn which values a rule matches.
+      reason = "the owner's policy";
       break;
     }
   }
@@ -121,8 +156,9 @@ const strictness = (c: Choice) => ORDER.length - ORDER.indexOf(c);
 const ALL_ACTIONS = Object.keys(APPROVAL_ACTIONS) as ApprovalAction[];
 
 /**
- * Whether a new policy is looser than the old one for any action (then the owner confirms it), compared action by
- * action on its own (no feature, path or agent). Removing a pause also counts as loosening.
+ * Whether a new policy is looser than the old one (then the owner confirms it): any action that the preset alone now
+ * allows more, any new or changed rule that grants (auto, auto and tell), any removed or changed rule that restricted
+ * (never, ask), and ending a pause.
  */
 export function loosens(before: Policy, after: Policy, now: Date = new Date()): boolean {
   for (const action of ALL_ACTIONS) {
@@ -130,11 +166,29 @@ export function loosens(before: Policy, after: Policy, now: Date = new Date()): 
     const b = decide(after, { action }, now).choice;
     if (strictness(b) < strictness(a)) return true;
   }
-  // Scoped rules: any rule that allows more than the preset would for its action.
+  const key = (r: ApprovalRule) =>
+    JSON.stringify([
+      r.action ?? null,
+      r.feature ?? null,
+      r.path ?? null,
+      r.agent ?? null,
+      r.choice,
+    ]);
+  const had = new Set(before.rules.map(key));
+  const has = new Set(after.rules.map(key));
   for (const rule of after.rules) {
-    if (rule.choice !== "auto" && rule.choice !== "auto_tell") continue;
-    const same = before.rules.some((r) => JSON.stringify(r) === JSON.stringify(rule));
-    if (!same) return true;
+    if ((rule.choice === "auto" || rule.choice === "auto_tell") && !had.has(key(rule))) return true;
+  }
+  for (const rule of before.rules) {
+    if ((rule.choice === "never" || rule.choice === "ask") && !has.has(key(rule))) return true;
+  }
+  // The order of granting rules matters within a level (the first match wins), so a reorder counts too.
+  const order = (p: Policy) => p.rules.map(key).join("|");
+  if (
+    order(before) !== order(after) &&
+    after.rules.some((r) => r.choice === "auto" || r.choice === "auto_tell")
+  ) {
+    return true;
   }
   return false;
 }
