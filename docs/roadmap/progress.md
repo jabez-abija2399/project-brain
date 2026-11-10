@@ -462,3 +462,13 @@ Status values: not started, in progress, merged, blocked (with reason).
     preference only.
 - **Not stored on the server:** the answer lives in the browser cookie, so no migration is needed. Recording it per
   account would need a migration and is in `agent/later.md`.
+- **Security review (fresh context): no HIGH or MEDIUM findings.**
+  - **LOW, fixed:**
+    - A bad `?build=` no longer hides a remembered answer.
+    - The cookie is Secure on HTTPS.
+    - The choices are a `nav` labelled by the heading, so screen readers hear the question once.
+  - **LOW, kept as is, with reasons:**
+    - An agent in a real terminal can see the menu. Every entry is a fixed command the agent can already run, and
+      hooks never take this path.
+    - Checking the link may write the repo fingerprint for an old link. It is inside `.git`, and this is the same
+      behaviour as every linked command.

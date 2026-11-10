@@ -18,8 +18,10 @@ export function buildStyle(
   query: string | undefined,
   cookie: string | undefined,
 ): BuildStyle | null {
-  const pick = query ?? cookie;
-  return (BUILD_STYLES as readonly string[]).includes(pick ?? "") ? (pick as BuildStyle) : null;
+  // Each is checked on its own: a bad ?build= never hides a valid remembered answer.
+  const valid = (v: string | undefined) =>
+    (BUILD_STYLES as readonly string[]).includes(v ?? "") ? (v as BuildStyle) : null;
+  return valid(query) ?? valid(cookie);
 }
 
 const CONNECT =

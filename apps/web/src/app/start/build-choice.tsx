@@ -7,8 +7,7 @@ import { BUILD_COOKIE, BUILD_LABELS, BUILD_STYLES, type BuildStyle } from "@brai
 // at any time.
 export function BuildChoice({ current }: { current: BuildStyle | null }) {
   return (
-    <fieldset className="row wrap build-choice">
-      <legend className="lp-visually-hidden">How do you build?</legend>
+    <nav className="row wrap" aria-labelledby="build-how">
       {BUILD_STYLES.map((s) => (
         <a
           key={s}
@@ -16,12 +15,13 @@ export function BuildChoice({ current }: { current: BuildStyle | null }) {
           className={`btn ${current === s ? "btn-primary" : "btn-secondary"}`}
           aria-current={current === s ? "true" : undefined}
           onClick={() => {
-            document.cookie = `${BUILD_COOKIE}=${s}; path=/; max-age=31536000; samesite=lax`;
+            const secure = window.location.protocol === "https:" ? "; secure" : "";
+            document.cookie = `${BUILD_COOKIE}=${s}; path=/; max-age=31536000; samesite=lax${secure}`;
           }}
         >
           {BUILD_LABELS[s]}
         </a>
       ))}
-    </fieldset>
+    </nav>
   );
 }

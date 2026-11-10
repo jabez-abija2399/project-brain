@@ -9,6 +9,8 @@ describe("Phase 9: how do you build", () => {
     expect(buildStyle(undefined, undefined)).toBeNull();
     expect(buildStyle("<script>", undefined)).toBeNull();
     expect(buildStyle("__proto__", undefined)).toBeNull();
+    // Security review: a bad query never hides a valid remembered answer.
+    expect(buildStyle("x", "codex")).toBe("codex");
   });
 
   it("PH9-13 every way of building has a label and three first steps, starting with connecting the repo", () => {
