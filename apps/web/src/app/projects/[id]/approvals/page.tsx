@@ -45,9 +45,7 @@ export default async function ApprovalsPage({
   const mode = viewMode((await cookies()).get(VIEW_COOKIE)?.value, query) ?? "simple";
   const paused = o.policy.pausedUntil && new Date(o.policy.pausedUntil).getTime() > Date.now();
   const pid = view.project.id;
-  const withPreset = (preset: (typeof PRESETS)[number]) => ({
-    policy: { preset, rules: o.policy.rules, pausedUntil: o.policy.pausedUntil ?? null },
-  });
+  const withPreset = (preset: (typeof PRESETS)[number]) => ({ preset });
   return (
     <main className="page stack stack-lg">
       <div>{nav}</div>
@@ -73,7 +71,10 @@ export default async function ApprovalsPage({
                 <span className="wrap">
                   <strong>{r.action.replaceAll("_", " ")}</strong>
                   {r.feature ? ` in ${r.feature}` : ""}
-                  {r.path ? ` (${r.path})` : ""}: {r.summary}
+                  {r.path ? ` (${r.path})` : ""}
+                </span>
+                <span className="muted wrap">
+                  Agent says: <q>{r.summary}</q>
                 </span>
                 <span className="muted">
                   {RISK_LABEL[r.risk as keyof typeof RISK_LABEL] ?? r.risk} risk
@@ -103,6 +104,7 @@ export default async function ApprovalsPage({
                     path="decide"
                     body={{ requestId: r.id, decision: "approve", remember: true }}
                     label="Always approve this kind"
+                    ariaLabel={`Always approve this kind: ${r.summary}`}
                     done="Approved, and remembered."
                     variant="ghost"
                   />
@@ -111,6 +113,7 @@ export default async function ApprovalsPage({
                     path="decide"
                     body={{ requestId: r.id, decision: "reject", remember: true }}
                     label="Always reject this kind"
+                    ariaLabel={`Always reject this kind: ${r.summary}`}
                     done="Rejected, and remembered."
                     variant="ghost"
                   />

@@ -329,3 +329,11 @@ Status values: not started, in progress, merged, blocked (with reason).
   - The pre-tool hook's "ask" becoming an approval request. The hook stays offline by design: 5b's "no server call
     per edit".
   - Undo wired to each action's own revert.
+- **Security review (fresh context): no HIGH findings; all others fixed (attack tests PH6B-06, PH6B-07).**
+  - **MEDIUM:**
+    - An agent's glob path (`**`) is never copied into a remembered rule.
+    - An unscoped remembered approval needs confirmation, and the message names the rule's scope.
+  - **LOW:**
+    - Preset buttons send only the preset; the server keeps the stored rules and pause.
+    - The "always" buttons have their own screen-reader labels.
+    - An agent's summary is set apart as "Agent says".
