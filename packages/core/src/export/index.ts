@@ -31,6 +31,9 @@ const START_PREFIX = "<!-- codeceipt:blueprint:start";
 const MAX_FEATURES = 500;
 const MAX_CRITERIA = 30;
 const MAX_BOUNDARIES = 100;
+// About 400 KB of text at most: well inside what the CLI reads back (1 MB) and receives (4 MB).
+export const MAX_TOTAL_CHARS = 400_000;
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/;
 
 const KIND_LABEL: Record<string, string> = {
   must_never: "Must never",
@@ -51,11 +54,17 @@ export function mdText(value: string, max = 300): string {
     .replace(/>/g, "&gt;")
     .replace(/\\/g, "\\\\")
     .replace(/[|[\]`]/g, "\\$&")
-    .replace(/^([#+\-=~])/, "\\$1")
+    .replace(/^([#+\-=~*_])/, "\\$1")
     .replace(/^(\d+)([.)])/, "$1\\$2");
 }
 /** A path or package name in inline code; a backtick in it would end the code span, so it becomes a quote. */
-const code = (value: string) => `\`${plainText(value).slice(0, 200).replace(/`/g, "'")}\``;
+const code = (value: string) =>
+  `\`${plainText(value)
+    .slice(0, 200)
+    .replace(/`/g, "'")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")}\``;
 
 export function slug(name: string, taken: Set<string>): string {
   const base =
@@ -67,16 +76,27 @@ export function slug(name: string, taken: Set<string>): string {
       .replace(/^-+|-+$/g, "")
       .slice(0, 50)
       .replace(/-+$/, "") || "feature";
-  let s = base;
-  for (let n = 2; taken.has(s); n++) s = `${base}-${n}`;
+  // Windows device names cannot be folder names.
+  const safe = WINDOWS_RESERVED.test(base) ? `${base}-feature` : base;
+  let s = safe;
+  for (let n = 2; taken.has(s); n++) s = `${safe}-${n}`;
   taken.add(s);
   return s;
 }
 
-const features = (bp: ExportBlueprint) =>
-  bp.features
-    .slice(0, MAX_FEATURES)
-    .map((f) => ({ ...f, criteria: f.criteria.slice(0, MAX_CRITERIA) }));
+/** Features in order with at most 30 non-empty criteria each, within a total text budget (the export stays small). */
+function features(bp: ExportBlueprint): ExportFeature[] {
+  const out: ExportFeature[] = [];
+  let budget = MAX_TOTAL_CHARS;
+  for (const f of bp.features.slice(0, MAX_FEATURES)) {
+    const criteria = f.criteria.filter((c) => plainText(c.text).length > 0).slice(0, MAX_CRITERIA);
+    budget -=
+      f.name.length + (f.purpose?.length ?? 0) + criteria.reduce((n, c) => n + c.text.length, 0);
+    if (budget < 0) break;
+    out.push({ ...f, criteria });
+  }
+  return out;
+}
 const label = (c: ExportCriterion) => (KIND_LABEL[c.kind] ? `${KIND_LABEL[c.kind]}: ` : "");
 
 /** The managed AGENTS.md section (markers included). */
@@ -117,14 +137,22 @@ export function agentsSection(bp: ExportBlueprint): string {
  */
 export function mergeAgents(existing: string | null, section: string): string | null {
   if (existing === null || existing.trim() === "") return `${section}\n`;
-  const starts = existing.split(START_PREFIX).length - 1;
-  const ends = existing.split(SECTION_END).length - 1;
-  if (starts === 0 && ends === 0) return `${existing.replace(/\s*$/, "")}\n\n${section}\n`;
-  if (starts !== 1 || ends !== 1) return null;
-  const s = existing.indexOf(START_PREFIX);
-  const e = existing.indexOf(SECTION_END);
-  if (e < s) return null;
-  return existing.slice(0, s) + section + existing.slice(e + SECTION_END.length);
+  // Markers count only as whole lines, so a marker quoted inside a sentence is just text.
+  const starts: number[] = [];
+  const ends: number[] = [];
+  let offset = 0;
+  for (const line of existing.split("\n")) {
+    const t = line.trim();
+    if (t.startsWith(START_PREFIX)) starts.push(offset);
+    else if (t === SECTION_END) ends.push(offset + line.length);
+    offset += line.length + 1;
+  }
+  if (starts.length === 0 && ends.length === 0) return `${existing.trimEnd()}\n\n${section}\n`;
+  const [s] = starts;
+  const [e] = ends;
+  if (starts.length !== 1 || ends.length !== 1 || s === undefined || e === undefined || e < s)
+    return null;
+  return existing.slice(0, s) + section + existing.slice(e);
 }
 
 function openSpec(f: ExportFeature): string {
@@ -138,8 +166,7 @@ function openSpec(f: ExportFeature): string {
     "## Requirements",
   ];
   for (const c of f.criteria) {
-    const text = mdText(c.text);
-    lines.push("", `### Requirement: ${text.slice(0, 80)}`, `${label(c)}${text}`);
+    lines.push("", `### Requirement: ${mdText(c.text, 80)}`, `${label(c)}${mdText(c.text)}`);
   }
   return `${lines.join("\n")}\n`;
 }

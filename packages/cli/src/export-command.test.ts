@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import {
   existsSync,
+  linkSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -144,5 +145,20 @@ describe("codeceipt export (roadmap Phase 8)", () => {
     mkdirSync(join(dir, "x"));
     expect((await run(dir, ["export", "--to", "evil"])).code).toBe(2);
     expect((await run(dir, ["export", "--to", "agents", "--write", "--check"])).code).toBe(2);
+  });
+
+  it("PH8-34 attack (security review): a hard-linked AGENTS.md is never written; stale generated specs are named, not deleted", async () => {
+    const dir = repo();
+    const outside = mkdtempSync(join(tmpdir(), "cc-outside-"));
+    writeFileSync(join(outside, "real.md"), "outside\n");
+    linkSync(join(outside, "real.md"), join(dir, "AGENTS.md"));
+    const a = await run(dir, ["export", "--to", "agents", "--write"]);
+    expect(a.text).toContain("keep   AGENTS.md (a link or not a plain file)");
+    expect(readFileSync(join(outside, "real.md"), "utf8")).toBe("outside\n");
+    await run(dir, ["export", "--to", "openspec", "--write"]);
+    const renamed = { ...BLUEPRINT, features: [{ ...BLUEPRINT.features[0], name: "Albums" }] };
+    const r = await run(dir, ["export", "--to", "openspec", "--write"], renamed);
+    expect(r.text).toContain("stale  openspec/specs/photo-albums/spec.md");
+    expect(existsSync(join(dir, "openspec/specs/photo-albums/spec.md"))).toBe(true);
   });
 });

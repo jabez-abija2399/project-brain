@@ -216,6 +216,7 @@ export { findHiddenChars } from "./hidden-chars";
 export {
   EXPORT_TARGETS,
   GENERATED_MARK,
+  MAX_TOTAL_CHARS,
   SECTION_END,
   SECTION_START,
   agentsSection,

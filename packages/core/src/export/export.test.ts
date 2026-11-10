@@ -3,6 +3,7 @@ import { importFeatures } from "../import";
 import {
   type ExportBlueprint,
   GENERATED_MARK,
+  MAX_TOTAL_CHARS,
   SECTION_END,
   SECTION_START,
   agentsSection,
@@ -147,5 +148,54 @@ describe("Phase 8: exports", () => {
     expect(specFiles("openspec", many).size).toBe(500);
     expect(agentsSection(many).split("\n- ").length - 1).toBe(500 * 30);
     expect(GENERATED_MARK).toContain("codeceipt export");
+  });
+
+  it("PH8-32 attack (security review): a boundary or quoted marker never jams the section; long whitespace is fast", () => {
+    const jam: ExportBlueprint = {
+      ...bp,
+      boundaries: [{ kind: "protected_path", pattern: SECTION_END }],
+    };
+    const first = mergeAgents("# Mine\n", agentsSection(jam)) ?? "";
+    expect(first.split(SECTION_END)).toHaveLength(2);
+    expect(mergeAgents(first, agentsSection(bp))).not.toBeNull();
+    // A marker quoted inside a sentence is just text.
+    expect(mergeAgents(`See ${SECTION_END} in the docs.\n`, agentsSection(bp))).not.toBeNull();
+    const started = Date.now();
+    mergeAgents(`a${" ".repeat(1_000_000)}b`, agentsSection(bp));
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it("PH8-33 the export stays within its text budget; empty criteria and leading list marks are handled; device names get a suffix", () => {
+    const big: ExportBlueprint = {
+      version: 1,
+      features: Array.from({ length: 500 }, (_, n) => ({
+        name: `F${n}`,
+        purpose: null,
+        dependsOn: [],
+        criteria: Array.from({ length: 30 }, () => ({ text: "x".repeat(300), kind: "behaviour" })),
+      })),
+      boundaries: [],
+    };
+    expect(agentsSection(big).length).toBeLessThan(MAX_TOTAL_CHARS + 100_000);
+    const odd: ExportBlueprint = {
+      version: 1,
+      features: [
+        {
+          name: "Con",
+          purpose: "* * *",
+          dependsOn: [],
+          criteria: [
+            { text: "", kind: "behaviour" },
+            { text: "_x_", kind: "behaviour" },
+          ],
+        },
+      ],
+      boundaries: [],
+    };
+    const s = agentsSection(odd);
+    expect(s).not.toContain("\n- \n");
+    expect(s).toContain("\n\\* * *\n");
+    expect(s).toContain("- \\_x_");
+    expect([...specFiles("openspec", odd).keys()]).toEqual(["openspec/specs/con-feature/spec.md"]);
   });
 });

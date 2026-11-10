@@ -1,4 +1,4 @@
-import { TESTS_KEY, safeDisplay } from "@brain/core";
+import { MAX_TOTAL_CHARS, TESTS_KEY, safeDisplay } from "@brain/core";
 import { type BrainDb, blueprintRepo } from "@brain/db";
 import { blueprintEnabled } from "./migration-check";
 
@@ -42,9 +42,22 @@ export async function hookExport(db: BrainDb, projectId: string) {
       criteria: criteriaBy.get(f.id) ?? [],
     }))
     .filter((f) => f.name.length > 0);
+  // A total text budget, so the answer stays small (the CLI writes it into files it later reads back).
+  let budget = MAX_TOTAL_CHARS;
+  const within = features.filter((f) => {
+    budget -=
+      f.name.length + (f.purpose?.length ?? 0) + f.criteria.reduce((n, c) => n + c.text.length, 0);
+    return budget >= 0;
+  });
   const boundaries = live.boundaries
     .filter((b) => b.status === "active")
     .slice(0, MAX_BOUNDARIES)
     .map((b) => ({ kind: b.kind, pattern: safeDisplay(b.pattern, 200) }));
-  return { ready: true, version, features, boundaries };
+  return {
+    ready: true,
+    version,
+    features: within,
+    boundaries,
+    truncated: within.length < features.length,
+  };
 }

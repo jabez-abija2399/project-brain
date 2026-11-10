@@ -408,3 +408,20 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **Round trip:** Spec Kit and OpenSpec files written by export are read back by `codeceipt import`.
 - **Not built:** automatic sync suggestions after index/push through the approval policy. `--check` covers the
   "out of date" signal for now; recorded in `agent/later.md`.
+- **Security review (fresh context): no HIGH findings; all others fixed, with attack tests (PH8-32..34).**
+  - **MEDIUM:**
+    - A boundary pattern can no longer write a section marker: inline code is escaped too, and markers count only
+      as whole lines.
+    - Merging no longer takes quadratic time on long whitespace (`trimEnd`).
+  - **LOW:**
+    - Size limits:
+      - The export has a total text budget (400 KB on the server and in the renderer).
+      - An AGENTS.md over 1 MB gets its own message.
+    - File safety:
+      - Hard-linked files are refused.
+      - The file opened is checked against the one inspected (inode and device), and checked again right before
+        opening where no-follow is missing (Windows).
+    - Generated specs left over from an earlier export are named as stale, never deleted.
+    - Windows device names get a suffix.
+    - Headings are cut before they are escaped.
+    - Empty criteria are skipped, and a leading `*` or `_` is escaped.
