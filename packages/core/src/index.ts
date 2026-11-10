@@ -214,6 +214,17 @@ export { guardCheck, MAX_GUARD_FINDINGS, newLines, newPackageNames } from "./gua
 export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
 export { findHiddenChars } from "./hidden-chars";
 export { nextStep } from "./next-step";
+export {
+  CLAIM_KINDS,
+  CLAIM_LABELS,
+  CLAIM_VERDICTS,
+  MAX_CLAIMS,
+  MAX_SUMMARY_CHARS,
+  VERDICT_LABELS,
+  checkClaims,
+  extractClaims,
+} from "./claims";
+export type { CheckedClaim, Claim, ClaimEvidence, ClaimKind, ClaimVerdict } from "./claims";
 export { BUILD_COOKIE, BUILD_LABELS, BUILD_STYLES, buildGuide, buildStyle } from "./build-guide";
 export type { BuildStyle } from "./build-guide";
 export type { NextStep, NextStepState } from "./next-step";

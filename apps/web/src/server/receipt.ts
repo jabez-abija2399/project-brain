@@ -42,6 +42,7 @@ import { AppError } from "./errors";
 import { getLlm } from "./llm";
 import { blueprintEnabled } from "./migration-check";
 import { reserveDaily } from "./rate-limit";
+import { claimsInput, receiptClaims } from "./receipt-claims";
 import { receiptFindings, secretFindingsInput } from "./receipt-findings";
 import { testIntegrity, testIntegrityInput } from "./receipt-integrity";
 import { type ToolToken, bindToken } from "./session-tools";
@@ -98,6 +99,8 @@ const receiptSchema = z
     // Owner, 2026-10-31: secrets in files already changed before the session (the scan reads every changed file).
     secretFindingsBeforeSession: secretFindingsInput.optional(),
     testIntegrity: testIntegrityInput.optional(),
+    // Roadmap Phase 10: what the agent said it did, checked on the user's machine (kinds, paths and verdicts only).
+    claims: claimsInput.optional(),
     // The CLI's count of findings past its own cap (scan-secrets "omitted").
     secretFindingsOmitted: z.number().int().min(0).max(1_000_000).optional(),
     // D-025: what changed in each file, files already modified before the session, and a missing start snapshot.
@@ -342,6 +345,7 @@ export async function generateReceipt(
   // Real-test B: a check or finding in a file the user named, of a kind the user asked for, is labelled "asked".
   const asked = request ? [request.text] : [];
   const checked = testIntegrity(input.testIntegrity);
+  const claims = receiptClaims(input.claims);
   const integrity = checked && {
     ...checked,
     flags: checked.flags.map((f) => (askedForCheck(asked, f) ? { ...f, asked: true } : f)),
@@ -472,6 +476,7 @@ export async function generateReceipt(
       ...security,
       ...blueprint,
       test_integrity: integrity,
+      ...(claims ? { claims } : {}),
       ...(overPlan ? { judge_skipped: "plan_limit" } : {}),
     },
   });
@@ -513,6 +518,7 @@ export async function generateReceipt(
     ...security,
     ...blueprint,
     test_integrity: integrity,
+    ...(claims ? { claims } : {}),
   };
 }
 

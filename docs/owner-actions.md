@@ -150,6 +150,8 @@ absent; where_did_we_stop with features: true answers it)", then run
   (`--ci`) for weakened tests, new secrets, hidden characters and the Blueprint's boundaries.
 - **Phase 5b:** edits under a protected path are stopped before they happen, through each agent's pre-tool-use hook
   (Claude Code, Cursor, Codex, Antigravity).
+- **Phase 10a:** receipts check what the agent said it did (tests added, tests pass, files changed or left alone)
+  against the change.
 - **Phase 9a:** `codeceipt status` prints the one next step, the same one the Overview page shows.
 - **Phase 8b:** `codeceipt export` writes the approved Blueprint into AGENTS.md, OpenSpec or Spec Kit files, and
   `--check` fails when they are out of date.

@@ -183,3 +183,4 @@
 - 2026-11-10 (Phase 7a review LOW 2): `codeceipt guard` and `codeceipt review` keep the whole changed-file list in memory and up to 500 files of text at once; cap the parsed list at MAX_FILES+1 and keep only added lines per chunk.
 - 2026-11-10 (Phase 8b): sync suggestions after index/push (Blueprint changed since the last export, offered through the approval policy); `codeceipt export --check` is the manual signal today.
 - 2026-11-10 (Phase 9b): store the "How do you build?" answer per account (needs a migration) so the CLI and emails can tailor their words; today it is a browser cookie.
+- 2026-11-10 (Phase 10a): claim checker follow-ups: one optional AI call for vague claims ("done", "fixed the bug"); show contradicted claims in `codeceipt last` and let the stop gate mention them; read the final message from Cursor/Antigravity transcripts if they expose one.

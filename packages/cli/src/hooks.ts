@@ -17,6 +17,8 @@ import {
   NO_REQUEST_NOTE,
   NO_SNAPSHOT_NOTE,
   brandEnv,
+  checkClaims,
+  extractClaims,
   isCodeceiptSetupPath,
   oneLineText,
   plainText,
@@ -109,9 +111,12 @@ export const clean = (text: string, max: number) =>
     .slice(0, max);
 const line = (text: string) => oneLineText(text).replace(MARKS, "").slice(0, MAX_LINE_CHARS);
 
-async function hookInput(
-  deps: HookDeps,
-): Promise<{ sessionId: string; cwd: string; loopCount: number | null }> {
+async function hookInput(deps: HookDeps): Promise<{
+  sessionId: string;
+  cwd: string;
+  loopCount: number | null;
+  lastMessage: string | null;
+}> {
   let raw: unknown = {};
   try {
     const text = await deps.readStdin();
@@ -140,7 +145,13 @@ async function hookInput(
   const execution = counted(input.executionNum);
   const loopCount =
     loops === null && execution === null ? null : Math.max(loops ?? 0, (execution ?? 1) - 1);
-  return { sessionId: sessionIdOf(input), cwd, loopCount };
+  // Roadmap Phase 10: the agent's final message (Claude Code and Codex send it to Stop hooks). Read here, on this
+  // machine, for the claim checker; its text is never sent anywhere.
+  const lastMessage =
+    typeof input.last_assistant_message === "string" && input.last_assistant_message.length > 0
+      ? input.last_assistant_message
+      : null;
+  return { sessionId: sessionIdOf(input), cwd, loopCount, lastMessage };
 }
 
 /**
@@ -656,7 +667,7 @@ export async function sessionEnd(
   // made before is replaced, and nothing is sent when nothing changed since then.
   opts: { stop?: boolean } = {},
 ): Promise<boolean> {
-  const { sessionId, cwd, loopCount } = await hookInput(deps);
+  const { sessionId, cwd, loopCount, lastMessage } = await hookInput(deps);
   // Roadmap Phase 4a: the agent's own count of hook-caused continuations, when it sends one, also caps the gate.
   const loopsUsed = Math.max(loopCount ?? 0, 0);
   if (!deps.config) {
@@ -748,6 +759,16 @@ export async function sessionEnd(
     startTexts,
   ).catch(() => null);
   const passingAfter = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
+  // Roadmap Phase 10: what the agent's final message claims, checked against this session's changes. Only each
+  // claim's kind, repo path and verdict go on the receipt; the message itself stays here.
+  const claims = lastMessage
+    ? checkClaims(extractClaims(lastMessage), {
+        changedFiles: files,
+        passingBefore,
+        passingAfter,
+        weakenedTests: integrity?.flags.length ?? 0,
+      })
+    : [];
   // D-025: what changed in each file (counts, symbol names, places), computed here; never source text.
   const summaries = await changeSummaries(
     deps.git,
@@ -863,6 +884,7 @@ export async function sessionEnd(
                       : {}),
                   }
                 : {}),
+              ...(claims.length > 0 ? { claims } : {}),
               // Sent only when there is something to report: flags or test counts.
               ...(integrity &&
               (integrity.flags.length > 0 || passingBefore !== null || passingAfter !== null)
