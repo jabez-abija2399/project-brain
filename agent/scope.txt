@@ -123,3 +123,7 @@ packages/db/src/* # Phase 6a: approvals schema, repos, optional migration
 apps/web/src/server/approvals* # Phase 6a: approval service
 apps/web/src/app/api/projects/[[]id]/approvals/* # Phase 6a: owner routes
 apps/web/src/app/api/hooks/[[]projectId]/approvals/* # Phase 6a: agent route (ask only)
+apps/web/src/app/projects/[[]id]/approvals/* # Phase 6b: approvals page
+apps/web/src/app/projects/[[]id]/project-nav.tsx # Phase 6b: Approvals tab
+apps/web/src/server/approvals-page* # Phase 6b
+apps/web/src/app/globals.css # Phase 6b: table-scroll
