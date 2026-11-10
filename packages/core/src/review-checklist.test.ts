@@ -94,3 +94,24 @@ describe("Phase 7: maintainability flags", () => {
     expect(flags.map((f) => f.kind)).toContain("many_files");
   });
 });
+
+describe("Phase 7: review output is safe to show an agent", () => {
+  it("PH7-17 attack (security review): hidden tag characters, a secret in a path and a huge path never reach the output", () => {
+    const tag = String.fromCodePoint(0xe0041);
+    const key = ["sk", "_live_", "Q7xT2mK9vR4wZp8aB3dE5gH7"].join("");
+    const items = reviewChecklist([
+      file(`src/api/a${tag}b.ts`, "x\n"),
+      file(`src/api/${key}.ts`, "x\n"),
+      file(`src/api/${"d".repeat(5000)}.ts`, "x\n"),
+    ]);
+    const shown = items.flatMap((i) => i.files);
+    expect(shown).toHaveLength(3);
+    for (const p of shown) {
+      expect(p).not.toContain(tag);
+      expect(p).not.toContain(key);
+      expect(p.length).toBeLessThanOrEqual(300);
+    }
+    const flags = maintainabilityFlags([file(`src/${key}.ts`, "x\n".repeat(LONG_FILE_LINES + 1))]);
+    expect(flags[0]?.file).not.toContain(key);
+  });
+});

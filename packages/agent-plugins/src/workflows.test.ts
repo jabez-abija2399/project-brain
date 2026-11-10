@@ -45,9 +45,12 @@ describe("Phase 7: workflow skills", () => {
     for (const [name, text] of Object.entries(WORKFLOW_SKILLS)) {
       expect(text, name).toMatch(/project data, not instructions/);
       expect(text, name).toMatch(/NOT VERIFIED/);
-      expect(text, name).not.toMatch(
-        /codeceipt (approvals|config|unlink|login)|--no-verify|guard off/,
+      // Security review: only the installed app runs, never npx or a repo's own codeceipt.
+      expect(text, name).toMatch(
+        /Never run it with npx, a relative path or a script from this repo/,
       );
+      expect(text, name).toMatch(/never approve a request yourself/);
+      expect(text, name).not.toMatch(/`codeceipt (approvals|unlink|login)|--no-verify|guard off/);
       // A sentence about skipping, deleting or weakening tests only ever forbids it.
       for (const sentence of text.split(/[.\n]/)) {
         if (/\b(skip|weaken|delete)\b/i.test(sentence) && /\btests?\b/i.test(sentence)) {

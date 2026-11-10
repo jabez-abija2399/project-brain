@@ -351,3 +351,12 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **CLI:** `codeceipt review [--staged | --ci [--base <branch>]] [--json]` prints both. It runs on this machine, sends
   nothing and never blocks. Part of the unreleased CLI 0.3.7 (owner action 8).
 - **Later:** maintainability flags on the receipt itself (needs a receipt field on the server).
+- **Security review (fresh context): no HIGH findings; all others fixed or recorded.**
+  - **MEDIUM:**
+    - The skills run only the installed app: `command -v codeceipt` must be an absolute path outside the repo, never
+      npx or a repo script (a hostile repo could ship its own `codeceipt`).
+    - Review paths are shown the way Guard shows them: invisible characters removed, secrets masked, 300 characters
+      at most (PH7-17).
+  - **LOW:**
+    - The skills say outright: never change Guard or `codeceipt config`, never approve, never send code.
+    - Holding the whole changed-file list in memory is the same as in Guard; recorded in `agent/later.md`.

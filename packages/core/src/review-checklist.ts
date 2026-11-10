@@ -1,10 +1,11 @@
 import { newLines } from "./guard";
 import { TEST_FILE } from "./receipt";
-import { oneLineText } from "./text";
+import { safePath } from "./fix-prompt";
 
 // Roadmap Phase 7: `codeceipt review`. The build checklist (docs/build-checklist.md) as a rule pack: which of its
 // eight rules a change touches, chosen from the changed paths and added lines only (no AI, nothing sent anywhere),
 // plus maintainability flags (long files, large changes). Advisory: it says what to check, it never blocks.
+// Paths are shown the way Guard shows them (safePath): one line, no invisible characters, secrets masked, capped.
 
 export type ReviewFile = { path: string; before: string | null; after: string | null };
 export type ReviewRule = {
@@ -110,7 +111,7 @@ export function reviewChecklist(files: ReviewFile[]): ReviewItem[] {
   for (const f of files) {
     // Deleted files and documents, images and lockfiles: nothing for these rules to check.
     if (f.after === null || NOT_CODE.test(f.path)) continue;
-    const path = oneLineText(f.path);
+    const path = safePath(f.path);
     const added = addedText(f);
     const any = (re: RegExp) => added.some((l) => re.test(l));
     const test = TEST_FILE.test(f.path);
@@ -149,7 +150,7 @@ export function maintainabilityFlags(files: ReviewFile[]): MaintainabilityFlag[]
     if (now > LONG_FILE_LINES && now > was && !/\.(json|lock|sql|md|snap)$/.test(f.path)) {
       flags.push({
         kind: "long_file",
-        file: oneLineText(f.path),
+        file: safePath(f.path),
         what: `${now} lines (over ${LONG_FILE_LINES}): split it into smaller files with one job each.`,
       });
     }
