@@ -423,6 +423,15 @@ export const criteriaRepo = {
       .limit(limit);
   },
 
+  /** Roadmap Phase 9: how many owner-approved criteria the project has (one count, no rows). */
+  async countActive(db: BlueprintTx, projectId: string): Promise<number> {
+    const [row] = await db
+      .select({ n: count() })
+      .from(criteria)
+      .where(and(eq(criteria.projectId, projectId), eq(criteria.status, "active")));
+    return row?.n ?? 0;
+  },
+
   /** Every criterion of the project (any status), for restore. */
   async all(db: BlueprintTx, projectId: string): Promise<Criterion[]> {
     return db.select().from(criteria).where(eq(criteria.projectId, projectId));

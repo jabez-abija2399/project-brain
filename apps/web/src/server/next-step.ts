@@ -13,9 +13,6 @@ import { blueprintEnabled } from "./migration-check";
 // Roadmap Phase 9: the counts the next step is chosen from, for one project. DB reads only, no AI. Callers check
 // access first: the Overview through requireProjectAccess (owner session), the status route through the token.
 
-const MAX_PENDING = 100;
-const MAX_FEATURES = 1_000;
-
 export async function nextStepState(
   db: BrainDb,
   projectId: string,
@@ -23,21 +20,21 @@ export async function nextStepState(
 ): Promise<NextStepState> {
   const [approvals, blueprint] = await Promise.all([approvalsEnabled(db), blueprintEnabled(db)]);
   const [pending, draft, feed, counts, features, criteria] = await Promise.all([
-    approvals ? approvalRequestsRepo.list(db, projectId, "pending", MAX_PENDING) : [],
+    approvals ? approvalRequestsRepo.countPending(db, projectId, now) : 0,
     planDraftsRepo.latest(db, projectId, "draft"),
     dashboardRepo.receiptsFeed(db, projectId, 1, 0),
     dashboardRepo.itemCounts(db, projectId),
-    featuresRepo.listSummaries(db, projectId, MAX_FEATURES),
-    blueprint ? criteriaRepo.all(db, projectId) : null,
+    // Counts only (security review: no rows loaded on the Overview's path).
+    featuresRepo.listSummaries(db, projectId, 1),
+    blueprint ? criteriaRepo.countActive(db, projectId) : null,
   ]);
   return {
-    // An expired request no longer waits on anyone.
-    pendingApprovals: pending.filter((r) => r.expiresAt.getTime() > now.getTime()).length,
+    pendingApprovals: pending,
     planDraft: draft !== null,
     receipts: feed.total,
     openMissed: counts.missed,
-    features: features.features.length,
-    criteria: criteria === null ? null : criteria.filter((c) => c.status === "active").length,
+    features: features.total,
+    criteria,
   };
 }
 

@@ -446,3 +446,6 @@ Status values: not started, in progress, merged, blocked (with reason).
   - CLI to web: `status`, `approvals` and `import` print the page.
   - Web to CLI and agent: the Overview names the command and the agent ask.
 - **Next (9b):** the keyboard menu and the sign-up "How do you build?" question.
+- **Security review (fresh context): no HIGH or MEDIUM findings.**
+  - **LOW, fixed:** the next step reads counts only, never rows: active criteria, pending unexpired approvals and
+    features, each with one SQL count.

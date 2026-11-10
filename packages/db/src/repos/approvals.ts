@@ -96,6 +96,21 @@ export const approvalRequestsRepo = {
       .limit(limit);
   },
 
+  /** Roadmap Phase 9: how many requests still wait on the owner (pending and not expired). */
+  async countPending(db: ApprovalTx, projectId: string, now: Date): Promise<number> {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(approvalRequests)
+      .where(
+        and(
+          eq(approvalRequests.projectId, projectId),
+          eq(approvalRequests.status, "pending"),
+          gte(approvalRequests.expiresAt, now),
+        ),
+      );
+    return Number(row?.n ?? 0);
+  },
+
   /** Decides a still-pending, unexpired request; null when it was not pending (already decided or expired). */
   async decide(
     db: ApprovalTx,
