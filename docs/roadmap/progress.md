@@ -260,3 +260,13 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **Safety:**
   - Test paths are plain characters only and quoted; a path starting with `-` or containing `..` never runs.
   - At most 100 files, and the check command's process-tree kill on timeout.
+- **Security review (fresh context): no HIGH findings; all others fixed (attack test PH5D-06).**
+  - **MEDIUM:** a single very long output line slowed the failing-name parse after the run. Lines are now cut to 500
+    characters first.
+  - **LOW:**
+    - Server paths like "/", "." or a folder would run every test; only real test files inside the repo run now.
+    - The command check refuses shell metacharacters.
+    - Colour codes no longer hide failing test names.
+    - Paths go unquoted on Windows (plain characters only).
+  - **Not verified:** how `cmd.exe` receives the check command on Windows predates this change and needs a Windows
+    machine.

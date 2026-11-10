@@ -46,10 +46,19 @@ export function parseTestCounts(output: string): { passed?: number; failed?: num
 }
 
 const MAX_FAILING = 20;
+const ESC = String.fromCharCode(27);
 /** Failing test names from vitest / jest output ("FAIL file > name", "× name", "✕ name"), at most 20, one line each. */
 export function parseFailingTests(output: string): string[] {
   const out: string[] = [];
-  for (const raw of output.slice(-200_000).split("\n")) {
+  // Colour codes are removed first; each line is cut to 500 characters before matching (security review, Phase 5d:
+  // one very long line made the match take seconds after the run).
+  const plain = output
+    .slice(-200_000)
+    .split(ESC)
+    .map((part, i) => (i === 0 ? part : part.replace(/^\[[0-9;]*[A-Za-z]/, "")))
+    .join("");
+  for (const full of plain.split("\n")) {
+    const raw = full.slice(0, 500);
     const m = /^\s*(?:FAIL|\u00d7|\u2715|\u2716)\s+(.+?)\s*(?:\d+\s*ms)?$/.exec(raw);
     const name = m?.[1]?.trim();
     if (name && !out.includes(name)) out.push(name);

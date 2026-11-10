@@ -35,12 +35,16 @@ export function withTestFiles(
   platform: NodeJS.Platform,
 ): string | null {
   const c = command.trim();
-  const quote = (f: string) => (platform === "win32" ? `"${f}"` : `'${f}'`);
+  // The paths hold plain characters only (SAFE_PATH), which cmd.exe never treats specially: they go unquoted there,
+  // since Node may escape quotes inside the cmd.exe argument. POSIX shells get single quotes anyway.
+  const quote = (f: string) => (platform === "win32" ? f : `'${f}'`);
   const list = files.map(quote).join(" ");
   if (/^(npm\s+(run\s+)?test)$/.test(c)) return `${c} -- ${list}`;
   if (/^((pnpm|yarn)\s+(run\s+)?test)$/.test(c)) return `${c} ${list}`;
   if (
-    /^((npx|pnpm\s+exec|yarn)\s+)?(vitest(\s+run)?|jest)(\s+--?[A-Za-z][\w-]*(=\S+)?)*$/.test(c)
+    /^((npx|pnpm\s+exec|yarn)\s+)?(vitest(\s+run)?|jest)(\s+--?[A-Za-z][\w-]*(=[^\s;&|$`<>()'"\\]+)?)*$/.test(
+      c,
+    )
   ) {
     return `${c} ${list}`;
   }
@@ -112,11 +116,15 @@ export async function runProve(args: string[], deps: ProveDeps): Promise<number>
   }
   if (ask) for (const t of await linkedTests(deps, ask)) tests.add(posix.normalize(t));
   const runnable = [...tests].filter(
+    // Security review (Phase 5d): a real test file inside the repo only; "/", "." or a folder would run every test.
     (t) =>
       SAFE_PATH.test(t) &&
       !t.startsWith("-") &&
+      !t.startsWith("/") &&
+      !t.startsWith(".") &&
       !t.split("/").includes("..") &&
-      existsSync(join(root, t)),
+      isTestFile(t) &&
+      lstatSync(join(root, t), { throwIfNoEntry: false })?.isFile() === true,
   );
   const skipped = tests.size - runnable.length;
   if (runnable.length === 0) {

