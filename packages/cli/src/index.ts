@@ -73,6 +73,7 @@ export function helpText(): string {
     "  codeceipt scan-secrets [files...]   scans changed (or named) files for secrets; prints masked findings",
     "  codeceipt guard [--staged|--ci]     checks changed files: weakened tests, secrets, hidden characters, boundaries",
     "  codeceipt guard --install-hook      checks every commit in this repo (a pre-commit hook; asks nothing, changes no existing hook)",
+    '  codeceipt prove [--for "<request>"] runs only the tests for this change with your check command; prints the result',
     "  codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]",
     "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
     "  codeceipt init --remove-repo-files  removes those files for agents whose Codeceipt plugin is installed",
@@ -460,6 +461,18 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         env: deps.env,
         config: () => projectConfig(deps, path, deps.cwd, { linkedOnly: true }),
         savedMode: readSettings(path).guard ?? "strict",
+      });
+    } else if (command === "prove") {
+      // Roadmap Phase 5d: runs only the tests for the current change, with the repo's own check command.
+      const { runProve } = await import("./prove-command");
+      return await runProve(args, {
+        git: deps.git ?? runGit,
+        cwd: deps.cwd,
+        stdout: deps.stdout,
+        fetch: deps.fetch,
+        configFile: path,
+        platform: deps.platform ?? process.platform,
+        config: () => projectConfig(deps, path, deps.cwd, { linkedOnly: true }),
       });
     } else if (command === "scan-secrets") {
       // Runs offline: nothing is uploaded, so no login is needed.

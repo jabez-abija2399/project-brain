@@ -17,6 +17,8 @@ export type CheckResult = {
   duration_ms: number;
   passed?: number;
   failed?: number;
+  /** Roadmap Phase 5d: failing test names (only when asked for, for `codeceipt prove`; never sent anywhere). */
+  failing?: string[];
 };
 
 /** The key a repo's setting is stored under: a hash of its top folder (no path in the config file). */
@@ -43,12 +45,35 @@ export function parseTestCounts(output: string): { passed?: number; failed?: num
   };
 }
 
+const MAX_FAILING = 20;
+const ESC = String.fromCharCode(27);
+/** Failing test names from vitest / jest output ("FAIL file > name", "× name", "✕ name"), at most 20, one line each. */
+export function parseFailingTests(output: string): string[] {
+  const out: string[] = [];
+  // Colour codes are removed first; each line is cut to 500 characters before matching (security review, Phase 5d:
+  // one very long line made the match take seconds after the run).
+  const plain = output
+    .slice(-200_000)
+    .split(ESC)
+    .map((part, i) => (i === 0 ? part : part.replace(/^\[[0-9;]*[A-Za-z]/, "")))
+    .join("");
+  for (const full of plain.split("\n")) {
+    const raw = full.slice(0, 500);
+    const m = /^\s*(?:FAIL|\u00d7|\u2715|\u2716)\s+(.+?)\s*(?:\d+\s*ms)?$/.exec(raw);
+    const name = m?.[1]?.trim();
+    if (name && !out.includes(name)) out.push(name);
+    if (out.length >= MAX_FAILING) break;
+  }
+  return out;
+}
+
 /** Runs the command in the repo's folder (the user's own shell command), stopping it after timeoutMs. */
 export function runCheck(opts: {
   command: string;
   cwd: string;
   timeoutMs: number;
   platform: NodeJS.Platform;
+  failingNames?: boolean;
 }): Promise<CheckResult> {
   const started = Date.now();
   return new Promise((resolve) => {
@@ -97,6 +122,7 @@ export function runCheck(opts: {
         exit_code: code,
         duration_ms,
         ...parseTestCounts(output),
+        ...(opts.failingNames && code !== 0 ? { failing: parseFailingTests(output) } : {}),
       });
     };
     child.on("error", () => finish(127));

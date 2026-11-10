@@ -110,6 +110,7 @@ describe("Phase 5c: definition of done route", () => {
       ok: true,
       feature: null,
       note: null,
+      tests: [],
     });
     await world.db.execute(sql`DELETE FROM "_brain_migrations" WHERE id = '0054_blueprint'`);
     resetMigrationCheckForTests();
@@ -117,6 +118,7 @@ describe("Phase 5c: definition of done route", () => {
       ok: true,
       feature: null,
       note: null,
+      tests: [],
     });
   });
 });
