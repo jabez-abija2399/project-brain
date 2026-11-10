@@ -74,6 +74,7 @@ export function helpText(): string {
     "  codeceipt guard [--staged|--ci]     checks changed files: weakened tests, secrets, hidden characters, boundaries",
     "  codeceipt guard --install-hook      checks every commit in this repo (a pre-commit hook; asks nothing, changes no existing hook)",
     '  codeceipt prove [--for "<request>"] runs only the tests for this change with your check command; prints the result',
+    "  codeceipt review [--staged|--ci]    the build checklist and size flags for the changed files (nothing is sent)",
     "  codeceipt approvals                 the link to approve, reject or pause what your agents ask for (owner only)",
     "  codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]",
     "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
@@ -462,6 +463,15 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         env: deps.env,
         config: () => projectConfig(deps, path, deps.cwd, { linkedOnly: true }),
         savedMode: readSettings(path).guard ?? "strict",
+      });
+    } else if (command === "review") {
+      // Roadmap Phase 7: the build checklist for the changed files, on this machine; nothing is sent.
+      const { runReview } = await import("./review-command");
+      return await runReview(args, {
+        git: deps.git ?? runGit,
+        cwd: deps.cwd,
+        stdout: deps.stdout,
+        env: deps.env,
       });
     } else if (command === "approvals") {
       // Roadmap Phase 6b: approvals are decided only by the owner, signed in on the web (a project token never can).

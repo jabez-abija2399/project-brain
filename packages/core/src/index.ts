@@ -212,6 +212,20 @@ export {
 export { guardCheck, MAX_GUARD_FINDINGS, newLines, newPackageNames } from "./guard";
 export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
 export { findHiddenChars } from "./hidden-chars";
+export {
+  LARGE_CHANGE_LINES,
+  LONG_FILE_LINES,
+  MANY_FILES,
+  REVIEW_RULES,
+  maintainabilityFlags,
+  reviewChecklist,
+} from "./review-checklist";
+export type {
+  MaintainabilityFlag,
+  ReviewFile,
+  ReviewItem,
+  ReviewRule,
+} from "./review-checklist";
 export type { HiddenChar, HiddenKind } from "./hidden-chars";
 // Roadmap Phase 5b: protected paths blocked before an agent edits them (pre-tool-use hooks).
 export { patchTargets, preToolAnswer, preToolHit, repoRelative, toolTargets } from "./pre-tool";

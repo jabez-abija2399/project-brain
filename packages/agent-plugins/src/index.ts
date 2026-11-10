@@ -10,8 +10,9 @@ import {
   SHARED_SKILL,
 } from "../../cli/src/templates.ts";
 import { LAUNCHER } from "./launcher.ts";
+import { WORKFLOW_SKILLS } from "./workflows.ts";
 
-export { LAUNCHER };
+export { LAUNCHER, WORKFLOW_SKILLS };
 export const PLUGIN_AGENTS = ["claude", "cursor", "codex", "antigravity"] as const;
 export type PluginAgent = (typeof PLUGIN_AGENTS)[number];
 export const PLUGIN_NAME = "codeceipt";
@@ -48,6 +49,10 @@ const withNote = (text: string) => {
   }
   return out;
 };
+
+// Roadmap Phase 7: /codeceipt-feature, /codeceipt-fix and /codeceipt-review, one skill folder each.
+const workflowSkills = (): [string, string][] =>
+  Object.entries(WORKFLOW_SKILLS).map(([name, text]) => [`skills/${name}/SKILL.md`, text]);
 
 const json = (v: unknown) => `${JSON.stringify(v, null, 2)}\n`;
 const script = (root: string) => `${root}/scripts/codeceipt.sh`;
@@ -116,6 +121,7 @@ function claude(): Map<string, string> {
       }),
     ],
     ["skills/codeceipt/SKILL.md", withNote(CLAUDE_SKILL)],
+    ...workflowSkills(),
     ["scripts/codeceipt.sh", LAUNCHER],
   ]);
 }
@@ -164,6 +170,7 @@ function cursor(): Map<string, string> {
       }),
     ],
     ["rules/codeceipt.mdc", withNote(CURSOR_RULE)],
+    ...workflowSkills(),
     ["scripts/codeceipt.sh", LAUNCHER],
   ]);
 }
@@ -209,6 +216,7 @@ function codex(): Map<string, string> {
       }),
     ],
     ["skills/codeceipt/SKILL.md", withNote(SHARED_SKILL)],
+    ...workflowSkills(),
     ["scripts/codeceipt.sh", LAUNCHER],
   ]);
 }
@@ -273,6 +281,7 @@ function antigravity(): Map<string, string> {
     ],
     ["rules/codeceipt.md", withNote(ANTIGRAVITY_RULE)],
     ["skills/codeceipt/SKILL.md", withNote(SHARED_SKILL)],
+    ...workflowSkills(),
     ["scripts/codeceipt.sh", LAUNCHER],
   ]);
 }
