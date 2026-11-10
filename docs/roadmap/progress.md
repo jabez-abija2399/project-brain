@@ -19,7 +19,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 6 | Approval policies | merged (email notifications wait on owner action 12) | 6a [#71](https://github.com/jabez-abija2399/project-brain/pull/71), 6b [#72](https://github.com/jabez-abija2399/project-brain/pull/72) | Migration 0055 optional (owner action 11); email needs owner action 12 |
 | 7 | Kit workflows as product features | merged (receipt flags later) | 7a [#73](https://github.com/jabez-abija2399/project-brain/pull/73) | `/codeceipt-feature`, `-fix`, `-review`; `codeceipt review` |
 | 8 | Import, export, sync | merged (automatic sync suggestions later) | 8a [#74](https://github.com/jabez-abija2399/project-brain/pull/74), 8b [#75](https://github.com/jabez-abija2399/project-brain/pull/75) | `codeceipt import` into a plan draft; `codeceipt export` with `--check` |
-| 9 | Easy everywhere (parity, menu, next step) | in progress (9a) | | |
+| 9 | Easy everywhere (parity, menu, next step) | 9a merged, 9b in progress | 9a [#76](https://github.com/jabez-abija2399/project-brain/pull/76) | One next step (Overview + `codeceipt status`); `docs/actions.md` |
 | 10 | Claim checker and PR receipts | not started | | |
 | 11 | VS Code extension | not started | | |
 | 12 | Measure, compare with the kit, document | not started | | |
@@ -449,3 +449,31 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **Security review (fresh context): no HIGH or MEDIUM findings.**
   - **LOW, fixed:** the next step reads counts only, never rows: active criteria, pending unexpired approvals and
     features, each with one SQL count.
+
+### Phase 9b: the keyboard menu and "How do you build?"
+- **The menu:** `codeceipt` with no arguments, in a connected repo and a terminal someone can answer, shows a numbered
+  menu. The entries are status, last, review, guard, prove, doctor, and connect again; each one runs that ordinary
+  command.
+  - Enter quits.
+  - Without a terminal, or in a repo that is not connected, the setup runs as before.
+- **"How do you build?"** on the Get started page: Claude Code, Cursor, Codex, another agent, or an existing spec.
+  - Each answer shows its three first steps (fixed text in `packages/core/src/build-guide.ts`).
+  - The answer is a plain link (it works without JavaScript) and is remembered in a cookie. It is a display
+    preference only.
+- **Not stored on the server:** the answer lives in the browser cookie, so no migration is needed. Recording it per
+  account would need a migration and is in `agent/later.md`.
+- **Security review (fresh context): no HIGH or MEDIUM findings.**
+  - **LOW, fixed:**
+    - A bad `?build=` no longer hides a remembered answer.
+    - The cookie is Secure on HTTPS.
+    - The choices are a `nav` labelled by the heading, so screen readers hear the question once.
+  - **LOW, kept as is, with reasons:**
+    - An agent in a real terminal can see the menu. Every entry is a fixed command the agent can already run, and
+      hooks never take this path.
+    - Checking the link may write the repo fingerprint for an old link. It is inside `.git`, and this is the same
+      behaviour as every linked command.
+- **CI fix:** the first CI run failed the production build. The new client component imported the `@brain/core`
+  barrel, which pulls `node:path` into the browser bundle; the local gate runs the build in CI only. Now the page
+  passes the choices in as props.
+  - A new test (PH9-20) fails if any client component imports `@brain/core` or `@brain/db`.
+  - `next build` passes locally.

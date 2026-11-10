@@ -182,3 +182,4 @@
 - 2026-11-09 Phase 4c: return a definition of done when a request is captured (prompt hook additionalContext for Claude Code / Codex, synchronous within ~1.5 s, deterministic from the Blueprint), needs a CLI release.
 - 2026-11-10 (Phase 7a review LOW 2): `codeceipt guard` and `codeceipt review` keep the whole changed-file list in memory and up to 500 files of text at once; cap the parsed list at MAX_FILES+1 and keep only added lines per chunk.
 - 2026-11-10 (Phase 8b): sync suggestions after index/push (Blueprint changed since the last export, offered through the approval policy); `codeceipt export --check` is the manual signal today.
+- 2026-11-10 (Phase 9b): store the "How do you build?" answer per account (needs a migration) so the CLI and emails can tailor their words; today it is a browser cookie.

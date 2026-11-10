@@ -6,6 +6,10 @@ Tests keep this page complete: every `codeceipt` command, every MCP tool and eve
 Not sure what to do next? Run `codeceipt status`, or open your project's **Overview** page. Both show the same one
 next step.
 
+In a connected repo, `codeceipt` on its own opens a short numbered menu of the commands used most. New here? The
+**Get started** page asks how you build (Claude Code, Cursor, Codex, another agent, or an existing spec) and shows the
+first steps for that.
+
 ## Get started
 | You want to | In the terminal | On the web | Ask your agent |
 |---|---|---|---|

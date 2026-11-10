@@ -214,6 +214,8 @@ export { guardCheck, MAX_GUARD_FINDINGS, newLines, newPackageNames } from "./gua
 export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
 export { findHiddenChars } from "./hidden-chars";
 export { nextStep } from "./next-step";
+export { BUILD_COOKIE, BUILD_LABELS, BUILD_STYLES, buildGuide, buildStyle } from "./build-guide";
+export type { BuildStyle } from "./build-guide";
 export type { NextStep, NextStepState } from "./next-step";
 export {
   EXPORT_TARGETS,

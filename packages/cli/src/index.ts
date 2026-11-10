@@ -119,6 +119,8 @@ export type CliDeps = {
   git?: Git;
   // D-028: a yes/no question in the terminal (absent without one), and an agent's own command run without a shell.
   ask?: (question: string) => Promise<boolean>;
+  // Roadmap Phase 9: a numbered choice in the terminal (absent without one): the menu index, or null to quit.
+  choose?: (question: string, options: string[]) => Promise<number | null>;
   // FEAT-024: opens the live database for `codeceipt rls` (tests inject one).
   liveDb?: (url: string) => Promise<LiveDb>;
   runCommand?: (command: string, args: string[]) => Promise<boolean>;
@@ -313,6 +315,24 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         execPath: deps.execPath ?? process.execPath,
         version: VERSION,
       });
+    }
+    // Roadmap Phase 9: no arguments at all, a connected repo and someone at the terminal: the menu.
+    if (command === undefined && deps.choose) {
+      const linked = await projectConfig(deps, path, deps.cwd, { linkedOnly: true }).then(
+        () => true,
+        () => false,
+      );
+      if (linked) {
+        const { MENU, MENU_QUESTION } = await import("./menu");
+        const picked = await deps.choose(
+          MENU_QUESTION,
+          MENU.map((m) => m.label),
+        );
+        if (picked === null) return EXIT.ok;
+        const entry = MENU[picked];
+        if (entry?.argv) return main(entry.argv, deps);
+        // The last entry (or an unknown one) runs the setup below, as before.
+      }
     }
     // No command (flags only): the one-command setup.
     // D-028: `codeceipt connect` is the same setup by name.
