@@ -1,6 +1,6 @@
+import { safePath } from "./fix-prompt";
 import { newLines } from "./guard";
 import { TEST_FILE } from "./receipt";
-import { safePath } from "./fix-prompt";
 
 // Roadmap Phase 7: `codeceipt review`. The build checklist (docs/build-checklist.md) as a rule pack: which of its
 // eight rules a change touches, chosen from the changed paths and added lines only (no AI, nothing sent anywhere),
