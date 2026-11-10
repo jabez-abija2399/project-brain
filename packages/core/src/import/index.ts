@@ -37,8 +37,32 @@ const kindOf = (text: string, given?: unknown): PlanItem["kind"] =>
     : NEGATIVE.test(text)
       ? "negative"
       : "happy";
-const lineAt = (text: string, index: number) =>
-  index < 0 ? 1 : text.slice(0, index).split("\n").length;
+// Lines longer than this are skipped: no rule, heading or requirement is that long, and it keeps every pattern fast.
+const MAX_LINE = 2_000;
+/** Line numbers by offset, with one pass over the text (a binary search per lookup). */
+function lineIndex(text: string): (offset: number) => number {
+  const starts = [0];
+  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) starts.push(i + 1);
+  return (offset) => {
+    if (offset < 0) return 1;
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if ((starts[mid] ?? 0) <= offset) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo + 1;
+  };
+}
+/** Where each quoted string first appears (one pass), for the kit's ids. */
+function firstQuoted(text: string): Map<string, number> {
+  const at = new Map<string, number>();
+  for (const m of text.matchAll(/"([^"\n]{1,100})"/g)) {
+    if (m[1] !== undefined && !at.has(m[1])) at.set(m[1], m.index ?? -1);
+  }
+  return at;
+}
 const folder = (path: string, depthFromEnd: number) => {
   const parts = path.split("/");
   return parts[parts.length - 1 - depthFromEnd] ?? path;
@@ -89,23 +113,27 @@ function readKit(file: ImportFile): ImportedFeature[] {
     if (f && typeof f.id === "string" && typeof f.title === "string")
       titles.set(f.id, short(f.title));
   }
+  const quoted = firstQuoted(file.text);
+  const lineOf = lineIndex(file.text);
   const out: ImportedFeature[] = [];
   for (const f of list.slice(0, MAX_IMPORT_FEATURES)) {
     if (!f || typeof f.title !== "string") continue;
-    const at = typeof f.id === "string" ? file.text.indexOf(`"${f.id}"`) : -1;
-    const acceptance: unknown[] = Array.isArray(f.acceptance) ? f.acceptance : [];
+    const at = typeof f.id === "string" ? (quoted.get(f.id) ?? -1) : -1;
+    const acceptance: unknown[] = Array.isArray(f.acceptance)
+      ? f.acceptance.slice(0, MAX_ITEMS_READ)
+      : [];
     const items = acceptance.flatMap((a): ImportedItem[] => {
       const c = a as { id?: unknown; check?: unknown; kind?: unknown };
       if (typeof c.check !== "string") return [];
       const text = clean(c.check, MAX_TEXT);
-      const idAt = typeof c.id === "string" ? file.text.indexOf(`"${c.id}"`) : -1;
-      return [{ text, kind: kindOf(text, c.kind), line: lineAt(file.text, idAt) }];
+      const idAt = typeof c.id === "string" ? (quoted.get(c.id) ?? -1) : -1;
+      return [{ text, kind: kindOf(text, c.kind), line: lineOf(idAt) }];
     });
     const deps: unknown[] = Array.isArray(f.depends_on) ? f.depends_on : [];
     const made = feature(
       short(f.title),
       file.path,
-      lineAt(file.text, at),
+      lineOf(at),
       items,
       deps.flatMap((d) =>
         typeof d === "string" && titles.has(d) ? [titles.get(d) as string] : [],
@@ -121,6 +149,7 @@ function lines(text: string, pick: (line: string) => string | null): ImportedIte
   const out: ImportedItem[] = [];
   for (const [i, raw] of text.split("\n").entries()) {
     if (out.length >= MAX_ITEMS_READ) break;
+    if (raw.length > MAX_LINE) continue;
     const got = pick(raw);
     if (got === null) continue;
     const t = clean(got, MAX_TEXT);
@@ -131,6 +160,7 @@ function lines(text: string, pick: (line: string) => string | null): ImportedIte
 
 const heading = (text: string, re: RegExp) => {
   for (const [i, l] of text.split("\n").entries()) {
+    if (l.length > MAX_LINE) continue;
     const m = re.exec(l);
     if (m?.[1]) return { name: m[1], line: i + 1 };
   }
@@ -166,6 +196,7 @@ function readOpenSpec(file: ImportFile): ImportedFeature[] {
   const items: ImportedItem[] = [];
   for (const [i, l] of all.entries()) {
     if (items.length >= MAX_ITEMS_READ) break;
+    if (l.length > MAX_LINE) continue;
     const req = /^###\s+Requirement:\s*(.+)$/.exec(l);
     if (!req?.[1]) continue;
     // The requirement's own sentence (the next non-empty line with SHALL or MUST), else its title.
@@ -196,7 +227,8 @@ function readAgents(file: ImportFile): ImportedFeature[] {
       return null;
     }
     // A line such as "Project rules (max 10):" starts a rule list too.
-    if (/\brules?\b[^:]*:\s*$/i.test(l)) {
+    // Security review: a plain check, not a regex that backtracks over a long line.
+    if (l.trimEnd().endsWith(":") && /\brules?\b/i.test(l)) {
       inRules = true;
       return null;
     }
@@ -214,6 +246,7 @@ function readReadme(file: ImportFile): ImportedFeature[] {
   let inFeatures = false;
   for (const [i, l] of file.text.split("\n").entries()) {
     if (out.length >= MAX_PLAN_FEATURES * 2) break;
+    if (l.length > MAX_LINE) continue;
     if (/^#{1,4}\s/.test(l)) {
       inFeatures = /^#{1,4}\s+(key\s+)?features\b/i.test(l);
       continue;

@@ -42,6 +42,12 @@ function fromStatus(status: number, code: string | undefined): CliError {
   if (status === 409 && code === "repo_mismatch")
     return new CliError(EXIT.auth, REPO_MISMATCH_MESSAGE);
   if (status === 403 && code === "suspended") return new CliError(EXIT.auth, SUSPENDED_MESSAGE);
+  // Roadmap Phase 8: an import never silently replaces a plan the owner has not decided on.
+  if (status === 409 && code === "plan_pending")
+    return new CliError(
+      EXIT.rejected,
+      "The project has a plan the owner has not approved yet, so nothing was imported. Approve it on the Plan tab, or run `codeceipt import --replace` to replace it.",
+    );
   if (status === 401 || status === 404) {
     return new CliError(
       EXIT.auth,

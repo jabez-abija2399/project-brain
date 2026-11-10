@@ -17,6 +17,8 @@ import { AppError } from "./errors";
 // a project token has no way to approve it.
 
 const EXISTING_LIMIT = 1_000;
+const IMPORTED = "Imported from ";
+const QUESTIONS_KEPT_MS = 24 * 60 * 60 * 1000;
 const line = z.number().int().min(1).max(10_000_000);
 const itemSchema = z
   .object({ text: z.string().trim().min(1).max(300), kind: z.enum(ITEM_KINDS), line })
@@ -34,6 +36,7 @@ const bodySchema = z
   .object({
     source: z.enum(IMPORT_SOURCES),
     features: z.array(featureSchema).min(1).max(500),
+    replace: z.literal(true).optional(),
   })
   .strict();
 
@@ -45,8 +48,25 @@ function parse(raw: unknown) {
   throw new AppError(400, "invalid_input", "input validation failed", fields);
 }
 
-export async function hookImport(db: BrainDb, projectId: string, raw: unknown) {
+export async function hookImport(db: BrainDb, projectId: string, raw: unknown, tokenId: string) {
   const input = parse(raw);
+  // Security review (Phase 8): an import never silently replaces a plan the owner has not decided on yet (a
+  // plan_project draft, or its question set from the last day); --replace says so on purpose.
+  if (!input.replace) {
+    const open = await planDraftsRepo.open(db, projectId);
+    const pending = open.find(
+      (r) =>
+        !r.ideaText.startsWith(IMPORTED) &&
+        (r.status === "draft" || Date.now() - r.createdAt.getTime() < QUESTIONS_KEPT_MS),
+    );
+    if (pending) {
+      throw new AppError(
+        409,
+        "plan_pending",
+        "the project has a plan the owner has not approved yet; approve it first, or import with --replace",
+      );
+    }
+  }
   // Cleaned on the server as well: one line, invisible marks removed, secrets masked, capped.
   const features = input.features
     .map((f) => ({
@@ -77,9 +97,10 @@ export async function hookImport(db: BrainDb, projectId: string, raw: unknown) {
     };
   }
   const row = await planDraftsRepo.saveQuestions(db, projectId, {
-    ideaText: `Imported from ${input.source}`,
+    ideaText: `${IMPORTED}${input.source}`,
     questions: { restated: result.draft.restated, questions: [] },
-    createdBy: "import",
+    // The calling token, as plan_project records it: who imported this can be traced.
+    createdBy: tokenId,
   });
   const saved = await planDraftsRepo.saveDraft(db, projectId, row.id, {
     answers: {},

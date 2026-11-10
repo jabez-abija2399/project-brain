@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 // the URL, checked against the token (404 otherwise); rate limits in a bucket of their own. Only the owner approves.
 export const POST = indexRoute(
   "hooks.import",
-  async (db, projectId, req) => hookImport(db, projectId, await readJsonCapped(req, 512 * 1024)),
+  async (db, projectId, req, token) =>
+    hookImport(db, projectId, await readJsonCapped(req, 512 * 1024), token.id),
   { limit: "import" },
 );

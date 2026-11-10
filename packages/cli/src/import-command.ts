@@ -3,20 +3,22 @@ import {
   IMPORT_SOURCES,
   type ImportFile,
   type ImportSource,
+  MAX_IMPORT_FILES,
+  MAX_IMPORT_FILE_CHARS,
   importFeatures,
   importPathMatches,
   safeDisplay,
 } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
-import { MAX_FILES, readFile } from "./guard-command";
+import { readFile } from "./guard-command";
 import { type Git, repoRoot } from "./scan-secrets";
 
 // Roadmap Phase 8: `codeceipt import`. Reads an existing spec on this machine (the AI Build Kit's
 // agent/features.json, Spec Kit, Kiro, OpenSpec, AGENTS.md / CLAUDE.md rules, a README's feature list) and sends only
 // what it describes: feature names, short criterion texts, file and line. The server saves it as the project's plan
 // draft; nothing is active until the owner approves it on the Plan tab. --dry-run shows it and sends nothing.
-const USAGE = `Usage: codeceipt import [--from ${IMPORT_SOURCES.join("|")}] [--dry-run]`;
+const USAGE = `Usage: codeceipt import [--from ${IMPORT_SOURCES.join("|")}] [--dry-run] [--replace]`;
 
 export type ImportDeps = {
   git: Git;
@@ -28,8 +30,13 @@ export type ImportDeps = {
 
 function parse(args: string[]) {
   const rest = [...args];
-  const dry = rest.indexOf("--dry-run");
-  if (dry !== -1) rest.splice(dry, 1);
+  const take = (name: string) => {
+    const at = rest.indexOf(name);
+    if (at !== -1) rest.splice(at, 1);
+    return at !== -1;
+  };
+  const dryRun = take("--dry-run");
+  const replace = take("--replace");
   let from: ImportSource | undefined;
   const i = rest.indexOf("--from");
   if (i !== -1) {
@@ -40,7 +47,7 @@ function parse(args: string[]) {
     rest.splice(i, 2);
   }
   if (rest.length > 0) throw new CliError(EXIT.usage, USAGE);
-  return { from, dryRun: dry !== -1 };
+  return { from, dryRun, replace };
 }
 
 export async function runImport(args: string[], deps: ImportDeps): Promise<number> {
@@ -54,7 +61,7 @@ export async function runImport(args: string[], deps: ImportDeps): Promise<numbe
     .filter((p) => p.length > 0 && !p.startsWith("../") && !isAbsolute(p));
   const bySource = new Map<ImportSource, string[]>();
   for (const s of IMPORT_SOURCES) {
-    const paths = listed.filter((p) => importPathMatches(s, p)).slice(0, MAX_FILES);
+    const paths = listed.filter((p) => importPathMatches(s, p)).slice(0, MAX_IMPORT_FILES);
     if (paths.length > 0) bySource.set(s, paths);
   }
   const source = opts.from ?? (bySource.size === 1 ? [...bySource.keys()][0] : undefined);
@@ -74,7 +81,7 @@ export async function runImport(args: string[], deps: ImportDeps): Promise<numbe
   const files: ImportFile[] = [];
   for (const path of paths) {
     const f = await readFile(deps.git, root, path, { kind: "worktree" }, null);
-    if (f.after !== null) files.push({ path, text: f.after });
+    if (f.after !== null) files.push({ path, text: f.after.slice(0, MAX_IMPORT_FILE_CHARS) });
   }
   const features = importFeatures(source, files);
   const criteria = features.reduce((n, f) => n + f.items.length, 0);
@@ -101,8 +108,12 @@ export async function runImport(args: string[], deps: ImportDeps): Promise<numbe
   }>(deps.fetch, config, "POST", `/api/hooks/${encodeURIComponent(config.projectId)}/import`, {
     source,
     features,
+    ...(opts.replace ? { replace: true } : {}),
   });
-  if (answer.skipped.length > 0) {
+  // Numbers from the server are printed as numbers only (a wrong api URL cannot write into the terminal).
+  const n = (v: unknown) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.trunc(v)) : 0;
+  if (Array.isArray(answer.skipped) && answer.skipped.length > 0) {
     deps.stdout(
       `Already in the project, not imported again: ${answer.skipped.map((s) => safeDisplay(s, 100)).join(", ")}.`,
     );
@@ -113,13 +124,15 @@ export async function runImport(args: string[], deps: ImportDeps): Promise<numbe
   }
   const page = `${config.apiUrl.replace(/\/+$/, "")}/projects/${encodeURIComponent(config.projectId)}/plan`;
   deps.stdout(
-    `Saved as a draft: ${answer.features} features, ${answer.criteria} criteria. Nothing is active yet.`,
+    `Saved as a draft: ${n(answer.features)} features, ${n(answer.criteria)} criteria. Nothing is active yet.`,
   );
-  if (answer.cut_items > 0)
-    deps.stdout(`${answer.cut_items} criteria were left out (at most 8 per feature in one draft).`);
-  if (answer.more > 0)
+  if (n(answer.cut_items) > 0)
     deps.stdout(
-      `${answer.more} more features: approve this draft, then run codeceipt import again.`,
+      `${n(answer.cut_items)} criteria were left out (at most 8 per feature in one draft).`,
+    );
+  if (n(answer.more) > 0)
+    deps.stdout(
+      `${n(answer.more)} more features: approve this draft, then run codeceipt import again.`,
     );
   deps.stdout(`The project owner reviews and approves it here: ${page}`);
   return EXIT.ok;

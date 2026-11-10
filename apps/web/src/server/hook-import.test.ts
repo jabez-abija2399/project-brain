@@ -19,6 +19,7 @@ let world: TestWorld;
 let owner: SessionUser;
 let pid: string;
 let token: string;
+let tokenId: string;
 let otherToken: string;
 
 beforeEach(async () => {
@@ -28,7 +29,9 @@ beforeEach(async () => {
   const stranger = await world.createUser({ name: "stranger" });
   pid = (await projectsRepo.create(world.db, owner.id, { name: "shop" })).id;
   const other = (await projectsRepo.create(world.db, stranger.id, { name: "vault" })).id;
-  token = (await projectTokensRepo.create(world.db, pid)).token;
+  const created = await projectTokensRepo.create(world.db, pid);
+  token = created.token;
+  tokenId = created.row.id;
   otherToken = (await projectTokensRepo.create(world.db, other)).token;
 });
 afterEach(async () => {
@@ -137,5 +140,29 @@ describe("Phase 8: codeceipt import on the server", () => {
     };
     expect(again).toMatchObject({ draft_id: null, skipped: ["Cart"] });
     expect(await planDraftsRepo.latest(world.db, pid, "draft")).toBeNull();
+  });
+
+  it("PH8-18 attack (security review): an import never silently replaces the owner's pending plan; it records the token", async () => {
+    const q = await planDraftsRepo.saveQuestions(world.db, pid, {
+      ideaText: "A shop",
+      questions: { restated: ["A shop."], questions: [] },
+      createdBy: "agent-token",
+    });
+    await planDraftsRepo.saveDraft(world.db, pid, q.id, {
+      answers: {},
+      hash: "a".repeat(64),
+      draft: { restated: ["A shop."], features: [] },
+    });
+    const refused = await send({ source: "speckit", features: [cart] });
+    expect(refused.status).toBe(409);
+    expect(((await refused.json()) as { code: string }).code).toBe("plan_pending");
+    expect((await planDraftsRepo.latest(world.db, pid, "draft"))?.id).toBe(q.id);
+    const replaced = await send({ source: "speckit", features: [cart], replace: true });
+    expect(replaced.status).toBe(200);
+    const draft = await planDraftsRepo.latest(world.db, pid, "draft");
+    expect(draft?.id).not.toBe(q.id);
+    expect(draft?.createdBy).toBe(tokenId);
+    // A second import replaces the first import without --replace.
+    expect((await send({ source: "speckit", features: [cart] })).status).toBe(200);
   });
 });

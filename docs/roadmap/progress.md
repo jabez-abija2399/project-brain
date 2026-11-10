@@ -380,3 +380,12 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **Readers:** deterministic, no AI (`packages/core/src/import/`). Tested on this repo's own `agent/features.json`
   and `AGENTS.md`, plus fixtures for Spec Kit, Kiro, OpenSpec and README.
 - **Next (8b):** exports (managed AGENTS.md section, OpenSpec, Spec Kit), and sync suggestions after index/push.
+- **Security review (fresh context): no HIGH findings; all others fixed, with attack tests (PH8-17, PH8-18).**
+  - **MEDIUM:**
+    - An import no longer silently replaces a `plan_project` plan the owner has not decided on: 409 `plan_pending`
+      unless `--replace` is used. The draft records the token that imported it.
+    - The rules check no longer backtracks over long lines. Lines over 2,000 characters are skipped by every reader.
+  - **LOW:**
+    - The kit reader reads at most 50 checks per feature and finds lines in one pass.
+    - The CLI reads at most 200 files of 256 KB.
+    - Server counts are printed as numbers only.
