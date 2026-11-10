@@ -116,3 +116,5 @@ apps/web/src/app/api/hooks/[[]projectId]/definition-of-done/* # Phase 5c
 packages/cli/src/prove-command* # Phase 5d: codeceipt prove
 packages/cli/src/check-run.ts # Phase 5d: failing test names for prove
 apps/web/src/server/hook-definition-of-done* # Phase 5d: linked test paths for prove --for
+packages/core/src/approvals* # Phase 6a: approval policy engine
+docs/approvals.md # Phase 6a
