@@ -466,3 +466,15 @@ and Codex use it already); Cursor and Antigravity on Windows without it fall bac
   self-hosted or test deployment is unlimited.
 - Over the monthly AI-judged receipt limit a receipt is still made from git, without the AI judge, and says so.
 - Alternatives: Paddle (merchant of record, handles VAT; fewer integrations), Lemon Squeezy (SDK unmaintained since 2023).
+
+## D-030 | 2026-11-09 | The prompt hook may add a definition of done (Roadmap Phase 5c)
+Context: the roadmap asks for a definition of done handed to the agent when a request is captured (Phase 4, moved to
+5c). D-024 had the Claude Code and Codex prompt hooks print nothing and return at once.
+Decision: Claude Code's and Codex's prompt hooks now ask the server, in the foreground, for the request's definition of
+done (`POST /api/hooks/:projectId/definition-of-done`, project token, its own rate limit). The server matches the
+request to a feature by the words of the feature's name (no AI) and answers with that feature's owner-approved
+criteria, must-never rules, protected paths and linked tests, at most 1,500 characters. The hook prints it as
+`hookSpecificOutput.additionalContext`. It waits at most START_NOTE_WAIT_MS (1.5 s); an unlinked repo, no match, a
+server before migration 0054, a slow server or any error prints nothing, as before. Recording the request (D-024)
+still happens in the background, unchanged. Cursor (beforeSubmitPrompt cannot add context) and the others are
+unchanged.

@@ -775,6 +775,8 @@ async function runLast(deps: CliDeps, path: string, evidence = false): Promise<n
 // Codeceipt's own commands typed as a prompt (`codeceipt last`, `npx codeceipt`, `!codeceipt ...`) are not requests.
 const OWN_COMMAND = /^!?\s*(npx\s+)?codeceipt\b/i;
 const PROMPT_TIMEOUT_MS = 20_000;
+// D-030: the longest the prompt waits for its definition of done (the start note's limit).
+const DONE_NOTE_WAIT_MS = 1_500;
 
 /**
  * `codeceipt hook prompt --agent <agent>`: the prompt-submit hook (Claude Code and Codex UserPromptSubmit, Cursor
@@ -820,6 +822,24 @@ async function runPromptHook(args: string[], deps: CliDeps, path: string): Promi
   )
     return answer();
   const dir = await promptFolder(deps, sessionFolder(stdin, deps.cwd));
+  // Roadmap Phase 5c: Claude Code and Codex get the request's definition of done before the agent starts. The whole
+  // lookup (finding the repo's project with git, then the server) is bounded by the start note's wait limit.
+  if (!args.includes("--worker") && (agent === "claude" || agent === "codex")) {
+    const lookup = (async () => {
+      const config = await projectConfig(deps, path, dir, { linkedOnly: true }).catch(() => null);
+      if (!config || !isSafeApiUrl(config.apiUrl)) return null;
+      const { definitionOfDoneAnswer } = await import("./done-note");
+      return definitionOfDoneAnswer(deps.fetch, config, agent, maskSecretsIn(prompt));
+    })().catch(() => null);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<null>((done) => {
+      timer = setTimeout(() => done(null), DONE_NOTE_WAIT_MS);
+      timer.unref?.();
+    });
+    const note = await Promise.race([lookup, late]);
+    clearTimeout(timer);
+    if (note) deps.stdout(note);
+  }
   if (!args.includes("--worker") && deps.spawnBackground) {
     try {
       deps.spawnBackground(["hook", "prompt", "--agent", agent, "--worker"], stdin, dir);

@@ -110,3 +110,6 @@ apps/web/src/server/real-test-replay.test.ts # Phase 5a: npx fallback pinned to 
 packages/core/src/pre-tool* # Phase 5b: pre-tool-use boundaries
 packages/cli/src/* # Phase 5b: pre-tool hook, boundary cache refresh at session start, hook registration
 packages/agent-plugins/* # Phase 5b: PreToolUse hooks in the plugins
+packages/core/src/definition-of-done* # Phase 5c: definition of done at request capture
+apps/web/src/server/hook-definition-of-done* # Phase 5c
+apps/web/src/app/api/hooks/[[]projectId]/definition-of-done/* # Phase 5c
