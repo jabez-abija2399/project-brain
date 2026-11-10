@@ -230,3 +230,23 @@ stays 200, with 0055 listed under `migrations.pending` and `optional: true`.
 - Nothing is dropped or changed.
 
 **Check:** `https://codeceipts.vercel.app/api/health` no longer lists `0055_approvals`.
+
+---
+
+## 12. Choose an email provider for approval notifications — pending, a decision and a secret
+
+**Why:** Phase 6 asks for email (and browser) notifications when an agent asks for something. Codeceipt has no email
+provider yet, and adding one needs an account and a secret, which only you can create. Until then:
+- the Approvals tab shows what is waiting;
+- `codeceipt approvals` prints its link;
+- requests expire after 24 hours, and nothing happens for them.
+
+**Steps:**
+1. Pick a provider, for example Resend or Postmark.
+2. Create an API key.
+3. Add it in Vercel → Project → **Settings** → **Environment Variables** (e.g. `RESEND_API_KEY`), together with the
+   sender address you verified.
+4. Tell Claude "email provider added: <name>". Claude then adds the notification job, one batched email per hour at
+   most, with links to approve, and the variable names in `.env.example`.
+
+**Check:** an agent's request that needs your approval sends you one email with a link to the Approvals tab.
