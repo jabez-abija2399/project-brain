@@ -6,7 +6,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { onboarding } from "@/server/onboarding";
-import { BUILD_COOKIE, BUILD_LABELS, buildGuide, buildStyle } from "@brain/core";
+import { BUILD_COOKIE, BUILD_LABELS, BUILD_STYLES, buildGuide, buildStyle } from "@brain/core";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -94,7 +94,11 @@ export default async function StartPage({
           <h2 className="section-title m0" id="build-how">
             How do you build?
           </h2>
-          <BuildChoice current={style} />
+          <BuildChoice
+            current={style}
+            cookieName={BUILD_COOKIE}
+            options={BUILD_STYLES.map((s) => ({ style: s, label: BUILD_LABELS[s] }))}
+          />
           {style ? (
             <>
               <h3 className="subhead m0">{BUILD_LABELS[style]}: your first steps</h3>

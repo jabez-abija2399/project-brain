@@ -472,3 +472,8 @@ Status values: not started, in progress, merged, blocked (with reason).
       hooks never take this path.
     - Checking the link may write the repo fingerprint for an old link. It is inside `.git`, and this is the same
       behaviour as every linked command.
+- **CI fix:** the first CI run failed the production build. The new client component imported the `@brain/core`
+  barrel, which pulls `node:path` into the browser bundle; the local gate runs the build in CI only. Now the page
+  passes the choices in as props.
+  - A new test (PH9-20) fails if any client component imports `@brain/core` or `@brain/db`.
+  - `next build` passes locally.
