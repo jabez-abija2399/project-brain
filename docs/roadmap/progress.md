@@ -15,8 +15,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3b | Blueprint: Discover, interview, safety check | merged | [#62](https://github.com/jabez-abija2399/project-brain/pull/62) | |
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | merged | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65), 4c [#66](https://github.com/jabez-abija2399/project-brain/pull/66) | Definition of done and "prove it" runs moved to Phase 5b (CLI) |
-| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | 5a, 5b, 5c merged; 5d in progress | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68), 5c [#69](https://github.com/jabez-abija2399/project-brain/pull/69) | |
-| 6 | Approval policies | not started | | |
+| 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | merged | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68), 5c [#69](https://github.com/jabez-abija2399/project-brain/pull/69), 5d [#70](https://github.com/jabez-abija2399/project-brain/pull/70) | CLI 0.3.7 (owner action 8) |
+| 6 | Approval policies | 6a in progress | | Migration 0055 optional (owner action 11) |
 | 7 | Kit workflows as product features | not started | | |
 | 8 | Import, export, sync | not started | | |
 | 9 | Easy everywhere (parity, menu, next step) | not started | | |
@@ -270,3 +270,32 @@ Status values: not started, in progress, merged, blocked (with reason).
     - Paths go unquoted on Windows (plain characters only).
   - **Not verified:** how `cmd.exe` receives the check command on Windows predates this change and needs a Windows
     machine.
+
+### Phase 6a: approval policies (engine, storage, server)
+- **Engine** (`packages/core/src/approvals.ts`, `docs/approvals.md`):
+  - every action has a risk level (low, medium, high, locked);
+  - the choices are never, ask, auto and tell me, and auto;
+  - rules are scoped by action, feature, path pattern and agent, and checked never first, then ask, then the
+    automatic choices;
+  - presets: Careful, Balanced (the default) and Fast;
+  - locked actions are always asked, whatever a rule says;
+  - a pause makes nothing automatic;
+  - a loosening check.
+- **Storage:** migration 0055 (optional; owner action 11) adds `approval_policies`, `approval_requests` (24-hour
+  expiry) and `approval_audit` (append-only, enforced by a trigger).
+- **Server** (`apps/web/src/server/approvals.ts`):
+  - **Owner only** (session auth plus project access in every function):
+    - see the policy, pending requests and automatic approvals;
+    - change the policy (loosening needs `confirm: true`);
+    - approve or reject, with an optional "remember" that becomes a rule;
+    - undo an automatic approval once;
+    - pause for 1, 2 or 4 hours.
+  - **Agents** (a project token) can only ask (`POST /api/hooks/:projectId/approvals`) and read a request's status.
+    An agent token on the owner routes gets 401.
+  - Every change and decision goes into the audit log.
+- **Next (6b):**
+  - the web page (Simple shows the presets, Detailed the table and rules);
+  - `codeceipt approve` / `pause`;
+  - the pre-tool hook's "ask" becoming an approval request;
+  - undo wired to each action;
+  - the daily summary and notifications.
