@@ -74,6 +74,7 @@ export function helpText(): string {
     "  codeceipt guard [--staged|--ci]     checks changed files: weakened tests, secrets, hidden characters, boundaries",
     "  codeceipt guard --install-hook      checks every commit in this repo (a pre-commit hook; asks nothing, changes no existing hook)",
     '  codeceipt prove [--for "<request>"] runs only the tests for this change with your check command; prints the result',
+    "  codeceipt status                    the one next step for this project, with its page and command",
     "  codeceipt export --to <kind>        writes the approved Blueprint into AGENTS.md, OpenSpec or Spec Kit (--write, --check)",
     "  codeceipt import [--from <kind>]    turns agent/features.json, Spec Kit, Kiro, OpenSpec, AGENTS.md or a README into a plan draft",
     "  codeceipt review [--staged|--ci]    the build checklist and size flags for the changed files (nothing is sent)",
@@ -466,6 +467,19 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         config: () => projectConfig(deps, path, deps.cwd, { linkedOnly: true }),
         savedMode: readSettings(path).guard ?? "strict",
       });
+    } else if (command === "status") {
+      // Roadmap Phase 9: the project's one next step, the same one the Overview page shows.
+      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt status");
+      const config = await projectConfig(deps, path, deps.cwd, { linkedOnly: true });
+      const { state } = await request<{ state: unknown }>(
+        deps.fetch,
+        config,
+        "GET",
+        `/api/hooks/${encodeURIComponent(config.projectId)}/next-step`,
+      );
+      const { statusLines } = await import("./status-lines");
+      for (const line of statusLines(state, config)) deps.stdout(line);
+      return EXIT.ok;
     } else if (command === "export") {
       // Roadmap Phase 8: the owner-approved Blueprint into AGENTS.md, OpenSpec or Spec Kit files in this repo.
       const { runExport } = await import("./export-command");

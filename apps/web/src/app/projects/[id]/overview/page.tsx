@@ -54,6 +54,29 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
         </p>
       </section>
 
+      {/* Roadmap Phase 9: one next step, the same one `codeceipt status` prints. */}
+      <section className="card stack" aria-labelledby="next-step">
+        <h3 id="next-step" className="section-title m0">
+          Next step
+        </h3>
+        <p className="m0">{o.next.text}</p>
+        <p className="row wrap m0">
+          {o.next.page === "overview" ? null : (
+            <Link href={`${base}/${o.next.page}`}>Open {o.next.page}</Link>
+          )}
+          {o.next.command ? (
+            <span className="muted">
+              In the terminal: <code>{o.next.command}</code>
+            </span>
+          ) : null}
+          {o.next.askAgent ? (
+            <span className="muted">
+              Ask your agent: <code>{o.next.askAgent}</code>
+            </span>
+          ) : null}
+        </p>
+      </section>
+
       <div className="stat-grid">
         <StatCard
           id="attention"
