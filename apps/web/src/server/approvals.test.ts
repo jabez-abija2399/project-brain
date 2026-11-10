@@ -252,4 +252,49 @@ describe("Phase 6a: approvals on the server", () => {
     };
     expect(overview.policy.rules).toHaveLength(100);
   });
+
+  it("PH6B-06 attack (security review): an agent's glob path never becomes a remembered rule for every path", async () => {
+    const asked = (await agentAsk(world.db, pid, {
+      action: "add_dependency",
+      summary: "x",
+      path: "**",
+    })) as { id: string; status: string };
+    await setPolicy(world.db, owner, pid, { policy: { preset: "careful", rules: [] } });
+    const pending = (await agentAsk(world.db, pid, {
+      action: "add_dependency",
+      summary: "y",
+      path: "**",
+    })) as { id: string; status: string };
+    expect(pending.status).toBe("pending");
+    await expect(
+      decideRequest(world.db, owner, pid, {
+        requestId: pending.id,
+        decision: "approve",
+        remember: true,
+      }),
+    ).rejects.toMatchObject({ status: 409, code: "confirm_remember" });
+    await decideRequest(world.db, owner, pid, {
+      requestId: pending.id,
+      decision: "approve",
+      remember: true,
+      confirm: true,
+    });
+    const overview = (await approvalsOverview(world.db, owner, pid)) as {
+      policy: { rules: { path?: string }[] };
+    };
+    expect(overview.policy.rules[0]?.path).toBeUndefined();
+    void asked;
+  });
+
+  it("PH6B-07 a preset alone keeps the stored rules and pause (an old page cannot send back old rules)", async () => {
+    await setPolicy(world.db, owner, pid, {
+      policy: { preset: "balanced", rules: [{ action: "add_decision", choice: "never" }] },
+    });
+    await setPolicy(world.db, owner, pid, { preset: "careful" });
+    const overview = (await approvalsOverview(world.db, owner, pid)) as {
+      policy: { preset: string; rules: unknown[] };
+    };
+    expect(overview.policy.preset).toBe("careful");
+    expect(overview.policy.rules).toEqual([{ action: "add_decision", choice: "never" }]);
+  });
 });

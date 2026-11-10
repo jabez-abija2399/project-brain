@@ -16,7 +16,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | merged | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65), 4c [#66](https://github.com/jabez-abija2399/project-brain/pull/66) | Definition of done and "prove it" runs moved to Phase 5b (CLI) |
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | merged | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68), 5c [#69](https://github.com/jabez-abija2399/project-brain/pull/69), 5d [#70](https://github.com/jabez-abija2399/project-brain/pull/70) | CLI 0.3.7 (owner action 8) |
-| 6 | Approval policies | 6a in progress | | Migration 0055 optional (owner action 11) |
+| 6 | Approval policies | 6a merged, 6b in progress | 6a [#71](https://github.com/jabez-abija2399/project-brain/pull/71) | Migration 0055 optional (owner action 11); email needs owner action 12 |
 | 7 | Kit workflows as product features | not started | | |
 | 8 | Import, export, sync | not started | | |
 | 9 | Easy everywhere (parity, menu, next step) | not started | | |
@@ -312,3 +312,28 @@ Status values: not started, in progress, merged, blocked (with reason).
     - TRUNCATE of the audit log is refused.
     - The open-request limit is checked under the lock, and finished requests are pruned after 30 days.
     - Before 0055 the answer is `approved: false`.
+
+### Phase 6b: the Approvals tab
+- **New tab:** Approvals (`/projects/:id/approvals`, owner only).
+- **Simple view:**
+  - what is waiting (approve, reject, "always approve/reject this kind", with a confirm when the server asks);
+  - the three presets, with the current one marked;
+  - pause for 1, 2 or 4 hours, or end the pause;
+  - what ran on its own lately, with undo.
+- **Detailed view:** adds every action by preset and the policy's rules.
+- **Phones:** wide tables scroll inside their card.
+- **CLI:** `codeceipt approvals` prints the tab's link; the CLI never decides (it has only a project token).
+- **Not built, waiting on owner action 12:** email and browser notifications, which need an email provider and its
+  secret.
+- **Later:**
+  - The pre-tool hook's "ask" becoming an approval request. The hook stays offline by design: 5b's "no server call
+    per edit".
+  - Undo wired to each action's own revert.
+- **Security review (fresh context): no HIGH findings; all others fixed (attack tests PH6B-06, PH6B-07).**
+  - **MEDIUM:**
+    - An agent's glob path (`**`) is never copied into a remembered rule.
+    - An unscoped remembered approval needs confirmation, and the message names the rule's scope.
+  - **LOW:**
+    - Preset buttons send only the preset; the server keeps the stored rules and pause.
+    - The "always" buttons have their own screen-reader labels.
+    - An agent's summary is set apart as "Agent says".

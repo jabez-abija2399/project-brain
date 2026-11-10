@@ -74,6 +74,7 @@ export function helpText(): string {
     "  codeceipt guard [--staged|--ci]     checks changed files: weakened tests, secrets, hidden characters, boundaries",
     "  codeceipt guard --install-hook      checks every commit in this repo (a pre-commit hook; asks nothing, changes no existing hook)",
     '  codeceipt prove [--for "<request>"] runs only the tests for this change with your check command; prints the result',
+    "  codeceipt approvals                 the link to approve, reject or pause what your agents ask for (owner only)",
     "  codeceipt init [--claude] [--cursor] [--codex] [--opencode] [--antigravity]",
     "                                      sets up the agents found here (MCP config, hooks, skill or rule, AGENTS.md)",
     "  codeceipt init --remove-repo-files  removes those files for agents whose Codeceipt plugin is installed",
@@ -462,6 +463,16 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         config: () => projectConfig(deps, path, deps.cwd, { linkedOnly: true }),
         savedMode: readSettings(path).guard ?? "strict",
       });
+    } else if (command === "approvals") {
+      // Roadmap Phase 6b: approvals are decided only by the owner, signed in on the web (a project token never can).
+      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt approvals");
+      const config = await projectConfig(deps, path, deps.cwd, { linkedOnly: true });
+      const page = `${config.apiUrl.replace(/\/+$/, "")}/projects/${encodeURIComponent(config.projectId)}/approvals`;
+      deps.stdout(
+        `Approve, reject or pause what your agents ask for here (signed in as the owner): ${page}`,
+      );
+      deps.stdout("Agents can only ask; nothing they do in the terminal can approve a request.");
+      return EXIT.ok;
     } else if (command === "prove") {
       // Roadmap Phase 5d: runs only the tests for the current change, with the repo's own check command.
       const { runProve } = await import("./prove-command");

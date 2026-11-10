@@ -8,6 +8,7 @@ const TABS = [
   { href: "blueprint", label: "Blueprint" },
   { href: "receipts", label: "Receipts" },
   { href: "proposals", label: "Proposals" },
+  { href: "approvals", label: "Approvals" },
   { href: "plan", label: "Plan" },
   { href: "connect", label: "Connect" },
   { href: "", label: "Tokens" },
@@ -20,6 +21,8 @@ export const PURPOSE: Record<(typeof TABS)[number]["href"], string> = {
   blueprint: "What your app must do and must never do, and how sure we are of each rule.",
   receipts: "One receipt per agent session: what you asked, what changed and what is missing.",
   proposals: "Changes to the feature map your agent suggested. Accept or reject each one.",
+  approvals:
+    "What your agents may do on their own, what they must ask for, and what is waiting for you.",
   plan: "The build plan your agent drafted. Approve it to turn it into features.",
   connect: "Connect a repository so your agents can write receipts for this project.",
   "": "The keys your agents and the CLI use for this project. Revoke any you no longer trust.",

@@ -32,6 +32,7 @@ import { missingMigrations } from "./migration-check";
 
 export const APPROVALS_MIGRATION = "0055_approvals";
 const MAX_PENDING = 200;
+const GLOB = /[*?[\]{}]/;
 // Finished requests are kept 30 days (the audit log keeps every event for good).
 const PRUNE_AFTER_MS = 30 * 24 * 3_600_000;
 // Before migration 0055: not set up, and never "approved" (an agent must not act on it).
@@ -104,7 +105,13 @@ export async function approvalsOverview(db: BrainDb, user: SessionUser, projectI
 export async function setPolicy(db: BrainDb, user: SessionUser, projectId: string, body: unknown) {
   await requireProjectAccess(db, projectId, user);
   await requireReady(db);
-  const b = (body ?? {}) as { policy?: unknown; confirm?: unknown };
+  const b = (body ?? {}) as { policy?: unknown; preset?: unknown; confirm?: unknown };
+  // Security review (Phase 6b): a preset alone keeps the stored rules and pause (a page opened earlier cannot send
+  // back old rules with it).
+  if (b.policy === undefined && typeof b.preset === "string") {
+    const stored = await currentPolicy(db, projectId);
+    b.policy = { ...stored, preset: b.preset };
+  }
   const next = parsePolicy(b.policy);
   if (!next)
     throw new AppError(400, "invalid_policy", "The policy is not valid; nothing was changed.");
@@ -193,7 +200,8 @@ export async function decideRequest(
       rule = {
         action: pending.action,
         ...(pending.feature ? { feature: pending.feature } : {}),
-        ...(pending.path ? { path: pending.path } : {}),
+        // An agent-sent path with glob characters ("**") would match every path: it is never copied into a rule.
+        ...(pending.path && !GLOB.test(pending.path) ? { path: pending.path } : {}),
         ...(pending.agent ? { agent: pending.agent } : {}),
         choice: approve ? "auto" : "never",
       };
@@ -206,12 +214,19 @@ export async function decideRequest(
         );
       }
       const risk = APPROVAL_ACTIONS[pending.action];
-      const unscoped = !pending.feature && !pending.path && !pending.agent;
+      const unscoped = !rule.feature && !rule.path && !rule.agent;
+      const scope = [
+        rule.feature ? `feature ${rule.feature}` : "",
+        rule.path ? `path ${rule.path}` : "",
+        rule.agent ? `agent ${rule.agent}` : "",
+      ]
+        .filter(Boolean)
+        .join(", ");
       if (approve && (risk === "high" || unscoped) && b.confirm !== true) {
         throw new AppError(
           409,
           "confirm_remember",
-          `Remembering this makes "${pending.action}" automatic${unscoped ? " for every feature, path and agent" : ""}: confirm it.`,
+          `Remembering this makes "${pending.action}" automatic ${unscoped ? "for every feature, path and agent" : `for ${scope}`}: confirm it.`,
         );
       }
     }
