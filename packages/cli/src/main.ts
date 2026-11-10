@@ -78,7 +78,7 @@ const code = await main(process.argv.slice(2), {
             process.stdout.write(`${question}\n`);
             for (const [i, o] of options.entries()) process.stdout.write(`  ${i + 1}. ${o}\n`);
             const rl = createInterface({ input: process.stdin, output: process.stdout });
-            rl.question(`Type a number and press Enter (Enter alone quits): `, (answer) => {
+            rl.question("Type a number and press Enter (Enter alone quits): ", (answer) => {
               rl.close();
               resolve(menuChoice(answer, options.length));
             });
