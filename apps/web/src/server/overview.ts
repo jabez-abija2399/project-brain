@@ -1,6 +1,7 @@
 import { itemIdsOf, overviewStats, receiptView, safeDisplay } from "@brain/core";
 import { type BrainDb, checklistItemsRepo, dashboardRepo } from "@brain/db";
 import { type SessionUser, requireProjectAccess } from "./auth";
+import { nextStepFor } from "./next-step";
 
 // Receipts read for the overview: the last two weeks of a busy project fit; older ones are on the receipts page.
 const MAX_RECEIPTS = 200;
@@ -16,11 +17,13 @@ export async function projectOverview(
   now = new Date(),
 ) {
   const project = await requireProjectAccess(db, projectId, user);
-  const [feed, counts, features, open] = await Promise.all([
+  const [feed, counts, features, open, next] = await Promise.all([
     dashboardRepo.receiptsFeed(db, project.id, MAX_RECEIPTS, 0),
     dashboardRepo.itemCounts(db, project.id),
     dashboardRepo.featureProgress(db, project.id, MAX_FEATURES),
     checklistItemsRepo.listOpenForProject(db, project.id, MAX_OPEN_ITEMS),
+    // Roadmap Phase 9: the one next step, the same one `codeceipt status` prints.
+    nextStepFor(db, project.id, now),
   ]);
   // Owner item 3: items the owner closed since a receipt was written read "Closed by you" here too.
   const closed = await checklistItemsRepo.closedByOwnerAmong(
@@ -50,5 +53,6 @@ export async function projectOverview(
     })),
     stats,
     features: features.map((f) => ({ ...f, name: safeDisplay(f.name, 100) })),
+    next,
   };
 }

@@ -18,8 +18,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | merged | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68), 5c [#69](https://github.com/jabez-abija2399/project-brain/pull/69), 5d [#70](https://github.com/jabez-abija2399/project-brain/pull/70) | CLI 0.3.7 (owner action 8) |
 | 6 | Approval policies | merged (email notifications wait on owner action 12) | 6a [#71](https://github.com/jabez-abija2399/project-brain/pull/71), 6b [#72](https://github.com/jabez-abija2399/project-brain/pull/72) | Migration 0055 optional (owner action 11); email needs owner action 12 |
 | 7 | Kit workflows as product features | merged (receipt flags later) | 7a [#73](https://github.com/jabez-abija2399/project-brain/pull/73) | `/codeceipt-feature`, `-fix`, `-review`; `codeceipt review` |
-| 8 | Import, export, sync | 8a merged, 8b in progress | 8a [#74](https://github.com/jabez-abija2399/project-brain/pull/74) | `codeceipt import` into a plan draft the owner approves |
-| 9 | Easy everywhere (parity, menu, next step) | not started | | |
+| 8 | Import, export, sync | merged (automatic sync suggestions later) | 8a [#74](https://github.com/jabez-abija2399/project-brain/pull/74), 8b [#75](https://github.com/jabez-abija2399/project-brain/pull/75) | `codeceipt import` into a plan draft; `codeceipt export` with `--check` |
+| 9 | Easy everywhere (parity, menu, next step) | in progress (9a) | | |
 | 10 | Claim checker and PR receipts | not started | | |
 | 11 | VS Code extension | not started | | |
 | 12 | Measure, compare with the kit, document | not started | | |
@@ -425,3 +425,24 @@ Status values: not started, in progress, merged, blocked (with reason).
     - Windows device names get a suffix.
     - Headings are cut before they are escaped.
     - Empty criteria are skipped, and a leading `*` or `_` is escaped.
+
+### Phase 9a: one next step, every action in one place
+- **One next step:** a core `nextStep` picks the single most useful thing to do from a few counts, in order of
+  urgency:
+  1. agents waiting on approvals;
+  2. a plan draft;
+  3. no receipt yet;
+  4. missed items;
+  5. features without criteria;
+  6. all clear.
+- **Where it shows:**
+  - The Overview page shows it in a "Next step" card, with its page, its command and what to ask the agent.
+  - `codeceipt status` prints the same step.
+- **`codeceipt status`:** the server sends counts only (`GET /api/hooks/:projectId/next-step`, project token). The CLI
+  words the step itself, so no server text reaches the terminal.
+- **`docs/actions.md`:** every action in one table (terminal, web, ask your agent). Parity tests fail when a CLI
+  command, an MCP tool or a project tab is missing from it.
+- **Cross-links:**
+  - CLI to web: `status`, `approvals` and `import` print the page.
+  - Web to CLI and agent: the Overview names the command and the agent ask.
+- **Next (9b):** the keyboard menu and the sign-up "How do you build?" question.

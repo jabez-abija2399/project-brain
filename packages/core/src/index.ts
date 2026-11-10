@@ -213,6 +213,8 @@ export {
 export { guardCheck, MAX_GUARD_FINDINGS, newLines, newPackageNames } from "./guard";
 export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
 export { findHiddenChars } from "./hidden-chars";
+export { nextStep } from "./next-step";
+export type { NextStep, NextStepState } from "./next-step";
 export {
   EXPORT_TARGETS,
   GENERATED_MARK,
