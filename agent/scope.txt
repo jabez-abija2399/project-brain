@@ -118,3 +118,8 @@ packages/cli/src/check-run.ts # Phase 5d: failing test names for prove
 apps/web/src/server/hook-definition-of-done* # Phase 5d: linked test paths for prove --for
 packages/core/src/approvals* # Phase 6a: approval policy engine
 docs/approvals.md # Phase 6a
+packages/db/migrations/0055_approvals.sql # Phase 6a: approval tables (optional)
+packages/db/src/* # Phase 6a: approvals schema, repos, optional migration
+apps/web/src/server/approvals* # Phase 6a: approval service
+apps/web/src/app/api/projects/[[]id]/approvals/* # Phase 6a: owner routes
+apps/web/src/app/api/hooks/[[]projectId]/approvals/* # Phase 6a: agent route (ask only)

@@ -33,6 +33,7 @@ export const MIGRATION_IDS = [
   "0048_mcp_oauth",
   "0051_context_pack_cache",
   "0054_blueprint",
+  "0055_approvals",
 ] as const;
 
 // Migrations the app works without (caches and other speed-ups with a built-in fallback). While one is pending,
@@ -42,6 +43,8 @@ export const MIGRATION_IDS = [
 export const OPTIONAL_MIGRATIONS: ReadonlySet<string> = new Set([
   "0051_context_pack_cache",
   "0054_blueprint",
+  // Roadmap Phase 6a: approval policies answer "not set up yet" before it.
+  "0055_approvals",
 ]);
 
 /** The pending migrations the app cannot work without. */
