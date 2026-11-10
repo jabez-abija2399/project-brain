@@ -14,9 +14,9 @@ each repo then only needs its project link, which `npx codeceipt` (or `codeceipt
 .claude-plugin/marketplace.json      Claude Code marketplace  -> plugins/claude-code
 .cursor-plugin/marketplace.json      Cursor marketplace       -> plugins/cursor
 .agents/plugins/marketplace.json     Codex marketplace        -> plugins/codex
-plugins/claude-code/  .claude-plugin/plugin.json, hooks/hooks.json, .mcp.json, skills/codeceipt/SKILL.md, scripts/codeceipt.sh
-plugins/cursor/       .cursor-plugin/plugin.json, hooks/hooks.json, mcp.json, rules/codeceipt.mdc, scripts/codeceipt.sh
-plugins/codex/        .codex-plugin/plugin.json, hooks/hooks.json, .mcp.json, skills/codeceipt/SKILL.md, scripts/codeceipt.sh
+plugins/claude-code/  .claude-plugin/plugin.json, hooks/hooks.json, .mcp.json, skills/codeceipt*/SKILL.md, scripts/codeceipt.sh
+plugins/cursor/       .cursor-plugin/plugin.json, hooks/hooks.json, mcp.json, rules/codeceipt.mdc, skills/codeceipt-*/SKILL.md, scripts/codeceipt.sh
+plugins/codex/        .codex-plugin/plugin.json, hooks/hooks.json, .mcp.json, skills/codeceipt*/SKILL.md, scripts/codeceipt.sh
 plugins/antigravity/  .antigravity-plugin/plugin.json, hooks.json, mcp_config.json, rules/codeceipt.md, skills/…, scripts/codeceipt.sh
 README.md
 ```
@@ -38,6 +38,18 @@ README.md
   token from the user config on this computer. No plugin file holds a token.
 - The skill (Claude Code, Codex, Antigravity) and the rule (Cursor, Antigravity) are the same workflow text that
   `codeceipt init` writes per repo, with one extra line: skip the steps in a repo without the Codeceipt tools.
+
+## Workflows (roadmap Phase 7)
+
+Every plugin also has three workflow skills, from `packages/agent-plugins/src/workflows.ts`:
+- `/codeceipt-feature`: build one feature from its Blueprint (start note, checklist, context pack, tests first,
+  `codeceipt prove`, `guard`, `review`).
+- `/codeceipt-fix`: reproduce a bug with a failing test, make the smallest fix, prove it.
+- `/codeceipt-review`: `codeceipt review` (the build checklist and size flags), `guard`, `prove`, and a second opinion
+  from a fresh-context helper agent when the agent can start one.
+
+Cursor's support for skills in plugins is newer than its rules; if a Cursor version does not list them, the rule still
+applies.
 
 ## Where hooks may not run (tested by `codeceipt doctor`)
 

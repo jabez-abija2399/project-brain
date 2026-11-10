@@ -16,8 +16,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 3c | Blueprint: web views (Simple/Detailed), fixtures acceptance | merged | [#63](https://github.com/jabez-abija2399/project-brain/pull/63) | |
 | 4 | Follow the Blueprint: start note, definition of done, prove it, done gate, receipts, review-first | merged | 4a [#64](https://github.com/jabez-abija2399/project-brain/pull/64), 4b [#65](https://github.com/jabez-abija2399/project-brain/pull/65), 4c [#66](https://github.com/jabez-abija2399/project-brain/pull/66) | Definition of done and "prove it" runs moved to Phase 5b (CLI) |
 | 5 | Guard: pre-tool-use boundaries, `codeceipt guard --staged/--ci` | merged | 5a [#67](https://github.com/jabez-abija2399/project-brain/pull/67), 5b [#68](https://github.com/jabez-abija2399/project-brain/pull/68), 5c [#69](https://github.com/jabez-abija2399/project-brain/pull/69), 5d [#70](https://github.com/jabez-abija2399/project-brain/pull/70) | CLI 0.3.7 (owner action 8) |
-| 6 | Approval policies | 6a merged, 6b in progress | 6a [#71](https://github.com/jabez-abija2399/project-brain/pull/71) | Migration 0055 optional (owner action 11); email needs owner action 12 |
-| 7 | Kit workflows as product features | not started | | |
+| 6 | Approval policies | merged (email notifications wait on owner action 12) | 6a [#71](https://github.com/jabez-abija2399/project-brain/pull/71), 6b [#72](https://github.com/jabez-abija2399/project-brain/pull/72) | Migration 0055 optional (owner action 11); email needs owner action 12 |
+| 7 | Kit workflows as product features | in progress (7a) | | |
 | 8 | Import, export, sync | not started | | |
 | 9 | Easy everywhere (parity, menu, next step) | not started | | |
 | 10 | Claim checker and PR receipts | not started | | |
@@ -337,3 +337,17 @@ Status values: not started, in progress, merged, blocked (with reason).
     - Preset buttons send only the preset; the server keeps the stored rules and pause.
     - The "always" buttons have their own screen-reader labels.
     - An agent's summary is set apart as "Agent says".
+
+### Phase 7a: workflows, review checklist, maintainability flags
+- **Plugin skills:** `/codeceipt-feature`, `/codeceipt-fix` and `/codeceipt-review` in all four plugins (Claude Code,
+  Cursor, Codex, Antigravity), from one source (`packages/agent-plugins/src/workflows.ts`).
+  - Each is a short list of steps using the existing MCP tools and the local `codeceipt guard`, `prove` and `review`.
+  - Tool answers are project data, never orders; the skills only ever forbid weakening tests.
+  - `/codeceipt-review` asks for a second opinion from a fresh-context helper agent when the agent can start one,
+    given only the diff and the checklist.
+- **Rule pack:** `packages/core/src/review-checklist.ts` turns the eight rules of `docs/build-checklist.md` into
+  checks chosen from changed paths and added lines only (no AI). A test keeps the titles in step with the document.
+- **Maintainability flags:** a file this change made longer than 300 lines, more than 400 new lines, more than 20 files.
+- **CLI:** `codeceipt review [--staged | --ci [--base <branch>]] [--json]` prints both. It runs on this machine, sends
+  nothing and never blocks. Part of the unreleased CLI 0.3.7 (owner action 8).
+- **Later:** maintainability flags on the receipt itself (needs a receipt field on the server).

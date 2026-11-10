@@ -30,9 +30,9 @@ export type GuardMode = "strict" | "gentle" | "off";
 export const GUARD_MODES = new Set<GuardMode>(["strict", "gentle", "off"]);
 const USAGE =
   "Usage: codeceipt guard [--staged | --ci [--base <branch>]] [--mode strict|gentle|off] [--json] | codeceipt guard --install-hook";
-const MAX_FILES = 500;
+export const MAX_FILES = 500;
 const BOUNDARY_TIMEOUT_MS = 1500;
-const PARALLEL = 16;
+export const PARALLEL = 16;
 const HOOK_MARK = "# Codeceipt Guard (written by codeceipt guard --install-hook)";
 
 export type GuardDeps = {
@@ -47,7 +47,7 @@ export type GuardDeps = {
   env?: Record<string, string | undefined>;
 };
 
-type Source = { kind: "staged" } | { kind: "ci"; base: string } | { kind: "worktree" };
+export type Source = { kind: "staged" } | { kind: "ci"; base: string } | { kind: "worktree" };
 
 function parse(args: string[]) {
   const rest = [...args];
@@ -99,7 +99,7 @@ const BINARY =
   /\.(png|jpe?g|gif|webp|avif|ico|bmp|tiff?|pdf|zip|gz|tgz|bz2|xz|7z|rar|jar|woff2?|ttf|otf|eot|mp[34]|m4a|mov|webm|ogg|wav|flac|wasm)$/i;
 
 /** The before and after text of one changed file; binary files have none, files over 1 MB are only named. */
-async function readFile(
+export async function readFile(
   git: Git,
   root: string,
   path: string,
@@ -153,7 +153,7 @@ async function readFile(
   return { path, before, after };
 }
 
-async function changed(
+export async function changed(
   git: Git,
   root: string,
   source: Source,
@@ -197,7 +197,7 @@ async function boundaries(deps: GuardDeps, gitDir: string | null): Promise<Bound
   );
 }
 
-const SOURCE_NAME = {
+export const SOURCE_NAME = {
   staged: "staged changes",
   ci: "changes on this branch",
   worktree: "uncommitted changes",
@@ -253,7 +253,7 @@ export async function runGuard(args: string[], deps: GuardDeps): Promise<number>
   const source: Source = opts.staged
     ? { kind: "staged" }
     : opts.ci
-      ? { kind: "ci", base: opts.base ?? ciBase(deps) }
+      ? { kind: "ci", base: opts.base ?? ciBase(deps.env) }
       : { kind: "worktree" };
   const { files, base } = await changed(deps.git, root, source);
   const gitDir = await gitDirOf(deps.git, root);
@@ -302,8 +302,8 @@ export async function runGuard(args: string[], deps: GuardDeps): Promise<number>
 }
 
 // GitHub Actions names the pull request's target branch; elsewhere the default is origin/main.
-function ciBase(deps: GuardDeps): string {
-  const ref = deps.env?.GITHUB_BASE_REF;
+export function ciBase(env: Record<string, string | undefined> | undefined): string {
+  const ref = env?.GITHUB_BASE_REF;
   return ref && /^[A-Za-z0-9._/-]{1,200}$/.test(ref) && !ref.startsWith("-")
     ? `origin/${ref}`
     : "origin/main";
