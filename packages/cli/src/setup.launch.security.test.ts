@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { writeConfig } from "./config";
+import { saveProjectToken, writeConfig } from "./config";
 import { type CliDeps, main } from "./index";
 import { readRepoLink } from "./repo-link";
 import { linkRepo } from "./test-support";
@@ -339,5 +339,23 @@ describe("launch: npx codeceipt and per-repo tokens under attack", () => {
       lines: [JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" })],
     });
     expect(seen.filter((a) => a?.includes(TOKEN_A))).toEqual([]);
+  });
+
+  it("BL-08 a new setup for the same project revokes the token it replaces, with that old token only", async () => {
+    const h = home();
+    const dir = gitRepo();
+    // An earlier setup left TOKEN_B saved for proj-a, but this repo has no link (a fresh clone, or the link removed).
+    saveProjectToken(configFile(h), { apiUrl: API, projectId: "proj-a", token: TOKEN_B });
+    const s = deviceServer();
+    const r = await run(["--api-url", API], { cwd: dir, home: h, fetch: s.fetchImpl });
+    expect(r.code).toBe(0);
+    const revokes = s.seen.filter((x) => new URL(x.url).pathname === "/api/token/revoke");
+    expect(revokes).toHaveLength(1);
+    expect(revokes[0]?.url.startsWith(API)).toBe(true);
+    expect(revokes[0]?.auth).toBe(`Bearer ${TOKEN_B}`);
+    // Never with the new token.
+    expect(
+      s.seen.some((x) => x.url.endsWith("/api/token/revoke") && x.auth?.includes(TOKEN_A)),
+    ).toBe(false);
   });
 });

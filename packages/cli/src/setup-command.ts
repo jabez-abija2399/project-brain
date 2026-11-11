@@ -260,7 +260,13 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     if (link && !link.fingerprint && known) writeRepoLink(gitDir, { ...link, fingerprint });
   } else {
     const approved = await approveInBrowser(apiUrl, root, deps);
+    // The token this one replaces (same server, same project) is revoked, so re-running setup does not pile up live
+    // tokens. Best effort: a failure leaves it for the owner to revoke on the project page.
+    const previous = readProjectToken(configFile, approved);
     saveProjectToken(configFile, approved);
+    if (previous && previous.token !== approved.token) {
+      await request(deps.fetch, previous, "POST", "/api/token/revoke").catch(() => undefined);
+    }
     config = { ...approved, repo: fingerprintToken(fingerprint) };
     // A repo with no commit and no remote yet has nothing to fingerprint: it learns it on its first upload.
     if (
