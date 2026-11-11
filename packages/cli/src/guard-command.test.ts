@@ -273,3 +273,29 @@ describe("codeceipt guard (roadmap Phase 5)", () => {
     expect(existsSync(join(shared, "pre-commit"))).toBe(false);
   });
 });
+
+describe("guard memory (backlog)", () => {
+  it("BL-23 past the text budget, files are reported as too large to check, never passed silently", async () => {
+    const { runGuard } = await import("./guard-command");
+    const { runGit } = await import("./scan-secrets");
+    const { dir, git } = repo();
+    for (let i = 0; i < 40; i++) {
+      writeFileSync(join(dir, `src/big${i}.ts`), `export const v${i} = "${"x".repeat(10_000)}";\n`);
+    }
+    git("add", ".");
+    const out: string[] = [];
+    const code = await runGuard(["--staged", "--json"], {
+      git: runGit,
+      cwd: dir,
+      stdout: (l) => out.push(l),
+      fetch: async () => new Response("{}"),
+      config: () => Promise.reject(new Error("not linked")),
+      savedMode: "strict",
+      maxTotalBytes: 50_000,
+    });
+    const result = JSON.parse(out.join("\n")) as { findings: { rule: string }[] };
+    // The first chunk (16 files) is read; the 24 after the budget are each reported.
+    expect(result.findings.filter((f) => f.rule === "file_too_large")).toHaveLength(24);
+    expect(code).not.toBe(0);
+  });
+});
