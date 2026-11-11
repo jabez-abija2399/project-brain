@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type GithubInstallState,
@@ -91,6 +91,22 @@ export const githubRepo = {
       .update(projects)
       .set({ installationId: null })
       .where(eq(projects.installationId, installationId))
+      .returning({ id: projects.id });
+    return rows.length;
+  },
+
+  /** Unlinks the projects linked to these repositories of an installation (removed from it on GitHub). */
+  async unlinkRepos(db: BrainDb, installationId: number, repoFullNames: string[]): Promise<number> {
+    if (repoFullNames.length === 0) return 0;
+    const rows = await db
+      .update(projects)
+      .set({ installationId: null })
+      .where(
+        and(
+          eq(projects.installationId, installationId),
+          inArray(projects.repoFullName, repoFullNames),
+        ),
+      )
       .returning({ id: projects.id });
     return rows.length;
   },
