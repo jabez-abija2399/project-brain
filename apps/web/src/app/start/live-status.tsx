@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 const EVERY_MS = 4000;
@@ -7,7 +8,10 @@ const STOP_AFTER_MS = 30 * 60 * 1000;
 
 // Journey part 1: while a step is waiting, ask the server every few seconds and redraw the page when a step changes.
 // Stops when every step is done, when the tab is hidden (resumes when shown) and after 30 minutes.
+// Backlog: a changed step re-renders the page's server parts (router.refresh), not a full reload: scroll position and
+// anything typed on the page stay.
 export function LiveStatus({ on, current }: { on: boolean; current: string }) {
+  const router = useRouter();
   useEffect(() => {
     if (!on) return;
     const started = Date.now();
@@ -21,7 +25,7 @@ export function LiveStatus({ on, current }: { on: boolean; current: string }) {
         const next = [steps.linked, steps.indexed, steps.receipt]
           .map((d) => (d ? "1" : "0"))
           .join("");
-        if (next !== current) window.location.reload();
+        if (next !== current) router.refresh();
       } catch {}
     };
     const timer = setInterval(tick, EVERY_MS);
@@ -29,7 +33,7 @@ export function LiveStatus({ on, current }: { on: boolean; current: string }) {
       stopped = true;
       clearInterval(timer);
     };
-  }, [on, current]);
+  }, [on, current, router]);
   return (
     <p className="muted m0" data-live={on ? "on" : "off"} aria-live="polite">
       {on ? "This page updates by itself as each step finishes." : "All three steps are done."}
