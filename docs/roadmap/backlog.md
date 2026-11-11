@@ -61,3 +61,19 @@ as quoted text "Written by an agent" with its date, Dismiss is the main button, 
 confirmed rule reaches every later session. LOW fixed: the buttons say which rule they are for; an expired proposal
 can be neither confirmed nor dismissed. The cross-site install link (predates this) is recorded in `agent/later.md`.
 
+## Wave D: larger features (branch `backlog/wave-d-features`)
+| Test | Change |
+|---|---|
+| BL-32..BL-35 | Expo Router, TanStack Router and React Router v7 file routes are indexed (each recognised by its root file, so an ordinary folder is never read as routes) |
+| BL-36 | The start note shows the last receipt's counts (numbers only; details with `codeceipt last`) |
+| BL-37..BL-39 | "How do you build?" is kept per account (optional migration 0057, owner action 16); a pick is saved, a new browser gets it, an unknown answer is never stored |
+| BL-40 | The Account page lists the signed-in browsers (a short name like "Chrome on Mac", dates; never the token, address or raw user agent), each with its own "Sign out"; another user's session is 404 |
+| BL-41 | A feature ref starting with "@" means the automatic feature with that key, so a feature someone names "@home" cannot take its place; the context pack uses the feature already resolved |
+| BL-42 | Pull-request receipt jobs are debounced per project and pull request (30 s, at least every 5 minutes) |
+| BL-43 | Admins see an Admin link on the Account page; GitHub is asked only there (rate limited), never on every page, and never when no admin is configured |
+
+Not done in wave D (kept in agent/later.md): `create_checklist` tied to the agent's session (needs a new tool field; the
+tool text budget is nearly full), batching Blueprint restore (safely capped at 2,000 rows today), the full installed
+path for OpenCode and MCP entries (a CLI release), semver ranges in package checks, the fingerprint items (need a
+migration), and the larger P2/P3 ideas (sync suggestions, known-issues register, notifications, semantic search).
+

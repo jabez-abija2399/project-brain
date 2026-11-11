@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { resolve } from "node:path";
+import { detectFileRoutes } from "./file-routes";
 import { parseSource } from "./parser";
 import {
   type FileLookup,
@@ -31,7 +32,23 @@ export async function indexRepo(root: string, options: IndexOptions = {}): Promi
     }
     indexOne(out, source, entry.relPath, absRoot, cfgFor(entry.relPath));
   }
+  addFileRoutes(
+    out,
+    out.files.map((f) => f.path),
+  );
   return out;
+}
+
+// Backlog: routes of Expo Router, TanStack Router and React Router v7 file layouts (detected from the repo's paths).
+function addFileRoutes(out: IndexResult, allPaths: Iterable<string>): void {
+  const taken = new Set(out.routes.map((r) => r.file));
+  out.routes.push(
+    ...detectFileRoutes(
+      out.files.map((f) => f.path),
+      taken,
+      allPaths,
+    ),
+  );
 }
 
 export type SourceFile = { path: string; content: Uint8Array };
@@ -65,6 +82,7 @@ export function indexSources(
     }
     indexOne(out, Buffer.from(file.content).toString("utf8"), file.path, "", cfg, lookup);
   }
+  addFileRoutes(out, known);
   return out;
 }
 

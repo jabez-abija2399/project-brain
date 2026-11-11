@@ -110,3 +110,13 @@ export async function pageAdmin(): Promise<Admin> {
   if (!user || !login) notFound();
   return { user, login };
 }
+
+/**
+ * Backlog (audit L-1): whether to show the Admin link. Asked only on the Account page (never on every page, so normal
+ * pages make no GitHub call), rate limited like every admin check, and false whenever no admin is configured.
+ */
+export async function pageShowsAdminLink(user: SessionUser): Promise<boolean> {
+  if (!(process.env.ADMIN_GITHUB_LOGINS ?? "").trim()) return false;
+  const req = new Request("http://localhost/", { headers: await headers() });
+  return (await checkedLogin(user, req)) !== null;
+}

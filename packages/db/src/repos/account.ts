@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   checklistItems,
@@ -55,6 +55,35 @@ export const accountRepo = {
       .where(eq(projects.ownerId, userId))
       .orderBy(desc(projectTokens.createdAt), desc(projectTokens.id))
       .limit(MAX_CONNECTED);
+  },
+
+  /** The user's live sign-in sessions, most recently used first (backlog: one row per browser on /account). */
+  async listSessions(
+    db: BrainDb,
+    userId: string,
+    now: Date,
+    limit = 20,
+  ): Promise<{ id: string; userAgent: string | null; createdAt: Date; updatedAt: Date }[]> {
+    return db
+      .select({
+        id: sessions.id,
+        userAgent: sessions.userAgent,
+        createdAt: sessions.createdAt,
+        updatedAt: sessions.updatedAt,
+      })
+      .from(sessions)
+      .where(and(eq(sessions.userId, userId), gt(sessions.expiresAt, now)))
+      .orderBy(desc(sessions.updatedAt), desc(sessions.id))
+      .limit(limit);
+  },
+
+  /** Ends one of the user's sessions; false when it is not theirs (or already gone). */
+  async endSession(db: BrainDb, userId: string, sessionId: string): Promise<boolean> {
+    const rows = await db
+      .delete(sessions)
+      .where(and(eq(sessions.userId, userId), eq(sessions.id, sessionId)))
+      .returning({ id: sessions.id });
+    return rows.length > 0;
   },
 
   /** Ends every sign-in session of the user (all browsers); returns how many there were. */

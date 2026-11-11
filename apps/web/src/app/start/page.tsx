@@ -3,10 +3,11 @@ import { ReceiptCard } from "@/components/receipt-card";
 import { PageHeader } from "@/components/shell/page-header";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { buildPreference } from "@/server/build-preference";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { onboarding } from "@/server/onboarding";
-import { BUILD_COOKIE, BUILD_LABELS, BUILD_STYLES, buildGuide, buildStyle } from "@brain/core";
+import { BUILD_COOKIE, BUILD_LABELS, BUILD_STYLES, buildGuide } from "@brain/core";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -56,7 +57,12 @@ export default async function StartPage({
   const current = [steps.linked, steps.indexed, steps.receipt].map((d) => (d ? "1" : "0")).join("");
   const receipts = project ? `/projects/${project.id}/receipts` : null;
   const doneCount = [steps.linked, steps.indexed, steps.receipt].filter(Boolean).length;
-  const style = buildStyle((await searchParams)?.build, await rememberedBuild());
+  const style = await buildPreference(
+    getDb(),
+    user,
+    (await searchParams)?.build,
+    await rememberedBuild(),
+  );
   return (
     <main className="page page-narrow stack stack-lg">
       <PageHeader

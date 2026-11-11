@@ -21,11 +21,14 @@ export async function resolveFeature(
   projectId: string,
   ref: string,
 ): Promise<Feature> {
+  // Automatic features' keys start with "@": such a ref is looked up as a key first, so a feature someone named
+  // "@home" cannot take the place of the automatic feature with that key (backlog, D-023 review).
+  const byKey = async () => (await featuresRepo.byKeys(db, projectId, [ref]))[0] ?? null;
   const found =
     (await featuresRepo.byId(db, projectId, ref)) ??
+    (ref.startsWith("@") ? await byKey() : null) ??
     (await featuresRepo.byName(db, projectId, ref)) ??
-    (await featuresRepo.byKeys(db, projectId, [ref]))[0] ??
-    null;
+    (await byKey());
   if (found) return found;
   const { features } = await featuresRepo.listSummaries(db, projectId, MAX_LISTED);
   throw new FeatureNotFoundError(

@@ -82,3 +82,4 @@ export {
   approvalPoliciesRepo,
   approvalRequestsRepo,
 } from "./approvals";
+export { userPreferencesRepo } from "./user-preferences";

@@ -2,6 +2,7 @@ import { maskSecretsIn, plainText } from "@brain/core";
 import {
   type BrainDb,
   type ContextPackCacheEntry,
+  type Feature,
   boundariesRepo,
   checklistItemsRepo,
   contextPackCacheRepo,
@@ -28,9 +29,17 @@ const MAX_CHECKLIST_ITEMS = 50;
 export async function getContextPack(
   db: BrainDb,
   projectId: string,
-  featureName: string,
+  featureRef: string | Feature,
 ): Promise<string> {
-  const feature = await featuresRepo.byName(db, projectId, featureName);
+  // The MCP tool passes the feature it already resolved, so the pack is about that exact feature even when two
+  // features share a name (backlog, D-023 review). A name is still looked up in the project.
+  const feature =
+    typeof featureRef === "string"
+      ? await featuresRepo.byName(db, projectId, featureRef)
+      : featureRef.projectId === projectId
+        ? featureRef
+        : null;
+  const featureName = feature?.name ?? "";
   // A feature of another project has no row here, so it is reported exactly like a missing one.
   if (!feature) throw new AppError(404, "not_found");
 

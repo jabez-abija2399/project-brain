@@ -1,4 +1,11 @@
-import { DIRECTIVE_BUDGET, buildHandoffNote, maskSecretsIn, plainText } from "@brain/core";
+import {
+  DIRECTIVE_BUDGET,
+  buildHandoffNote,
+  maskSecretsIn,
+  plainText,
+  prReceiptCounts,
+  receiptView,
+} from "@brain/core";
 import {
   type BrainDb,
   agentSessionsRepo,
@@ -7,6 +14,7 @@ import {
   decisionsRepo,
   directivesRepo,
   featuresRepo,
+  receiptsRepo,
 } from "@brain/db";
 import { z } from "zod";
 import { type SessionUser, requireProjectAccess } from "./auth";
@@ -250,15 +258,19 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
     bindToken(token, input.projectId);
     const pid = token.projectId;
     // DB reads only, no LLM call (AGENTS.md). Seven small queries; each one is bounded.
-    const [sessions, checklist, features, decisions, directives, all, next] = await Promise.all([
-      agentSessionsRepo.listNewest(db, pid, 1),
-      checklistItemsRepo.listOpenForProject(db, pid, 40),
-      featuresRepo.listInProgress(db, pid, 10),
-      decisionsRepo.listNewest(db, pid, 5),
-      directivesRepo.listActive(db, pid),
-      featuresRepo.listSummaries(db, pid, HANDOFF_FEATURES),
-      featuresRepo.nextByBuildOrder(db, pid),
-    ]);
+    const [sessions, checklist, features, decisions, directives, all, next, receipts] =
+      await Promise.all([
+        agentSessionsRepo.listNewest(db, pid, 1),
+        checklistItemsRepo.listOpenForProject(db, pid, 40),
+        featuresRepo.listInProgress(db, pid, 10),
+        decisionsRepo.listNewest(db, pid, 5),
+        directivesRepo.listActive(db, pid),
+        featuresRepo.listSummaries(db, pid, HANDOFF_FEATURES),
+        featuresRepo.nextByBuildOrder(db, pid),
+        receiptsRepo.list(db, pid, 1),
+      ]);
+    // Backlog: how the last session ended, as counts (no item text: the agent reads that with `codeceipt last`).
+    const lastCounts = receipts[0] ? prReceiptCounts([receiptView(receipts[0].summaryJson)]) : null;
     const last = sessions[0];
     const nextRules = next ? await nextFeatureRules(db, pid, next.id) : [];
     const items = startNoteItems(checklist);
@@ -294,6 +306,14 @@ export async function whereDidWeStop(db: BrainDb, token: ToolToken, raw: unknown
       // FEAT-019: the approved plan's next feature by build order (AC-019-05).
       nextFeature: next ? maskSecretsIn(next.name) : null,
       nextRules,
+      lastReceipt: lastCounts
+        ? {
+            done: lastCounts.done,
+            partial: lastCounts.partial,
+            missed: lastCounts.missed,
+            notVerified: lastCounts.notVerified,
+          }
+        : null,
     });
   });
 }

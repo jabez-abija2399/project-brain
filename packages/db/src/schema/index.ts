@@ -17,3 +17,4 @@ export * from "./billing";
 export * from "./blueprint";
 export * from "./approvals";
 export * from "./project-settings";
+export * from "./user-preferences";
