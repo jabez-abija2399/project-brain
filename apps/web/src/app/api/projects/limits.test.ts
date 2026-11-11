@@ -2,7 +2,7 @@ import { DELETE as revokeToken } from "@/app/api/projects/[id]/tokens/[tokenId]/
 import { POST as createToken, GET as listTokens } from "@/app/api/projects/[id]/tokens/route";
 import { GET as listProjects } from "@/app/api/projects/route";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
-import { projectsRepo } from "@brain/db";
+import { projectTokensRepo, projectsRepo } from "@brain/db";
 import { projectTokens } from "@brain/db/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -142,5 +142,18 @@ describe("FEAT-003 limits: active tokens per project and list pagination", () =>
     }
     expect(statuses.slice(0, 30).every((s) => s === 201)).toBe(true);
     expect(statuses[30]).toBe(429);
+  });
+
+  it("BL-19 an active token is on the first page even behind 60 newer revoked ones", async () => {
+    const user = await world.createUser();
+    const project = await projectsRepo.create(world.db, user.id, { name: "demo" });
+    const keep = await projectTokensRepo.create(world.db, project.id, "keep");
+    for (let i = 0; i < 60; i++) {
+      const t = await projectTokensRepo.create(world.db, project.id, `old ${i}`);
+      await projectTokensRepo.revoke(world.db, project.id, t.row.id);
+    }
+    const { items } = await projectTokensRepo.listForProject(world.db, project.id);
+    expect(items.some((t) => t.id === keep.row.id)).toBe(true);
+    expect(items[0]?.id).toBe(keep.row.id);
   });
 });
