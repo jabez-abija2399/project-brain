@@ -62,6 +62,23 @@ afterEach(async () => {
 });
 
 describe("index-push job (FEAT-009)", () => {
+  it("BL-03 attack: a job queued before a suspension does nothing once the project or its owner is suspended", async () => {
+    const gh = mockGithub(
+      repoWith([{ filename: "src/a.ts", status: "added" }], {
+        "src/a.ts": "export const a = 1;\n",
+      }),
+    );
+    await world.pg.query("UPDATE projects SET suspended_at = now() WHERE id = $1", [projectId]);
+    expect(await run()).toMatchObject({ skipped: "not_linked" });
+    await world.pg.query("UPDATE projects SET suspended_at = NULL WHERE id = $1", [projectId]);
+    await world.pg.query(
+      'UPDATE "user" SET "suspendedAt" = now() WHERE id = (SELECT owner_id FROM projects WHERE id = $1)',
+      [projectId],
+    );
+    expect(await run()).toMatchObject({ skipped: "not_linked" });
+    expect(gh.fetchedPaths).toEqual([]);
+  });
+
   it("AC-009-02 re-indexes only the changed files: fetches them, keeps unchanged files, deletes removed and renamed-from paths", async () => {
     const h = (c: string) => c.repeat(64);
     await filesRepo.insert(world.db, projectId, { path: "src/keep.ts", hash: h("1") });

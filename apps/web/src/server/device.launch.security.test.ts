@@ -53,6 +53,37 @@ async function pending(userCode: string) {
 }
 
 describe("launch: device approval attacks", () => {
+  it("BL-07 the approval page says when the code was requested", async () => {
+    const s = await startDevice(world.db, req(), {}, T0);
+    expect((await deviceView(world.db, owner, s.user_code, at(30))).requestedMinutesAgo).toBe(0);
+    expect((await deviceView(world.db, owner, s.user_code, at(185))).requestedMinutesAgo).toBe(3);
+    expect((await deviceView(world.db, owner, "", at(1))).requestedMinutesAgo).toBeNull();
+  });
+
+  it("BL-06 attack: two approvals racing for one code with a new project leave exactly one project", async () => {
+    const s = await startDevice(world.db, req(), {}, T0);
+    const before = (await projectsRepo.listByOwner(world.db, owner.id, { limit: 100, offset: 0 }))
+      .items.length;
+    const results = await Promise.allSettled([
+      approveDevice(
+        world.db,
+        owner,
+        { user_code: s.user_code, new_project_name: "race one" },
+        at(1),
+      ),
+      approveDevice(
+        world.db,
+        owner,
+        { user_code: s.user_code, new_project_name: "race two" },
+        at(1),
+      ),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const after = (await projectsRepo.listByOwner(world.db, owner.id, { limit: 100, offset: 0 }))
+      .items;
+    expect(after.length).toBe(before + 1);
+  });
+
   it("attack: Origin variants (null, case, port, trailing dot, http, trailing slash, foreign Referer) never approve", async () => {
     const s = await startDevice(world.db, req(), {}, T0);
     const body = JSON.stringify({ user_code: s.user_code, project_id: projectId });

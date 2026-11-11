@@ -34,7 +34,7 @@ describe("FEAT-015 secret detector: realistic formats (security pass)", () => {
       { typ: "JWT", alg: "HS256", kid: "k1" },
     );
     const text = [
-      "﻿// config",
+      "\ufeff// config",
       `fetch(\`https://abc.supabase.co/rest/v1/todos?apikey=${role}\`);`,
       `{"serviceRoleKey":"${reordered}"}`,
       `const k = '${sbSecret()}';`,

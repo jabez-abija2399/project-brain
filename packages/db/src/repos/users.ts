@@ -27,4 +27,14 @@ export const usersRepo = {
       .limit(1);
     return rows[0]?.id ?? null;
   },
+
+  /** The GitHub user ids (as text) of the user's GitHub sign-ins (usually one; empty when they have none). */
+  async githubUserIds(db: BrainDb, userId: string): Promise<string[]> {
+    const rows = await db
+      .select({ accountId: accounts.accountId })
+      .from(accounts)
+      .where(and(eq(accounts.userId, userId), eq(accounts.providerId, "github")))
+      .limit(20);
+    return rows.map((r) => r.accountId);
+  },
 };

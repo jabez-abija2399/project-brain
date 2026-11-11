@@ -135,4 +135,15 @@ describe("claim checker in the Stop hook (roadmap Phase 10)", () => {
     expect(await verdict({ env }, fresh(0))).toBe("confirmed");
     expect(await verdict({ env }, fresh(30))).toBe("contradicted");
   });
+
+  it("BL-10 a final message over 64 KB still gives the session and its claims (the input is not dropped)", async () => {
+    const long = `Updated src/cart.ts. ${"padding ".repeat(20_000)}`;
+    expect(long.length).toBeGreaterThan(64 * 1024);
+    const r = await stopWith(long, (repo) =>
+      writeFileSync(join(repo, "src", "cart.ts"), "export const a = 9;\n"),
+    );
+    expect(r.receipt?.claims).toEqual([
+      { kind: "changed_file", path: "src/cart.ts", verdict: "confirmed" },
+    ]);
+  });
 });

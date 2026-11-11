@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { type BrainDb, TokenLimitError, deviceCodesRepo, projectsRepo } from "@brain/db";
 import { z } from "zod";
 import { type SessionUser, appOriginOf, requireProjectAccess } from "./auth";
-import { assertCanCreateProject } from "./billing";
+import { createProjectWithinLimit } from "./billing";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
 import { UNSAFE_NAME_CHARS, projectNameSchema } from "./validate";
@@ -22,11 +22,16 @@ const USER_CODE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
-// The caller's address for rate limits, hashed so no address is stored. Behind Vercel the first x-forwarded-for entry
-// is the client.
+// The caller's address for rate limits, hashed so no address is stored. On Vercel (VERCEL set), Vercel itself sets
+// x-vercel-forwarded-for and x-real-ip, so a client cannot choose them. Elsewhere (local dev, a self-hosted server)
+// every header can be set by the client, as before: the first x-forwarded-for entry is used.
 export function clientKey(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwarded || req.headers.get("x-real-ip")?.trim() || "unknown";
+  const first = (name: string) => req.headers.get(name)?.split(",")[0]?.trim() || "";
+  const ip =
+    (process.env.VERCEL ? first("x-vercel-forwarded-for") || first("x-real-ip") : "") ||
+    first("x-forwarded-for") ||
+    first("x-real-ip") ||
+    "unknown";
   return hash(ip).slice(0, 32);
 }
 
@@ -154,15 +159,29 @@ export async function approveDevice(
     await deviceCodesRepo.decide(db, input.user_code, { userId: user.id, deny: true }, now);
     return { ok: true, denied: true };
   }
-  const projectId =
-    "project_id" in input
-      ? (await requireProjectAccess(db, input.project_id, user)).id
-      : await (async () => {
-          await assertCanCreateProject(db, user.id);
-          return (await projectsRepo.create(db, user.id, { name: input.new_project_name })).id;
-        })();
-  if (!(await deviceCodesRepo.decide(db, input.user_code, { userId: user.id, projectId }, now))) {
-    throw new AppError(404, "not_found");
+  let projectId: string;
+  if ("project_id" in input) {
+    projectId = (await requireProjectAccess(db, input.project_id, user)).id;
+    if (!(await deviceCodesRepo.decide(db, input.user_code, { userId: user.id, projectId }, now))) {
+      throw new AppError(404, "not_found");
+    }
+  } else {
+    // One transaction under the owner's lock: the plan limit holds for parallel creates, and two approvals racing
+    // for one code cannot leave an empty project behind (the loser's project is rolled back with its decision).
+    projectId = (
+      await createProjectWithinLimit(db, user.id, input.new_project_name, async (t, id) => {
+        if (
+          !(await deviceCodesRepo.decide(
+            t,
+            input.user_code,
+            { userId: user.id, projectId: id },
+            now,
+          ))
+        ) {
+          throw new AppError(404, "not_found");
+        }
+      })
+    ).id;
   }
   console.info("[device]", JSON.stringify({ event: "approved", projectId, actor: "session" }));
   return { ok: true, project_id: projectId };
@@ -185,6 +204,10 @@ export async function deviceView(
   return {
     code: pending ? code : null,
     suggestedName: pending?.suggestedName ?? null,
+    // When the code was asked for, so a code sent by someone else (a link in a message) is easier to spot.
+    requestedMinutesAgo: pending
+      ? Math.max(0, Math.floor((now.getTime() - pending.createdAt.getTime()) / 60_000))
+      : null,
     projects: items.map((p) => ({ id: p.id, name: p.name })),
   };
 }
