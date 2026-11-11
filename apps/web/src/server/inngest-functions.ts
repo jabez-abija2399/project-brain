@@ -1,4 +1,4 @@
-import { appOrigin, postmarkSender, sendApprovalEmails } from "./approval-email";
+import { appOrigin, resendSender, sendApprovalEmails } from "./approval-email";
 import { getDb } from "./db";
 import { getGithubApp, githubConfig } from "./github";
 import { PR_EVENT, PUSH_EVENT, type PrEventData, type PushEventData, inngest } from "./inngest";
@@ -60,8 +60,8 @@ export const prReceiptFunction = inngest.createFunction(
   },
 );
 
-// Owner action 12: the hourly approval email (does nothing until Postmark is configured).
+// Owner action 12: the hourly approval email (does nothing until Resend is configured).
 export const approvalEmailFunction = inngest.createFunction(
   { id: "approval-emails", triggers: [{ cron: "TZ=UTC 7 * * * *" }] },
-  async () => sendApprovalEmails(getDb(), postmarkSender(), appOrigin()),
+  async () => sendApprovalEmails(getDb(), resendSender(), appOrigin()),
 );

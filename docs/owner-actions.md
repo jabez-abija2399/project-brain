@@ -278,7 +278,7 @@ stays 200, with 0055 listed under `migrations.pending` and `optional: true`.
 
 ---
 
-## 12. Choose an email provider for approval notifications — owner chose Postmark 2026-11-11; waiting for the key in Vercel
+## 12. Choose an email provider for approval notifications — owner chose Resend 2026-11-12; waiting for the key in Vercel
 
 **Why:** Phase 6 asks for email (and browser) notifications when an agent asks for something. Codeceipt has no email
 provider yet, and adding one needs an account and a secret, which only you can create. Until then:
@@ -297,11 +297,14 @@ provider yet, and adding one needs an account and a secret, which only you can c
 **Check:** an agent's request that needs your approval sends you one email with a link to the Approvals tab.
 
 
-**Built (2026-11-11):** the hourly approval email is in the app and switched off until both variables exist.
-1. postmarkapp.com → sign up → **Sender Signatures** → add and verify the address emails come from.
-2. **Servers** → your server → **API Tokens** → copy the **Server API token**.
-3. Vercel → project → **Settings** → **Environment Variables** (Production): `POSTMARK_API_KEY` = the token,
-   `POSTMARK_FROM` = the verified address → **Save** → **Deployments** → latest → **Redeploy**.
+**Built (2026-11-11, switched to Resend 2026-11-12):** the hourly approval email is in the app and switched off until
+both variables exist.
+1. resend.com → sign up → **Domains** → **Add Domain** → add the DNS records it shows at your domain provider and wait
+   for "Verified". (Without your own domain, Resend only sends test emails to your own address from
+   `onboarding@resend.dev`.)
+2. **API Keys** → **Create API Key** (permission: Sending access) → copy it once.
+3. Vercel → project → **Settings** → **Environment Variables** (Production): `RESEND_API_KEY` = the key,
+   `RESEND_FROM` = e.g. `Codeceipt <alerts@yourdomain.com>` → **Save** → **Deployments** → latest → **Redeploy**.
 
 What it sends: at most one email an hour per owner, only when an agent asked for an approval in the last full hour:
 counts per project and a link to its Approvals tab. The agent's own words are never in the email.

@@ -2,47 +2,41 @@ import { renderApprovalEmail } from "@brain/core";
 import { type BrainDb, approvalRequestsRepo, rateCountersRepo } from "@brain/db";
 import { approvalsEnabled } from "./approvals";
 
-// Owner action 12 (Postmark): once an hour, each owner whose agents asked for an approval in the last full hour gets
+// Owner action 12 (Resend): once an hour, each owner whose agents asked for an approval in the last full hour gets
 // one plain-text email with counts and links (see packages/core/src/approval-email.ts for what is never in it).
-// Off until POSTMARK_API_KEY and POSTMARK_FROM are set; off before migration 0055. The key is only ever sent to
-// Postmark, never logged.
+// Off until RESEND_API_KEY and RESEND_FROM are set; off before migration 0055. The key is only ever sent to
+// Resend, never logged.
 
 export type Mail = { to: string; subject: string; text: string };
 export type MailSender = (mail: Mail) => Promise<boolean>;
 
 const HOUR_MS = 3_600_000;
 const MAX_OWNERS_PER_RUN = 100;
-// Sends at the same time; with Postmark's 5 s timeout a full run takes at most about 50 s.
+// Sends at the same time; with the 5 s send timeout a full run takes at most about 50 s.
 const PARALLEL_SENDS = 10;
-// Exactly one plain address: Postmark's To field also takes lists, which must never be built from stored text.
+// Exactly one plain address: the provider's to field also takes lists, which must never be built from stored text.
 const ONE_ADDRESS = /^[^\s,;<>"@]+@[^\s,;<>"@]+\.[^\s,;<>"@]+$/;
-const POSTMARK_URL = "https://api.postmarkapp.com/email";
+const RESEND_URL = "https://api.resend.com/emails";
 
-/** The Postmark sender, or null when it is not configured. */
-export function postmarkSender(
+/** The Resend sender, or null when it is not configured. */
+export function resendSender(
   env: Record<string, string | undefined> = process.env,
   fetchImpl: typeof fetch = fetch,
 ): MailSender | null {
-  const key = env.POSTMARK_API_KEY?.trim();
-  const from = env.POSTMARK_FROM?.trim();
+  const key = env.RESEND_API_KEY?.trim();
+  const from = env.RESEND_FROM?.trim();
   if (!key || !from) return null;
   return async (mail) => {
     try {
-      const res = await fetchImpl(POSTMARK_URL, {
+      const res = await fetchImpl(RESEND_URL, {
         method: "POST",
         redirect: "error",
         headers: {
           accept: "application/json",
           "content-type": "application/json",
-          "x-postmark-server-token": key,
+          authorization: `Bearer ${key}`,
         },
-        body: JSON.stringify({
-          From: from,
-          To: mail.to,
-          Subject: mail.subject,
-          TextBody: mail.text,
-          MessageStream: "outbound",
-        }),
+        body: JSON.stringify({ from, to: [mail.to], subject: mail.subject, text: mail.text }),
         signal: AbortSignal.timeout(5000),
       });
       return res.ok;
