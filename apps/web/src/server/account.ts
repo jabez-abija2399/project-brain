@@ -52,6 +52,52 @@ export async function endAllSessions(db: BrainDb, user: SessionUser) {
   return { ended: await accountRepo.endAllSessions(db, user.id) };
 }
 
+// Backlog: a browser's name from its user agent, in a few plain words (never the full string, never the address).
+export function browserLabel(userAgent: string | null): string {
+  const ua = userAgent ?? "";
+  const browser = /Edg\//.test(ua)
+    ? "Edge"
+    : /OPR\//.test(ua)
+      ? "Opera"
+      : /Firefox\//.test(ua)
+        ? "Firefox"
+        : /Chrome\//.test(ua)
+          ? "Chrome"
+          : /Safari\//.test(ua)
+            ? "Safari"
+            : null;
+  const os = /iPhone|iPad/.test(ua)
+    ? "iPhone or iPad"
+    : /Android/.test(ua)
+      ? "Android"
+      : /Mac OS X/.test(ua)
+        ? "Mac"
+        : /Windows/.test(ua)
+          ? "Windows"
+          : /Linux/.test(ua)
+            ? "Linux"
+            : null;
+  if (!browser && !os) return "Unknown browser";
+  return [browser ?? "A browser", os ? `on ${os}` : ""].filter(Boolean).join(" ");
+}
+
+/** The account's signed-in browsers for /account: a label and dates only. */
+export async function sessionsView(db: BrainDb, user: SessionUser, now = new Date()) {
+  const rows = await accountRepo.listSessions(db, user.id, now);
+  return rows.map((r) => ({
+    id: r.id,
+    label: browserLabel(r.userAgent),
+    since: r.createdAt.toISOString(),
+    lastUsed: r.updatedAt.toISOString(),
+  }));
+}
+
+/** Signs one browser out. Another user's session (or one already ended) is 404. */
+export async function endSession(db: BrainDb, user: SessionUser, sessionId: string) {
+  if (!(await accountRepo.endSession(db, user.id, sessionId))) throw new AppError(404, "not_found");
+  return { ended: 1 };
+}
+
 /** The user's data as JSON: projects, features, requests, checklist items, receipts, decisions. Never tokens. */
 export async function exportAccount(db: BrainDb, user: SessionUser, now = new Date()) {
   await rateLimit(db, `account:export:${user.id}`, EXPORTS_PER_MINUTE, now);

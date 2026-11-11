@@ -1,11 +1,12 @@
 import { ConnectedComputers } from "@/components/account/connected-computers";
 import { DeleteAccount } from "@/components/account/delete-account";
 import { OAuthConnections } from "@/components/account/oauth-connections";
+import { SessionList } from "@/components/account/session-list";
 import { SignOutEverywhere } from "@/components/account/sign-out-everywhere";
 import { BillingButton } from "@/components/billing-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { accountView } from "@/server/account";
+import { accountView, sessionsView } from "@/server/account";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { connectionsFor } from "@/server/mcp-oauth";
@@ -19,7 +20,11 @@ export const metadata: Metadata = { title: "Account | Codeceipt", robots: { inde
 // as a download, and deleting the account for good. A suspended user can still export and delete.
 export default async function AccountPage() {
   const user = await pageUser({ allowSuspended: true });
-  const [a, apps] = await Promise.all([accountView(getDb(), user), connectionsFor(getDb(), user)]);
+  const [a, apps, browsers] = await Promise.all([
+    accountView(getDb(), user),
+    connectionsFor(getDb(), user),
+    sessionsView(getDb(), user),
+  ]);
   return (
     <main className="page page-narrow stack stack-lg">
       <PageHeader
@@ -97,9 +102,10 @@ export default async function AccountPage() {
           Sessions
         </h2>
         <p className="muted m0">
-          Signed in on another computer and want it out? This signs you out of every browser,
+          The browsers signed in to this account. Sign one out, or sign out of every browser,
           including this one.
         </p>
+        <SessionList sessions={browsers} />
         <SignOutEverywhere />
       </section>
 
