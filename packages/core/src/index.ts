@@ -215,6 +215,14 @@ export type { GuardFile, GuardFinding, GuardInput, GuardRule } from "./guard";
 export { findHiddenChars } from "./hidden-chars";
 export { nextStep } from "./next-step";
 export {
+  PR_COMMENT_MARKER,
+  prReceiptCheckSummary,
+  prReceiptClean,
+  prReceiptComment,
+  prReceiptCounts,
+} from "./pr-receipt";
+export type { PrReceiptCounts } from "./pr-receipt";
+export {
   CLAIM_KINDS,
   CLAIM_LABELS,
   CLAIM_VERDICTS,

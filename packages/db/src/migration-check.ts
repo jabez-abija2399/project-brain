@@ -34,6 +34,7 @@ export const MIGRATION_IDS = [
   "0051_context_pack_cache",
   "0054_blueprint",
   "0055_approvals",
+  "0056_project_settings",
 ] as const;
 
 // Migrations the app works without (caches and other speed-ups with a built-in fallback). While one is pending,
@@ -45,6 +46,8 @@ export const OPTIONAL_MIGRATIONS: ReadonlySet<string> = new Set([
   "0054_blueprint",
   // Roadmap Phase 6a: approval policies answer "not set up yet" before it.
   "0055_approvals",
+  // Roadmap Phase 10b: per-project settings read as off before it.
+  "0056_project_settings",
 ]);
 
 /** The pending migrations the app cannot work without. */

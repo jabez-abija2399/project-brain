@@ -4,7 +4,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { readCapped } from "./body";
 import { githubConfig, verifySignature } from "./github";
-import { PUSH_EVENT, getEventSender } from "./inngest";
+import { PR_EVENT, PUSH_EVENT, getEventSender, getPrEventSender } from "./inngest";
+import { prReceiptsOn } from "./project-settings";
 
 // GitHub caps webhook payloads at 25 MB; a push payload is far smaller, so anything above this is refused unread.
 export const MAX_WEBHOOK_BYTES = 5 * 1024 * 1024;
@@ -17,6 +18,17 @@ const pushSchema = z.object({
   after: sha,
   deleted: z.boolean().optional(),
   repository: z.object({ full_name: repoName, default_branch: z.string().min(1).max(255) }),
+  installation: z.object({ id: z.number().int().positive() }),
+});
+// Roadmap Phase 10b: a pull request opened or updated. The head repository tells a fork apart from the repo itself.
+const PR_ACTIONS = new Set(["opened", "reopened", "synchronize"]);
+const pullRequestSchema = z.object({
+  action: z.string().max(50),
+  number: z.number().int().positive(),
+  pull_request: z.object({
+    head: z.object({ sha, repo: z.object({ full_name: repoName }).nullable() }),
+  }),
+  repository: z.object({ full_name: repoName, private: z.boolean().optional() }),
   installation: z.object({ id: z.number().int().positive() }),
 });
 const installationSchema = z.object({
@@ -50,7 +62,7 @@ export async function handleWebhook(
   const event = req.headers.get("x-github-event") ?? "";
   const deliveryId = req.headers.get("x-github-delivery") ?? "";
   if (event === "ping") return json({ ok: true }, 200);
-  if (event !== "push" && event !== "installation") {
+  if (event !== "push" && event !== "installation" && event !== "pull_request") {
     return json({ error: "unsupported_event" }, 400);
   }
   if (!/^[A-Za-z0-9-]{1,100}$/.test(deliveryId)) return json({ error: "bad_delivery_id" }, 400);
@@ -76,6 +88,43 @@ export async function handleWebhook(
       await githubRepo.unlinkInstallation(db, parsed.data.installation.id);
     }
     return json({ ok: true }, 200);
+  }
+
+  if (event === "pull_request") {
+    const parsed = pullRequestSchema.safeParse(body);
+    if (!parsed.success) return json({ error: "bad_payload" }, 400);
+    const pr = parsed.data;
+    // Never for a fork's pull request (its commits and receipts are not this project's), and only when a pull
+    // request is opened or gets new commits.
+    const fromFork = pr.pull_request.head.repo?.full_name !== pr.repository.full_name;
+    if (fromFork || !PR_ACTIONS.has(pr.action)) return json({ ok: true, enqueued: false }, 200);
+    const linked = await githubRepo.linkedProjects(db, pr.installation.id, pr.repository.full_name);
+    // Off by default: only projects whose owner turned PR receipts on.
+    const on: { id: string }[] = [];
+    for (const p of linked) if (await prReceiptsOn(db, p.id)) on.push(p);
+    if (on.length === 0) return json({ ok: true, enqueued: false }, 200);
+    try {
+      await getPrEventSender()(
+        on.map((p) => ({
+          name: PR_EVENT,
+          data: {
+            projectId: p.id,
+            installationId: pr.installation.id,
+            repo: pr.repository.full_name,
+            number: pr.number,
+            headSha: pr.pull_request.head.sha,
+            // Fail closed: counts only unless GitHub says the repository is private.
+            publicRepo: pr.repository.private !== true,
+            deliveryId,
+          },
+        })),
+      );
+    } catch {
+      await githubRepo.forgetDelivery(db, deliveryId);
+      await githubRepo.forgetDelivery(db, bodyKey);
+      return json({ error: "enqueue_failed" }, 503);
+    }
+    return json({ ok: true, enqueued: true }, 202);
   }
 
   const parsed = pushSchema.safeParse(body);
