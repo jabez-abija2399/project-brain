@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { type BrainDb, RepoAlreadyLinkedError, githubRepo } from "@brain/db";
+import { type BrainDb, RepoAlreadyLinkedError, githubRepo, usersRepo } from "@brain/db";
 import { type SessionUser, requireProjectAccess, resolveAuthSecret } from "./auth";
 import { AppError } from "./errors";
 import { getGithubApp, githubConfig } from "./github";
@@ -139,8 +139,21 @@ export async function completeInstall(
   let installations: number[];
   let userRepos: string[];
   let userTruncated = false;
+  let token: string | null = null;
+  // The GitHub account the person signed in to Codeceipt with: the code must belong to that same account, so a
+  // leaked state cannot be finished with someone else's GitHub code and installation.
+  const expected = await usersRepo.githubUserIds(db, user.id);
   try {
     const userOctokit = await app.oauth.getUserOctokit({ code: input.code });
+    token = ((await userOctokit.auth()) as { token?: string }).token ?? null;
+    const me = await userOctokit.request("GET /user");
+    if (!expected.includes(String(me.data.id))) {
+      throw new AppError(
+        403,
+        "github_account_mismatch",
+        "Finish the install with the GitHub account you signed in to Codeceipt with.",
+      );
+    }
     const res = await userOctokit.request("GET /user/installations", { per_page: 100 });
     installations = res.data.installations.map((i) => i.id);
     // Not this GitHub user's installation: reported like a missing one.
@@ -161,6 +174,13 @@ export async function completeInstall(
   } catch (err) {
     if (err instanceof AppError) throw err;
     throw invalidState();
+  } finally {
+    // The person's token was needed for the reads above only: revoke it on GitHub (best effort).
+    // At most 2 s, so a slow GitHub never holds up the answer.
+    if (token) {
+      const revoke = app.oauth.deleteToken({ token }).catch(() => undefined);
+      await Promise.race([revoke, new Promise((done) => setTimeout(done, 2_000))]);
+    }
   }
 
   // Both lists must agree: the installation can see the repository, and so can this person.

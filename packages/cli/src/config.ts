@@ -82,6 +82,20 @@ function projectTokens(file: ConfigFile | null): CliConfig[] {
  * The token for a repo's linked project: same server (origin) and same project id, so a token is only ever sent to
  * the server that issued it, for the project it belongs to.
  */
+/** The token saved for this project in the per-project list only (never the default login). */
+export function projectEntry(
+  path: string,
+  link: { apiUrl: string; projectId: string },
+): CliConfig | null {
+  const origin = originOf(link.apiUrl);
+  if (!origin) return null;
+  return (
+    projectTokens(readFile(path)).find(
+      (c) => c.projectId === link.projectId && originOf(c.apiUrl) === origin,
+    ) ?? null
+  );
+}
+
 export function readProjectToken(
   path: string,
   link: { apiUrl: string; projectId: string },

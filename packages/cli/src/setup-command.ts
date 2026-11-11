@@ -10,7 +10,7 @@ import {
   readCapped,
   request,
 } from "./api";
-import { type CliConfig, readProjectToken, saveProjectToken } from "./config";
+import { type CliConfig, projectEntry, readProjectToken, saveProjectToken } from "./config";
 import { INSTALL_PS1, INSTALL_SH } from "./native/install-info";
 import { setupAgents } from "./plugins";
 import { gitDirOf, readRepoLink, repoFingerprint, writeRepoLink } from "./repo-link";
@@ -260,7 +260,16 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     if (link && !link.fingerprint && known) writeRepoLink(gitDir, { ...link, fingerprint });
   } else {
     const approved = await approveInBrowser(apiUrl, root, deps);
+    // The token this one replaces (same server, same project) is revoked, so re-running setup does not pile up live
+    // tokens. Best effort: a failure leaves it for the owner to revoke on the project page.
+    // Only a per-project entry: the default login (`codeceipt login`) keeps its own token.
+    const previous = projectEntry(configFile, approved);
     saveProjectToken(configFile, approved);
+    if (previous && previous.token !== approved.token) {
+      const timed: Fetch = (url, init) =>
+        deps.fetch(url, { ...init, signal: AbortSignal.timeout(5_000) });
+      await request(timed, previous, "POST", "/api/token/revoke").catch(() => undefined);
+    }
     config = { ...approved, repo: fingerprintToken(fingerprint) };
     // A repo with no commit and no remote yet has nothing to fingerprint: it learns it on its first upload.
     if (

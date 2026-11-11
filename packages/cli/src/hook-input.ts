@@ -3,3 +3,7 @@
 export const PRE_TOOL_INPUT_TOO_LARGE = "\u0000codeceipt:input-too-large";
 // The pre-tool hook's input carries the whole file being written: it may be read up to this size.
 export const PRE_TOOL_MAX_INPUT = 8 * 1024 * 1024;
+
+// Hook input read in full up to this size (backlog 2026-11-11: a final message over 64 KB used to make the whole input
+// be ignored, so the session id was lost).
+export const HOOK_MAX_INPUT = 2 * 1024 * 1024;

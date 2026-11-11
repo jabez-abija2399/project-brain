@@ -29,6 +29,7 @@ import {
 import { CliError, EXIT, request } from "./api";
 import type { CliConfig } from "./config";
 import { dependencyChanges } from "./dependency-changes";
+import { HOOK_MAX_INPUT } from "./hook-input";
 import { callTool } from "./mcp-client";
 import { gitDirOf, refreshBoundaries } from "./repo-link";
 import { type Git, changedFiles, repoRoot, scanFiles } from "./scan-secrets";
@@ -86,7 +87,9 @@ const SAVE_TIMEOUT_MS = 8_000;
 const MAX_NOTE_CHARS = 4_000;
 const MAX_LINE_CHARS = 300;
 const OPEN_STATUSES = new Set(["open", "partial", "missed"]);
-const MAX_STDIN = 64 * 1024;
+// The final message is cut to MAX_LAST_MESSAGE once the input (up to HOOK_MAX_INPUT) is read.
+const MAX_STDIN = HOOK_MAX_INPUT;
+const MAX_LAST_MESSAGE = 64 * 1024;
 // Roadmap Phase 10: repo files a claimed path is looked up in.
 const MAX_KNOWN_FILES = 100_000;
 const MAX_RECEIPT_FILES = 200;
@@ -153,7 +156,7 @@ async function hookInput(deps: HookDeps): Promise<{
   // machine, for the claim checker; its text is never sent anywhere.
   const lastMessage =
     typeof input.last_assistant_message === "string" && input.last_assistant_message.length > 0
-      ? input.last_assistant_message
+      ? input.last_assistant_message.slice(0, MAX_LAST_MESSAGE)
       : null;
   return { sessionId: sessionIdOf(input), cwd, loopCount, lastMessage };
 }

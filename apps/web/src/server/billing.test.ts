@@ -212,6 +212,47 @@ describe("FEAT-025 plans and billing", () => {
     expect(view.items.map((i) => i.status)).toEqual(["not_verified"]);
   });
 
+  it("BL-11 attack: parallel creates cannot pass the plan's project limit together", async () => {
+    world.signInAs(user);
+    const results = await Promise.all(["a", "b", "c", "d"].map((n) => createProject(n)));
+    expect(results.map((r) => r.status).sort()).toEqual([201, 402, 402, 402]);
+    const { items } = await projectsRepo.listByOwner(world.db, user.id, { limit: 10, offset: 0 });
+    expect(items).toHaveLength(1);
+  });
+
+  it("BL-11b the limit check runs under the owner's advisory lock, before the count (Postgres, not only PGlite)", async () => {
+    // PGlite runs transactions one at a time, so BL-11 would pass without the lock; this pins the lock itself.
+    const seen: string[] = [];
+    const db = world.db as unknown as {
+      transaction: (fn: (tx: unknown) => Promise<unknown>) => Promise<unknown>;
+    };
+    const original = db.transaction.bind(db);
+    const spy = vi.spyOn(db, "transaction").mockImplementation((fn) =>
+      original((tx) => {
+        const t = tx as {
+          execute: (q: unknown) => Promise<unknown>;
+          select: (...a: unknown[]) => unknown;
+        };
+        const execute = t.execute.bind(t);
+        const select = t.select.bind(t);
+        t.execute = (q) => {
+          seen.push(JSON.stringify(q).includes("pg_advisory_xact_lock") ? "lock" : "execute");
+          return execute(q);
+        };
+        t.select = (...a) => {
+          seen.push("select");
+          return select(...a);
+        };
+        return fn(t);
+      }),
+    );
+    world.signInAs(user);
+    expect((await createProject("locked")).status).toBe(201);
+    spy.mockRestore();
+    expect(seen[0]).toBe("lock");
+    expect(seen).toContain("select");
+  });
+
   it("AC-025-03 attack: the plan changes only from a validly signed webhook; a client cannot set its own plan or price", async () => {
     setSub("sub_1", user.id, { priceId: "price_agency" });
     const real = completed("sub_1");

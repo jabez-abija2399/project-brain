@@ -2,7 +2,8 @@
 // from Stripe's webhook after its signature is verified, and prices come from server env, never from the client.
 // Limits apply only when STRIPE_SECRET_KEY is set, so a self-hosted or test deployment is unlimited.
 import { FOUNDING, PLANS, type PlanId, effectivePlan, isPlanId, monthStart } from "@brain/core";
-import { type BrainDb, billingRepo } from "@brain/db";
+import { type BrainDb, billingRepo, projectsRepo } from "@brain/db";
+import { sql } from "drizzle-orm";
 import Stripe from "stripe";
 import { z } from "zod";
 import type { SessionUser } from "./auth";
@@ -280,6 +281,33 @@ export async function assertCanCreateProject(db: BrainDb, userId: string): Promi
       `Your ${plan.name} plan allows ${plan.projects} project${plan.projects === 1 ? "" : "s"}. Upgrade on /pricing.`,
     );
   }
+}
+
+/**
+ * Creates a project within the owner's plan limit. The check and the insert run under one per-owner lock in one
+ * transaction (backlog 2026-11-11), so parallel creates cannot pass the limit together. `then` runs inside the same
+ * transaction (the device flow records its decision there, so a refused decision rolls the project back).
+ */
+export async function createProjectWithinLimit<T = void>(
+  db: BrainDb,
+  userId: string,
+  name: string,
+  then?: (tx: BrainDb, projectId: string) => Promise<T>,
+): Promise<{
+  id: string;
+  project: Awaited<ReturnType<typeof projectsRepo.create>>;
+  result: T | undefined;
+}> {
+  return db.transaction(async (tx) => {
+    const t = tx as unknown as BrainDb;
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`projects:${userId}`}, 0))`,
+    );
+    await assertCanCreateProject(t, userId);
+    const project = await projectsRepo.create(t, userId, { name });
+    const result = then ? await then(t, project.id) : undefined;
+    return { id: project.id, project, result };
+  });
 }
 
 /**

@@ -71,14 +71,19 @@ export const githubRepo = {
     installationId: number,
     repoFullName: string,
   ): Promise<boolean> {
+    // Re-checked inside every job (2026-11-11): a job queued before a suspension finds the project suspended now
+    // and does nothing.
     const [row] = await db
       .select({ id: projects.id })
       .from(projects)
+      .innerJoin(users, eq(users.id, projects.ownerId))
       .where(
         and(
           eq(projects.id, projectId),
           eq(projects.installationId, installationId),
           eq(projects.repoFullName, repoFullName),
+          isNull(projects.suspendedAt),
+          isNull(users.suspendedAt),
         ),
       )
       .limit(1);
