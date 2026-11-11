@@ -295,4 +295,68 @@ describe("GitHub App install: only repositories the person can access (owner-app
     expect(cookie.toLowerCase()).toContain("samesite=lax");
     expect(cookie).not.toContain("acme");
   });
+
+  it("AC-009-01 attack: read-only access to a repository is not enough to link it", async () => {
+    mockGithub(
+      github({
+        installations: { 77: ["acme/app", "org/private", "org/site"] },
+        userAccess: { "org/private": "read", "org/site": "admin" },
+      }),
+    );
+    const state = await stateFor(owner);
+    expect((await callBack(state)).status).toBe(303);
+    expect(await (await list(state)).json()).toEqual({ ok: true, repos: ["acme/app", "org/site"] });
+    expect((await post({ state, repo: "org/private" })).status).toBe(404);
+    expect(await githubRepo.linkedProjects(world.db, 77, "org/private")).toEqual([]);
+
+    // Only read access everywhere: nothing to link.
+    mockGithub(
+      github({ installations: { 77: ["org/private"] }, userAccess: { "org/private": "read" } }),
+    );
+    const res = await callBack(await stateFor(owner));
+    expect(res.status).toBe(404);
+    expect((await res.json()).code).toBe("no_accessible_repository");
+  });
+
+  it("AC-009-01 a list cut at 100 never links on the person's behalf: the selection screen is shown instead", async () => {
+    mockGithub(
+      github({
+        installations: { 77: ["acme/app", "victim/private"] },
+        userRepos: { 77: ["acme/app"] },
+        userReposTotal: 150,
+      }),
+    );
+    const state = await stateFor(owner);
+    const res = await callBack(state);
+    expect(res.headers.get("location")).toBe(`http://localhost/github/select?state=${state}`);
+    expect(await linked()).toEqual([]);
+    expect(await (await list(state)).json()).toEqual({ ok: true, repos: ["acme/app"] });
+
+    mockGithub(github({ installations: { 77: ["acme/app"] }, installationReposTotal: 300 }));
+    const state2 = await stateFor(owner);
+    expect((await callBack(state2)).headers.get("location")).toBe(
+      `http://localhost/github/select?state=${state2}`,
+    );
+  });
+
+  it("AC-009-01 the selection cookie is cleared after a link, and by a flow that links at once", async () => {
+    mockGithub(github({ installations: { 77: ["acme/app", "acme/site"] } }));
+    const state = await stateFor(owner);
+    await callBack(state);
+    const res = await post({ state, repo: "acme/site" });
+    expect(res.status).toBe(200);
+    const [cleared = ""] = res.headers.getSetCookie();
+    expect(cleared).toMatch(/^cc_gh_repos=;/);
+    expect(cleared).toContain("Max-Age=0");
+    expect(cleared).toContain("Path=/api/github");
+
+    mockGithub(github());
+    const once = await callbackRoute(
+      new Request(
+        `http://localhost/api/github/callback?installation_id=77&setup_action=install&state=${await stateFor(owner)}&code=${code()}`,
+      ),
+    );
+    expect(once.headers.get("location")).toBe("http://localhost/projects?github=linked");
+    expect(once.headers.getSetCookie()[0]).toMatch(/^cc_gh_repos=;.*Max-Age=0/);
+  });
 });

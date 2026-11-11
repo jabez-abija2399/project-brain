@@ -1,7 +1,11 @@
 import { requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { toResponse } from "@/server/errors";
-import { ALLOWED_REPOS_COOKIE, linkInstallRepo } from "@/server/github-install";
+import {
+  ALLOWED_REPOS_COOKIE,
+  ALLOWED_REPOS_COOKIE_PATH,
+  linkInstallRepo,
+} from "@/server/github-install";
 import { cookieValue } from "@/server/request-cookies";
 import { parseInput } from "@/server/validate";
 import { NextResponse } from "next/server";
@@ -28,7 +32,10 @@ export async function POST(req: Request) {
       input,
       cookieValue(req, ALLOWED_REPOS_COOKIE),
     );
-    return NextResponse.json({ ok: true, ...linked });
+    const res = NextResponse.json({ ok: true, ...linked });
+    // Used up: the cookie is cleared with the state.
+    res.cookies.set(ALLOWED_REPOS_COOKIE, "", { path: ALLOWED_REPOS_COOKIE_PATH, maxAge: 0 });
+    return res;
   } catch (err) {
     return toResponse(err);
   }

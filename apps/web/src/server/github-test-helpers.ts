@@ -36,6 +36,10 @@ export type FakeRepo = {
   userInstallations: number[];
   // repositories the OAuth user can access in each installation (default: all of the installation's)
   userRepos?: Record<number, string[]>;
+  // the OAuth user's access per repository (default: push), and a total larger than the list (more pages)
+  userAccess?: Record<string, "read" | "push" | "admin">;
+  userReposTotal?: number;
+  installationReposTotal?: number;
   // compare result per "before...after"
   compare: Record<string, { filename: string; status: string; previous_filename?: string }[]>;
   // file contents at the push's commit
@@ -90,9 +94,17 @@ export function mockGithub(repo: FakeRepo): GithubMock {
       const id = Number(m[1]);
       if (!repo.userInstallations.includes(id)) return json({ message: "Not Found" }, 404);
       const mine = repo.userRepos?.[id] ?? repo.installations[id] ?? [];
+      const access = (name: string) => repo.userAccess?.[name] ?? "push";
       return json({
-        total_count: mine.length,
-        repositories: mine.map((full_name) => ({ full_name })),
+        total_count: repo.userReposTotal ?? mine.length,
+        repositories: mine.map((full_name) => ({
+          full_name,
+          permissions: {
+            admin: access(full_name) === "admin",
+            push: access(full_name) === "admin" || access(full_name) === "push",
+            pull: true,
+          },
+        })),
       });
     }
     if (url.pathname === "/user/installations") {
@@ -104,7 +116,7 @@ export function mockGithub(repo: FakeRepo): GithubMock {
     if (url.pathname === "/installation/repositories") {
       const all = Object.values(repo.installations)[0] ?? [];
       return json({
-        total_count: all.length,
+        total_count: repo.installationReposTotal ?? all.length,
         repositories: all.map((full_name) => ({ full_name })),
       });
     }

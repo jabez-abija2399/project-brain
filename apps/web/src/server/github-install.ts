@@ -49,20 +49,28 @@ async function ownState(db: BrainDb, user: SessionUser, state: string, now: Date
   return row;
 }
 
-async function installationRepos(installationId: number): Promise<string[]> {
+async function installationRepoPage(
+  installationId: number,
+): Promise<{ repos: string[]; truncated: boolean }> {
   const octokit = await getGithubApp(requireConfig()).getInstallationOctokit(installationId);
   const res = await octokit.request("GET /installation/repositories", { per_page: MAX_REPOS });
-  return (res.data.repositories ?? []).map((r) => r.full_name).sort();
+  const repos = (res.data.repositories ?? []).map((r) => r.full_name).sort();
+  return { repos, truncated: (res.data.total_count ?? 0) > repos.length };
+}
+
+async function installationRepos(installationId: number): Promise<string[]> {
+  return (await installationRepoPage(installationId)).repos;
 }
 
 // --- Which repositories this person may link (owner-approved fix, 2026-11-11) ---
 // An installation can cover repositories the signed-in person cannot read (an organisation installation, or a
 // collaborator on one repository of someone else's installation). Only the repositories GitHub lists for this person
-// in this installation (GET /user/installations/{id}/repositories, with their own OAuth code) may be offered or
-// linked. The OAuth token is used once at the callback and never stored: the allowed list rides to the selection
+// in this installation (GET /user/installations/{id}/repositories, with their own OAuth code) with push or admin
+// access may be offered or linked. The OAuth token is used once at the callback and never stored: the allowed list rides to the selection
 // screen as a cookie of keyed tags (HMAC with the auth secret, bound to this install's state), so it cannot be
 // forged or reused for another install, and no repository name is kept anywhere.
 export const ALLOWED_REPOS_COOKIE = "cc_gh_repos";
+export const ALLOWED_REPOS_COOKIE_PATH = "/api/github";
 const TAG_CHARS = 22;
 
 function repoTag(stateHash: string, repo: string): string {
@@ -130,6 +138,7 @@ export async function completeInstall(
   const app = getGithubApp(config);
   let installations: number[];
   let userRepos: string[];
+  let userTruncated = false;
   try {
     const userOctokit = await app.oauth.getUserOctokit({ code: input.code });
     const res = await userOctokit.request("GET /user/installations", { per_page: 100 });
@@ -143,7 +152,12 @@ export async function completeInstall(
         per_page: MAX_REPOS,
       },
     );
-    userRepos = (mine.data.repositories ?? []).map((r) => r.full_name);
+    // Push (or admin) access only: a person who can only read a repository must not be able to point the App's
+    // writes (pull-request comments and check runs) at it. No permissions field: not offered.
+    userRepos = (mine.data.repositories ?? [])
+      .filter((r) => r.permissions?.push === true || r.permissions?.admin === true)
+      .map((r) => r.full_name);
+    userTruncated = (mine.data.total_count ?? 0) > (mine.data.repositories ?? []).length;
   } catch (err) {
     if (err instanceof AppError) throw err;
     throw invalidState();
@@ -151,17 +165,20 @@ export async function completeInstall(
 
   // Both lists must agree: the installation can see the repository, and so can this person.
   const theirs = new Set(userRepos.map((r) => r.toLowerCase()));
-  const repos = (await installationRepos(input.installationId)).filter((r) =>
-    theirs.has(r.toLowerCase()),
-  );
+  const page = await installationRepoPage(input.installationId);
+  const repos = page.repos.filter((r) => theirs.has(r.toLowerCase()));
+  // Only the first 100 of each list are read: when either was cut short, never link on the person's behalf.
+  const truncated = page.truncated || userTruncated;
   if (repos.length === 0) {
     throw new AppError(
       404,
       "no_accessible_repository",
-      "This installation has no repository your GitHub account can access.",
+      truncated
+        ? "None of the first 100 repositories of this installation is one your GitHub account can push to."
+        : "This installation has no repository your GitHub account can push to.",
     );
   }
-  if (repos.length === 1) {
+  if (repos.length === 1 && !truncated) {
     const repo = repos[0] as string;
     await link(db, user, row.stateHash, row.projectId, input.installationId, repo, now);
     return { linked: repo };
