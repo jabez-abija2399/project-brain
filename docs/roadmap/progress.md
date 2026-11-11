@@ -526,3 +526,21 @@ Status values: not started, in progress, merged, blocked (with reason).
   - the job re-checks the link and the switch, and posts at most 200 comments a day per project;
   - only the App's own earlier comment is updated; item text is escaped.
 - **No file is read:** only the pull request's commit ids are listed; receipts are matched by commit.
+- **Security review (fresh context): no HIGH findings; both MEDIUM findings fixed, with attack tests (PH10B-12,
+  PH10B-13, PH10B-17).**
+  - **MEDIUM:**
+    - Two projects linked to one repository could overwrite each other's comment. The marker now names the project,
+      and only this App's own comment is updated.
+    - Item text could carry `@mentions`, `#123` and bare links. It is now shown in a code span, so it stays plain
+      text.
+  - **LOW, fixed:**
+    - Up to 500 comments are searched for the earlier comment.
+    - The job reads the repository's visibility again: only "private" gets item text (public, internal or unknown
+      get counts only).
+    - A suspended project posts nothing.
+    - A database or queue error in the webhook forgets the delivery, so GitHub's redelivery is processed.
+  - **Recorded in `agent/later.md`, not fixed here:**
+    - No debounce of repeated pushes to one pull request (the daily cap of 200 bounds it).
+    - The repository picker when linking through the GitHub App lists every repository of the installation, not only
+      the ones the signed-in user can read. This predates Phase 10b and is an auth change outside this feature, so it
+      needs the owner's go-ahead.

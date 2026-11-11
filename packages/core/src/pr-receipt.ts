@@ -1,16 +1,20 @@
-import { mdText } from "./export";
 import type { ReceiptView } from "./fix-prompt";
+import { plainText } from "./text";
 
 // Roadmap Phase 10b: the receipt as one comment on a pull request. Deterministic Markdown from stored receipts: the
 // counts, what was missed, and a link to the full receipt. On a public repository only counts are shown (no item
 // text, no file names): a public comment must not carry what the owner asked their agent for. The first line is a
 // hidden marker, so the same comment is updated in place on every push instead of a new one being added.
 
-export const PR_COMMENT_MARKER = "<!-- codeceipt:pr-receipt -->";
+// Security review: the marker names the project, so two projects linked to one repository each keep their own
+// comment and never overwrite the other's.
+export const prCommentMarker = (projectId: string) =>
+  `<!-- codeceipt:pr-receipt:${/^[\w-]{1,64}$/.test(projectId) ? projectId : "unknown"} -->`;
 const MAX_MISSED = 5;
 const MAX_BODY = 6_000;
 
 export type PrReceiptInput = {
+  projectId: string;
   views: ReceiptView[];
   /** The receipts page of the project (the owner signs in to open it). */
   receiptsUrl: string;
@@ -50,12 +54,14 @@ export function prReceiptCounts(views: ReceiptView[]): PrReceiptCounts {
 export const prReceiptClean = (c: PrReceiptCounts) =>
   c.missed + c.partial + c.findings + c.testChecks + c.contradicted === 0;
 
+const codeSpan = (text: string) =>
+  `\`${plainText(text).slice(0, 200).replace(/`/g, "'").replace(/</g, "&lt;").replace(/>/g, "&gt;")}\``;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The comment's Markdown (marker first). Only https links to the project's own receipts page are written. */
 export function prReceiptComment(input: PrReceiptInput): string {
   const c = prReceiptCounts(input.views);
-  const lines = [PR_COMMENT_MARKER, "### Codeceipt receipt"];
+  const lines = [prCommentMarker(input.projectId), "### Codeceipt receipt"];
   lines.push(
     c.receipts === 0
       ? "No receipt was recorded for the commits of this pull request."
@@ -82,7 +88,9 @@ export function prReceiptComment(input: PrReceiptInput): string {
         .slice(0, MAX_MISSED);
       if (missed.length > 0) {
         lines.push("", "Missed:");
-        for (const m of missed) lines.push(`- ${mdText(m.text, 200)}`);
+        // Security review: item text goes in a code span, so "@name", "#123" and bare links stay plain text (no
+        // notification, no link) whatever a prompt or commit message said.
+        for (const m of missed) lines.push(`- ${codeSpan(m.text)}`);
         if (c.missed > missed.length) lines.push(`- and ${c.missed - missed.length} more`);
       }
     }

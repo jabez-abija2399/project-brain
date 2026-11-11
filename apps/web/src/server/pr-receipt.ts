@@ -1,5 +1,5 @@
 import {
-  PR_COMMENT_MARKER,
+  prCommentMarker,
   prReceiptCheckSummary,
   prReceiptClean,
   prReceiptComment,
@@ -20,6 +20,7 @@ import { reserveDaily } from "./rate-limit";
 export const MAX_PR_COMMENTS_PER_DAY = 200;
 const MAX_COMMITS = 250;
 const MAX_RECEIPTS = 5;
+const MAX_COMMENT_PAGES = 5;
 export const CHECK_NAME = "Codeceipt receipt";
 
 export type PrReceiptResult =
@@ -35,11 +36,14 @@ export async function runPrReceipt(
   step: StepRunner,
   github: () => Promise<GithubClient>,
   origin: string,
+  // The GitHub App's own id: only a comment this App made is ever updated (null when not known).
+  appId: number | null = null,
 ): Promise<PrReceiptResult> {
   // Checked again in the job: the project may have been unlinked or the setting turned off since the webhook.
   const allowed = await step.run("pr-receipt-allowed", async () => {
-    if (!(await githubRepo.isLinked(db, data.projectId, data.installationId, data.repo)))
-      return "not_linked" as const;
+    // linkedProjects also leaves out suspended projects and owners (security review).
+    const linked = await githubRepo.linkedProjects(db, data.installationId, data.repo);
+    if (!linked.some((p) => p.id === data.projectId)) return "not_linked" as const;
     if (!(await prReceiptsOn(db, data.projectId))) return "off" as const;
     // A bot pushing every minute cannot make the App comment without end.
     if (
@@ -82,27 +86,49 @@ export async function runPrReceipt(
       const rows = await receiptsRepo.listByCommits(db, data.projectId, shas, MAX_RECEIPTS);
       const views = rows.map((r) => receiptView(r.summaryJson));
       const counts = prReceiptCounts(views);
+      const gh = await github();
+      // Security review: the repository's visibility is read again here. Only "private" gets item text: public,
+      // internal (a whole enterprise can read it) or unknown get counts only.
+      const repoInfo = await gh.request("GET /repos/{owner}/{repo}", at);
+      const visibility = (repoInfo.data as { visibility?: unknown } | null)?.visibility;
+      const marker = prCommentMarker(data.projectId);
       const body = prReceiptComment({
+        projectId: data.projectId,
         views,
         receiptsUrl: `${origin}/projects/${encodeURIComponent(data.projectId)}/receipts`,
-        publicRepo: data.publicRepo,
+        publicRepo: data.publicRepo || visibility !== "private",
       });
-      const gh = await github();
-      // Our own earlier comment (a bot's comment that starts with the marker) is updated in place.
-      const listed = await gh.request("GET /repos/{owner}/{repo}/issues/{issue_number}/comments", {
-        ...at,
-        issue_number: data.number,
-        per_page: 100,
-      });
-      const mine = (Array.isArray(listed.data) ? listed.data : []).find((c) => {
-        const row = c as { body?: unknown; user?: { type?: unknown } | null; id?: unknown };
-        return (
-          typeof row.body === "string" &&
-          row.body.startsWith(PR_COMMENT_MARKER) &&
-          row.user?.type === "Bot" &&
-          typeof row.id === "number"
+      // Our own earlier comment for this project is updated in place: its first line is this project's marker,
+      // and it was made by a bot (by this App, when its id is known). Up to 500 comments are searched.
+      let mine: { id: number } | undefined;
+      for (let page = 1; page <= MAX_COMMENT_PAGES && !mine; page++) {
+        const listed = await gh.request(
+          "GET /repos/{owner}/{repo}/issues/{issue_number}/comments",
+          {
+            ...at,
+            issue_number: data.number,
+            per_page: 100,
+            page,
+          },
         );
-      }) as { id: number } | undefined;
+        const rows = Array.isArray(listed.data) ? listed.data : [];
+        mine = rows.find((c) => {
+          const row = c as {
+            body?: unknown;
+            id?: unknown;
+            user?: { type?: unknown } | null;
+            performed_via_github_app?: { id?: unknown } | null;
+          };
+          return (
+            typeof row.body === "string" &&
+            row.body.split("\n", 1)[0] === marker &&
+            row.user?.type === "Bot" &&
+            (appId === null || row.performed_via_github_app?.id === appId) &&
+            typeof row.id === "number"
+          );
+        }) as { id: number } | undefined;
+        if (rows.length < 100) break;
+      }
       let comment: "created" | "updated" = "created";
       if (mine) {
         try {

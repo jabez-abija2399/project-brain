@@ -98,12 +98,16 @@ export async function handleWebhook(
     // request is opened or gets new commits.
     const fromFork = pr.pull_request.head.repo?.full_name !== pr.repository.full_name;
     if (fromFork || !PR_ACTIONS.has(pr.action)) return json({ ok: true, enqueued: false }, 200);
-    const linked = await githubRepo.linkedProjects(db, pr.installation.id, pr.repository.full_name);
-    // Off by default: only projects whose owner turned PR receipts on.
-    const on: { id: string }[] = [];
-    for (const p of linked) if (await prReceiptsOn(db, p.id)) on.push(p);
-    if (on.length === 0) return json({ ok: true, enqueued: false }, 200);
     try {
+      const linked = await githubRepo.linkedProjects(
+        db,
+        pr.installation.id,
+        pr.repository.full_name,
+      );
+      // Off by default: only projects whose owner turned PR receipts on.
+      const on: { id: string }[] = [];
+      for (const p of linked) if (await prReceiptsOn(db, p.id)) on.push(p);
+      if (on.length === 0) return json({ ok: true, enqueued: false }, 200);
       await getPrEventSender()(
         on.map((p) => ({
           name: PR_EVENT,
@@ -113,13 +117,14 @@ export async function handleWebhook(
             repo: pr.repository.full_name,
             number: pr.number,
             headSha: pr.pull_request.head.sha,
-            // Fail closed: counts only unless GitHub says the repository is private.
+            // Fail closed: counts only unless GitHub says the repository is private (the job reads it again).
             publicRepo: pr.repository.private !== true,
             deliveryId,
           },
         })),
       );
     } catch {
+      // Not enqueued (a database or queue error): forget the delivery so GitHub's redelivery is processed.
       await githubRepo.forgetDelivery(db, deliveryId);
       await githubRepo.forgetDelivery(db, bodyKey);
       return json({ error: "enqueue_failed" }, 503);

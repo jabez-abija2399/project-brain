@@ -45,6 +45,7 @@ export const prReceiptFunction = inngest.createFunction(
       () => installationClient(data.installationId),
       // The app's own address (BETTER_AUTH_URL); without it no link is written into the comment.
       process.env.BETTER_AUTH_URL ? new URL(process.env.BETTER_AUTH_URL).origin : "",
+      Number.isInteger(Number(githubConfig()?.appId)) ? Number(githubConfig()?.appId) : null,
     );
   },
 );

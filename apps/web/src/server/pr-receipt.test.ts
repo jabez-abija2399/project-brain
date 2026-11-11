@@ -1,6 +1,6 @@
 import { POST as webhook } from "@/app/api/github/webhook/route";
 import { PUT as settingsRoute } from "@/app/api/projects/[id]/settings/route";
-import { PR_COMMENT_MARKER } from "@brain/core";
+import { prCommentMarker } from "@brain/core";
 import { githubRepo, projectTokensRepo, projectsRepo, receiptsRepo } from "@brain/db";
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,13 +74,15 @@ function deliver(body: string, signature?: string | null) {
 }
 
 type Call = { route: string; params: Record<string, unknown> };
-function fakeGithub(opts: { comments?: unknown[]; deny?: RegExp } = {}) {
+function fakeGithub(opts: { comments?: unknown[]; deny?: RegExp; visibility?: string } = {}) {
   const calls: Call[] = [];
   const client: GithubClient = {
     request: async (route, params = {}) => {
       calls.push({ route, params });
       if (opts.deny?.test(route)) throw Object.assign(new Error("denied"), { status: 403 });
       if (route.includes("/pulls/")) return { data: [{ sha: HEAD }, { sha: OTHER }] };
+      if (route === "GET /repos/{owner}/{repo}")
+        return { data: { visibility: opts.visibility ?? "private" } };
       if (route.startsWith("GET") && route.includes("/comments"))
         return { data: opts.comments ?? [] };
       return { data: {} };
@@ -176,27 +178,46 @@ describe("Phase 10b: PR receipts", () => {
     expect(result).toEqual({ receipts: 1, comment: "created", check: true });
     const post = gh.calls.find((c) => c.route.startsWith("POST") && c.route.includes("/comments"));
     const body = String(post?.params.body);
-    expect(body.startsWith(PR_COMMENT_MARKER)).toBe(true);
-    expect(body).toContain("- Show prices in euros");
+    expect(body.startsWith(prCommentMarker(pid))).toBe(true);
+    expect(body).toContain("- `Show prices in euros`");
     expect(body).not.toContain("Another project");
     expect(body).toContain(`${ORIGIN}/projects/${pid}/receipts`);
     const check = gh.calls.find((c) => c.route.includes("/check-runs"));
     expect(check?.params).toMatchObject({ head_sha: HEAD, conclusion: "neutral" });
   });
 
-  it("PH10B-12 its earlier comment is updated in place; a person's comment with the marker is never edited", async () => {
+  it("PH10B-12 attack (security review): only this App's own comment for this project is updated in place", async () => {
     await setPrReceipts(world.db, owner, pid, { prReceipts: true });
     await receipt(pid, HEAD, "Show prices in euros");
+    const mine = prCommentMarker(pid);
     const gh = fakeGithub({
       comments: [
-        { id: 1, body: `${PR_COMMENT_MARKER}\nby a person`, user: { type: "User" } },
-        { id: 2, body: `${PR_COMMENT_MARKER}\nold`, user: { type: "Bot" } },
+        { id: 1, body: `${mine}\nby a person`, user: { type: "User" } },
+        // Another project's comment on the same repository, and another App's bot using our marker.
+        {
+          id: 2,
+          body: `${prCommentMarker("other-project")}\nold`,
+          user: { type: "Bot" },
+          performed_via_github_app: { id: 42 },
+        },
+        {
+          id: 3,
+          body: `${mine}\nsquatter`,
+          user: { type: "Bot" },
+          performed_via_github_app: { id: 7 },
+        },
+        {
+          id: 4,
+          body: `${mine}\nold`,
+          user: { type: "Bot" },
+          performed_via_github_app: { id: 42 },
+        },
       ],
     });
-    const result = await runPrReceipt(world.db, event(), step, gh.github, ORIGIN);
+    const result = await runPrReceipt(world.db, event(), step, gh.github, ORIGIN, 42);
     expect(result).toMatchObject({ comment: "updated" });
     const patch = gh.calls.find((c) => c.route.startsWith("PATCH"));
-    expect(patch?.params.comment_id).toBe(2);
+    expect(patch?.params.comment_id).toBe(4);
     expect(gh.calls.some((c) => c.route.startsWith("POST") && c.route.includes("/comments"))).toBe(
       false,
     );
@@ -210,6 +231,12 @@ describe("Phase 10b: PR receipts", () => {
     const all = JSON.stringify(gh.calls);
     expect(all).toContain("| Missed | 1 |");
     expect(all).not.toContain("Secret roadmap");
+    // Security review: a repository that became public or is internal gets counts only, whatever the webhook said.
+    for (const visibility of ["public", "internal"]) {
+      const flipped = fakeGithub({ visibility });
+      await runPrReceipt(world.db, event({ publicRepo: false }), step, flipped.github, ORIGIN);
+      expect(JSON.stringify(flipped.calls)).not.toContain("Secret roadmap");
+    }
   });
 
   it("PH10B-14 the job re-checks: setting off, project unlinked or the App without permission post nothing", async () => {
@@ -225,6 +252,12 @@ describe("Phase 10b: PR receipts", () => {
       await runPrReceipt(world.db, event({ repo: "acme/other" }), step, gh.github, ORIGIN),
     ).toEqual({ skipped: "not_linked" });
     expect(gh.calls).toEqual([]);
+    // A suspended project posts nothing either.
+    await world.db.execute(sql`UPDATE "projects" SET "suspended_at" = now() WHERE id = ${pid}`);
+    expect(await runPrReceipt(world.db, event(), step, gh.github, ORIGIN)).toEqual({
+      skipped: "not_linked",
+    });
+    await world.db.execute(sql`UPDATE "projects" SET "suspended_at" = NULL WHERE id = ${pid}`);
     const denied = fakeGithub({ deny: /comments/ });
     expect(await runPrReceipt(world.db, event(), step, denied.github, ORIGIN)).toEqual({
       skipped: "no_permission",
