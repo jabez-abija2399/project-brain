@@ -34,6 +34,12 @@ export type FakeRepo = {
   installations: Record<number, string[]>;
   // installations the OAuth user can access
   userInstallations: number[];
+  // repositories the OAuth user can access in each installation (default: all of the installation's)
+  userRepos?: Record<number, string[]>;
+  // the OAuth user's access per repository (default: push), and a total larger than the list (more pages)
+  userAccess?: Record<string, "read" | "push" | "admin">;
+  userReposTotal?: number;
+  installationReposTotal?: number;
   // compare result per "before...after"
   compare: Record<string, { filename: string; status: string; previous_filename?: string }[]>;
   // file contents at the push's commit
@@ -83,6 +89,24 @@ export function mockGithub(repo: FakeRepo): GithubMock {
         201,
       );
     }
+    m = url.pathname.match(/^\/user\/installations\/(\d+)\/repositories$/);
+    if (m) {
+      const id = Number(m[1]);
+      if (!repo.userInstallations.includes(id)) return json({ message: "Not Found" }, 404);
+      const mine = repo.userRepos?.[id] ?? repo.installations[id] ?? [];
+      const access = (name: string) => repo.userAccess?.[name] ?? "push";
+      return json({
+        total_count: repo.userReposTotal ?? mine.length,
+        repositories: mine.map((full_name) => ({
+          full_name,
+          permissions: {
+            admin: access(full_name) === "admin",
+            push: access(full_name) === "admin" || access(full_name) === "push",
+            pull: true,
+          },
+        })),
+      });
+    }
     if (url.pathname === "/user/installations") {
       return json({
         total_count: repo.userInstallations.length,
@@ -92,7 +116,7 @@ export function mockGithub(repo: FakeRepo): GithubMock {
     if (url.pathname === "/installation/repositories") {
       const all = Object.values(repo.installations)[0] ?? [];
       return json({
-        total_count: all.length,
+        total_count: repo.installationReposTotal ?? all.length,
         repositories: all.map((full_name) => ({ full_name })),
       });
     }
@@ -130,4 +154,29 @@ export function mockGithub(repo: FakeRepo): GithubMock {
 export function restoreGithub(): void {
   vi.unstubAllGlobals();
   setGithubConfigForTests(undefined);
+}
+
+/**
+ * A tiny cookie jar for route tests: `remember` keeps the cookies a response sets, `attach` sends them on the next
+ * request (as a browser would for the same path).
+ */
+export function cookieJar() {
+  const jar = new Map<string, string>();
+  return {
+    remember(res: Response): Response {
+      for (const line of res.headers.getSetCookie()) {
+        const [pair] = line.split(";");
+        const eq = (pair ?? "").indexOf("=");
+        if (eq > 0) jar.set((pair as string).slice(0, eq).trim(), (pair as string).slice(eq + 1));
+      }
+      return res;
+    },
+    attach(req: Request): Request {
+      if (jar.size === 0) return req;
+      const headers = new Headers(req.headers);
+      headers.set("cookie", [...jar].map(([k, v]) => `${k}=${v}`).join("; "));
+      return new Request(req, { headers });
+    },
+    clear: () => jar.clear(),
+  };
 }

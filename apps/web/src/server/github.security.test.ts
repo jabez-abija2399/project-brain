@@ -1,9 +1,9 @@
 // FEAT-009 security pass: attacker tests for the GitHub webhook, the install/link flow and the index-push job.
 // Every fake secret or token is built at runtime (string joins), never written as a literal.
-import { GET as callback } from "@/app/api/github/callback/route";
+import { GET as callbackRoute } from "@/app/api/github/callback/route";
 import { GET as install } from "@/app/api/github/install/route";
-import { POST as linkRoute } from "@/app/api/github/link/route";
-import { GET as repos } from "@/app/api/github/repos/route";
+import { POST as linkRouteRaw } from "@/app/api/github/link/route";
+import { GET as reposRoute } from "@/app/api/github/repos/route";
 import { POST as webhook } from "@/app/api/github/webhook/route";
 import { dbTablesRepo, filesRepo, githubRepo, projectsRepo, symbolsRepo } from "@brain/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +13,7 @@ import { completeInstall } from "./github-install";
 import {
   type FakeRepo,
   type GithubMock,
+  cookieJar,
   makeGithubConfig,
   mockGithub,
   restoreGithub,
@@ -27,6 +28,12 @@ import { type TestWorld, createTestWorld } from "./test-helpers";
 const BEFORE = "a".repeat(40);
 const AFTER = "b".repeat(40);
 const SENTINEL = ["SEC", "PASS", "BODY", "91c2"].join("_");
+
+// The browser's part: cookies set by the callback go with the selection screen's requests.
+const jar = cookieJar();
+const callback = (req: Request) => callbackRoute(req).then((r) => jar.remember(r));
+const repos = (req: Request) => reposRoute(jar.attach(req));
+const linkRoute = (req: Request) => linkRouteRaw(jar.attach(req));
 
 let world: TestWorld;
 let config: GithubConfig;
@@ -48,6 +55,7 @@ const step: StepRunner = {
 };
 
 beforeEach(async () => {
+  jar.clear();
   world = await createTestWorld();
   config = makeGithubConfig();
   owner = await world.createUser({ name: "owner" });

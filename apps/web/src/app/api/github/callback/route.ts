@@ -1,7 +1,12 @@
 import { requireUser } from "@/server/auth";
+import { sessionSafety } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { AppError, toResponse } from "@/server/errors";
-import { completeInstall } from "@/server/github-install";
+import {
+  ALLOWED_REPOS_COOKIE,
+  ALLOWED_REPOS_COOKIE_PATH,
+  completeInstall,
+} from "@/server/github-install";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -23,7 +28,21 @@ export async function GET(req: Request) {
       "linked" in result
         ? new URL("/projects?github=linked", req.url)
         : new URL(`/github/select?state=${encodeURIComponent(state)}`, req.url);
-    return NextResponse.redirect(to, 303);
+    const res = NextResponse.redirect(to, 303);
+    // The repositories this person may pick, for the selection screen only (see github-install.ts). A flow that
+    // linked at once clears any earlier one.
+    if ("allowedCookie" in result) {
+      res.cookies.set(ALLOWED_REPOS_COOKIE, result.allowedCookie, {
+        httpOnly: true,
+        secure: sessionSafety(process.env).advanced.useSecureCookies,
+        sameSite: "lax",
+        path: ALLOWED_REPOS_COOKIE_PATH,
+        maxAge: 10 * 60,
+      });
+    } else {
+      res.cookies.set(ALLOWED_REPOS_COOKIE, "", { path: ALLOWED_REPOS_COOKIE_PATH, maxAge: 0 });
+    }
+    return res;
   } catch (err) {
     return toResponse(err);
   }

@@ -492,3 +492,22 @@ Not done: an extension-host test with `@vscode/test-electron` (a large download 
 the `.vsix` build and marketplace publishing: owner action 15.
 Alternatives: calling the API from the extension with its own token (a second place for the token, and a second
 client to keep in step); a web view showing the receipt page (a larger attack surface for little gain).
+
+## D-032 | 2026-11-11 | Link only repositories the signed-in person can access (owner-approved)
+Context: linking a project through the GitHub App offered, and accepted, every repository of the installation. A
+person with access to one repository of an organisation's installation (or a collaborator on one repository of
+someone else's) could link a private repository they cannot read, and its pushes would then be indexed into their
+project.
+Decision: at GitHub's callback, Codeceipt asks GitHub, with the person's own one-time OAuth code, which repositories
+of that installation they can access (`GET /user/installations/{id}/repositories`), keeps only those they can push
+to or administer (read access is not enough: linking lets the App post comments and check runs there), and only
+those that the installation also lists. Both lists are read up to 100; when either is longer, nothing is linked at
+once and the selection screen is shown. One: linked at once. None: refused ("no repository your GitHub account can access").
+Several: the selection screen lists only those, and the link route accepts only those. The OAuth token is never
+stored. The allowed list goes to the selection screen as an http-only cookie (path `/api/github`, 10 minutes) of
+keyed tags (HMAC with the auth secret, bound to this install's state), so it names no repository and cannot be forged
+or reused for another install. It is marked Secure under the same rule as the sign-in cookie and cleared once used.
+No migration.
+Alternatives: a new database column for the allowed list (a production migration, and linking would break until it
+is applied); storing the person's GitHub token (a long-lived secret kept for one screen).
+

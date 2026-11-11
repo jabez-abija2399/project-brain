@@ -1,7 +1,12 @@
 import { requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { toResponse } from "@/server/errors";
-import { linkInstallRepo } from "@/server/github-install";
+import {
+  ALLOWED_REPOS_COOKIE,
+  ALLOWED_REPOS_COOKIE_PATH,
+  linkInstallRepo,
+} from "@/server/github-install";
+import { cookieValue } from "@/server/request-cookies";
 import { parseInput } from "@/server/validate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -21,8 +26,16 @@ export async function POST(req: Request) {
   try {
     const user = await requireUser(req);
     const input = await parseInput(req, linkSchema);
-    const linked = await linkInstallRepo(getDb(), user, input);
-    return NextResponse.json({ ok: true, ...linked });
+    const linked = await linkInstallRepo(
+      getDb(),
+      user,
+      input,
+      cookieValue(req, ALLOWED_REPOS_COOKIE),
+    );
+    const res = NextResponse.json({ ok: true, ...linked });
+    // Used up: the cookie is cleared with the state.
+    res.cookies.set(ALLOWED_REPOS_COOKIE, "", { path: ALLOWED_REPOS_COOKIE_PATH, maxAge: 0 });
+    return res;
   } catch (err) {
     return toResponse(err);
   }

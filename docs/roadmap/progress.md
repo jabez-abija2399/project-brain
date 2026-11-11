@@ -602,3 +602,16 @@ Status values: not started, in progress, merged, blocked (with reason).
 Phases 0-12 are merged. What remains is the owner's: the 15 entries in [../owner-actions.md](../owner-actions.md),
 starting with "Where to start". Ideas and deferred items are in `agent/later.md` and in the "Later" lines above.
 
+### After the roadmap: repository picker fix (owner-approved 2026-11-11)
+- Linking through the GitHub App now offers and accepts only repositories the signed-in person can access on GitHub
+  (decision D-032). Attack tests in `apps/web/src/server/github-install.test.ts`.
+- **Test helpers changed, openly:** the install tests now carry cookies from the callback to the selection screen, as
+  a browser does (`cookieJar` in `github-test-helpers.ts`). No assertion changed.
+- **Security review (fresh context): no bypass found; one MEDIUM and three LOW findings fixed, with tests.**
+  - MEDIUM: read-only access was enough to link, and linking lets the App post comments and check runs. Now push or
+    admin access is required.
+  - LOW: a list cut at 100 could link a repository on the person's behalf; now the selection screen is shown. The
+    cookie is cleared once used. Its Secure flag follows the sign-in cookie's rule.
+  - Recorded in `agent/later.md`: revoking the person's one-time GitHub token after use, and binding the GitHub
+    account behind the callback's code to the signed-in account (needs a leaked state; predates this change).
+

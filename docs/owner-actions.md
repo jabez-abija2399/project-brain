@@ -34,10 +34,9 @@ the order to do them in, most useful first.
 11. **Action 7**: let `list_features` leave the tool list (one release after action 8).
 12. **Action 15**: try, package and publish the VS Code extension (after action 8).
 
-**One more thing that needs your go-ahead (not an action yet):** when a project is linked through the GitHub App,
-the repository picker lists every repository of the installation, not only the ones the signed-in user can read.
-Fixing it changes how sign-in permissions are checked, which I do not change without you. It is recorded in
-`agent/later.md`; say the word and I will prepare it as its own pull request.
+**Done after your go-ahead (2026-11-11):** when a project is linked through the GitHub App, the repository list
+now shows only repositories the signed-in person can access on GitHub, and only those can be linked (decision
+D-032). Nothing for you to do.
 
 ---
 
