@@ -43,6 +43,7 @@ New versions are only installed once they are 7 days old (dependency cooldown: `
 | @brain/db | apps/web | workspace package (data access) | n/a — internal workspace package | internal | 2026-10-23 |
 | @brain/cli | apps/web (dev) | workspace package; apps/web tests drive `codeceipt index` end to end against the real /api/index handlers | n/a — internal workspace package | internal | 2026-10-28 |
 | @types/node | all (dev) | Node type definitions | required by typescript when targeting Node runtimes | MIT | 2026-10-23 |
+| @types/vscode | packages/vscode-extension (dev) | type definitions for the VS Code extension API (types only, nothing shipped); pinned to 1.90.0 (released 2024), the oldest editor version the extension supports | hand-written `declare module "vscode"` (drifts from the real API), @vscode/test-electron (a test runner, not types; a large download) | MIT | 2026-11-11 |
 | @types/react | apps/web (dev) | React type definitions | required by react typecheck | MIT | 2026-10-23 |
 | @types/react-dom | apps/web (dev) | ReactDOM type definitions | required by react-dom typecheck | MIT | 2026-10-23 |
 

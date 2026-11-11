@@ -1,0 +1,50 @@
+{
+  "name": "codeceipt-vscode",
+  "displayName": "Codeceipt",
+  "description": "A receipt for every AI change: the latest receipt and your next step, in the editor.",
+  "version": "0.1.0",
+  "private": true,
+  "publisher": "codeceipt",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/jabez-abija2399/project-brain" },
+  "engines": { "vscode": "^1.90.0" },
+  "categories": ["Other"],
+  "main": "./dist/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false,
+      "description": "Codeceipt runs the installed codeceipt command in your project, so it only works in trusted folders."
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "commands": [
+      { "command": "codeceipt.refresh", "title": "Codeceipt: Refresh" },
+      { "command": "codeceipt.showLast", "title": "Codeceipt: Show the last receipt" },
+      { "command": "codeceipt.openReceipts", "title": "Codeceipt: Open receipts in the browser" },
+      { "command": "codeceipt.openNext", "title": "Codeceipt: Open the next step in the browser" }
+    ],
+    "views": {
+      "explorer": [{ "id": "codeceipt.receipt", "name": "Codeceipt" }]
+    },
+    "viewsWelcome": [
+      {
+        "view": "codeceipt.receipt",
+        "contents": "No receipt to show yet.\nConnect this folder with `npx codeceipt` in a terminal, then finish one agent session.\n[Refresh](command:codeceipt.refresh)"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsc --noEmit && node build.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/vscode": "1.90.0",
+    "esbuild": "0.28.2",
+    "typescript": "^5.6.3",
+    "vitest": "^4.1.12"
+  }
+}

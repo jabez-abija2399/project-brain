@@ -82,6 +82,89 @@ describe("codeceipt status (roadmap Phase 9)", () => {
   });
 });
 
+describe("codeceipt --json (roadmap Phase 11)", () => {
+  it("PH11-01 status --json and last --json give the same answers as data, with no token and no server text", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "cc-json-"));
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: dir });
+    const home = mkdtempSync(join(tmpdir(), "cc-home-"));
+    const token = ["pb", "_", "testtoken123"].join("");
+    linkRepo(dir, configPath({ XDG_CONFIG_HOME: join(home, ".config") }, "linux", home), {
+      apiUrl: "https://codeceipt.example",
+      projectId: PROJECT,
+      token,
+    });
+    const esc = String.fromCharCode(27);
+    const run = async (argv: string[]) => {
+      const out: string[] = [];
+      const code = await main(argv, {
+        fetch: async (url) =>
+          new Response(
+            JSON.stringify(
+              String(url).endsWith("/next-step")
+                ? { ok: true, state: { pendingApprovals: 2, receipts: 1, criteria: 3 } }
+                : {
+                    ok: true,
+                    receipt_id: "rc-1",
+                    created_at: "2026-11-11T08:00:00.000Z",
+                    receipt: {
+                      items: [
+                        { id: "a", text: "Add a cart", status: "done" },
+                        { id: "b", text: `Show totals${esc}[2J`, status: "missed" },
+                      ],
+                      note: "server text that is never printed",
+                    },
+                  },
+            ),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        env: { HOME: home, XDG_CONFIG_HOME: join(home, ".config") },
+        cwd: dir,
+        homedir: home,
+        platform: "linux",
+        stdout: (l) => out.push(l),
+        stderr: () => {},
+        readStdin: async () => "",
+      });
+      return { code, text: out.join("\n") };
+    };
+    const status = await run(["status", "--json"]);
+    expect(JSON.parse(status.text)).toEqual({
+      next: {
+        id: "approvals",
+        text: "Your agents are waiting for you: 2 requests to approve or reject.",
+        url: `https://codeceipt.example/projects/${PROJECT}/approvals`,
+        command: "codeceipt approvals",
+        ask_agent: null,
+      },
+    });
+    const last = await run(["last", "--json"]);
+    expect(JSON.parse(last.text)).toEqual({
+      receipt: {
+        id: "rc-1",
+        created_at: "2026-11-11T08:00:00.000Z",
+        counts: {
+          done: 1,
+          partly_done: 0,
+          missed: 1,
+          not_verified: 0,
+          security_findings: 0,
+          test_checks: 0,
+          claims_contradicted: 0,
+        },
+        missed: ["Show totals [2J"],
+      },
+      url: `https://codeceipt.example/projects/${PROJECT}/receipts`,
+    });
+    for (const t of [status.text, last.text]) {
+      expect(t).not.toContain(token);
+      expect(t).not.toContain(esc);
+      expect(t).not.toContain("never printed");
+      expect(t.split("\n")).toHaveLength(1);
+    }
+    expect((await run(["status", "--yaml"])).code).toBe(2);
+  });
+});
+
 describe("docs/actions.md (roadmap Phase 9)", () => {
   it("PH9-10 every command in the help text is in docs/actions.md", () => {
     const doc = readFileSync(new URL("../../../docs/actions.md", import.meta.url), "utf8");

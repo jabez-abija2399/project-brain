@@ -74,7 +74,7 @@ export function helpText(): string {
     "  codeceipt guard [--staged|--ci]     checks changed files: weakened tests, secrets, hidden characters, boundaries",
     "  codeceipt guard --install-hook      checks every commit in this repo (a pre-commit hook; asks nothing, changes no existing hook)",
     '  codeceipt prove [--for "<request>"] runs only the tests for this change with your check command; prints the result',
-    "  codeceipt status                    the one next step for this project, with its page and command",
+    "  codeceipt status [--json]           the one next step for this project, with its page and command",
     "  codeceipt export --to <kind>        writes the approved Blueprint into AGENTS.md, OpenSpec or Spec Kit (--write, --check)",
     "  codeceipt import [--from <kind>]    turns agent/features.json, Spec Kit, Kiro, OpenSpec, AGENTS.md or a README into a plan draft",
     "  codeceipt review [--staged|--ci]    the build checklist and size flags for the changed files (nothing is sent)",
@@ -84,6 +84,7 @@ export function helpText(): string {
     "  codeceipt init --remove-repo-files  removes those files for agents whose Codeceipt plugin is installed",
     "  codeceipt receipt                   saves a receipt and progress now (for agents with no session-end event)",
     "  codeceipt last                      prints the latest receipt's summary and link again",
+    "  codeceipt last --json               the latest receipt as data (counts and missed items), for editors",
     "  codeceipt last --evidence           also prints the code-free evidence the judge was given, per file",
     "  codeceipt doctor                    checks the install, login, repo link, hooks and network, with the fix for each problem",
     "  codeceipt update                    updates the native app now (it also checks by itself once a day)",
@@ -451,10 +452,12 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       return EXIT.ok;
     } else if (command === "last") {
       const evidence = args.length === 1 && args[0] === "--evidence";
-      if (args.length > 0 && !evidence) {
-        throw new CliError(EXIT.usage, "Usage: codeceipt last [--evidence]");
+      // Roadmap Phase 11: the same receipt as data, for editors.
+      const asJson = args.length === 1 && args[0] === "--json";
+      if (args.length > 0 && !evidence && !asJson) {
+        throw new CliError(EXIT.usage, "Usage: codeceipt last [--evidence | --json]");
       }
-      return await runLast(deps, path, evidence);
+      return await runLast(deps, path, evidence, asJson);
     } else if (command === "receipt") {
       if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt receipt");
       return await runReceipt(deps, path);
@@ -489,7 +492,9 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       });
     } else if (command === "status") {
       // Roadmap Phase 9: the project's one next step, the same one the Overview page shows.
-      if (args.length > 0) throw new CliError(EXIT.usage, "Usage: codeceipt status");
+      const asJson = args.length === 1 && args[0] === "--json";
+      if (args.length > 0 && !asJson)
+        throw new CliError(EXIT.usage, "Usage: codeceipt status [--json]");
       const config = await projectConfig(deps, path, deps.cwd, { linkedOnly: true });
       const { state } = await request<{ state: unknown }>(
         deps.fetch,
@@ -497,8 +502,9 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         "GET",
         `/api/hooks/${encodeURIComponent(config.projectId)}/next-step`,
       );
-      const { statusLines } = await import("./status-lines");
-      for (const line of statusLines(state, config)) deps.stdout(line);
+      const { statusJson, statusLines } = await import("./status-lines");
+      if (asJson) deps.stdout(JSON.stringify(statusJson(state, config)));
+      else for (const line of statusLines(state, config)) deps.stdout(line);
       return EXIT.ok;
     } else if (command === "export") {
       // Roadmap Phase 8: the owner-approved Blueprint into AGENTS.md, OpenSpec or Spec Kit files in this repo.
@@ -819,7 +825,12 @@ async function runReceipt(deps: CliDeps, path: string): Promise<number> {
 
 // Dogfooding: Claude Code does not show a SessionEnd hook's output once the agent has exited, so the latest receipt's
 // summary can be printed again here. Only counts are read from the server's answer (receiptSummary), never its text.
-async function runLast(deps: CliDeps, path: string, evidence = false): Promise<number> {
+async function runLast(
+  deps: CliDeps,
+  path: string,
+  evidence = false,
+  asJson = false,
+): Promise<number> {
   const config = await projectConfig(deps, path, deps.cwd);
   if (!isSafeApiUrl(config.apiUrl)) {
     throw new CliError(
@@ -836,7 +847,10 @@ async function runLast(deps: CliDeps, path: string, evidence = false): Promise<n
   }>(deps.fetch, config, "GET", `/api/hooks/${encodeURIComponent(config.projectId)}/last-receipt`);
   const stored = answer.receipt;
   if (typeof stored !== "object" || stored === null) {
-    deps.stdout("No receipt yet: make a change with your agent and end the session.");
+    if (asJson) {
+      const { lastJson } = await import("./status-lines");
+      deps.stdout(JSON.stringify(lastJson(null, null, null, config)));
+    } else deps.stdout("No receipt yet: make a change with your agent and end the session.");
     return EXIT.ok;
   }
   // The owner's closes and dismissals since the receipt was written: labelled, never counted as missed.
@@ -854,6 +868,13 @@ async function runLast(deps: CliDeps, path: string, evidence = false): Promise<n
     /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(answer.created_at)
       ? ` (${answer.created_at.slice(0, 16).replace("T", " ")} UTC)`
       : "";
+  if (asJson) {
+    const { lastJson } = await import("./status-lines");
+    const created =
+      typeof answer.created_at === "string" && at !== "" ? answer.created_at.slice(0, 30) : null;
+    deps.stdout(JSON.stringify(lastJson(receipt, id, created, config)));
+    return EXIT.ok;
+  }
   deps.stdout(`Latest receipt${at}:`);
   for (const line of receiptSummary(receipt, config, id)) deps.stdout(line);
   for (const line of ownerStateLines(receipt)) deps.stdout(line);
