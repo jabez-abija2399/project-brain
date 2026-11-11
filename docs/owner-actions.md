@@ -211,6 +211,16 @@ Users get all of this through the release.
 **Check:** https://www.npmjs.com/package/codeceipt shows 0.3.7 with provenance, and `codeceipt --version` prints
 0.3.7 after `codeceipt update`.
 
+
+**2026-11-12: the first try stopped at macOS.** Run #16 cancelled `build-macos` with "The configuration
+'macos-14-arm64-us-default' is not supported": GitHub retired the macOS 14 machines. Nothing was published. Fix (phone):
+1. GitHub → repository → `.github/workflows/release-cli.yml` → pencil icon → line 74: change `runs-on: macos-14` to
+   `runs-on: macos-15` → **Commit changes** → commit directly to `main`.
+2. A re-run would use the old file, so start over: **Releases** → the `cli-v0.3.7` release → **Delete**; then
+   **Tags** → `cli-v0.3.7` → **⋯** → **Delete tag**.
+3. **Releases** → **Draft a new release** → tag `cli-v0.3.7` → **Create new tag on publish**, target `main` →
+   **Publish release**.
+4. **Actions** → **release-cli** → the new run → approve **release** twice. Tell Claude "0.3.7 is released".
 ---
 
 ## 9. Apply migration 0054 (Project Blueprint) — DONE 2026-11-11 (by Claude, owner-approved)
