@@ -8,6 +8,11 @@ import type { SessionUser } from "./auth";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+// The pull-request switch (a client component) shows once a repository is connected; it uses the router.
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh: () => {}, push: () => {} }),
+}));
 
 // The Connect tab shows the same `npx codeceipt` flow as the start page, with the status of this project only.
 let world: TestWorld;
@@ -112,5 +117,24 @@ describe("Connect tab", () => {
     expect(html).toContain("Receipts on pull requests");
     expect(html).toContain("GitHub App first");
     expect(html).not.toContain("Turn on receipts on pull requests");
+  });
+
+  it("BL-27 offers Connect GitHub when the App is set up and the repo is not connected; names the repo once it is", async () => {
+    const { makeGithubConfig, restoreGithub } = await import("./github-test-helpers");
+    const { githubRepo } = await import("@brain/db");
+    const project = await projectsRepo.create(world.db, owner.id, { name: "shop" });
+    expect(await connect(project.id)).toContain("The GitHub App is not set up on this server.");
+    makeGithubConfig();
+    try {
+      const html = await connect(project.id);
+      expect(html).toContain(`href="/api/github/install?projectId=${project.id}"`);
+      expect(html).toContain("Connect GitHub");
+      await githubRepo.linkProject(world.db, project.id, owner.id, 77, "acme/shop");
+      const linked = await connect(project.id);
+      expect(linked).toContain("acme/shop");
+      expect(linked).not.toContain("Connect GitHub");
+    } finally {
+      restoreGithub();
+    }
   });
 });

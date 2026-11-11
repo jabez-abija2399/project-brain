@@ -11,6 +11,7 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  statSync,
   writeSync,
 } from "node:fs";
 import { dirname, isAbsolute, join, sep } from "node:path";
@@ -492,6 +493,17 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
     };
     // Written before hashing, so a hook stopped while hashing still keeps the starting commit (no snapshot then).
     writeState(file, JSON.stringify(state));
+    // Files carry the filesystem's clock, which can run a few milliseconds behind this process's: the start is the
+    // earlier of the two, so a test report written right after it is never taken for an older one (root cause of an
+    // intermittent PH10-12 failure). Only within a few seconds of each other (a clock set by a test is left alone).
+    try {
+      const mark = Math.floor(statSync(file).mtimeMs);
+      const started = Date.parse(state.startedAt);
+      if (mark < started && started - mark < 5_000) {
+        state.startedAt = new Date(mark).toISOString();
+        writeState(file, JSON.stringify(state));
+      }
+    } catch {}
     const snapshot = await takeSnapshot(deps.git, root).catch(() => null);
     if (snapshot) {
       const blobs = await startBlobs(deps.git, root, snapshot).catch(() => ({}));

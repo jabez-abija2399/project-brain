@@ -334,6 +334,27 @@ export async function listFeatures(db: BrainDb, token: ToolToken, raw: unknown) 
   });
 }
 
+/** The owner dismisses an agent's directive proposal (backlog). Another project's or a non-proposal is 404. */
+export async function dismissDirective(
+  db: BrainDb,
+  user: SessionUser,
+  projectId: string,
+  directiveId: string,
+) {
+  await requireProjectAccess(db, projectId, user);
+  if (!(await directivesRepo.dismiss(db, projectId, directiveId))) {
+    throw new AppError(404, "not_found");
+  }
+  return { id: directiveId, status: "dismissed" as const };
+}
+
+/** The owner's list of directive proposals waiting for a decision (backlog). */
+export async function directiveProposals(db: BrainDb, user: SessionUser, projectId: string) {
+  await requireProjectAccess(db, projectId, user);
+  const rows = await directivesRepo.listProposals(db, projectId, new Date());
+  return rows.map((d) => ({ id: d.id, text: d.text, createdAt: d.createdAt.toISOString() }));
+}
+
 // Dashboard side (the project owner's session, never an MCP token): confirms a proposal so it becomes active.
 export async function confirmDirective(
   db: BrainDb,

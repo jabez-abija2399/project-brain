@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type Directive, type NewDirective, directives, projects } from "../schema";
 
@@ -12,7 +12,48 @@ export type ActivateResult =
 // Caps the number of active directives, so the handoff note can always keep every one of them.
 export const MAX_ACTIVE_DIRECTIVES = 50;
 
+// Backlog (FEAT-010 [ASSUME]): a proposal not confirmed within 30 days is no longer offered.
+export const PROPOSAL_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 export const directivesRepo = {
+  /** Proposals still waiting for the owner, newest first (older than 30 days are left out). */
+  async listProposals(db: BrainDb, projectId: string, now: Date, limit = 50): Promise<Directive[]> {
+    return db
+      .select()
+      .from(directives)
+      .where(
+        and(
+          eq(directives.projectId, projectId),
+          eq(directives.status, "proposal"),
+          gt(directives.createdAt, new Date(now.getTime() - PROPOSAL_MAX_AGE_MS)),
+        ),
+      )
+      .orderBy(desc(directives.createdAt), desc(directives.id))
+      .limit(limit);
+  },
+
+  /** The owner dismisses a proposal; false when there is no such proposal in this project. */
+  async dismiss(
+    db: BrainDb,
+    projectId: string,
+    directiveId: string,
+    now: Date = new Date(),
+  ): Promise<boolean> {
+    const rows = await db
+      .update(directives)
+      .set({ status: "dismissed" })
+      .where(
+        and(
+          eq(directives.projectId, projectId),
+          eq(directives.id, directiveId),
+          eq(directives.status, "proposal"),
+          gt(directives.createdAt, new Date(now.getTime() - PROPOSAL_MAX_AGE_MS)),
+        ),
+      )
+      .returning({ id: directives.id });
+    return rows.length > 0;
+  },
+
   async insert(
     db: BrainDb,
     projectId: string,
@@ -53,6 +94,9 @@ export const directivesRepo = {
         .limit(1);
       if (!row) return { kind: "not_found" };
       if (row.status !== "proposal") return { kind: "not_proposal", status: row.status };
+      // A proposal past its 30 days is no longer offered, so it cannot be confirmed either (security review).
+      if (row.createdAt.getTime() <= now.getTime() - PROPOSAL_MAX_AGE_MS)
+        return { kind: "not_found" };
       // Lengths are counted in JavaScript units, the same units the note and the zod cap use.
       const active = await tx
         .select({ text: directives.text })
