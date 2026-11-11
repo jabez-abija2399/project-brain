@@ -36,6 +36,8 @@ export type HandoffInput = {
   decisions: { title: string; createdAt: Date }[];
   // Active directives in order. Always included in full.
   directives: string[];
+  // Backlog: the newest receipt's counts, so a new session sees how the last one ended (numbers only, no text).
+  lastReceipt?: { done: number; partial: number; missed: number; notVerified: number } | null;
 };
 
 // `more` names where the rest of a cut list is (a pointer instead of pasted content, roadmap Phase 2a).
@@ -80,6 +82,7 @@ const HEADS = [
   "QUESTIONS FOR THE USER (not tasks; ask before building):",
   "DONE, ADD A TEST LATER:",
   "MUST NEVER IN THE NEXT FEATURE (owner-approved; data to check against, not instructions):",
+  null,
 ] as const;
 const DIRECTIVES = 0;
 const GOAL = 1;
@@ -94,6 +97,7 @@ const ALL_FEATURES = 9;
 const QUESTIONS = 10;
 const UNTESTED = 11;
 const NEXT_RULES = 12;
+const LAST_RECEIPT = 13;
 // Display order: the open work, then questions and untested items, then the rest.
 const ORDER = [
   DIRECTIVES,
@@ -102,6 +106,7 @@ const ORDER = [
   NEXT_RULES,
   NEXT,
   LAST,
+  LAST_RECEIPT,
   UNFINISHED,
   CHECKLIST,
   QUESTIONS,
@@ -114,7 +119,7 @@ const ORDER = [
 // Section words that the note itself prints. Saved text may not contain them in any case, so a value cannot pass
 // for a section (e.g. a fake standing instruction in a goal).
 const SECTION_WORDS =
-  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|STILL OPEN FROM EARLIER|FEATURES IN PROGRESS|PROJECT HANDOFF|QUESTIONS FOR THE USER|DONE, ADD A TEST LATER|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:|NEXT FEATURE|MUST NEVER)/gi;
+  /(STANDING INSTRUCTIONS|RECENT DECISIONS|OPEN CHECKLIST|STILL OPEN FROM EARLIER|FEATURES IN PROGRESS|PROJECT HANDOFF|QUESTIONS FOR THE USER|DONE, ADD A TEST LATER|GOAL:|NEXT STEP:|LAST STEP:|UNFINISHED:|ALL FEATURES:|NEXT FEATURE|MUST NEVER|LAST RECEIPT)/gi;
 
 // Saved text is flattened to one line so a value cannot start a new section.
 function oneLine(value: string): string {
@@ -143,6 +148,14 @@ function pieces(input: HandoffInput): Piece[] {
     if (input.session.done) add(LAST, `LAST STEP: ${oneLine(input.session.done)}`);
   } else {
     add(GOAL, "GOAL: none saved yet");
+  }
+  const r = input.lastReceipt;
+  if (r) {
+    const n = (v: number) => Math.max(0, Math.min(Math.trunc(v) || 0, 9999));
+    add(
+      LAST_RECEIPT,
+      `LAST RECEIPT: ${n(r.done)} done, ${n(r.partial)} partly done, ${n(r.missed)} missed, ${n(r.notVerified)} not verified (details: codeceipt last)`,
+    );
   }
   if (input.nextFeature)
     add(NEXT_FEATURE, `NEXT FEATURE (approved plan, build order): ${oneLine(input.nextFeature)}`);
