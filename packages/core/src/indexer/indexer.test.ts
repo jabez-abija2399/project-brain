@@ -89,8 +89,10 @@ describe("indexRepo on the next-app fixture", () => {
     const card = result.files.find((f) => f.path === "src/components/Card.tsx");
     const utils = card?.imports.find((i) => i.to === "@/lib/utils");
     expect(utils?.resolved).toBe("src/lib/utils.ts");
-    const external = home?.imports.find((i) => i.to === "react");
-    if (external) expect(external.resolved).toBeNull();
+    // Backlog (FEAT-004 review L3): asserted every time, on a file that does import react.
+    const external = card?.imports.find((i) => i.to === "react");
+    expect(external?.external).toBe(true);
+    expect(external?.resolved).toBeNull();
   });
 
   it("AC-004-04 reports syntax errors without stopping the rest of the index", async () => {
