@@ -173,7 +173,7 @@ absent; where_did_we_stop with features: true answers it)", then run
 
 **Check:** `python3 scripts/kit.py show FEAT-011` shows the new wording.
 
-## 8. Release CLI 0.3.7 (fast hooks, stop gate modes, Codeceipt Guard) — pending
+## 8. Release CLI 0.3.8 (was 0.3.7; fast hooks, stop gate modes, Codeceipt Guard) — pending
 
 **Why:** it replaces 0.3.5 and 0.3.6, which were never released, and contains:
 - **Phase 2b:** every hook starts about 5× faster (the indexer loads only for `codeceipt index`), and the start note
@@ -211,6 +211,13 @@ Users get all of this through the release.
 **Check:** https://www.npmjs.com/package/codeceipt shows 0.3.7 with provenance, and `codeceipt --version` prints
 0.3.7 after `codeceipt update`.
 
+
+**2026-11-12: released as 0.3.8 instead.** The `cli-v0.3.7` tag could not be deleted (tag rules protect release
+tags), so the version moved to 0.3.8 and the `cli-v0.3.7` tag and its draft release can simply stay. Steps:
+1. Make the macOS fix above (`runs-on: macos-15`, line 74 of `.github/workflows/release-cli.yml`), committed to `main`.
+2. After Claude says the 0.3.8 change is merged: **Releases** → **Draft a new release** → tag `cli-v0.3.8` →
+   **Create new tag on publish**, target `main` → **Publish release**.
+3. **Actions** → **release-cli** → the new run → approve **release** twice. Tell Claude "0.3.8 is released".
 ---
 
 ## 9. Apply migration 0054 (Project Blueprint) — DONE 2026-11-11 (by Claude, owner-approved)
