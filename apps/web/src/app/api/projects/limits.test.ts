@@ -125,4 +125,22 @@ describe("FEAT-003 limits: active tokens per project and list pagination", () =>
       expect(t.status, qs).toBe(400);
     }
   });
+
+  it("BL-18 token creation is rate limited per user (30 a minute), even with tokens revoked in between", async () => {
+    const user = await world.createUser();
+    world.signInAs(user);
+    const project = await projectsRepo.create(world.db, user.id, { name: "demo" });
+    const url = `http://x/api/projects/${project.id}/tokens`;
+    const statuses: number[] = [];
+    for (let i = 0; i < 31; i++) {
+      const res = await createToken(req(url, "POST"), paramsOf({ id: project.id }));
+      statuses.push(res.status);
+      if (res.status === 201) {
+        const { id } = (await res.json()) as { id: string };
+        await revokeToken(req(`${url}/${id}`, "DELETE"), paramsOf({ id: project.id, tokenId: id }));
+      }
+    }
+    expect(statuses.slice(0, 30).every((s) => s === 201)).toBe(true);
+    expect(statuses[30]).toBe(429);
+  });
 });
