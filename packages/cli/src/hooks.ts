@@ -532,8 +532,15 @@ export async function sessionStart(agent: Agent, deps: HookDeps): Promise<void> 
           ? JSON.stringify({
               hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: safe },
             })
-          : safe,
+          : asPlainText(safe),
   );
+}
+
+// Backlog (D-021 security): Claude Code reads a SessionStart hook's stdout as hook control when it is JSON. The note
+// is printed as plain text there, so a note that would itself parse as JSON gets a label line first and stays data.
+export function asPlainText(note: string): string {
+  const head = note.trimStart()[0];
+  return head === "{" || head === "[" ? `Codeceipt note:\n${note}` : note;
 }
 
 // Resolves with the promise's value, or { ok: false } after `ms` or with the rejection's reason.
