@@ -7,6 +7,38 @@ Each entry says what it unblocks and how to check it worked. Most steps work on 
 
 Status: **pending**, **done** (with date).
 
+## Where to start (ordered 2026-11-11, after the roadmap)
+
+Nothing below is done yet. The numbers are the entries further down; they keep their original numbers, so this is
+the order to do them in, most useful first.
+
+**First, so that what was built reaches users (about an hour in total):**
+1. **Action 1**: apply database migrations automatically after merge. Do this first: it makes actions 6, 9, 11 and
+   13 happen by themselves on the next merge.
+2. **Actions 6, 9, 11, 13**: apply migrations 0051, 0054, 0055 and 0056, only if you skipped action 1. Until then
+   the context-pack cache, the Blueprint, approvals and the pull-request switch show "being set up" and nothing
+   else breaks.
+3. **Action 8**: release CLI 0.3.7. Everything in the CLI since Phase 2 waits on this: fast hooks, the done gate,
+   Guard, protected paths, import and export, `status`, the claim checker, `--json`.
+
+**Then, decisions only you can make (a few minutes each):**
+4. **Action 10**: choose the done gate's default mode.
+5. **Action 14**: let the GitHub App comment on pull requests (needed before the pull-request switch does anything).
+6. **Action 12**: choose an email provider for approval notifications.
+
+**When you have time (housekeeping and optional):**
+7. **Action 5**: faster verification (parallel CI and quick mode).
+8. **Action 2**: merge the GitHub Actions version bumps.
+9. **Action 4**: lock npm publishing to the release workflow.
+10. **Action 3**: tidy up GitHub Releases.
+11. **Action 7**: let `list_features` leave the tool list (one release after action 8).
+12. **Action 15**: try, package and publish the VS Code extension (after action 8).
+
+**One more thing that needs your go-ahead (not an action yet):** when a project is linked through the GitHub App,
+the repository picker lists every repository of the installation, not only the ones the signed-in user can read.
+Fixing it changes how sign-in permissions are checked, which I do not change without you. It is recorded in
+`agent/later.md`; say the word and I will prepare it as its own pull request.
+
 ---
 
 ## 1. Apply database migrations automatically after merge — pending
