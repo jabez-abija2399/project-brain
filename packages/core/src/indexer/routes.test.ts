@@ -27,3 +27,22 @@ describe("detectRoute (backlog)", () => {
     }
   });
 });
+
+describe("walk limits (backlog)", () => {
+  it("BL-25 the walk stops at its file limit and counts skipped paths past the listing limit", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { walkRepo } = await import("./walker");
+    const root = mkdtempSync(join(tmpdir(), "cc-walk-"));
+    for (let i = 0; i < 30; i++) writeFileSync(join(root, `f${i}.ts`), "export {};\n");
+    for (let i = 0; i < 12; i++) writeFileSync(join(root, `n${i}.png`), "x");
+    const r = walkRepo(root, undefined, { files: 10, skipped: 5 });
+    expect(r.files).toHaveLength(10);
+    expect(r.skipped.length).toBeLessThanOrEqual(5);
+    expect(r.errors.map((e) => e.message)).toContain("walk stopped at 10 files");
+    const all = walkRepo(root, undefined, { skipped: 5 });
+    expect(all.files).toHaveLength(30);
+    expect(all.errors.map((e) => e.message)).toContain("7 more skipped paths not listed");
+  });
+});

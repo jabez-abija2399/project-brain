@@ -117,7 +117,10 @@ export async function runIndex(
 
   // KI-024: each diff batch covers the local paths in (after, through]; the server deletes stored files in that range
   // that are not listed. Skipped when a file could not be read, so it is never deleted by mistake.
-  const unreadable = index.errors.some((e) => e.message.startsWith("read failed"));
+  // A walk that stopped at its file limit did not see every file either (backlog): nothing is deleted then.
+  const unreadable = index.errors.some(
+    (e) => e.message.startsWith("read failed") || e.message.startsWith("walk stopped"),
+  );
   const changed = new Set<string>();
   let deleted = 0;
   const diffBatches = batches(files, BATCH_FILES).map((batch, i, all) => ({
