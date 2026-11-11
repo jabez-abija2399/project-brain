@@ -3,8 +3,13 @@
 // when it is exactly what init writes (an edited one, or one that merely looks like ours, stays and is reported).
 // The shared skill and the AGENTS.md section go only when no agent in the repo still relies on per-repo files.
 import {
+  constants,
+  closeSync,
   existsSync,
+  fstatSync,
+  ftruncateSync,
   lstatSync,
+  openSync,
   readFileSync,
   readdirSync,
   realpathSync,
@@ -37,6 +42,46 @@ import {
   cursorMcpServer,
   isOurHook,
 } from "./templates";
+
+// Backlog (D-028 review LOW): the path is checked, then read or rewritten through a descriptor opened without
+// following a symlink and checked again, so a file swapped for a link in between is never read or written through.
+// O_NOFOLLOW does not exist on Windows (0 there): the lstat check in safe() is what applies.
+const NOFOLLOW = constants.O_NOFOLLOW ?? 0;
+// Null when the path is no longer a regular file (a symlink now, a folder, gone): it is then left alone.
+function readNoFollow(abs: string): string | null {
+  let fd: number;
+  try {
+    fd = openSync(abs, constants.O_RDONLY | NOFOLLOW);
+  } catch {
+    return null;
+  }
+  try {
+    return fstatSync(fd).isFile() ? readFileSync(fd, "utf8") : null;
+  } catch {
+    return null;
+  } finally {
+    closeSync(fd);
+  }
+}
+function writeNoFollow(abs: string, text: string): boolean {
+  let fd: number;
+  try {
+    fd = openSync(abs, constants.O_WRONLY | NOFOLLOW);
+  } catch {
+    return false;
+  }
+  try {
+    if (!fstatSync(fd).isFile()) return false;
+    // Truncated only after the descriptor is known to be the regular file.
+    ftruncateSync(fd, 0);
+    writeFileSync(fd, text);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    closeSync(fd);
+  }
+}
 
 type Json = Record<string, unknown>;
 const isObject = (v: unknown): v is Json =>
@@ -88,8 +133,9 @@ class Remover {
   file(rel: string, text: string) {
     const abs = this.safe(rel);
     if (!abs) return;
-    if (readFileSync(abs, "utf8") !== text)
-      return void this.lines.push(`  kept    ${rel} (changed by you)`);
+    const now = readNoFollow(abs);
+    if (now === null) return;
+    if (now !== text) return void this.lines.push(`  kept    ${rel} (changed by you)`);
     rmSync(abs);
     this.dropEmptyFolders(abs);
     this.lines.push(`  removed  ${rel}`);
@@ -100,7 +146,7 @@ class Remover {
     if (!abs) return;
     let doc: unknown;
     try {
-      doc = JSON.parse(readFileSync(abs, "utf8"));
+      doc = JSON.parse(readNoFollow(abs) ?? "null");
     } catch {
       return;
     }
@@ -112,7 +158,7 @@ class Remover {
       rmSync(abs);
       this.dropEmptyFolders(abs);
     } else {
-      writeFileSync(abs, `${JSON.stringify(doc, null, 2)}\n`);
+      writeNoFollow(abs, `${JSON.stringify(doc, null, 2)}\n`);
     }
     for (const what of removed) this.lines.push(`  removed  ${rel}: ${what}`);
   }
@@ -120,8 +166,8 @@ class Remover {
   codexToml(rel: string) {
     const abs = this.safe(rel);
     if (!abs) return;
-    const text = readFileSync(abs, "utf8");
-    if (codexServer(text) !== "ours") return;
+    const text = readNoFollow(abs);
+    if (text === null || codexServer(text) !== "ours") return;
     const lines = text.split("\n");
     const at = lines.findIndex((l) => l.trim() === "[mcp_servers.codeceipt]");
     const from = at > 0 && lines[at - 1]?.startsWith("# Codeceipt (added by") ? at - 1 : at;
@@ -131,20 +177,21 @@ class Remover {
     if (rest.trim() === "") {
       rmSync(abs);
       this.dropEmptyFolders(abs);
-    } else writeFileSync(abs, rest);
+    } else writeNoFollow(abs, rest);
     this.lines.push(`  removed  ${rel}: MCP server ${SERVER_NAME}`);
   }
 
   agentsSection() {
     const abs = this.safe("AGENTS.md");
     if (!abs) return;
-    const text = readFileSync(abs, "utf8");
+    const text = readNoFollow(abs);
+    if (text === null) return;
     const from = text.indexOf(AGENTS_START);
     const to = text.indexOf(AGENTS_END, from);
     if (from === -1 || to === -1) return;
     const rest = `${text.slice(0, from).replace(/\n+$/, "")}${text.slice(to + AGENTS_END.length).replace(/^\n+/, "\n")}`;
     if (rest.trim() === "") rmSync(abs);
-    else writeFileSync(abs, rest.endsWith("\n") ? rest : `${rest}\n`);
+    else writeNoFollow(abs, rest.endsWith("\n") ? rest : `${rest}\n`);
     this.lines.push("  removed  AGENTS.md section");
   }
 }
