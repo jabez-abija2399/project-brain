@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import {
   constants,
   closeSync,
+  existsSync,
   fchmodSync,
   lstatSync,
   mkdirSync,
@@ -17,7 +18,10 @@ import {
   NO_REQUEST_NOTE,
   NO_SNAPSHOT_NOTE,
   brandEnv,
+  checkClaims,
+  extractClaims,
   isCodeceiptSetupPath,
+  isTestFile,
   oneLineText,
   plainText,
   withoutAgentsSection,
@@ -41,7 +45,7 @@ import {
   verifiedStartTexts,
 } from "./session-snapshot";
 import { GAVE_UP, MAX_GATE_BLOCKS, gateAnswer, gateInstruction } from "./stop-gate";
-import { localIntegrity, passingTests } from "./test-integrity-local";
+import { localIntegrity, passingTests, testReportState } from "./test-integrity-local";
 
 // FEAT-016 agent hooks. They fail safe: whatever goes wrong (not logged in, server unreachable, git missing), the
 // agent session goes on and the hook prints one short warning. Changed files always come from git, never from the
@@ -83,6 +87,8 @@ const MAX_NOTE_CHARS = 4_000;
 const MAX_LINE_CHARS = 300;
 const OPEN_STATUSES = new Set(["open", "partial", "missed"]);
 const MAX_STDIN = 64 * 1024;
+// Roadmap Phase 10: repo files a claimed path is looked up in.
+const MAX_KNOWN_FILES = 100_000;
 const MAX_RECEIPT_FILES = 200;
 const MAX_WARNED_ITEMS = 10;
 const WARN = "Codeceipt:";
@@ -109,9 +115,12 @@ export const clean = (text: string, max: number) =>
     .slice(0, max);
 const line = (text: string) => oneLineText(text).replace(MARKS, "").slice(0, MAX_LINE_CHARS);
 
-async function hookInput(
-  deps: HookDeps,
-): Promise<{ sessionId: string; cwd: string; loopCount: number | null }> {
+async function hookInput(deps: HookDeps): Promise<{
+  sessionId: string;
+  cwd: string;
+  loopCount: number | null;
+  lastMessage: string | null;
+}> {
   let raw: unknown = {};
   try {
     const text = await deps.readStdin();
@@ -140,7 +149,13 @@ async function hookInput(
   const execution = counted(input.executionNum);
   const loopCount =
     loops === null && execution === null ? null : Math.max(loops ?? 0, (execution ?? 1) - 1);
-  return { sessionId: sessionIdOf(input), cwd, loopCount };
+  // Roadmap Phase 10: the agent's final message (Claude Code and Codex send it to Stop hooks). Read here, on this
+  // machine, for the claim checker; its text is never sent anywhere.
+  const lastMessage =
+    typeof input.last_assistant_message === "string" && input.last_assistant_message.length > 0
+      ? input.last_assistant_message
+      : null;
+  return { sessionId: sessionIdOf(input), cwd, loopCount, lastMessage };
 }
 
 /**
@@ -645,6 +660,44 @@ function openList(open: OpenItems): { text: string; status: string }[] {
 }
 
 /**
+ * Roadmap Phase 10: the claims of the agent's final message, checked against this session. A claim's path is only
+ * ever a real path of this repo (from git), never the agent's words.
+ */
+async function sessionClaims(
+  message: string,
+  e: {
+    git: Git;
+    root: string;
+    files: string[] | null;
+    passingBefore: number | null;
+    passingAfter: number | null;
+    report: { failed: number | null; writtenAt: number } | null;
+    startedAt: string | null;
+    weakenedTests: number;
+  },
+) {
+  const found = extractClaims(message);
+  if (found.length === 0) return [];
+  const tracked = (await e.git(["ls-files", "-z"], e.root)).split("\0").filter(Boolean);
+  const started = e.startedAt ? Date.parse(e.startedAt) : Number.NaN;
+  const isCode = (f: string) => /\.([cm]?[jt]sx?|py|go|rs|rb|java|kt|swift|php|cs)$/.test(f);
+  return checkClaims(found, {
+    changedFiles: e.files,
+    knownFiles: tracked.slice(0, MAX_KNOWN_FILES),
+    // Test files with code that still exist: a deleted test or a changed fixture is not an added test.
+    testFilesChanged:
+      e.files === null
+        ? null
+        : e.files.filter((f) => isTestFile(f) && isCode(f) && existsSync(join(e.root, f))).length,
+    passingBefore: e.passingBefore,
+    passingAfter: e.passingAfter,
+    failedAfter: e.report?.failed ?? null,
+    reportFresh: e.report !== null && Number.isFinite(started) && e.report.writtenAt >= started,
+    weakenedTests: e.weakenedTests,
+  });
+}
+
+/**
  * Session end: takes the changed files from git (against the session's starting commit, plus untracked files), scans
  * them for secrets on this machine, asks for a receipt for the newest open request, saves progress and warns about
  * checklist items that are neither done nor parked. Returns true when there is something to warn about.
@@ -656,7 +709,7 @@ export async function sessionEnd(
   // made before is replaced, and nothing is sent when nothing changed since then.
   opts: { stop?: boolean } = {},
 ): Promise<boolean> {
-  const { sessionId, cwd, loopCount } = await hookInput(deps);
+  const { sessionId, cwd, loopCount, lastMessage } = await hookInput(deps);
   // Roadmap Phase 4a: the agent's own count of hook-caused continuations, when it sends one, also caps the gate.
   const loopsUsed = Math.max(loopCount ?? 0, 0);
   if (!deps.config) {
@@ -748,6 +801,21 @@ export async function sessionEnd(
     startTexts,
   ).catch(() => null);
   const passingAfter = await passingTests(root, brandEnv(deps.env ?? {}, "TEST_REPORT"));
+  // Roadmap Phase 10: what the agent's final message claims, checked against this session's changes. Only each
+  // claim's kind, repo path and verdict go on the receipt; the message itself stays here.
+  const claims = lastMessage
+    ? await sessionClaims(lastMessage, {
+        git: deps.git,
+        root,
+        // Without a start snapshot (or outside git) the session's own changes are not known: nothing is confirmed.
+        files: noSnapshot || !commit ? null : files,
+        passingBefore,
+        passingAfter,
+        report: await testReportState(root, brandEnv(deps.env ?? {}, "TEST_REPORT")),
+        startedAt,
+        weakenedTests: integrity?.flags.length ?? 0,
+      }).catch(() => [])
+    : [];
   // D-025: what changed in each file (counts, symbol names, places), computed here; never source text.
   const summaries = await changeSummaries(
     deps.git,
@@ -863,6 +931,7 @@ export async function sessionEnd(
                       : {}),
                   }
                 : {}),
+              ...(claims.length > 0 ? { claims } : {}),
               // Sent only when there is something to report: flags or test counts.
               ...(integrity &&
               (integrity.flags.length > 0 || passingBefore !== null || passingAfter !== null)

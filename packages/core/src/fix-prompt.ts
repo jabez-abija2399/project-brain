@@ -1,3 +1,4 @@
+import { CLAIM_LABELS, CLAIM_VERDICTS, type ClaimKind, type ClaimVerdict } from "./claims";
 import { maskPath, maskSecretsIn } from "./mask";
 // FEAT-017: the dashboard's view of a stored receipt and the "Send fix to agent" prompt. Pure. The stored summary is
 // read defensively (anything of the wrong shape is dropped) and every text is cleaned and masked again before display.
@@ -54,6 +55,8 @@ export type ReceiptView = {
   // FEAT-018: tests deleted, skipped or weakened, and the passing-test count before and after (null when unknown).
   testChecks: { label: string; file: string; names: string[]; count: number; asked?: true }[];
   passing: { before: number | null; after: number | null };
+  // Roadmap Phase 10: what the agent said it did, each checked against the change (worst first).
+  claims: { label: string; verdict: "confirmed" | "contradicted" | "cannot_check"; path: string }[];
   // Real-test I: dependencies added or with a changed range, with their check_package recommendation.
   dependencies: {
     name: string;
@@ -93,6 +96,12 @@ const countOrNull = (v: unknown) =>
   typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
 
 // AC-017-02: lists from stored receipts are capped at 200 (files in a group: see MAX_GROUP_FILES).
+// Contradicted claims first, then the ones nothing can show either way.
+const CLAIM_ORDER: Record<ClaimVerdict, number> = {
+  contradicted: 0,
+  cannot_check: 1,
+  confirmed: 2,
+};
 const MAX_LIST = 200;
 const MAX_TEXT = 300;
 const MAX_PROMPT_ITEMS = 20;
@@ -254,6 +263,18 @@ export function receiptView(
         },
       ];
     }),
+    claims: list(obj(s.claims).items)
+      .flatMap((raw) => {
+        const c = obj(raw);
+        const label = typeof c.kind === "string" ? CLAIM_LABELS[c.kind as ClaimKind] : undefined;
+        const verdict = (CLAIM_VERDICTS as readonly unknown[]).includes(c.verdict)
+          ? (c.verdict as ClaimVerdict)
+          : null;
+        if (!label || !verdict || !Object.hasOwn(CLAIM_LABELS, c.kind as string)) return [];
+        return [{ label, verdict, path: safePath(c.path) }];
+      })
+      .slice(0, 20)
+      .sort((a, b) => CLAIM_ORDER[a.verdict] - CLAIM_ORDER[b.verdict]),
     passing: {
       before: countOrNull(obj(s.test_integrity).passing_before),
       after: countOrNull(obj(s.test_integrity).passing_after),

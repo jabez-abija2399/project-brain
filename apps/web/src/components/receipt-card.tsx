@@ -330,6 +330,36 @@ export function ReceiptCard({
               </ul>
             </Section>
           )}
+          {view.claims.length > 0 && (
+            // Roadmap Phase 10: what the agent said it did, checked against the change on the user's machine.
+            <Section title="What the agent said, checked on your machine">
+              <ul className="stack plain-list">
+                {view.claims.map((c, n) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: claims have no stable id in a stored receipt
+                  <li key={n} className="row wrap">
+                    <StatusBadge
+                      status={
+                        c.verdict === "confirmed"
+                          ? "done"
+                          : c.verdict === "contradicted"
+                            ? "missed"
+                            : "not_verified"
+                      }
+                      label={
+                        c.verdict === "confirmed"
+                          ? "Confirmed"
+                          : c.verdict === "contradicted"
+                            ? "Contradicted"
+                            : "Cannot check"
+                      }
+                    />
+                    <span>{c.label}</span>
+                    {c.path && <CodeRef path={c.path} />}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
           {(view.testChecks.length > 0 || view.passing.before !== null) && (
             <Section title="Test checks">
               {view.passing.before !== null && view.passing.after !== null && (

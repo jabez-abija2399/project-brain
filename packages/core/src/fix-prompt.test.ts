@@ -72,6 +72,8 @@ describe("receipt view and fix prompt (FEAT-017)", () => {
       findingsBeforeSession: [],
       testChecks: [],
       passing: { before: null, after: null },
+      // Roadmap Phase 10: a receipt without claims has an empty claims list.
+      claims: [],
       // Real-test F, B and I (2026-11-01).
       noChanges: false,
       outsideScopeAsked: [],
