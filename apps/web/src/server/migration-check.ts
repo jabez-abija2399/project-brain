@@ -7,7 +7,14 @@ let cache: { at: number; pending: string[] } | null = null;
 
 export async function missingMigrations(db: BrainDb, now = Date.now()): Promise<string[]> {
   if (cache && now - cache.at < TTL_MS) return cache.pending;
-  const pending = await pendingMigrations(db).catch(() => []);
+  let pending: string[];
+  try {
+    pending = await pendingMigrations(db);
+  } catch {
+    // The check itself failed (a brief database error): no answer, so nothing is reported missing and nothing is
+    // cached; the next call asks again.
+    return [];
+  }
   cache = { at: now, pending };
   return pending;
 }
