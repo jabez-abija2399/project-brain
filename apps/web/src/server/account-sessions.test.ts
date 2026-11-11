@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { browserLabel, sessionsView } from "./account";
+import { setGithubLoginResolverForTests } from "./admin";
 import type { SessionUser } from "./auth";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
@@ -47,6 +48,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.unstubAllEnvs();
+  setGithubLoginResolverForTests(null);
   await world.teardown();
 });
 
@@ -94,5 +96,22 @@ describe("per-browser sessions", () => {
     expect(browserLabel("Mozilla/5.0 (Windows NT 10.0) Firefox/131.0")).toBe("Firefox on Windows");
     expect(browserLabel("<script>alert(1)</script>")).toBe("Unknown browser");
     expect(browserLabel("curl/8.0")).toBe("Unknown browser");
+  });
+});
+
+describe("admin link", () => {
+  it("BL-43 the Account page links to Admin only for an admin, and asks GitHub nothing when no admin is configured", async () => {
+    const asked: string[] = [];
+    setGithubLoginResolverForTests(async (u) => {
+      asked.push(u.id);
+      return u.id === owner.id ? "ada-gh" : "eve-gh";
+    });
+    const page = async () => renderToStaticMarkup((await AccountPage()) as ReactElement);
+    expect(await page()).not.toContain('href="/admin"');
+    expect(asked).toEqual([]);
+    vi.stubEnv("ADMIN_GITHUB_LOGINS", "ada-gh");
+    expect(await page()).toContain('href="/admin"');
+    world.signInAs(other);
+    expect(await page()).not.toContain('href="/admin"');
   });
 });

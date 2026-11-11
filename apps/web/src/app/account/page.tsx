@@ -7,6 +7,7 @@ import { BillingButton } from "@/components/billing-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { accountView, sessionsView } from "@/server/account";
+import { pageShowsAdminLink } from "@/server/admin";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { connectionsFor } from "@/server/mcp-oauth";
@@ -20,10 +21,11 @@ export const metadata: Metadata = { title: "Account | Codeceipt", robots: { inde
 // as a download, and deleting the account for good. A suspended user can still export and delete.
 export default async function AccountPage() {
   const user = await pageUser({ allowSuspended: true });
-  const [a, apps, browsers] = await Promise.all([
+  const [a, apps, browsers, admin] = await Promise.all([
     accountView(getDb(), user),
     connectionsFor(getDb(), user),
     sessionsView(getDb(), user),
+    pageShowsAdminLink(user),
   ]);
   return (
     <main className="page page-narrow stack stack-lg">
@@ -53,6 +55,11 @@ export default async function AccountPage() {
           <p className="muted m0">
             {a.email} · signed in with GitHub since {a.createdAt.slice(0, 10)}
           </p>
+          {admin ? (
+            <p className="m0">
+              <Link href="/admin">Admin</Link>
+            </p>
+          ) : null}
         </div>
       </section>
 
