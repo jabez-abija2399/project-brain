@@ -87,7 +87,9 @@ This lets users connect a repository so every push is re-indexed.
    - **Contents: Read-only** (to read the files a push changed)
    - **Metadata: Read-only** (GitHub requires it)
 
-   Leave everything else at **No access**.
+   Leave everything else at **No access**. For receipts on pull requests (roadmap Phase 10b, optional; see
+   docs/owner-actions.md action 14) also set **Pull requests: Read and write** and **Checks: Read and write**, and
+   tick the **Pull request** event in the next step.
 7. Subscribe to events: **Push**. (Installation events are always sent to the app; you don't tick anything for them.)
 8. Where can this GitHub App be installed: **Any account**, so your users can install it.
 9. Click **Create GitHub App**. On the app's page, note:

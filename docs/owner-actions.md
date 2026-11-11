@@ -259,3 +259,54 @@ provider yet, and adding one needs an account and a secret, which only you can c
    most, with links to approve, and the variable names in `.env.example`.
 
 **Check:** an agent's request that needs your approval sends you one email with a link to the Approvals tab.
+
+---
+
+## 13. Apply migration 0056 (project settings) — pending, optional
+
+**Why:** Phase 10b stores one switch per project: receipts on pull requests, off by default. Until 0056 is in
+production the switch reads as off and cannot be turned on; everything else works as before, and `/api/health` stays
+200, with 0056 listed under `migrations.pending` and `optional: true`.
+
+**Steps:**
+- If action 1 is done, approve the `migrate-production` run that follows the merge.
+- Otherwise:
+  1. In the Neon **SQL Editor**, on `production`, paste
+     [packages/db/migrations/0056_project_settings.sql](../packages/db/migrations/0056_project_settings.sql) and click
+     **Run**.
+  2. Then run `INSERT INTO "_brain_migrations" (id) VALUES ('0056_project_settings');`.
+
+**What to expect in the SQL (review before approving):**
+- One `CREATE TABLE`: `project_settings` (project id, the switch, who changed it and when).
+- Nothing is dropped or changed.
+
+**Check:** `https://codeceipts.vercel.app/api/health` no longer lists `0056_project_settings`.
+
+---
+
+## 14. Let the GitHub App comment on pull requests — pending, a permission change
+
+**Why:** Phase 10b can post a project's receipts as one comment on each pull request, with a check run that never
+blocks a merge. The Codeceipt GitHub App today can only read code and hears only about pushes. Until you do this,
+turning the switch on does nothing: GitHub sends no pull request events, and the code posts nothing.
+
+**What changes for people who installed the App:** GitHub asks each of them to accept the new permissions. Until
+they accept, their installation keeps working as before, without pull request comments.
+
+**Steps (GitHub website, on your phone or computer):**
+1. Open **GitHub → Settings → Developer settings → GitHub Apps → Codeceipt → Permissions & events**.
+2. Under **Repository permissions** set:
+   - **Pull requests: Read and write** (to add and update the comment; in GitHub, comments on a pull request need
+     this or Issues);
+   - **Checks: Read and write** (for the check run).
+3. Under **Subscribe to events** tick **Pull request**.
+4. Click **Save changes**. GitHub emails each account that installed the App to accept.
+5. Accept it for your own installation: **Settings → Applications → Installed GitHub Apps → Codeceipt → Review
+   request**.
+6. Do action 13 first if you have not (the switch needs it).
+
+**Check:** on a project's **Connect** tab turn on "Receipts on pull requests", open a pull request in that
+repository, and within a minute one comment titled "Codeceipt receipt" appears; a new push updates the same comment.
+
+**To undo:** turn the switch off on the Connect tab (nothing more is posted), or set the two permissions back to
+**No access**.

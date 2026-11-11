@@ -23,6 +23,7 @@ export { requestsRepo } from "./requests";
 export { checklistItemsRepo } from "./checklist-items";
 export type { ShownProposal } from "./checklist-items";
 export { receiptsRepo } from "./receipts";
+export { projectSettingsRepo } from "./project-settings";
 export { shareLinksRepo } from "./share-links";
 export { agentSessionsRepo } from "./agent-sessions";
 export { decisionsRepo } from "./decisions";

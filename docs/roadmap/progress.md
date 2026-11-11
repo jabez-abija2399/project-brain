@@ -20,7 +20,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 7 | Kit workflows as product features | merged (receipt flags later) | 7a [#73](https://github.com/jabez-abija2399/project-brain/pull/73) | `/codeceipt-feature`, `-fix`, `-review`; `codeceipt review` |
 | 8 | Import, export, sync | merged (automatic sync suggestions later) | 8a [#74](https://github.com/jabez-abija2399/project-brain/pull/74), 8b [#75](https://github.com/jabez-abija2399/project-brain/pull/75) | `codeceipt import` into a plan draft; `codeceipt export` with `--check` |
 | 9 | Easy everywhere (parity, menu, next step) | merged | 9a [#76](https://github.com/jabez-abija2399/project-brain/pull/76), 9b [#77](https://github.com/jabez-abija2399/project-brain/pull/77) | One next step (Overview + `codeceipt status`); `docs/actions.md`; keyboard menu; "How do you build?" |
-| 10 | Claim checker and PR receipts | in progress (10a) | | |
+| 10 | Claim checker and PR receipts | 10a merged, 10b in progress | 10a [#78](https://github.com/jabez-abija2399/project-brain/pull/78) | Receipts check what the agent said against the change |
 | 11 | VS Code extension | not started | | |
 | 12 | Measure, compare with the kit, document | not started | | |
 
@@ -510,3 +510,37 @@ Status values: not started, in progress, merged, blocked (with reason).
       test checks).
     - Recorded in `agent/later.md`: a final message over 64 KB makes the whole hook input be ignored (this predates
       the change).
+
+### Phase 10b: receipts on pull requests
+- **What it does:** for a pull request of a repository connected through the GitHub App, the project's receipts for
+  the pull request's commits become one comment, updated in place on each push, plus a check run that never blocks a
+  merge (neutral when something needs a look, success when nothing does).
+- **Off by default:** the owner turns it on per project on the Connect tab. The switch is stored in a new table
+  (migration 0056, optional; owner action 13).
+- **Needs the owner:** the GitHub App must get the Pull requests and Checks permissions and the Pull request event
+  (owner action 14). Until then nothing is posted; a missing permission ends the job quietly.
+- **Safety:**
+  - never for a fork's pull request;
+  - a public repository (or one whose visibility is unknown) gets counts only, no item text or file names;
+  - the webhook signature is checked first, and the posting runs as an Inngest job;
+  - the job re-checks the link and the switch, and posts at most 200 comments a day per project;
+  - only the App's own earlier comment is updated; item text is escaped.
+- **No file is read:** only the pull request's commit ids are listed; receipts are matched by commit.
+- **Security review (fresh context): no HIGH findings; both MEDIUM findings fixed, with attack tests (PH10B-12,
+  PH10B-13, PH10B-17).**
+  - **MEDIUM:**
+    - Two projects linked to one repository could overwrite each other's comment. The marker now names the project,
+      and only this App's own comment is updated.
+    - Item text could carry `@mentions`, `#123` and bare links. It is now shown in a code span, so it stays plain
+      text.
+  - **LOW, fixed:**
+    - Up to 500 comments are searched for the earlier comment.
+    - The job reads the repository's visibility again: only "private" gets item text (public, internal or unknown
+      get counts only).
+    - A suspended project posts nothing.
+    - A database or queue error in the webhook forgets the delivery, so GitHub's redelivery is processed.
+  - **Recorded in `agent/later.md`, not fixed here:**
+    - No debounce of repeated pushes to one pull request (the daily cap of 200 bounds it).
+    - The repository picker when linking through the GitHub App lists every repository of the installation, not only
+      the ones the signed-in user can read. This predates Phase 10b and is an auth change outside this feature, so it
+      needs the owner's go-ahead.

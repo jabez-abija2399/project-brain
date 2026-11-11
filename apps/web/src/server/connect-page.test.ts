@@ -105,4 +105,12 @@ describe("Connect tab", () => {
     const err = await ConnectPage({ params: Promise.resolve({ id: project.id }) }).catch((e) => e);
     expect(String(err?.digest ?? err?.message)).toContain("404");
   });
+
+  it("PH10B-16 the Connect tab shows receipts on pull requests: off, and to be connected through the GitHub App first", async () => {
+    const project = await projectsRepo.create(world.db, owner.id, { name: "shop" });
+    const html = await connect(project.id);
+    expect(html).toContain("Receipts on pull requests");
+    expect(html).toContain("GitHub App first");
+    expect(html).not.toContain("Turn on receipts on pull requests");
+  });
 });

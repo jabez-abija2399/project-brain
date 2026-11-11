@@ -60,5 +60,6 @@ first steps for that.
 |---|---|---|---|
 | Approve, reject or pause what agents ask for | `codeceipt approvals` (prints the link) | Approvals tab | Agents can only ask |
 | Revoke a token | | Tokens tab | |
+| Get receipts as a comment on pull requests | | Connect tab (turn it on) | |
 
 Old tool name kept for one release: `list_features` (use `where_did_we_stop` with features).

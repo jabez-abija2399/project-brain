@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type NewReceipt, type Receipt, receipts } from "../schema";
 
@@ -48,6 +48,22 @@ export const receiptsRepo = {
       .where(and(eq(receipts.projectId, projectId), eq(receipts.commitSha, commitSha)))
       .limit(1);
     return row?.id ?? null;
+  },
+
+  /** Roadmap Phase 10b: this project's receipts for any of these commits, newest first (at most `limit`). */
+  async listByCommits(
+    db: BrainDb,
+    projectId: string,
+    commitShas: string[],
+    limit = 5,
+  ): Promise<Receipt[]> {
+    if (commitShas.length === 0) return [];
+    return db
+      .select()
+      .from(receipts)
+      .where(and(eq(receipts.projectId, projectId), inArray(receipts.commitSha, commitShas)))
+      .orderBy(desc(receipts.createdAt))
+      .limit(limit);
   },
 
   /** Adds top-level keys to a receipt's stored summary (FEAT-023: from_push, files_not_checked). */

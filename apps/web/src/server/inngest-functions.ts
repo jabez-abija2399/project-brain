@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import { getGithubApp, githubConfig } from "./github";
-import { PUSH_EVENT, type PushEventData, inngest } from "./inngest";
+import { PR_EVENT, PUSH_EVENT, type PrEventData, type PushEventData, inngest } from "./inngest";
+import { runPrReceipt } from "./pr-receipt";
 import type { GithubClient, StepRunner } from "./push-index";
 import { runPushJob } from "./push-receipt";
 
@@ -24,6 +25,27 @@ export const indexPushFunction = inngest.createFunction(
     const data = event.data as PushEventData;
     return runPushJob(getDb(), data, step as unknown as StepRunner, () =>
       installationClient(data.installationId),
+    );
+  },
+);
+
+// Roadmap Phase 10b: one pull-request job at a time per project; only sent for projects with PR receipts on.
+export const prReceiptFunction = inngest.createFunction(
+  {
+    id: "pr-receipt",
+    triggers: [{ event: PR_EVENT }],
+    concurrency: { limit: 1, key: "event.data.projectId" },
+  },
+  async ({ event, step }) => {
+    const data = event.data as PrEventData;
+    return runPrReceipt(
+      getDb(),
+      data,
+      step as unknown as StepRunner,
+      () => installationClient(data.installationId),
+      // The app's own address (BETTER_AUTH_URL); without it no link is written into the comment.
+      process.env.BETTER_AUTH_URL ? new URL(process.env.BETTER_AUTH_URL).origin : "",
+      Number.isInteger(Number(githubConfig()?.appId)) ? Number(githubConfig()?.appId) : null,
     );
   },
 );
