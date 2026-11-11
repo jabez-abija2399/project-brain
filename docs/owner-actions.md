@@ -15,7 +15,10 @@ the order to do them in, most useful first.
 **First, so that what was built reaches users (about an hour in total):**
 1. **Action 1**: apply database migrations automatically after merge. Do this first: it makes actions 6, 9, 11, 13
    and 16 happen by themselves on the next merge.
-2. **Actions 6, 9, 11, 13, 16**: apply migrations 0051, 0054, 0055, 0056 and 0057, only if you skipped action 1. Until then
+2. **DONE 2026-11-11.** Claude applied migrations 0051, 0054, 0055, 0056 and 0057 to `production` through the Neon
+   connector at the owner's request, after copying production to the Neon branch `backup-before-0051-0057` (delete it
+   in Neon → Branches once you are happy; restore from it to undo). `/api/health` answered 200 with nothing pending.
+   Earlier text: **Actions 6, 9, 11, 13, 16**: apply migrations 0051, 0054, 0055, 0056 and 0057, only if you skipped action 1. Until then
    the context-pack cache, the Blueprint, approvals and the pull-request switch show "being set up" and nothing
    else breaks.
 3. **Action 8**: release CLI 0.3.7. Everything in the CLI since Phase 2 waits on this: fast hooks, the done gate,
@@ -136,7 +139,7 @@ prints a time next to every step and a `TOTAL` line.
 
 ---
 
-## 6. Apply migration 0051 (context-pack cache) — pending, optional
+## 6. Apply migration 0051 (context-pack cache) — DONE 2026-11-11 (by Claude, owner-approved)
 
 **Why:** Phase 2a caches each feature's context-pack file and component lines so `get_context_pack` is one row read.
 Until 0051 is in production, packs are built live exactly as before, and `/api/health` stays 200 but lists it under
@@ -210,7 +213,7 @@ Users get all of this through the release.
 
 ---
 
-## 9. Apply migration 0054 (Project Blueprint) — pending, optional
+## 9. Apply migration 0054 (Project Blueprint) — DONE 2026-11-11 (by Claude, owner-approved)
 
 **Why:** Phase 3a stores the Project Blueprint (criteria, boundaries, build order, version history). Until 0054 is in
 production, everything else works as before; Blueprint calls answer "being set up" and `/api/health` stays 200 with
@@ -252,7 +255,7 @@ through `agent/plan.json`, and you approve it with `SPEC_CHANGE_APPROVED`. Claud
 
 ---
 
-## 11. Apply migration 0055 (approval policies) — pending, optional
+## 11. Apply migration 0055 (approval policies) — DONE 2026-11-11 (by Claude, owner-approved)
 
 **Why:** Phase 6a stores each project's approval policy, the requests agents make and an append-only audit log. Until
 0055 is in production, everything else works as before: approval calls answer "being set up", and `/api/health`
@@ -295,7 +298,7 @@ provider yet, and adding one needs an account and a secret, which only you can c
 
 ---
 
-## 13. Apply migration 0056 (project settings) — pending, optional
+## 13. Apply migration 0056 (project settings) — DONE 2026-11-11 (by Claude, owner-approved)
 
 **Why:** Phase 10b stores one switch per project: receipts on pull requests, off by default. Until 0056 is in
 production the switch reads as off and cannot be turned on; everything else works as before, and `/api/health` stays
@@ -385,7 +388,7 @@ a full editor and needs a display; CI has neither. If you want it, say so and I 
 
 ---
 
-## 16. Apply migration 0057 (user preferences) — pending, optional
+## 16. Apply migration 0057 (user preferences) — DONE 2026-11-11 (by Claude, owner-approved)
 
 **Why:** the "How do you build?" answer on the Get started page is kept per account, so it follows you to every
 browser and phone. Until 0057 is in production it is kept in one browser only (as before); `/api/health` stays 200,
