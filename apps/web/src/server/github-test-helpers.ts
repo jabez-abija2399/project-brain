@@ -39,7 +39,7 @@ export type FakeRepo = {
   // the OAuth user's access per repository (default: push), and a total larger than the list (more pages)
   userAccess?: Record<string, "read" | "push" | "admin">;
   userReposTotal?: number;
-  // the GitHub user behind the OAuth code (default 1001: the first user a test world creates)
+  // the GitHub user behind the OAuth code (default 1001: the owner in the install tests)
   githubUserId?: number;
   installationReposTotal?: number;
   // compare result per "before...after"

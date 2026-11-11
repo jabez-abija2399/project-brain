@@ -10,7 +10,7 @@ import {
   readCapped,
   request,
 } from "./api";
-import { type CliConfig, readProjectToken, saveProjectToken, savedProjectToken } from "./config";
+import { type CliConfig, projectEntry, readProjectToken, saveProjectToken } from "./config";
 import { INSTALL_PS1, INSTALL_SH } from "./native/install-info";
 import { setupAgents } from "./plugins";
 import { gitDirOf, readRepoLink, repoFingerprint, writeRepoLink } from "./repo-link";
@@ -263,7 +263,7 @@ export async function runSetup(apiUrl: string, configFile: string, deps: SetupDe
     // The token this one replaces (same server, same project) is revoked, so re-running setup does not pile up live
     // tokens. Best effort: a failure leaves it for the owner to revoke on the project page.
     // Only a per-project entry: the default login (`codeceipt login`) keeps its own token.
-    const previous = savedProjectToken(configFile, approved);
+    const previous = projectEntry(configFile, approved);
     saveProjectToken(configFile, approved);
     if (previous && previous.token !== approved.token) {
       const timed: Fetch = (url, init) =>

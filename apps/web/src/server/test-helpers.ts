@@ -28,7 +28,6 @@ export async function createTestWorld(): Promise<TestWorld> {
   setDbForTests(db);
 
   let current: SessionUser | null = null;
-  let created = 0;
   setSessionResolver(async () => current);
 
   const createUser: TestWorld["createUser"] = async (input) => {
@@ -36,11 +35,12 @@ export async function createTestWorld(): Promise<TestWorld> {
     const name = input?.name ?? `user-${id.slice(0, 6)}`;
     const email = input?.email ?? `${id.slice(0, 8)}@example.com`;
     await usersRepo.upsertById(db, { id, name, email });
-    const githubId = input?.githubId ?? 1000 + ++created;
-    await pg.query(
-      'INSERT INTO account (id, "userId", "accountId", "providerId") VALUES ($1, $2, $3, $4)',
-      [randomUUID(), id, String(githubId), "github"],
-    );
+    if (input?.githubId !== undefined) {
+      await pg.query(
+        'INSERT INTO account (id, "userId", "accountId", "providerId") VALUES ($1, $2, $3, $4)',
+        [randomUUID(), id, String(input.githubId), "github"],
+      );
+    }
     return { id, name, email };
   };
 

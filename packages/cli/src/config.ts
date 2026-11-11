@@ -83,7 +83,7 @@ function projectTokens(file: ConfigFile | null): CliConfig[] {
  * the server that issued it, for the project it belongs to.
  */
 /** The token saved for this project in the per-project list only (never the default login). */
-export function savedProjectToken(
+export function projectEntry(
   path: string,
   link: { apiUrl: string; projectId: string },
 ): CliConfig | null {

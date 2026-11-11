@@ -38,7 +38,7 @@ beforeEach(async () => {
   jar.clear();
   world = await createTestWorld();
   makeGithubConfig();
-  owner = await world.createUser({ name: "owner" });
+  owner = await world.createUser({ name: "owner", githubId: 1001 });
   stranger = await world.createUser({ name: "stranger" });
   projectId = (await projectsRepo.create(world.db, owner.id, { name: "app" })).id;
 });
