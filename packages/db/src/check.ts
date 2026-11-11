@@ -41,8 +41,12 @@ export async function checkDb(
   if (!reach.ok) return reach;
   const connectTimeout = Math.max(1, Math.ceil(timeoutMs / 1000));
   let sql: ReturnType<typeof postgres> | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<CheckResult>((resolve) => {
-    setTimeout(() => resolve({ ok: false, reason: `timed out after ${timeoutMs}ms` }), timeoutMs);
+    timer = setTimeout(
+      () => resolve({ ok: false, reason: `timed out after ${timeoutMs}ms` }),
+      timeoutMs,
+    );
   });
   try {
     sql = postgres(url, {
@@ -62,6 +66,9 @@ export async function checkDb(
   } catch (err) {
     return { ok: false, reason: err instanceof Error ? err.message : String(err) };
   } finally {
-    if (sql) await sql.end({ timeout: 1 }).catch(() => {});
+    // Backlog (FEAT-001 review L1): the timer is cleared, and closing the connection is not awaited, so the answer
+    // never waits past the budget for a connection that is still closing.
+    clearTimeout(timer);
+    if (sql) void sql.end({ timeout: 1 }).catch(() => {});
   }
 }
