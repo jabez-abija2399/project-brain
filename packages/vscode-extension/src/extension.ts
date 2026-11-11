@@ -1,6 +1,6 @@
 import { homedir } from "node:os";
 import * as vscode from "vscode";
-import { findCodeceipt, runCodeceipt } from "./cli";
+import { findCodeceipt, repoRootOf, runCodeceipt, safePath } from "./cli";
 import {
   type LastReceipt,
   type NextStep,
@@ -8,14 +8,16 @@ import {
   parseLast,
   parseStatus,
   statusBar,
+  summary,
   tree,
 } from "./model";
 
 // Roadmap Phase 11: Codeceipt in VS Code. A status bar item (the last receipt in a few words, the next step as its
 // tooltip), a small tree in the Explorer (the next step, the last receipt's counts and missed items) and four
-// commands. It only reads: it runs the installed `codeceipt status --json` and `codeceipt last --json` in the opened
-// folder and shows what they say. No webview, no network call of its own, no token, nothing written. It does nothing
-// in an untrusted workspace (package.json: untrustedWorkspaces not supported).
+// commands. It runs the installed `codeceipt status --json` and `codeceipt last --json` in the opened folder and
+// shows what they say. No webview, no network call of its own, no token; the extension itself writes nothing (the
+// command keeps its usual small records, as in a terminal). It does nothing in an untrusted workspace
+// (package.json: untrustedWorkspaces not supported) and nothing in a folder that is not a git repository.
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -60,6 +62,7 @@ async function load(): Promise<State> {
     .map((f) => f.uri.fsPath);
   const cwd = folders[0];
   if (!cwd) return EMPTY;
+  if (!repoRootOf(cwd)) return EMPTY;
   const bin = findCodeceipt(process.env, homedir(), process.platform, folders);
   if (!bin) {
     return {
@@ -67,9 +70,10 @@ async function load(): Promise<State> {
       problem: "Codeceipt is not installed on this computer. See the quickstart to install it.",
     };
   }
+  const path = safePath(process.env, process.platform, folders);
   const [status, last] = await Promise.all([
-    runCodeceipt(bin, ["status", "--json"], cwd),
-    runCodeceipt(bin, ["last", "--json"], cwd),
+    runCodeceipt(bin, ["status", "--json"], cwd, path),
+    runCodeceipt(bin, ["last", "--json"], cwd, path),
   ]);
   if (!status.ok && !last.ok) {
     return {
@@ -128,13 +132,8 @@ export function activate(context: vscode.ExtensionContext): void {
         void vscode.window.showInformationMessage(state.problem);
         return;
       }
-      const c = state.last?.counts;
-      const summary = c
-        ? `Last receipt: ${c.done} done, ${c.partlyDone} partly done, ${c.missed} missed.`
-        : "No receipt yet: make a change with your agent and end the session.";
-      const next = state.next ? ` Next step: ${state.next.text}` : "";
       const pick = await vscode.window.showInformationMessage(
-        `${summary}${next}`,
+        summary(state.next, state.last),
         ...(state.receiptsUrl ? ["Open receipts"] : []),
       );
       if (pick === "Open receipts") open(state.receiptsUrl);

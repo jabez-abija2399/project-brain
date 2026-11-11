@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -162,6 +162,86 @@ describe("codeceipt --json (roadmap Phase 11)", () => {
       expect(t.split("\n")).toHaveLength(1);
     }
     expect((await run(["status", "--yaml"])).code).toBe(2);
+  });
+});
+
+describe("security review fixes (roadmap Phase 11)", () => {
+  const token = ["pb", "_", "testtoken123"].join("");
+  const run = async (argv: string[], dir: string, home: string) => {
+    const urls: string[] = [];
+    const out: string[] = [];
+    const code = await main(argv, {
+      fetch: async (url) => {
+        urls.push(String(url));
+        return new Response(JSON.stringify({ ok: true, state: {} }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      },
+      env: { HOME: home, XDG_CONFIG_HOME: join(home, ".config") },
+      cwd: dir,
+      homedir: home,
+      platform: "linux",
+      stdout: (l) => out.push(l),
+      stderr: (l) => out.push(l),
+      readStdin: async () => "",
+    });
+    return { code, urls, text: out.join("\n") };
+  };
+
+  it("PH11-23 attack: git runs by its full path, never from a relative PATH folder or the repo", async () => {
+    const { runGit } = await import("./scan-secrets");
+    const dir = mkdtempSync(join(tmpdir(), "cc-git-"));
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: dir });
+    const planted = join(dir, "git");
+    writeFileSync(planted, "#!/bin/sh\necho planted\n");
+    chmodSync(planted, 0o755);
+    const before = process.env.PATH;
+    try {
+      process.env.PATH = [".", dir.slice(1), before].join(":");
+      expect((await runGit(["rev-parse", "--is-inside-work-tree"], dir)).trim()).toBe("true");
+      // Only relative folders: nothing is run at all.
+      process.env.PATH = ".";
+      await expect(runGit(["rev-parse", "--is-inside-work-tree"], dir)).rejects.toThrow(
+        "git was not found",
+      );
+    } finally {
+      process.env.PATH = before;
+    }
+  });
+
+  it("PH11-24 attack: status sends no token to a saved address that is not https", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "cc-http-"));
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: dir });
+    const home = mkdtempSync(join(tmpdir(), "cc-home-"));
+    linkRepo(dir, configPath({ XDG_CONFIG_HOME: join(home, ".config") }, "linux", home), {
+      apiUrl: "http://codeceipt.example",
+      projectId: PROJECT,
+      token,
+    });
+    for (const argv of [["status"], ["status", "--json"]]) {
+      const r = await run(argv, dir, home);
+      expect(r.code).toBe(2);
+      expect(r.urls).toEqual([]);
+      expect(r.text).toContain("must be https");
+    }
+  });
+
+  it("PH11-25 last --json answers only in a connected repo, never with the default login's project", async () => {
+    const linked = mkdtempSync(join(tmpdir(), "cc-linked-"));
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: linked });
+    const home = mkdtempSync(join(tmpdir(), "cc-home-"));
+    linkRepo(linked, configPath({ XDG_CONFIG_HOME: join(home, ".config") }, "linux", home), {
+      apiUrl: "https://codeceipt.example",
+      projectId: PROJECT,
+      token,
+    });
+    const other = mkdtempSync(join(tmpdir(), "cc-other-"));
+    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: other });
+    const r = await run(["last", "--json"], other, home);
+    expect(r.code).not.toBe(0);
+    expect(r.urls).toEqual([]);
+    expect(r.text).not.toContain(token);
   });
 });
 

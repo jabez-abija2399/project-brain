@@ -9,7 +9,7 @@ import {
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { type Allowed, findCodeceipt, runCodeceipt } from "./cli";
+import { type Allowed, findCodeceipt, repoRootOf, runCodeceipt, safePath } from "./cli";
 
 // Roadmap Phase 11: the extension runs only the installed codeceipt, with fixed arguments.
 const tmp = (name: string) => realpathSync(mkdtempSync(join(tmpdir(), name)));
@@ -64,9 +64,10 @@ describe("finding the installed codeceipt (roadmap Phase 11)", () => {
         seen.push(p);
         return false;
       },
+      present: () => false,
       real: (p: string) => p,
     };
-    findCodeceipt({ Path: "/abs/bin" }, "/home/u", "win32", [], probe);
+    findCodeceipt({ Path: "C:\\abs\\bin" }, "C:\\Users\\u", "win32", [], probe);
     expect(seen.length).toBeGreaterThan(0);
     for (const p of seen) expect(p.endsWith("codeceipt.exe")).toBe(true);
   });
@@ -114,5 +115,65 @@ describe("running codeceipt (roadmap Phase 11)", () => {
       ok: false,
       reason: "failed",
     });
+  });
+});
+
+describe("security review fixes (roadmap Phase 11)", () => {
+  it("PH11-17 attack: a codeceipt elsewhere in the repository of an opened subfolder is never used", () => {
+    const home = tmp("cc-ext-home-");
+    const repo = tmp("cc-ext-repo-");
+    mkdirSync(join(repo, ".git"));
+    const app = join(repo, "packages", "app");
+    mkdirSync(app, { recursive: true });
+    script(join(repo, "node_modules", ".bin"), "exit 0");
+    expect(repoRootOf(app)).toBe(repo);
+    expect(
+      findCodeceipt({ PATH: join(repo, "node_modules", ".bin") }, home, "linux", [app]),
+    ).toBeNull();
+  });
+
+  it("PH11-18 attack: the command's own PATH has no relative folder and none inside the project", async () => {
+    const repo = tmp("cc-ext-repo-");
+    mkdirSync(join(repo, ".git"));
+    const app = join(repo, "app");
+    mkdirSync(app);
+    const outside = tmp("cc-ext-out-");
+    const linked = tmp("cc-ext-link-");
+    symlinkSync(join(repo, "tools"), join(linked, "into-repo"));
+    mkdirSync(join(repo, "tools"));
+    const path = [
+      ".",
+      "node_modules/.bin",
+      repo,
+      join(repo, "tools"),
+      join(linked, "into-repo"),
+      outside,
+      "/usr/bin",
+    ];
+    expect(safePath({ PATH: path.join(delimiter) }, "linux", [app])).toBe(
+      [outside, "/usr/bin"].join(delimiter),
+    );
+    // The command really gets that PATH, not the editor's.
+    const bin = script(tmp("cc-ext-bin-"), 'printf \'{"path":"%s"}\\n\' "$PATH"');
+    expect(await runCodeceipt(bin, ["status", "--json"], app, "/usr/bin")).toEqual({
+      ok: true,
+      json: { path: "/usr/bin" },
+    });
+  });
+
+  it("PH11-19 attack: on Windows a PATH folder without a drive letter is not searched", () => {
+    const seen: string[] = [];
+    const probe = {
+      exists: (p: string) => {
+        seen.push(p);
+        return false;
+      },
+      present: () => false,
+      real: (p: string) => p,
+    };
+    findCodeceipt({ Path: "\\tools;tools;C:\\bin" }, "C:\\Users\\u", "win32", [], probe);
+    expect(seen.some((p) => p.includes("bin"))).toBe(true);
+    for (const p of seen) expect(p.startsWith("C:")).toBe(true);
+    expect(safePath({ Path: "\\tools;.;C:\\bin" }, "win32", [], probe)).toBe("C:\\bin");
   });
 });

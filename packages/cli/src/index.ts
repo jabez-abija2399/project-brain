@@ -496,6 +496,12 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
       if (args.length > 0 && !asJson)
         throw new CliError(EXIT.usage, "Usage: codeceipt status [--json]");
       const config = await projectConfig(deps, path, deps.cwd, { linkedOnly: true });
+      if (!isSafeApiUrl(config.apiUrl)) {
+        throw new CliError(
+          EXIT.usage,
+          "Saved server address must be https: run `npx codeceipt` again.",
+        );
+      }
       const { state } = await request<{ state: unknown }>(
         deps.fetch,
         config,
@@ -831,7 +837,9 @@ async function runLast(
   evidence = false,
   asJson = false,
 ): Promise<number> {
-  const config = await projectConfig(deps, path, deps.cwd);
+  // --json is read by editors on their own, in any folder: only a repo connected to a project answers, never the
+  // default login's project.
+  const config = await projectConfig(deps, path, deps.cwd, asJson ? { linkedOnly: true } : {});
   if (!isSafeApiUrl(config.apiUrl)) {
     throw new CliError(
       EXIT.usage,

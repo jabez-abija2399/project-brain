@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { line, parseLast, parseStatus, safeUrl, statusBar, tree } from "./model";
+import { line, parseLast, parseStatus, safeUrl, statusBar, summary, tree } from "./model";
 
 // Roadmap Phase 11: what the editor shows is built only from checked, capped values.
 const RLO = String.fromCharCode(0x202e);
@@ -189,5 +189,44 @@ describe("what the editor shows (roadmap Phase 11)", () => {
       { label: "Empty cart message" },
     ]);
     expect(tree(null, null)).toEqual([]);
+  });
+});
+
+describe("security review fixes (roadmap Phase 11)", () => {
+  it("PH11-20 attack: the command shown is `codeceipt` plus plain words, nothing that looks like another program", () => {
+    const cmd = (command: unknown) => parseStatus({ next: { text: "Go", command } })?.command;
+    expect(cmd("codeceipt export --check")).toBe("codeceipt export --check");
+    for (const bad of [
+      "npx codeceipt-evil@1",
+      "codeceiptx",
+      "codeceipt login --api-url=https://evil.example",
+      "codeceipt ../x",
+    ]) {
+      expect(cmd(bad), bad).toBeNull();
+    }
+  });
+
+  it("PH11-21 attack: the message never carries a link or an icon from the next step's text", () => {
+    const next = parseStatus({
+      next: { text: "Open [this](command:evil.run) $(sync~spin) `now` <b>" },
+    });
+    const text = summary(next, parseLast(LAST).receipt);
+    expect(text).toBe(
+      "Last receipt: 3 done, 1 partly done, 2 missed. Next step: Open this(command:evil.run) (sync~spin) now b",
+    );
+    for (const ch of ["[", "]", "$", "`", "<"]) expect(text).not.toContain(ch);
+    expect(summary(null, null)).toBe(
+      "No receipt yet: make a change with your agent and end the session.",
+    );
+  });
+
+  it("PH11-22 attack: more invisible characters are removed, and a long text is cut between whole characters", () => {
+    const marks = [0xad, 0x61c, 0x2060, 0x2064, 0xfeff, 0xe0001, 0xe007f].map((c) =>
+      String.fromCodePoint(c),
+    );
+    expect(line(`a${marks.join("")}b`)).toBe("a b");
+    const face = String.fromCodePoint(0x1f600);
+    const cut = line(face.repeat(10), 3);
+    expect(cut).toBe(face.repeat(3));
   });
 });

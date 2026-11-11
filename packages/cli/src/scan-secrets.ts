@@ -3,6 +3,7 @@ import { lstat, readFile, realpath } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import { MAX_SCAN_BYTES, type SecretFinding, isLocalEnvFile, scanSecrets } from "@brain/core";
 import { CliError, EXIT } from "./api";
+import { findProgram } from "./find-program";
 
 // FEAT-015: scans changed files for secrets on this machine. Prints masked findings only (file, line, type, first 4
 // characters + ***): no source line and no secret value is printed or sent anywhere (D-002, AC-015-03). The agent
@@ -10,9 +11,19 @@ import { CliError, EXIT } from "./api";
 export const MAX_SCAN_FILES = 500;
 
 export type Git = (args: string[], cwd: string) => Promise<string>;
+// git is run by its full path, found in the absolute PATH folders only: a bare name would let a relative PATH entry,
+// or on Windows the current folder, supply a `git` that a cloned repo ships. No git found: every call fails.
+let gitPath: { key: string; path: string | null } | undefined;
 export const runGit: Git = (args, cwd) =>
   new Promise((done, fail) => {
-    execFile("git", args, { cwd, maxBuffer: 16 * 1024 * 1024 }, (err, stdout) =>
+    const key = `${process.env.PATH ?? ""}\n${process.env.Path ?? ""}`;
+    if (gitPath?.key !== key)
+      gitPath = { key, path: findProgram("git", process.env, process.platform) };
+    if (!gitPath.path) {
+      fail(new Error("git was not found in an absolute PATH folder"));
+      return;
+    }
+    execFile(gitPath.path, args, { cwd, maxBuffer: 16 * 1024 * 1024 }, (err, stdout) =>
       err ? fail(err) : done(stdout),
     );
   });

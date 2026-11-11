@@ -25,13 +25,20 @@ It refreshes when it starts, every 5 minutes, and when you run Refresh.
 - It runs the installed command twice, in the opened folder: `codeceipt status --json` and `codeceipt last --json`,
   and shows what they answer. That is all.
 - It only uses a `codeceipt` installed on the computer (the install folder `~/.local/bin`, then the folders on PATH).
-  It never runs a `codeceipt` that sits inside the opened folder, so a downloaded project cannot make the editor run
-  its own program.
+  It never runs a `codeceipt` that sits inside the opened folder or anywhere in the same repository, so a downloaded
+  project cannot make the editor run its own program.
+- The command gets a cleaned PATH with no folder from the project in it, and the CLI itself starts `git` by its
+  full path. So the project cannot supply its own `git` either.
 - No shell, and only those two fixed commands. Each has 15 seconds and 256 KB of output at most.
-- It has no token and makes no network call itself; the CLI does that, as in the terminal.
-- It writes nothing, changes no settings, and has no web view.
+- It has no token and makes no network call itself; the CLI does that, as in the terminal, and only to an `https`
+  address.
+- The extension writes nothing, changes no settings, and has no web view. The command it runs keeps its usual small
+  records (the repo's link file, the update check), exactly as when you run it in a terminal.
+- It only works in a git repository that is connected to a project. In any other folder it shows nothing and runs
+  nothing.
 - Links open in the browser only when they are `https` (or `http` on this computer, for local development).
-- Text from a receipt is shown as plain text, one line each, with control and direction characters removed.
+- Text from a receipt is shown as plain text, one line each, with control, invisible and direction characters
+  removed.
 
 ## The data it reads
 `codeceipt status --json` prints one line:

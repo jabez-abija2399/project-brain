@@ -485,7 +485,8 @@ cloned repository is untrusted input.
 Decision: `packages/vscode-extension` has no runtime dependency and no network code. It runs the installed
 `codeceipt` (found by absolute path outside the opened folders, never through a shell) with two fixed argument lists,
 `status --json` and `last --json`, and shows the answer in a status bar item and a tree view. No web view (so no
-content-security-policy surface), no token, nothing written, nothing in an untrusted workspace. Links open only when
+content-security-policy surface), no token, nothing written by the extension itself, nothing in an untrusted workspace
+or outside a git repository. The command gets a PATH without project folders, and the CLI starts git by full path. Links open only when
 https (http for localhost). The one new dev dependency is `@types/vscode` (types only).
 Not done: an extension-host test with `@vscode/test-electron` (a large download that needs a display; CI has neither),
 the `.vsix` build and marketplace publishing: owner action 15.

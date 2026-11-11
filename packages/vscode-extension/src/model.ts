@@ -26,16 +26,20 @@ const MAX_MISSED = 20;
 const hidden = (c: number): boolean =>
   c <= 0x1f ||
   (c >= 0x7f && c <= 0x9f) ||
+  c === 0xad ||
+  c === 0x61c ||
   (c >= 0x200b && c <= 0x200f) ||
   (c >= 0x2028 && c <= 0x202e) ||
-  (c >= 0x2066 && c <= 0x2069) ||
-  c === 0xfeff;
+  (c >= 0x2060 && c <= 0x2069) ||
+  c === 0xfeff ||
+  (c >= 0xe0000 && c <= 0xe007f);
 export const line = (value: unknown, max = MAX_TEXT): string => {
   if (typeof value !== "string") return "";
   let out = "";
   // Only the first part of a very long value is looked at.
   for (const ch of value.slice(0, max * 4)) out += hidden(ch.codePointAt(0) ?? 0) ? " " : ch;
-  return out.replace(/\s+/g, " ").trim().slice(0, max);
+  // Cut by whole characters, so a character made of two code units is never split.
+  return [...out.replace(/\s+/g, " ").trim()].slice(0, max).join("");
 };
 
 const count = (value: unknown): number =>
@@ -72,7 +76,7 @@ export function parseStatus(json: unknown): NextStep | null {
     text,
     url: safeUrl(next.url),
     // Shown as text only (never run): a codeceipt command, in plain characters.
-    command: /^(npx )?codeceipt[\w .@:/=-]*$/.test(command) ? command : null,
+    command: /^(npx )?codeceipt( [a-z][a-z-]*| --[a-z][a-z-]*)*$/.test(command) ? command : null,
   };
 }
 
@@ -169,4 +173,16 @@ export function tree(next: NextStep | null, last: LastReceipt | null): TreeRow[]
     });
   }
   return rows;
+}
+
+/**
+ * The words of the "Show the last receipt" message. VS Code draws links ("[text](address)") and icons ("$(name)")
+ * in such messages, so the characters that start them are taken out of the next step's text; the rest is counts.
+ */
+export function summary(next: NextStep | null, last: LastReceipt | null): string {
+  const c = last?.counts;
+  const receipt = c
+    ? `Last receipt: ${c.done} done, ${c.partlyDone} partly done, ${c.missed} missed.`
+    : "No receipt yet: make a change with your agent and end the session.";
+  return next ? `${receipt} Next step: ${next.text.replace(/[[\]$`<>]/g, "")}` : receipt;
 }

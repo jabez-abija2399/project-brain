@@ -559,3 +559,25 @@ Status values: not started, in progress, merged, blocked (with reason).
 - **One new dev dependency:** `@types/vscode` 1.90.0 (types only; row in `docs/dependencies.md`).
 - **Not verified:** the editor glue (`src/extension.ts`) is type-checked and bundled but not run in a real editor
   here; trying it, packaging and publishing are owner action 15.
+- **Security review (fresh context): one HIGH and one MEDIUM finding, both fixed, with attack tests.**
+  - **HIGH (Windows; MEDIUM elsewhere), fixed (PH11-18, PH11-23):** the CLI started `git` by its bare name. On
+    Windows a bare name is looked up in the current folder first, so a project that ships a `git.exe` would have had
+    it run when the editor opened the folder. The CLI now starts git by its full path, found in absolute PATH
+    folders only (this protects every command and hook, not only the extension), and the extension gives the
+    command a PATH with no project folder in it.
+  - **MEDIUM, fixed (PH11-17):** with a subfolder of a repository opened, a `codeceipt` elsewhere in that repository
+    (for example `node_modules/.bin` on PATH) was accepted. The whole repository is now off limits.
+  - **LOW, fixed:**
+    - Windows PATH folders without a drive letter are skipped (PH11-19).
+    - `codeceipt status` refuses a saved server address that is not https, as `last` already did (PH11-24).
+    - `codeceipt last --json` answers only in a connected repo, never with the default login's project (PH11-25).
+    - The command line shown must be `codeceipt` plus plain words (PH11-20).
+    - The pop-up message cannot carry a link or an icon (PH11-21); more invisible characters are removed (PH11-22).
+    - The extension runs nothing in a folder that is not a git repository.
+    - The docs no longer say "nothing written": the command keeps its usual small records.
+  - **Test input changed, openly:** PH11-05 (Windows finds only `codeceipt.exe`) used Unix-style folders for its
+    Windows case; with the drive-letter rule it now uses `C:\...` folders. Its assertions are unchanged.
+  - **Recorded in `agent/later.md`, not fixed here:** a `.git` folder that arrives in a zip file (not a clone) can
+    carry a link file naming another of the same user's projects; the result is the wrong project's receipt shown,
+    with no token sent anywhere new.
+
