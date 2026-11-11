@@ -52,7 +52,7 @@ command; routes lost in subfolder projects) and four LOW findings fixed; the res
 | BL-28 | Project page: "Delete this project", enabled only once the project's name is typed |
 | BL-29, BL-30 | Proposals page: rules an agent proposed, with Confirm and Dismiss (dismiss is its own DELETE route, so AC-010-07's "only active" stays as it is); proposals older than 30 days are no longer offered |
 
-Also: the start page's live status refreshes in place instead of reloading; the Plan tab explains a plan that would
+Also: the Plan tab explains a plan that would
 make the Blueprint too large. Not done on purpose (reasons in `agent/later.md`): deleting start blobs; renaming "Your
 first receipt" (wording only, pinned by three tests).
 
