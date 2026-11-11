@@ -138,4 +138,3 @@ describe("Connect tab", () => {
     }
   });
 });
-

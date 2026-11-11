@@ -63,11 +63,7 @@ export function DirectiveActions({
           Dismiss
         </Button>
       </div>
-      {message ? (
-        <p role="status" className="m0">
-          {message}
-        </p>
-      ) : null}
+      {message ? <output className="m0">{message}</output> : null}
     </div>
   );
 }
