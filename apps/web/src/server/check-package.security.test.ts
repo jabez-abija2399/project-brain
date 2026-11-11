@@ -283,7 +283,7 @@ describe("FEAT-014 check_package security pass", () => {
       "w-latest-num": `{"name":"w-latest-num","dist-tags":{"latest":1},"time":{"created":"${daysAgo(9)}","1":"${daysAgo(9)}"}}`,
       "w-date-num": `{"name":"w-date-num","dist-tags":{"latest":"1.0.0"},"time":{"created":1,"1.0.0":"${daysAgo(9)}"}}`,
       "w-latest-missing": `{"name":"w-latest-missing","dist-tags":{"latest":"9.9.9"},"time":{"created":"${daysAgo(900)}","1.0.0":"${daysAgo(900)}"}}`,
-      "w-bom": `﻿{"name":"w-bom"}`,
+      "w-bom": `\ufeff{"name":"w-bom"}`,
     };
     for (const [name, body] of Object.entries(bodies)) docs.set(name, raw(body));
     vi.spyOn(console, "warn").mockImplementation(() => {});

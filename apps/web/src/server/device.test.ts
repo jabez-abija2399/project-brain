@@ -6,6 +6,7 @@ import { MAX_ACTIVE_TOKENS, projectTokensRepo, projectsRepo } from "@brain/db";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionUser } from "./auth";
 import { approveDevice, pollDevice, startDevice } from "./device";
+import { clientKey } from "./device";
 import { AppError } from "./errors";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
@@ -238,5 +239,19 @@ describe("npx codeceipt device approval", () => {
       }),
     );
     expect(res.status).toBe(400);
+  });
+});
+
+describe("rate-limit address (backlog)", () => {
+  it("BL-05 attack: a client cannot pick its own address with x-forwarded-for when the platform header is there", () => {
+    const req = (headers: Record<string, string>) => new Request("http://localhost/x", { headers });
+    const real = clientKey(req({ "x-vercel-forwarded-for": "203.0.113.7" }));
+    for (const spoof of ["1.1.1.1", "2.2.2.2"]) {
+      expect(
+        clientKey(req({ "x-vercel-forwarded-for": "203.0.113.7", "x-forwarded-for": spoof })),
+      ).toBe(real);
+    }
+    expect(clientKey(req({ "x-real-ip": "203.0.113.7", "x-forwarded-for": "9.9.9.9" }))).toBe(real);
+    expect(clientKey(req({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" }))).toBe(real);
   });
 });

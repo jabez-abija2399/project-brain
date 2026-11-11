@@ -22,11 +22,12 @@ const USER_CODE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
-// The caller's address for rate limits, hashed so no address is stored. Behind Vercel the first x-forwarded-for entry
-// is the client.
+// The caller's address for rate limits, hashed so no address is stored. Vercel sets x-vercel-forwarded-for and
+// x-real-ip itself (a client cannot choose them), so those come first; x-forwarded-for is the fallback elsewhere.
 export function clientKey(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const ip = forwarded || req.headers.get("x-real-ip")?.trim() || "unknown";
+  const first = (name: string) => req.headers.get(name)?.split(",")[0]?.trim() || "";
+  const ip =
+    first("x-vercel-forwarded-for") || first("x-real-ip") || first("x-forwarded-for") || "unknown";
   return hash(ip).slice(0, 32);
 }
 
@@ -154,15 +155,26 @@ export async function approveDevice(
     await deviceCodesRepo.decide(db, input.user_code, { userId: user.id, deny: true }, now);
     return { ok: true, denied: true };
   }
-  const projectId =
-    "project_id" in input
-      ? (await requireProjectAccess(db, input.project_id, user)).id
-      : await (async () => {
-          await assertCanCreateProject(db, user.id);
-          return (await projectsRepo.create(db, user.id, { name: input.new_project_name })).id;
-        })();
-  if (!(await deviceCodesRepo.decide(db, input.user_code, { userId: user.id, projectId }, now))) {
-    throw new AppError(404, "not_found");
+  let projectId: string;
+  if ("project_id" in input) {
+    projectId = (await requireProjectAccess(db, input.project_id, user)).id;
+    if (!(await deviceCodesRepo.decide(db, input.user_code, { userId: user.id, projectId }, now))) {
+      throw new AppError(404, "not_found");
+    }
+  } else {
+    await assertCanCreateProject(db, user.id);
+    // One transaction: two approvals racing for one code cannot leave an empty project behind (the loser's new
+    // project is rolled back with its failed decision).
+    projectId = await db.transaction(async (tx) => {
+      const t = tx as unknown as BrainDb;
+      const id = (await projectsRepo.create(t, user.id, { name: input.new_project_name })).id;
+      if (
+        !(await deviceCodesRepo.decide(t, input.user_code, { userId: user.id, projectId: id }, now))
+      ) {
+        throw new AppError(404, "not_found");
+      }
+      return id;
+    });
   }
   console.info("[device]", JSON.stringify({ event: "approved", projectId, actor: "session" }));
   return { ok: true, project_id: projectId };
