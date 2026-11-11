@@ -22,9 +22,13 @@ const ASSIGNED =
   /\b([A-Za-z0-9_]*?(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|service[_-]?role[_-]?key|jwt[_-]?secret))(["']?\s*[:=]\s*["']?)([^\s"',;)]{4,})/gi;
 // Zero-width characters can split a token so the patterns miss it; they are removed first.
 const ZERO_WIDTH = /\u200B|\u200C|\u200D|\u2060|\uFEFF/g;
-const URL_CREDENTIALS = /(\b[a-z][a-z0-9+.-]*:\/\/[^\s/:@]+:)([^\s/@]+)(@)/gi;
-const LONG_RANDOM =
-  /\b(?=[A-Za-z0-9+/_-]*[0-9])(?=[A-Za-z0-9+/_-]*[A-Za-z])[A-Za-z0-9+/_-]{32,}={0,2}/g;
+// The scheme is bounded (real ones are short): an unbounded one rescanned a whole "a-a-a-..." run at every boundary.
+const URL_CREDENTIALS = /(\b[a-z][a-z0-9+.-]{0,30}:\/\/[^\s/:@]+:)([^\s/@]+)(@)/gi;
+// Backlog (FEAT-015 review): one pass over each run, then a check for a digit and a letter; the old lookaheads
+// rescanned the rest of a run at every word boundary in it (quadratic on "a-a-a-...").
+const LONG_RANDOM = /\b[A-Za-z0-9+/_-]{32,}={0,2}/g;
+const HAS_DIGIT = /[0-9]/;
+const HAS_LETTER = /[A-Za-z]/;
 
 export function maskSecretsIn(text: string): string {
   let out = text.replace(ZERO_WIDTH, "");
@@ -35,7 +39,9 @@ export function maskSecretsIn(text: string): string {
   out = out.replace(URL_CREDENTIALS, (_m, head: string, pass: string, at: string) =>
     pass.endsWith("***") ? `${head}${pass}${at}` : `${head}${maskSecret(pass)}${at}`,
   );
-  return out.replace(LONG_RANDOM, (m) => (m.endsWith("***") ? m : maskSecret(m)));
+  return out.replace(LONG_RANDOM, (m) =>
+    m.endsWith("***") || !HAS_DIGIT.test(m) || !HAS_LETTER.test(m) ? m : maskSecret(m),
+  );
 }
 
 // A 40-character AWS-style secret can contain "/" and so survive masking one path segment at a time. Such a key is a run
