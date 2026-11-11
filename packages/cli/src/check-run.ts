@@ -4,8 +4,8 @@
 // out, exit code, duration and the test counts the output states. The output itself stays in memory and is dropped.
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { realpathSync } from "node:fs";
-import { dirname, sep } from "node:path";
+import { readFileSync, realpathSync } from "node:fs";
+import { dirname, join, sep } from "node:path";
 
 export const DEFAULT_TIMEOUT_S = 300;
 export const MIN_TIMEOUT_S = 30;
@@ -41,12 +41,20 @@ export async function checkSettingFor<T>(
   const own = checks[checkKey(root)];
   if (own) return own;
   try {
+    const abs = (p: string) => realpathSync(p);
     const common = (
       await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)
     ).trim();
+    const own = (await git(["rev-parse", "--absolute-git-dir"], root)).trim();
     if (!common.endsWith(`${sep}.git`) && !common.endsWith("/.git")) return undefined;
-    const main = realpathSync(dirname(common));
-    return main === realpathSync(root) ? undefined : checks[checkKey(main)];
+    // Security review: only a real worktree of that checkout. Its own git folder is <common>/worktrees/<name>, and
+    // that folder's gitdir file points back at this folder's .git: a hand-written `.git` file naming another repo's
+    // git folder (an unpacked archive) fails both checks.
+    if (dirname(abs(own)) !== join(abs(common), "worktrees")) return undefined;
+    const back = readFileSync(join(own, "gitdir"), "utf8").trim();
+    if (abs(back) !== join(abs(root), ".git")) return undefined;
+    const main = abs(dirname(common));
+    return main === abs(root) ? undefined : checks[checkKey(main)];
   } catch {
     return undefined;
   }

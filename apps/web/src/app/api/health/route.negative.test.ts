@@ -46,18 +46,31 @@ describe("GET /api/health cache (backlog)", () => {
   afterEach(() => {
     process.env.DATABASE_URL = originalUrl;
     vi.useRealTimers();
+    vi.doUnmock("@brain/db");
+    vi.resetModules();
   });
 
-  it("BL-15 a burst of checks reuses one answer for 5 s; another database address is checked again", async () => {
+  it("BL-15 one database check serves a burst of requests for 5 s, and concurrent ones share it", async () => {
+    vi.resetModules();
+    let checks = 0;
+    vi.doMock("@brain/db", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@brain/db")>()),
+      checkDb: async () => {
+        checks++;
+        await new Promise((r) => setTimeout(r, 20));
+        return { ok: false, reason: "down" };
+      },
+    }));
     vi.useFakeTimers({ toFake: ["Date"] });
-    process.env.DATABASE_URL = "postgres://x:x@127.0.0.1:1/none";
+    process.env.DATABASE_URL = "postgres://x:x@127.0.0.1:1/cache-test";
     const { GET } = await import("./route");
-    expect((await GET()).status).toBe(503);
-    // The same address within 5 s: answered at once from the cached result (no new connection attempt).
-    const start = performance.now();
-    for (let i = 0; i < 20; i++) expect((await GET()).status).toBe(503);
-    expect(performance.now() - start).toBeLessThan(200);
+    const burst = await Promise.all(Array.from({ length: 10 }, () => GET()));
+    expect(burst.every((r) => r.status === 503)).toBe(true);
+    expect(checks).toBe(1);
+    for (let i = 0; i < 10; i++) await GET();
+    expect(checks).toBe(1);
     vi.setSystemTime(Date.now() + 6_000);
-    expect((await GET()).status).toBe(503);
+    await GET();
+    expect(checks).toBe(2);
   });
 });

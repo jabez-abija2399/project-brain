@@ -47,11 +47,13 @@ import {
 // following a symlink and checked again, so a file swapped for a link in between is never read or written through.
 // O_NOFOLLOW does not exist on Windows (0 there): the lstat check in safe() is what applies.
 const NOFOLLOW = constants.O_NOFOLLOW ?? 0;
+// A FIFO swapped in never blocks the open (security review).
+const NONBLOCK = constants.O_NONBLOCK ?? 0;
 // Null when the path is no longer a regular file (a symlink now, a folder, gone): it is then left alone.
 function readNoFollow(abs: string): string | null {
   let fd: number;
   try {
-    fd = openSync(abs, constants.O_RDONLY | NOFOLLOW);
+    fd = openSync(abs, constants.O_RDONLY | NOFOLLOW | NONBLOCK);
   } catch {
     return null;
   }
@@ -66,7 +68,7 @@ function readNoFollow(abs: string): string | null {
 function writeNoFollow(abs: string, text: string): boolean {
   let fd: number;
   try {
-    fd = openSync(abs, constants.O_WRONLY | NOFOLLOW);
+    fd = openSync(abs, constants.O_WRONLY | NOFOLLOW | NONBLOCK);
   } catch {
     return false;
   }

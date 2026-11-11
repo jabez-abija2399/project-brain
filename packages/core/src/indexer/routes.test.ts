@@ -10,6 +10,9 @@ describe("detectRoute (backlog)", () => {
       ["src/app/shop/[id]/page.jsx", "/shop/[id]"],
       ["apps/web/src/app/api/health/route.ts", "/api/health"],
       ["packages/site/app/blog/page.tsx", "/blog"],
+      // Security review: projects in any subfolder keep their routes.
+      ["web/app/pricing/page.tsx", "/pricing"],
+      ["frontend/src/app/api/x/route.ts", "/api/x"],
     ] as const) {
       expect(detectRoute(file)?.path, file).toBe(path);
     }

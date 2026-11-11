@@ -239,5 +239,10 @@ describe("check setting in worktrees (backlog)", () => {
     // Its own setting wins over the main checkout's.
     const own = { ...checks, [checkKey(wt)]: { command: "pnpm test" } };
     expect(await checkSettingFor(runGit, wt, own)).toEqual({ command: "pnpm test" });
+    // Attack (security review): a folder with a hand-written .git file naming the trusted repo's git folder.
+    const { writeFileSync } = await import("node:fs");
+    const evil = realpathSync(mkdtempSync(join(tmpdir(), "cc-wt-evil-")));
+    writeFileSync(join(evil, ".git"), `gitdir: ${join(main, ".git")}\n`);
+    expect(await checkSettingFor(runGit, evil, checks)).toBeUndefined();
   });
 });

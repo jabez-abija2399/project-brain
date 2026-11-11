@@ -18,3 +18,30 @@ merge each pull request on green CI. Items that need the owner stay in [../owner
 Security review (fresh context): no HIGH; the MEDIUM (lock not pinned by a test) and five LOW findings fixed; two
 notes added to `agent/later.md`. Already done before this wave (found while checking): checklist confirm names the
 exact proposal; app-wide Origin check.
+
+## Wave B: bugs and robustness (branch `backlog/wave-b-bugs`)
+| Test | Fix |
+|---|---|
+| BL-13, BL-14 | App Router detection: page.js/page.ts too; an `app/` folder inside components/, lib/, features/ and similar is not the router; projects in any subfolder keep their routes |
+| BL-15 | /api/health reuses one answer for 5 s per database address, and concurrent requests share one check |
+| BL-16, BL-17 | A suspended GitHub App installation, or repositories removed from it, unlink their projects (signed events only, in chunks) |
+| BL-18 | Creating project tokens is limited to 30 a minute per user |
+| BL-19 | Active tokens always come first in the token list |
+| BL-20 | A start note that looks like JSON is labelled, so Claude Code never reads it as hook control |
+| BL-21 | Worktrees use the main checkout's check command; a hand-written `.git` file naming another repo does not |
+| BL-22 | A concurrent file move gets its own 409, not "name taken" |
+| BL-23 | `codeceipt guard` holds at most 64 MB of text; files past it are reported, never passed |
+| BL-24 | A request matched to a feature moves it from todo to in progress |
+| BL-25 | The indexer walk stops at 20,000 files (and lists 5,000 skipped paths at most); a stopped walk deletes nothing on the server |
+| BL-26 | Secret masking runs in linear time |
+
+Also: `checkDb` clears its timer and never waits for the connection to close; `/mcp` gets `maxDuration` 60 s;
+`init --remove-repo-files` reads and rewrites through no-follow, non-blocking descriptors; an unused test helper left
+the production auth module; the indexer's react-import test is unconditional.
+
+Not built on purpose (reasons in `agent/later.md`): a Stop-hook receipt debounce (it would skip the done gate); a
+sign-out case in the Origin test (better-auth's own route).
+
+Security review (fresh context): no HIGH; both MEDIUM findings (a crafted `.git` file borrowing another repo's check
+command; routes lost in subfolder projects) and four LOW findings fixed; the rest recorded in `agent/later.md`.
+

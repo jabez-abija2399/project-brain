@@ -102,18 +102,20 @@ export const githubRepo = {
 
   /** Unlinks the projects linked to these repositories of an installation (removed from it on GitHub). */
   async unlinkRepos(db: BrainDb, installationId: number, repoFullNames: string[]): Promise<number> {
-    if (repoFullNames.length === 0) return 0;
-    const rows = await db
-      .update(projects)
-      .set({ installationId: null })
-      .where(
-        and(
-          eq(projects.installationId, installationId),
-          inArray(projects.repoFullName, repoFullNames),
-        ),
-      )
-      .returning({ id: projects.id });
-    return rows.length;
+    // In chunks, so a large removal (the 5 MB webhook body bounds it) is one bounded query at a time.
+    let unlinked = 0;
+    for (let i = 0; i < repoFullNames.length; i += 1000) {
+      const chunk = repoFullNames.slice(i, i + 1000);
+      const rows = await db
+        .update(projects)
+        .set({ installationId: null })
+        .where(
+          and(eq(projects.installationId, installationId), inArray(projects.repoFullName, chunk)),
+        )
+        .returning({ id: projects.id });
+      unlinked += rows.length;
+    }
+    return unlinked;
   },
 
   // True the first time a delivery id is seen, false for a replay. Old ids are pruned on the way.
