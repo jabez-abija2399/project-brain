@@ -45,3 +45,14 @@ sign-out case in the Origin test (better-auth's own route).
 Security review (fresh context): no HIGH; both MEDIUM findings (a crafted `.git` file borrowing another repo's check
 command; routes lost in subfolder projects) and four LOW findings fixed; the rest recorded in `agent/later.md`.
 
+## Wave C: small screens and fixes (branch `backlog/wave-c-ux`)
+| Test | Change |
+|---|---|
+| BL-27 | Connect tab: a "Connect GitHub" button when the App is set up and the repository is not connected; the repository's name once it is |
+| BL-28 | Project page: "Delete this project", enabled only once the project's name is typed |
+| BL-29, BL-30 | Proposals page: rules an agent proposed, with Confirm and Dismiss (dismiss is its own DELETE route, so AC-010-07's "only active" stays as it is); proposals older than 30 days are no longer offered |
+
+Also: the start page's live status refreshes in place instead of reloading; the Plan tab explains a plan that would
+make the Blueprint too large. Not done on purpose (reasons in `agent/later.md`): deleting start blobs; renaming "Your
+first receipt" (wording only, pinned by three tests).
+
