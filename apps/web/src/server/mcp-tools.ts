@@ -221,7 +221,7 @@ export function registerBrainTools(server: McpServer): void {
         const input = parseFeatureArgs(args);
         bindToken(token, input.projectId);
         const feature = await resolveFeature(getDb(), token.projectId, input.feature);
-        return getContextPack(getDb(), token.projectId, feature.name);
+        return getContextPack(getDb(), token.projectId, feature);
       }),
   );
 
