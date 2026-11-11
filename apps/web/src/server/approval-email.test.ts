@@ -139,4 +139,47 @@ describe("approval emails", () => {
       MessageStream: "outbound",
     });
   });
+
+  it("BL-49 a failed send is tried again in the same hour; an address that is not exactly one is never used", async () => {
+    const p = await projectsRepo.create(world.db, ada.id, { name: "salon" });
+    await request(p.id);
+    const q = await projectsRepo.create(world.db, eve.id, { name: "shop" });
+    await request(q.id);
+    await world.db.execute(
+      sql`update "user" set email = ${"eve@x.test,victim@y.test"} where id = ${eve.id}`,
+    );
+    let up = false;
+    const tried: string[] = [];
+    const flaky = async (m: Mail) => {
+      tried.push(m.to);
+      return up;
+    };
+    expect(await sendApprovalEmails(world.db, flaky, APP, RUN)).toMatchObject({
+      sent: 0,
+      failed: 1,
+    });
+    up = true;
+    expect(await sendApprovalEmails(world.db, flaky, APP, RUN)).toMatchObject({
+      sent: 1,
+      failed: 0,
+    });
+    expect(tried).toEqual([ada.email, ada.email]);
+  });
+
+  it("BL-50 the owner cap never cuts one owner's list in the middle", async () => {
+    const a1 = await projectsRepo.create(world.db, ada.id, { name: "a1" });
+    const a2 = await projectsRepo.create(world.db, ada.id, { name: "a2" });
+    const e1 = await projectsRepo.create(world.db, eve.id, { name: "e1" });
+    for (const id of [a1.id, a2.id, e1.id]) await request(id);
+    const { rows, truncated } = await approvalRequestsRepo.newPendingByOwner(
+      world.db,
+      new Date("2026-03-02T10:00:00Z"),
+      new Date("2026-03-02T11:00:00Z"),
+      1,
+    );
+    expect(truncated).toBe(true);
+    expect(new Set(rows.map((r) => r.ownerId)).size).toBe(1);
+    const owner = rows[0]?.ownerId;
+    expect(rows.length).toBe(owner === ada.id ? 2 : 1);
+  });
 });

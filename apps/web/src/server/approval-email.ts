@@ -11,7 +11,11 @@ export type Mail = { to: string; subject: string; text: string };
 export type MailSender = (mail: Mail) => Promise<boolean>;
 
 const HOUR_MS = 3_600_000;
-const MAX_OWNERS_PER_RUN = 500;
+const MAX_OWNERS_PER_RUN = 100;
+// Sends at the same time; with Postmark's 5 s timeout a full run takes at most about 50 s.
+const PARALLEL_SENDS = 10;
+// Exactly one plain address: Postmark's To field also takes lists, which must never be built from stored text.
+const ONE_ADDRESS = /^[^\s,;<>"@]+@[^\s,;<>"@]+\.[^\s,;<>"@]+$/;
 const POSTMARK_URL = "https://api.postmarkapp.com/email";
 
 /** The Postmark sender, or null when it is not configured. */
@@ -71,7 +75,12 @@ export async function sendApprovalEmails(
   if (!(await approvalsEnabled(db))) return { sent: 0, failed: 0, skipped: "not_ready" };
   const end = new Date(Math.floor(now.getTime() / HOUR_MS) * HOUR_MS);
   const start = new Date(end.getTime() - HOUR_MS);
-  const rows = await approvalRequestsRepo.newPendingByOwner(db, start, end);
+  const { rows, truncated } = await approvalRequestsRepo.newPendingByOwner(
+    db,
+    start,
+    end,
+    MAX_OWNERS_PER_RUN,
+  );
   const byOwner = new Map<
     string,
     { email: string; projects: { id: string; name: string; count: number }[] }
@@ -83,17 +92,31 @@ export async function sendApprovalEmails(
   }
   let sent = 0;
   let failed = 0;
-  for (const [ownerId, { email, projects }] of [...byOwner].slice(0, MAX_OWNERS_PER_RUN)) {
-    const mail = renderApprovalEmail(appUrl, projects);
-    if (!mail) continue;
-    // Counted before sending: a run that is retried after a send never sends the same hour twice.
-    if ((await rateCountersRepo.add(db, `approval-email:${ownerId}`, start, 1)) > 1) continue;
+  const sendOne = async (
+    ownerId: string,
+    email: string,
+    mail: { subject: string; text: string },
+  ) => {
+    const key = `approval-email:${ownerId}`;
+    // Counted before sending, so a doubled or retried run never sends the same hour twice; a failed send gives the
+    // count back, so the next attempt within the hour can send.
+    if ((await rateCountersRepo.add(db, key, start, 1)) > 1) return;
     if (await sender({ to: email, ...mail })) sent++;
-    else failed++;
+    else {
+      failed++;
+      await rateCountersRepo.add(db, key, start, -1);
+    }
+  };
+  const jobs = [...byOwner].flatMap(([ownerId, { email, projects }]) => {
+    const mail = renderApprovalEmail(appUrl, projects);
+    return mail && ONE_ADDRESS.test(email) ? [() => sendOne(ownerId, email, mail)] : [];
+  });
+  for (let i = 0; i < jobs.length; i += PARALLEL_SENDS) {
+    await Promise.all(jobs.slice(i, i + PARALLEL_SENDS).map((job) => job()));
   }
   console.info(
     "[approval-email]",
-    JSON.stringify({ event: "run", owners: byOwner.size, sent, failed }),
+    JSON.stringify({ event: "run", owners: byOwner.size, sent, failed, truncated }),
   );
   return { sent, failed };
 }

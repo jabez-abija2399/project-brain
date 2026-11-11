@@ -59,8 +59,28 @@ export const approvalRequestsRepo = {
    * Owner action 12: requests made in [since, now) that still wait, counted per owner and project, for the hourly
    * email. Suspended projects and owners are left out. Only ids, names, counts and the owner's email are read.
    */
-  async newPendingByOwner(db: ApprovalTx, since: Date, now: Date, limit = 2_000) {
-    return db
+  async newPendingByOwner(db: ApprovalTx, since: Date, now: Date, maxOwners = 100) {
+    const waiting = and(
+      eq(approvalRequests.status, "pending"),
+      gte(approvalRequests.createdAt, since),
+      lt(approvalRequests.createdAt, now),
+      gte(approvalRequests.expiresAt, now),
+      isNull(projects.suspendedAt),
+      isNull(users.suspendedAt),
+    );
+    // Owners first (one more than the cap, to tell when some wait for the next run), then all their rows, so no
+    // owner's list is ever cut in the middle.
+    const owners = await db
+      .selectDistinct({ ownerId: projects.ownerId })
+      .from(approvalRequests)
+      .innerJoin(projects, eq(projects.id, approvalRequests.projectId))
+      .innerJoin(users, eq(users.id, projects.ownerId))
+      .where(waiting)
+      .orderBy(projects.ownerId)
+      .limit(maxOwners + 1);
+    const ids = owners.slice(0, maxOwners).map((o) => o.ownerId);
+    if (ids.length === 0) return { rows: [], truncated: false };
+    const rows = await db
       .select({
         ownerId: projects.ownerId,
         email: users.email,
@@ -71,19 +91,10 @@ export const approvalRequestsRepo = {
       .from(approvalRequests)
       .innerJoin(projects, eq(projects.id, approvalRequests.projectId))
       .innerJoin(users, eq(users.id, projects.ownerId))
-      .where(
-        and(
-          eq(approvalRequests.status, "pending"),
-          gte(approvalRequests.createdAt, since),
-          lt(approvalRequests.createdAt, now),
-          gte(approvalRequests.expiresAt, now),
-          isNull(projects.suspendedAt),
-          isNull(users.suspendedAt),
-        ),
-      )
+      .where(and(waiting, inArray(projects.ownerId, ids)))
       .groupBy(projects.ownerId, users.email, projects.id, projects.name)
-      .orderBy(projects.ownerId, projects.name)
-      .limit(limit);
+      .orderBy(projects.ownerId, projects.name);
+    return { rows, truncated: owners.length > maxOwners };
   },
 
   async insert(
