@@ -2,7 +2,7 @@ import { createHash, randomBytes, randomInt } from "node:crypto";
 import { type BrainDb, TokenLimitError, deviceCodesRepo, projectsRepo } from "@brain/db";
 import { z } from "zod";
 import { type SessionUser, appOriginOf, requireProjectAccess } from "./auth";
-import { assertCanCreateProject } from "./billing";
+import { createProjectWithinLimit } from "./billing";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
 import { UNSAFE_NAME_CHARS, projectNameSchema } from "./validate";
@@ -162,19 +162,22 @@ export async function approveDevice(
       throw new AppError(404, "not_found");
     }
   } else {
-    await assertCanCreateProject(db, user.id);
-    // One transaction: two approvals racing for one code cannot leave an empty project behind (the loser's new
-    // project is rolled back with its failed decision).
-    projectId = await db.transaction(async (tx) => {
-      const t = tx as unknown as BrainDb;
-      const id = (await projectsRepo.create(t, user.id, { name: input.new_project_name })).id;
-      if (
-        !(await deviceCodesRepo.decide(t, input.user_code, { userId: user.id, projectId: id }, now))
-      ) {
-        throw new AppError(404, "not_found");
-      }
-      return id;
-    });
+    // One transaction under the owner's lock: the plan limit holds for parallel creates, and two approvals racing
+    // for one code cannot leave an empty project behind (the loser's project is rolled back with its decision).
+    projectId = (
+      await createProjectWithinLimit(db, user.id, input.new_project_name, async (t, id) => {
+        if (
+          !(await deviceCodesRepo.decide(
+            t,
+            input.user_code,
+            { userId: user.id, projectId: id },
+            now,
+          ))
+        ) {
+          throw new AppError(404, "not_found");
+        }
+      })
+    ).id;
   }
   console.info("[device]", JSON.stringify({ event: "approved", projectId, actor: "session" }));
   return { ok: true, project_id: projectId };

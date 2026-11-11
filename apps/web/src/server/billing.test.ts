@@ -212,6 +212,14 @@ describe("FEAT-025 plans and billing", () => {
     expect(view.items.map((i) => i.status)).toEqual(["not_verified"]);
   });
 
+  it("BL-11 attack: parallel creates cannot pass the plan's project limit together", async () => {
+    world.signInAs(user);
+    const results = await Promise.all(["a", "b", "c", "d"].map((n) => createProject(n)));
+    expect(results.map((r) => r.status).sort()).toEqual([201, 402, 402, 402]);
+    const { items } = await projectsRepo.listByOwner(world.db, user.id, { limit: 10, offset: 0 });
+    expect(items).toHaveLength(1);
+  });
+
   it("AC-025-03 attack: the plan changes only from a validly signed webhook; a client cannot set its own plan or price", async () => {
     setSub("sub_1", user.id, { priceId: "price_agency" });
     const real = completed("sub_1");
