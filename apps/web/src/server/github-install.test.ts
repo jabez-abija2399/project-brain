@@ -381,4 +381,19 @@ describe("GitHub App install: only repositories the person can access (owner-app
     expect((await callBack(await stateFor(owner))).status).toBe(403);
     expect(mismatch.requests.some((r) => r.startsWith("DELETE /applications/"))).toBe(true);
   });
+
+  it("BL-12 a user with several GitHub sign-ins may use any of them; a user with none is refused", async () => {
+    await world.pg.query(
+      'INSERT INTO account (id, "userId", "accountId", "providerId") VALUES ($1, $2, $3, $4)',
+      ["second-github", owner.id, "7777", "github"],
+    );
+    mockGithub(github({ githubUserId: 7777 }));
+    expect((await callBack(await stateFor(owner))).status).toBe(303);
+
+    await world.pg.query('DELETE FROM account WHERE "userId" = $1', [owner.id]);
+    mockGithub(github());
+    const res = await callBack(await stateFor(owner));
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("github_account_mismatch");
+  });
 });

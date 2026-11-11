@@ -22,12 +22,16 @@ const USER_CODE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}-[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
 
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
 
-// The caller's address for rate limits, hashed so no address is stored. Vercel sets x-vercel-forwarded-for and
-// x-real-ip itself (a client cannot choose them), so those come first; x-forwarded-for is the fallback elsewhere.
+// The caller's address for rate limits, hashed so no address is stored. On Vercel (VERCEL set), Vercel itself sets
+// x-vercel-forwarded-for and x-real-ip, so a client cannot choose them. Elsewhere (local dev, a self-hosted server)
+// every header can be set by the client, as before: the first x-forwarded-for entry is used.
 export function clientKey(req: Request): string {
   const first = (name: string) => req.headers.get(name)?.split(",")[0]?.trim() || "";
   const ip =
-    first("x-vercel-forwarded-for") || first("x-real-ip") || first("x-forwarded-for") || "unknown";
+    (process.env.VERCEL ? first("x-vercel-forwarded-for") || first("x-real-ip") : "") ||
+    first("x-forwarded-for") ||
+    first("x-real-ip") ||
+    "unknown";
   return hash(ip).slice(0, 32);
 }
 

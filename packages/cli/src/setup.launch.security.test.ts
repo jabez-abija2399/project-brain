@@ -358,4 +358,13 @@ describe("launch: npx codeceipt and per-repo tokens under attack", () => {
       s.seen.some((x) => x.url.endsWith("/api/token/revoke") && x.auth?.includes(TOKEN_A)),
     ).toBe(false);
   });
+
+  it("BL-08b the default login (codeceipt login) is never revoked by setup", async () => {
+    const h = home();
+    const dir = gitRepo();
+    writeConfig(configFile(h), { apiUrl: API, projectId: "proj-a", token: TOKEN_B });
+    const s = deviceServer();
+    expect((await run(["--api-url", API], { cwd: dir, home: h, fetch: s.fetchImpl })).code).toBe(0);
+    expect(s.seen.some((x) => x.url.endsWith("/api/token/revoke"))).toBe(false);
+  });
 });

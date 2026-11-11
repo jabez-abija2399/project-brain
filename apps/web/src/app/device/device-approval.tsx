@@ -43,6 +43,10 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
         setMessage(
           "Your account is suspended, so it cannot connect computers. See your Account page.",
         );
+      else if (res.status === 402)
+        setMessage(
+          "Your plan has no room for a new project. Pick one of your existing projects above, or upgrade on the Pricing page.",
+        );
       else if (res.status === 400) setMessage("Check the code (8 letters) and the project name.");
       else setMessage("That did not work. Reload the page and try again.");
     } catch {

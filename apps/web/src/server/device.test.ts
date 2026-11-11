@@ -243,7 +243,8 @@ describe("npx codeceipt device approval", () => {
 });
 
 describe("rate-limit address (backlog)", () => {
-  it("BL-05 attack: a client cannot pick its own address with x-forwarded-for when the platform header is there", () => {
+  it("BL-05 attack: on Vercel a client cannot pick its own address with x-forwarded-for", () => {
+    vi.stubEnv("VERCEL", "1");
     const req = (headers: Record<string, string>) => new Request("http://localhost/x", { headers });
     const real = clientKey(req({ "x-vercel-forwarded-for": "203.0.113.7" }));
     for (const spoof of ["1.1.1.1", "2.2.2.2"]) {
@@ -253,5 +254,11 @@ describe("rate-limit address (backlog)", () => {
     }
     expect(clientKey(req({ "x-real-ip": "203.0.113.7", "x-forwarded-for": "9.9.9.9" }))).toBe(real);
     expect(clientKey(req({ "x-forwarded-for": "203.0.113.7, 10.0.0.1" }))).toBe(real);
+    // Off Vercel the platform headers mean nothing: the first x-forwarded-for entry is used, as before.
+    vi.stubEnv("VERCEL", "");
+    expect(
+      clientKey(req({ "x-vercel-forwarded-for": "203.0.113.7", "x-forwarded-for": "1.1.1.1" })),
+    ).toBe(clientKey(req({ "x-forwarded-for": "1.1.1.1" })));
+    vi.unstubAllEnvs();
   });
 });

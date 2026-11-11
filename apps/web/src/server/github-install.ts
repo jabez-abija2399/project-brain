@@ -142,12 +142,12 @@ export async function completeInstall(
   let token: string | null = null;
   // The GitHub account the person signed in to Codeceipt with: the code must belong to that same account, so a
   // leaked state cannot be finished with someone else's GitHub code and installation.
-  const expected = await usersRepo.githubUserId(db, user.id);
+  const expected = await usersRepo.githubUserIds(db, user.id);
   try {
     const userOctokit = await app.oauth.getUserOctokit({ code: input.code });
     token = ((await userOctokit.auth()) as { token?: string }).token ?? null;
     const me = await userOctokit.request("GET /user");
-    if (expected === null || String(me.data.id) !== expected) {
+    if (!expected.includes(String(me.data.id))) {
       throw new AppError(
         403,
         "github_account_mismatch",
@@ -176,7 +176,11 @@ export async function completeInstall(
     throw invalidState();
   } finally {
     // The person's token was needed for the reads above only: revoke it on GitHub (best effort).
-    if (token) await app.oauth.deleteToken({ token }).catch(() => undefined);
+    // At most 2 s, so a slow GitHub never holds up the answer.
+    if (token) {
+      const revoke = app.oauth.deleteToken({ token }).catch(() => undefined);
+      await Promise.race([revoke, new Promise((done) => setTimeout(done, 2_000))]);
+    }
   }
 
   // Both lists must agree: the installation can see the repository, and so can this person.
