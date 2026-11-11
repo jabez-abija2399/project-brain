@@ -359,4 +359,26 @@ describe("GitHub App install: only repositories the person can access (owner-app
     expect(once.headers.get("location")).toBe("http://localhost/projects?github=linked");
     expect(once.headers.getSetCookie()[0]).toMatch(/^cc_gh_repos=;.*Max-Age=0/);
   });
+
+  it("BL-01 attack: a leaked state finished with another GitHub account's code and installation links nothing (403)", async () => {
+    // The owner signed in with GitHub user 1001; the code GitHub hands back belongs to user 6666 (the attacker).
+    mockGithub(github({ githubUserId: 6666, installations: { 77: ["attacker/repo"] } }));
+    const state = await stateFor(owner);
+    const res = await callBack(state);
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe("github_account_mismatch");
+    expect(await githubRepo.linkedProjects(world.db, 77, "attacker/repo")).toEqual([]);
+  });
+
+  it("BL-02 the person's one-time GitHub token is revoked after the reads, whatever the outcome", async () => {
+    const gh = mockGithub(github());
+    expect((await callBack(await stateFor(owner))).status).toBe(303);
+    expect(gh.requests.filter((r) => /^DELETE \/applications\/[^/]+\/token$/.test(r))).toHaveLength(
+      1,
+    );
+
+    const mismatch = mockGithub(github({ githubUserId: 6666 }));
+    expect((await callBack(await stateFor(owner))).status).toBe(403);
+    expect(mismatch.requests.some((r) => r.startsWith("DELETE /applications/"))).toBe(true);
+  });
 });

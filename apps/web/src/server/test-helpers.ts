@@ -13,7 +13,12 @@ export type TestWorld = {
   pg: PGlite;
   db: BrainDb;
   signInAs: (user: SessionUser | null) => void;
-  createUser: (input?: { name?: string; email?: string }) => Promise<SessionUser>;
+  /** A user with a GitHub sign-in; its GitHub user id is 1001 for the first user of a world, then 1002... */
+  createUser: (input?: {
+    name?: string;
+    email?: string;
+    githubId?: number;
+  }) => Promise<SessionUser>;
   teardown: () => Promise<void>;
 };
 
@@ -23,6 +28,7 @@ export async function createTestWorld(): Promise<TestWorld> {
   setDbForTests(db);
 
   let current: SessionUser | null = null;
+  let created = 0;
   setSessionResolver(async () => current);
 
   const createUser: TestWorld["createUser"] = async (input) => {
@@ -30,6 +36,11 @@ export async function createTestWorld(): Promise<TestWorld> {
     const name = input?.name ?? `user-${id.slice(0, 6)}`;
     const email = input?.email ?? `${id.slice(0, 8)}@example.com`;
     await usersRepo.upsertById(db, { id, name, email });
+    const githubId = input?.githubId ?? 1000 + ++created;
+    await pg.query(
+      'INSERT INTO account (id, "userId", "accountId", "providerId") VALUES ($1, $2, $3, $4)',
+      [randomUUID(), id, String(githubId), "github"],
+    );
     return { id, name, email };
   };
 

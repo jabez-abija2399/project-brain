@@ -39,6 +39,8 @@ export type FakeRepo = {
   // the OAuth user's access per repository (default: push), and a total larger than the list (more pages)
   userAccess?: Record<string, "read" | "push" | "admin">;
   userReposTotal?: number;
+  // the GitHub user behind the OAuth code (default 1001: the first user a test world creates)
+  githubUserId?: number;
   installationReposTotal?: number;
   // compare result per "before...after"
   compare: Record<string, { filename: string; status: string; previous_filename?: string }[]>;
@@ -81,6 +83,12 @@ export function mockGithub(repo: FakeRepo): GithubMock {
       return json({ access_token: fakeToken("ghu"), token_type: "bearer", scope: "" });
     }
     if (url.hostname !== "api.github.com") return json({ message: `unexpected ${url}` }, 404);
+    if (method === "DELETE" && /^\/applications\/[^/]+\/token$/.test(url.pathname)) {
+      return new Response(null, { status: 204 });
+    }
+    if (method === "GET" && url.pathname === "/user") {
+      return json({ id: repo.githubUserId ?? 1001, login: "someone" });
+    }
     let m = url.pathname.match(/^\/app\/installations\/(\d+)\/access_tokens$/);
     if (method === "POST" && m) {
       if (!repo.installations[Number(m[1])]) return json({ message: "Not Found" }, 404);
