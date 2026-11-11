@@ -15,6 +15,27 @@ class FileNotInProject extends Error {}
 export const MAX_FEATURES_PER_PROJECT = 500;
 const LINK_BATCH = 5000;
 
+/** A concurrent move of the same file to another feature (backlog: told apart from a taken name). */
+export class FileMovedConcurrentlyError extends Error {
+  constructor() {
+    super("another change moved this file at the same time; reload and try again");
+  }
+}
+
+/** The name of the unique constraint a Postgres 23505 error names, when the driver reports it. */
+export function uniqueConstraintOf(err: unknown): string | null {
+  for (
+    let e = err as
+      | { code?: string; constraint?: string; constraint_name?: string; cause?: unknown }
+      | undefined;
+    e;
+    e = e.cause as typeof e
+  ) {
+    if (e.code === "23505") return e.constraint_name ?? e.constraint ?? null;
+  }
+  return null;
+}
+
 export function isUniqueViolation(err: unknown): boolean {
   // drizzle wraps the driver error; walk the cause chain for Postgres code 23505.
   for (let e = err as { code?: string; cause?: unknown } | undefined; e; e = e.cause as typeof e) {
@@ -215,6 +236,9 @@ export const featuresRepo = {
         return renamed ?? null;
       });
     } catch (err) {
+      if (uniqueConstraintOf(err) === "feature_files_one_primary_uniq") {
+        throw new FileMovedConcurrentlyError();
+      }
       if (isUniqueViolation(err)) throw new FeatureNameTakenError();
       if (err instanceof FileNotInProject) return null;
       throw err;
