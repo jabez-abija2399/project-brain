@@ -4,6 +4,8 @@
 // out, exit code, duration and the test counts the output states. The output itself stays in memory and is dropped.
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
+import { realpathSync } from "node:fs";
+import { dirname, sep } from "node:path";
 
 export const DEFAULT_TIMEOUT_S = 300;
 export const MIN_TIMEOUT_S = 30;
@@ -24,6 +26,31 @@ export type CheckResult = {
 /** The key a repo's setting is stored under: a hash of its top folder (no path in the config file). */
 export const checkKey = (root: string) =>
   createHash("sha256").update(root).digest("hex").slice(0, 24);
+
+/**
+ * The check setting for a repo: the one saved for its top folder, else (backlog FEAT-022 note) the one saved for its
+ * main checkout, so worktrees of the same repository (Claude Code Desktop runs sessions in them) use it too. The main
+ * checkout is the folder holding the shared .git (`git rev-parse --git-common-dir`); never a folder the repo names.
+ */
+export async function checkSettingFor<T>(
+  git: (args: string[], cwd: string) => Promise<string>,
+  root: string,
+  checks: Record<string, T> | undefined,
+): Promise<T | undefined> {
+  if (!checks) return undefined;
+  const own = checks[checkKey(root)];
+  if (own) return own;
+  try {
+    const common = (
+      await git(["rev-parse", "--path-format=absolute", "--git-common-dir"], root)
+    ).trim();
+    if (!common.endsWith(`${sep}.git`) && !common.endsWith("/.git")) return undefined;
+    const main = realpathSync(dirname(common));
+    return main === realpathSync(root) ? undefined : checks[checkKey(main)];
+  } catch {
+    return undefined;
+  }
+}
 
 const num = (m: RegExpMatchArray | null) => (m?.[1] ? Number(m[1]) : undefined);
 /** Test counts from common runners' summaries (vitest, jest, mocha, pytest); {} when none is stated. */
