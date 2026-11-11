@@ -22,7 +22,7 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 9 | Easy everywhere (parity, menu, next step) | merged | 9a [#76](https://github.com/jabez-abija2399/project-brain/pull/76), 9b [#77](https://github.com/jabez-abija2399/project-brain/pull/77) | One next step (Overview + `codeceipt status`); `docs/actions.md`; keyboard menu; "How do you build?" |
 | 10 | Claim checker and PR receipts | merged (posting waits on owner actions 13 and 14) | 10a [#78](https://github.com/jabez-abija2399/project-brain/pull/78), 10b [#79](https://github.com/jabez-abija2399/project-brain/pull/79) | Receipts check what the agent said against the change; one receipt comment per pull request, off by default |
 | 11 | VS Code extension | merged (publishing is owner action 15) | [#80](https://github.com/jabez-abija2399/project-brain/pull/80) | Status bar and side bar from `codeceipt status --json` / `last --json`; publishing is owner action 15 |
-| 12 | Measure, compare with the kit, document | in progress | | 1,996 tests; local gate ≈ 11 min 40 s, CI 13.5 min; every hook within budget; final docs |
+| 12 | Measure, compare with the kit, document | merged | [#81](https://github.com/jabez-abija2399/project-brain/pull/81) | 1,996 tests; local gate ≈ 11 min 40 s, CI 13.5 min; every hook within budget; final docs |
 
 ## Phase plans
 
@@ -597,4 +597,8 @@ Status values: not started, in progress, merged, blocked (with reason).
   maintainability flags on the receipt itself, email notifications (owner action 12), an AI check for vague claims,
   a debounce for pull-request events, the repository picker fix (needs the owner's go-ahead), and the
   extension-host test.
+
+## Roadmap finished (2026-11-11)
+Phases 0-12 are merged. What remains is the owner's: the 15 entries in [../owner-actions.md](../owner-actions.md),
+starting with "Where to start". Ideas and deferred items are in `agent/later.md` and in the "Later" lines above.
 
