@@ -305,3 +305,5 @@ export type {
   Preset,
   Risk,
 } from "./approvals";
+export { renderApprovalEmail } from "./approval-email";
+export type { ApprovalEmailProject } from "./approval-email";
