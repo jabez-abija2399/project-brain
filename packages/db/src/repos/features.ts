@@ -83,6 +83,23 @@ export const featuresRepo = {
     return row ?? null;
   },
 
+  /**
+   * A feature still at 'todo' becomes 'in_progress' (backlog: nothing set it before, so the handoff note never listed
+   * any). Done or other statuses are left alone.
+   */
+  async markInProgress(db: BrainDb, projectId: string, featureId: string): Promise<void> {
+    await db
+      .update(features)
+      .set({ status: "in_progress" })
+      .where(
+        and(
+          eq(features.projectId, projectId),
+          eq(features.id, featureId),
+          eq(features.status, "todo"),
+        ),
+      );
+  },
+
   // Features whose status is 'in_progress', by name (the handoff note lists them).
   async listInProgress(db: BrainDb, projectId: string, limit: number): Promise<Feature[]> {
     return db

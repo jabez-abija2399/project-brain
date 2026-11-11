@@ -79,6 +79,21 @@ describe("captured requests", () => {
     expect(calls.map((c) => c.purpose)).toEqual(["request-capture"]);
   });
 
+  it("BL-24 a request matched to a feature at todo moves it to in progress (a done feature stays done)", async () => {
+    const statusOf = async () =>
+      (
+        await world.pg.query<{ status: string }>("SELECT status FROM features WHERE id = $1", [
+          reviews.id,
+        ])
+      ).rows[0]?.status;
+    expect(await statusOf()).toBe("todo");
+    await capture({ text: "Add star ratings to reviews with the average", session_id: "s-a" });
+    expect(await statusOf()).toBe("in_progress");
+    await world.pg.query("UPDATE features SET status = 'done' WHERE id = $1", [reviews.id]);
+    await capture({ text: "Show the review count next to the stars", session_id: "s-b" });
+    expect(await statusOf()).toBe("done");
+  });
+
   it("a message that is not a request, or the same text again in the session, records nothing new", async () => {
     answer = "NOT A REQUEST";
     expect(

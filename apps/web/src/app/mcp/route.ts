@@ -6,6 +6,8 @@ import { createMcpHandler } from "mcp-handler";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// Backlog (deploy note): plan_project and generate_receipt can take up to ~30 s; 60 s is the Hobby plan's maximum.
+export const maxDuration = 60;
 
 // Remote MCP server (FEAT-011). Every request needs a token for one project: a CLI project token or an OAuth access
 // token from a grant (mcp-oauth.ts). A missing, unknown, expired or revoked token gets 401 before any tool runs, with
