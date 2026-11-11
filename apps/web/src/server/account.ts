@@ -2,7 +2,7 @@ import { safeDisplay } from "@brain/core";
 import { PLANS, effectivePlan } from "@brain/core";
 import { type BrainDb, accountRepo, billingRepo, usersRepo } from "@brain/db";
 import { z } from "zod";
-import type { SessionUser } from "./auth";
+import { type SessionUser, isPlausibleId } from "./auth";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
 import { SUSPENDED_USER } from "./suspension";
@@ -94,6 +94,7 @@ export async function sessionsView(db: BrainDb, user: SessionUser, now = new Dat
 
 /** Signs one browser out. Another user's session (or one already ended) is 404. */
 export async function endSession(db: BrainDb, user: SessionUser, sessionId: string) {
+  if (!isPlausibleId(sessionId)) throw new AppError(404, "not_found");
   if (!(await accountRepo.endSession(db, user.id, sessionId))) throw new AppError(404, "not_found");
   return { ended: 1 };
 }

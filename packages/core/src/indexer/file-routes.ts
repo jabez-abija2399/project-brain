@@ -10,21 +10,28 @@ import type { RouteIndex } from "./types";
 //   `_index.tsx` is /, `_x` segments are pathless, a folder's `route.tsx` is the folder's URL.
 const CODE = /\.(tsx|jsx|ts|js)$/;
 const MAX_FILE_ROUTES = 2_000;
+// A repo has a few apps at most: more root files than this are not looked at (bounds roots x paths).
+const MAX_ROOTS = 20;
 
 type Router = "expo" | "tanstack" | "react-router";
 
-function rootsOf(paths: Iterable<string>): { dir: string; router: Router }[] {
-  const out: { dir: string; router: Router }[] = [];
+function rootsOf(paths: Iterable<string>): { dir: string; router: Router; file: string }[] {
+  const out: { dir: string; router: Router; file: string }[] = [];
   const dirOf = (p: string) => p.slice(0, Math.max(0, p.lastIndexOf("/")));
+  const seen = new Set<string>();
+  const add = (dir: string, router: Router, file: string) => {
+    if (seen.has(dir) || out.length >= MAX_ROOTS) return;
+    seen.add(dir);
+    out.push({ dir, router, file });
+  };
   for (const p of paths) {
-    if (/(^|\/)app\/_layout\.[jt]sx?$/.test(p)) out.push({ dir: dirOf(p), router: "expo" });
-    else if (/(^|\/)src\/routes\/__root\.[jt]sx?$/.test(p))
-      out.push({ dir: dirOf(p), router: "tanstack" });
-    else if (/(^|\/)app\/root\.[jt]sx?$/.test(p)) {
-      out.push({ dir: `${dirOf(p)}/routes`, router: "react-router" });
-    }
+    if (out.length >= MAX_ROOTS) break;
+    if (/(^|\/)app\/_layout\.[jt]sx?$/.test(p)) add(dirOf(p), "expo", p);
+    else if (/(^|\/)src\/routes\/__root\.[jt]sx?$/.test(p)) add(dirOf(p), "tanstack", p);
+    else if (/(^|\/)app\/root\.[jt]sx?$/.test(p)) add(`${dirOf(p)}/routes`, "react-router", p);
   }
-  return out;
+  // The deepest root claims a file first, so overlapping roots never give one file two routes.
+  return out.sort((a, b) => b.dir.length - a.dir.length);
 }
 
 const join = (segments: string[]) => (segments.length === 0 ? "/" : `/${segments.join("/")}`);
@@ -79,12 +86,16 @@ export function detectFileRoutes(
   allPaths: Iterable<string> = paths,
 ): RouteIndex[] {
   const out: RouteIndex[] = [];
-  for (const { dir, router } of rootsOf(allPaths)) {
+  const roots = rootsOf(allPaths);
+  // Root files are never routes themselves, and a file claimed by one root is not looked at again.
+  const claimed = new Set<string>(roots.map((r) => r.file));
+  for (const { dir, router } of roots) {
     const prefix = dir ? `${dir}/` : "";
     for (const file of paths) {
       if (out.length >= MAX_FILE_ROUTES) return out;
-      if (!file.startsWith(prefix) || skip.has(file) || !CODE.test(file) || file.endsWith(".d.ts"))
-        continue;
+      if (!file.startsWith(prefix) || claimed.has(file) || skip.has(file)) continue;
+      claimed.add(file);
+      if (!CODE.test(file) || file.endsWith(".d.ts")) continue;
       if (/\.(test|spec|stories)\.[jt]sx?$/.test(file)) continue;
       const rel = file.slice(prefix.length);
       const path =

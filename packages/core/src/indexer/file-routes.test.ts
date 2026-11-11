@@ -65,4 +65,13 @@ describe("file-based routers (backlog)", () => {
   it("BL-35 no root file, no routes: an ordinary app/ or routes/ folder is never read as routes", () => {
     expect(detectFileRoutes(["app/page.tsx", "app/utils.ts", "src/routes/x.tsx"])).toEqual([]);
   });
+
+  it("BL-35b overlapping roots give each file one route, root files are never routes, and roots are capped", () => {
+    expect(
+      map(["app/_layout.tsx", "app/root.tsx", "app/routes/a.tsx", "app/settings.tsx"]),
+    ).toEqual({ "app/routes/a.tsx": "/a", "app/settings.tsx": "/settings" });
+    const many = Array.from({ length: 50 }, (_, i) => `d${i}/app/_layout.tsx`);
+    const screens = Array.from({ length: 50 }, (_, i) => `d${i}/app/home.tsx`);
+    expect(detectFileRoutes([...many, ...screens])).toHaveLength(20);
+  });
 });

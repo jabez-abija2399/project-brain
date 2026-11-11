@@ -83,6 +83,8 @@ describe("per-browser sessions", () => {
     await addSession("mine", owner.id, CHROME_MAC);
     expect((await del("theirs")).status).toBe(404);
     expect((await del("theirs' or '1'='1")).status).toBe(404);
+    expect((await del("\u0000")).status).toBe(404);
+    expect((await del("x".repeat(101))).status).toBe(404);
     expect((await del("mine", "https://evil.example")).status).toBe(403);
     world.signInAs(null);
     expect((await del("mine")).status).toBe(401);

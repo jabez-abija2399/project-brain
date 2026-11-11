@@ -57,7 +57,6 @@ export const accountRepo = {
       .limit(MAX_CONNECTED);
   },
 
-  /** Ends every sign-in session of the user (all browsers); returns how many there were. */
   /** The user's live sign-in sessions, most recently used first (backlog: one row per browser on /account). */
   async listSessions(
     db: BrainDb,
@@ -87,6 +86,7 @@ export const accountRepo = {
     return rows.length > 0;
   },
 
+  /** Ends every sign-in session of the user (all browsers); returns how many there were. */
   async endAllSessions(db: BrainDb, userId: string): Promise<number> {
     const rows = await db
       .delete(sessions)
