@@ -3,7 +3,7 @@ import { saveDirective } from "@/server/session-tools";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
 import { directivesRepo, projectTokensRepo, projectsRepo } from "@brain/db";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PATCH } from "./[did]/route";
+import { DELETE, PATCH } from "./[did]/route";
 
 let world: TestWorld;
 let owner: SessionUser;
@@ -82,5 +82,36 @@ describe("PATCH /api/projects/:id/directives/:did (FEAT-010 owner confirmation)"
     world.signInAs(owner);
     const res = await patch(projectId, "missing-directive", { status: "active" });
     expect(res.status).toBe(404);
+  });
+
+  const dismiss = (id: string, did: string, headers: Record<string, string> = {}) =>
+    DELETE(
+      new Request(`http://localhost/api/projects/${id}/directives/${did}`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json", ...headers },
+      }),
+      { params: Promise.resolve({ id, did }) },
+    );
+
+  it("BL-29 the owner dismisses a proposal; a stranger, a token or a second dismiss cannot", async () => {
+    world.signInAs(stranger);
+    expect((await dismiss(projectId, directiveId)).status).toBe(404);
+    world.signInAs(null);
+    const bearer = `Bearer ${(await projectTokensRepo.create(world.db, projectId)).token}`;
+    expect((await dismiss(projectId, directiveId, { authorization: bearer })).status).toBe(401);
+    world.signInAs(owner);
+    expect((await dismiss(projectId, directiveId)).status).toBe(200);
+    expect(await directivesRepo.listProposals(world.db, projectId, new Date())).toEqual([]);
+    expect((await dismiss(projectId, directiveId)).status).toBe(404);
+    expect(await statusOf()).toBe("proposal");
+  });
+
+  it("BL-30 proposals older than 30 days are no longer offered", async () => {
+    const now = new Date();
+    expect((await directivesRepo.listProposals(world.db, projectId, now)).map((d) => d.id)).toEqual(
+      [directiveId],
+    );
+    const later = new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000);
+    expect(await directivesRepo.listProposals(world.db, projectId, later)).toEqual([]);
   });
 });

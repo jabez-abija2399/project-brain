@@ -1,7 +1,7 @@
 import { requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { toResponse } from "@/server/errors";
-import { confirmDirective } from "@/server/session-tools";
+import { confirmDirective, dismissDirective } from "@/server/session-tools";
 import { parseInput } from "@/server/validate";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -22,6 +22,19 @@ export async function PATCH(req: Request, { params }: Ctx) {
     const db = getDb();
     await parseInput(req, patchSchema);
     const directive = await confirmDirective(db, user, id, did);
+    return NextResponse.json({ ok: true, directive });
+  } catch (err) {
+    return toResponse(err);
+  }
+}
+
+// Backlog: the owner dismisses an agent's proposal (status 'dismissed'). Session auth and the same-origin check, as
+// PATCH; a token is refused (401). Only a proposal of this project can be dismissed (404 otherwise).
+export async function DELETE(req: Request, { params }: Ctx) {
+  try {
+    const user = await requireUser(req);
+    const { id, did } = await params;
+    const directive = await dismissDirective(getDb(), user, id, did);
     return NextResponse.json({ ok: true, directive });
   } catch (err) {
     return toResponse(err);

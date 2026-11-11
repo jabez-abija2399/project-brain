@@ -2,8 +2,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { pendingProposals } from "@/server/dashboard";
-import { type ListPageProps, loadListPage } from "@/server/dashboard-page";
+import { type ListPageProps, loadListPage, pageUser } from "@/server/dashboard-page";
+import { getDb } from "@/server/db";
+import { directiveProposals } from "@/server/session-tools";
 import { ProjectNav } from "../project-nav";
+import { DirectiveActions } from "./directive-actions";
 import { ProposalActions } from "./proposal-actions";
 
 export const dynamic = "force-dynamic";
@@ -12,9 +15,29 @@ export const dynamic = "force-dynamic";
 export default async function ProposalsPage(props: ListPageProps) {
   const list = await loadListPage(props, pendingProposals);
   const base = `/projects/${list.project.id}`;
+  const rules = await directiveProposals(getDb(), await pageUser(), list.project.id);
   return (
     <main className="page stack stack-lg">
       <ProjectNav projectId={list.project.id} current="proposals" name={list.project.name} />
+      {rules.length > 0 ? (
+        <section className="stack" aria-labelledby="rule-proposals">
+          <h2 className="section-title m0" id="rule-proposals">
+            Rules your agent proposed
+          </h2>
+          <p className="muted m0">
+            A rule you confirm goes into every session's start note. Proposals older than 30 days
+            are no longer shown.
+          </p>
+          <ul className="stack plain-list">
+            {rules.map((r) => (
+              <li key={r.id} className="card stack">
+                <span className="wrap">{r.text}</span>
+                <DirectiveActions projectId={list.project.id} directiveId={r.id} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {list.total === 0 ? (
         <EmptyState
           title="No proposals waiting"
