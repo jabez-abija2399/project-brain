@@ -54,7 +54,7 @@ export const adminRepo = {
     const rows = await db.execute(sql`
       with u as (
         select id, "createdAt" as created, date_trunc('week', "createdAt" at time zone 'UTC') as week
-        from ${users} where "createdAt" >= ${since}
+        from ${users} where "createdAt" >= ${since.toISOString()}::timestamptz
       ),
       p as (
         select p.owner_id,

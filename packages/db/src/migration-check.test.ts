@@ -45,4 +45,11 @@ describe("migration check", () => {
     expect(await pendingMigrations(fromPglite(pg))).toEqual(files);
     await pg.close();
   });
+
+  it('BL-51 a failed read that is not a missing table is an error, never "all missing"', async () => {
+    const pg = await createTestDb();
+    const db = fromPglite(pg);
+    await pg.close();
+    await expect(pendingMigrations(db)).rejects.toBeTruthy();
+  });
 });

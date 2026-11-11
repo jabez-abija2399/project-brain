@@ -69,10 +69,20 @@ export async function pendingMigrations(db: BrainDb): Promise<string[]> {
   let done: Set<string>;
   try {
     done = new Set((await db.select({ id: applied.id }).from(applied)).map((r) => r.id));
-  } catch {
+  } catch (err) {
+    // Only a missing tracking table means "never migrated". Any other failure (a dropped connection, a timeout) is
+    // not an answer, so it is passed on: reading it as "nothing applied" reported all migrations missing in
+    // production after a brief connection error (2026-11-11).
+    if (!isUndefinedTable(err)) throw err;
     done = new Set();
   }
   return MIGRATION_IDS.filter((id) => !done.has(id));
+}
+
+// Postgres undefined_table (42P01), as thrown by the driver or wrapped by drizzle in `cause`.
+function isUndefinedTable(err: unknown): boolean {
+  const code = (e: unknown) => (e as { code?: unknown } | null)?.code;
+  return code(err) === "42P01" || code((err as { cause?: unknown } | null)?.cause) === "42P01";
 }
 
 /** What an operator should read in the logs: which migrations are missing and the one command that fixes it. */

@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lt, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import {
   type GithubInstallState,
@@ -177,7 +177,9 @@ export const githubRepo = {
         and(
           eq(githubInstallStates.stateHash, stateHash),
           isNull(githubInstallStates.usedAt),
-          sql`${githubInstallStates.expiresAt} > ${now}`,
+          // Compared through the column, so the date is sent as an ISO string: a raw Date in sql`` reached the
+          // production driver as Date.toString(), which Postgres cannot read (2026-11-11: GitHub callback 500).
+          gt(githubInstallStates.expiresAt, now),
         ),
       )
       .returning({ stateHash: githubInstallStates.stateHash });
