@@ -233,7 +233,7 @@ refuse edits to a saved Blueprint version. Nothing is dropped or changed; no sou
 
 ---
 
-## 10. Choose the stop gate's default mode — pending, a decision only
+## 10. Choose the stop gate's default mode — DONE 2026-11-11: owner chose "keep strict" (no change needed)
 
 **Why:** the roadmap asks for "gentle (default), strict, off". The gate's existing criteria (FEAT-020, AC-020-04)
 say "on" (strict: the agent is blocked) is the default. Phase 4a keeps strict as the default, because changing it
@@ -278,7 +278,7 @@ stays 200, with 0055 listed under `migrations.pending` and `optional: true`.
 
 ---
 
-## 12. Choose an email provider for approval notifications — pending, a decision and a secret
+## 12. Choose an email provider for approval notifications — owner chose Postmark 2026-11-11; waiting for the key in Vercel
 
 **Why:** Phase 6 asks for email (and browser) notifications when an agent asks for something. Codeceipt has no email
 provider yet, and adding one needs an account and a secret, which only you can create. Until then:
