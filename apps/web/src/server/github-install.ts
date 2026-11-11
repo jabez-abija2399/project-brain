@@ -1,6 +1,6 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { type BrainDb, RepoAlreadyLinkedError, githubRepo } from "@brain/db";
-import { type SessionUser, requireProjectAccess } from "./auth";
+import { type SessionUser, requireProjectAccess, resolveAuthSecret } from "./auth";
 import { AppError } from "./errors";
 import { getGithubApp, githubConfig } from "./github";
 
@@ -55,6 +55,42 @@ async function installationRepos(installationId: number): Promise<string[]> {
   return (res.data.repositories ?? []).map((r) => r.full_name).sort();
 }
 
+// --- Which repositories this person may link (owner-approved fix, 2026-11-11) ---
+// An installation can cover repositories the signed-in person cannot read (an organisation installation, or a
+// collaborator on one repository of someone else's installation). Only the repositories GitHub lists for this person
+// in this installation (GET /user/installations/{id}/repositories, with their own OAuth code) may be offered or
+// linked. The OAuth token is used once at the callback and never stored: the allowed list rides to the selection
+// screen as a cookie of keyed tags (HMAC with the auth secret, bound to this install's state), so it cannot be
+// forged or reused for another install, and no repository name is kept anywhere.
+export const ALLOWED_REPOS_COOKIE = "cc_gh_repos";
+const TAG_CHARS = 22;
+
+function repoTag(stateHash: string, repo: string): string {
+  return createHmac("sha256", resolveAuthSecret(process.env))
+    .update(`github-repo-pick\n${stateHash}\n${repo.toLowerCase()}`)
+    .digest("base64url")
+    .slice(0, TAG_CHARS);
+}
+
+/** The cookie value for the repositories this person may pick: one tag per repository. */
+export const allowedReposCookie = (stateHash: string, repos: string[]): string =>
+  repos.map((r) => repoTag(stateHash, r)).join(".");
+
+function allowedTags(cookie: string | null | undefined): string[] {
+  if (!cookie || cookie.length > (TAG_CHARS + 1) * MAX_REPOS) return [];
+  return cookie.split(".").filter((t) => /^[A-Za-z0-9_-]+$/.test(t) && t.length === TAG_CHARS);
+}
+
+function mayPick(stateHash: string, repo: string, tags: string[]): boolean {
+  const want = Buffer.from(repoTag(stateHash, repo));
+  let found = false;
+  for (const t of tags) {
+    const got = Buffer.from(t);
+    if (got.length === want.length && timingSafeEqual(got, want)) found = true;
+  }
+  return found;
+}
+
 async function link(
   db: BrainDb,
   user: SessionUser,
@@ -87,55 +123,87 @@ export async function completeInstall(
   user: SessionUser,
   input: { state: string; code: string; installationId: number },
   now = new Date(),
-): Promise<{ linked: string } | { choose: true }> {
+): Promise<{ linked: string } | { choose: true; allowedCookie: string }> {
   const config = requireConfig();
   const row = await ownState(db, user, input.state, now);
   if (!/^[A-Za-z0-9_-]{1,100}$/.test(input.code)) throw invalidState();
   const app = getGithubApp(config);
   let installations: number[];
+  let userRepos: string[];
   try {
     const userOctokit = await app.oauth.getUserOctokit({ code: input.code });
     const res = await userOctokit.request("GET /user/installations", { per_page: 100 });
     installations = res.data.installations.map((i) => i.id);
-  } catch {
+    // Not this GitHub user's installation: reported like a missing one.
+    if (!installations.includes(input.installationId)) throw new AppError(404, "not_found");
+    const mine = await userOctokit.request(
+      "GET /user/installations/{installation_id}/repositories",
+      {
+        installation_id: input.installationId,
+        per_page: MAX_REPOS,
+      },
+    );
+    userRepos = (mine.data.repositories ?? []).map((r) => r.full_name);
+  } catch (err) {
+    if (err instanceof AppError) throw err;
     throw invalidState();
   }
-  // Not this GitHub user's installation: reported like a missing one.
-  if (!installations.includes(input.installationId)) throw new AppError(404, "not_found");
 
-  const repos = await installationRepos(input.installationId);
+  // Both lists must agree: the installation can see the repository, and so can this person.
+  const theirs = new Set(userRepos.map((r) => r.toLowerCase()));
+  const repos = (await installationRepos(input.installationId)).filter((r) =>
+    theirs.has(r.toLowerCase()),
+  );
+  if (repos.length === 0) {
+    throw new AppError(
+      404,
+      "no_accessible_repository",
+      "This installation has no repository your GitHub account can access.",
+    );
+  }
   if (repos.length === 1) {
     const repo = repos[0] as string;
     await link(db, user, row.stateHash, row.projectId, input.installationId, repo, now);
     return { linked: repo };
   }
   await githubRepo.setStateInstallation(db, row.stateHash, input.installationId);
-  return { choose: true };
+  return { choose: true, allowedCookie: allowedReposCookie(row.stateHash, repos) };
 }
 
-/** The selection screen's list: the repos of the installation this user's state proved access to. */
+/** The selection screen's list: the installation's repositories that this person may pick (the cookie's tags). */
 export async function listInstallRepos(
   db: BrainDb,
   user: SessionUser,
   state: string,
+  allowedCookie: string | null | undefined,
   now = new Date(),
 ): Promise<{ projectId: string; repos: string[] }> {
   const row = await ownState(db, user, state, now);
   if (row.installationId === null) throw invalidState();
-  return { projectId: row.projectId, repos: await installationRepos(row.installationId) };
+  const tags = allowedTags(allowedCookie);
+  if (tags.length === 0) throw invalidState();
+  const repos = (await installationRepos(row.installationId)).filter((r) =>
+    mayPick(row.stateHash, r, tags),
+  );
+  return { projectId: row.projectId, repos };
 }
 
-/** Step 3 for several repos: link the chosen one, which must belong to the verified installation. */
+/** Step 3 for several repos: link the chosen one, which must be in the installation and one this person may pick. */
 export async function linkInstallRepo(
   db: BrainDb,
   user: SessionUser,
   input: { state: string; repo: string },
+  allowedCookie: string | null | undefined,
   now = new Date(),
 ): Promise<{ projectId: string; repo: string }> {
   const row = await ownState(db, user, input.state, now);
   if (row.installationId === null) throw invalidState();
+  const tags = allowedTags(allowedCookie);
+  if (tags.length === 0) throw invalidState();
   const repos = await installationRepos(row.installationId);
-  if (!repos.includes(input.repo)) throw new AppError(404, "not_found");
+  if (!repos.includes(input.repo) || !mayPick(row.stateHash, input.repo, tags)) {
+    throw new AppError(404, "not_found");
+  }
   await link(db, user, row.stateHash, row.projectId, row.installationId, input.repo, now);
   return { projectId: row.projectId, repo: input.repo };
 }

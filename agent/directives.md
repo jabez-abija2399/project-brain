@@ -73,3 +73,4 @@
 - 2026-11-05: Installers pinned to CLI 0.3.4 (signature-verified manifest from the cli-v0.3.4 release).
 - 2026-11-05: Migration 0048_mcp_oauth (additive: oauth_* tables) applied to the Neon production branch by Claude through the Neon connector; /api/health was 503 with it pending.
 - 2026-11-06: Autonomous roadmap (docs/roadmap/autonomous-plan.md): phases in order, one PR per phase or track, merged by Claude on green CI; human-owned work goes to docs/owner-pending/ plus a numbered docs/owner-actions.md entry; never change the production database, publish a release, or touch secrets/signing keys; progress tracked in docs/roadmap/progress.md.
+- 2026-11-11: Owner approved fixing the GitHub App repository picker (an auth change): when linking, offer and accept only repositories the signed-in GitHub user can access, not every repository of the installation.

@@ -602,3 +602,9 @@ Status values: not started, in progress, merged, blocked (with reason).
 Phases 0-12 are merged. What remains is the owner's: the 15 entries in [../owner-actions.md](../owner-actions.md),
 starting with "Where to start". Ideas and deferred items are in `agent/later.md` and in the "Later" lines above.
 
+### After the roadmap: repository picker fix (owner-approved 2026-11-11)
+- Linking through the GitHub App now offers and accepts only repositories the signed-in person can access on GitHub
+  (decision D-032). Attack tests in `apps/web/src/server/github-install.test.ts`.
+- **Test helpers changed, openly:** the install tests now carry cookies from the callback to the selection screen, as
+  a browser does (`cookieJar` in `github-test-helpers.ts`). No assertion changed.
+
