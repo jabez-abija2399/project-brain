@@ -61,3 +61,10 @@ as quoted text "Written by an agent" with its date, Dismiss is the main button, 
 confirmed rule reaches every later session. LOW fixed: the buttons say which rule they are for; an expired proposal
 can be neither confirmed nor dismissed. The cross-site install link (predates this) is recorded in `agent/later.md`.
 
+## Wave D: larger features (branch `backlog/wave-d-features`)
+| Test | Change |
+|---|---|
+| BL-32..BL-35 | Expo Router, TanStack Router and React Router v7 file routes are indexed (each recognised by its root file, so an ordinary folder is never read as routes) |
+| BL-36 | The start note shows the last receipt's counts (numbers only; details with `codeceipt last`) |
+| BL-37..BL-39 | "How do you build?" is kept per account (optional migration 0057, owner action 16); a pick is saved, a new browser gets it, an unknown answer is never stored |
+

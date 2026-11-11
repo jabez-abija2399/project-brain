@@ -13,9 +13,9 @@ Nothing below is done yet. The numbers are the entries further down; they keep t
 the order to do them in, most useful first.
 
 **First, so that what was built reaches users (about an hour in total):**
-1. **Action 1**: apply database migrations automatically after merge. Do this first: it makes actions 6, 9, 11 and
-   13 happen by themselves on the next merge.
-2. **Actions 6, 9, 11, 13**: apply migrations 0051, 0054, 0055 and 0056, only if you skipped action 1. Until then
+1. **Action 1**: apply database migrations automatically after merge. Do this first: it makes actions 6, 9, 11, 13
+   and 16 happen by themselves on the next merge.
+2. **Actions 6, 9, 11, 13, 16**: apply migrations 0051, 0054, 0055, 0056 and 0057, only if you skipped action 1. Until then
    the context-pack cache, the Blueprint, approvals and the pull-request switch show "being set up" and nothing
    else breaks.
 3. **Action 8**: release CLI 0.3.7. Everything in the CLI since Phase 2 waits on this: fast hooks, the done gate,
@@ -382,3 +382,26 @@ a full editor and needs a display; CI has neither. If you want it, say so and I 
 `docs/owner-pending/`.
 
 **To undo:** unpublish the extension on each marketplace page; users uninstall it from the Extensions view.
+
+---
+
+## 16. Apply migration 0057 (user preferences) — pending, optional
+
+**Why:** the "How do you build?" answer on the Get started page is kept per account, so it follows you to every
+browser and phone. Until 0057 is in production it is kept in one browser only (as before); `/api/health` stays 200,
+with 0057 listed under `migrations.pending` and `optional: true`.
+
+**Steps (phone works):**
+- If action 1 is done, approve the `migrate-production` run that follows the merge.
+- Otherwise:
+  1. In the Neon **SQL Editor**, on `production`, paste
+     [packages/db/migrations/0057_user_preferences.sql](../packages/db/migrations/0057_user_preferences.sql) and click
+     **Run**.
+  2. Then run `INSERT INTO "_brain_migrations" (id) VALUES ('0057_user_preferences');`.
+
+**What to expect in the SQL (review before approving):**
+- One `CREATE TABLE`: `user_preferences` (your account id, the answer, when it changed).
+- Nothing is dropped or changed.
+
+**Check:** `https://codeceipts.vercel.app/api/health` no longer lists `0057_user_preferences`.
+

@@ -35,6 +35,7 @@ export const MIGRATION_IDS = [
   "0054_blueprint",
   "0055_approvals",
   "0056_project_settings",
+  "0057_user_preferences",
 ] as const;
 
 // Migrations the app works without (caches and other speed-ups with a built-in fallback). While one is pending,
@@ -48,6 +49,8 @@ export const OPTIONAL_MIGRATIONS: ReadonlySet<string> = new Set([
   "0055_approvals",
   // Roadmap Phase 10b: per-project settings read as off before it.
   "0056_project_settings",
+  // Backlog: the "How do you build?" answer per account; the browser cookie is used before it.
+  "0057_user_preferences",
 ]);
 
 /** The pending migrations the app cannot work without. */
