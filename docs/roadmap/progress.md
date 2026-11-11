@@ -21,8 +21,8 @@ Status values: not started, in progress, merged, blocked (with reason).
 | 8 | Import, export, sync | merged (automatic sync suggestions later) | 8a [#74](https://github.com/jabez-abija2399/project-brain/pull/74), 8b [#75](https://github.com/jabez-abija2399/project-brain/pull/75) | `codeceipt import` into a plan draft; `codeceipt export` with `--check` |
 | 9 | Easy everywhere (parity, menu, next step) | merged | 9a [#76](https://github.com/jabez-abija2399/project-brain/pull/76), 9b [#77](https://github.com/jabez-abija2399/project-brain/pull/77) | One next step (Overview + `codeceipt status`); `docs/actions.md`; keyboard menu; "How do you build?" |
 | 10 | Claim checker and PR receipts | merged (posting waits on owner actions 13 and 14) | 10a [#78](https://github.com/jabez-abija2399/project-brain/pull/78), 10b [#79](https://github.com/jabez-abija2399/project-brain/pull/79) | Receipts check what the agent said against the change; one receipt comment per pull request, off by default |
-| 11 | VS Code extension | in progress | | Status bar and side bar from `codeceipt status --json` / `last --json`; publishing is owner action 15 |
-| 12 | Measure, compare with the kit, document | not started | | |
+| 11 | VS Code extension | merged (publishing is owner action 15) | [#80](https://github.com/jabez-abija2399/project-brain/pull/80) | Status bar and side bar from `codeceipt status --json` / `last --json`; publishing is owner action 15 |
+| 12 | Measure, compare with the kit, document | in progress | | 1,996 tests; local gate ≈ 11 min 40 s, CI 13.5 min; every hook within budget; final docs |
 
 ## Phase plans
 
@@ -580,4 +580,21 @@ Status values: not started, in progress, merged, blocked (with reason).
   - **Recorded in `agent/later.md`, not fixed here:** a `.git` folder that arrives in a zip file (not a clone) can
     carry a link file naming another of the same user's projects; the result is the wrong project's receipt shown,
     with no token sent anywhere new.
+
+### Phase 12: measure, compare with the kit, document (docs only)
+- **Measured** (`docs/performance.md`, section 6): 1,996 passing tests (baseline 1,537); full local gate about
+  11 min 40 s and CI 13.5 min (baseline about 21 and 27.5 min); tool definitions 6,479 characters (baseline 10,247,
+  budget 6,500); every hook between 102 and 148 ms on the Node bundle (baseline 520-565 ms).
+- **Not measured:** the native binary, hooks against the real server, production latency, and tokens per real
+  agent session. All need the release (owner action 8) or real sessions.
+- **Kit comparison** (`docs/kit-migration.md`, "After the roadmap"): 13 of 22 kit areas are covered, 8 partly, 1
+  not built (blocking `--no-verify` and force pushes). The page lists what to keep in the kit and the order to
+  switch pieces off; nothing should be switched off before the release.
+- **New page:** `docs/switching-from-a-build-kit.md`, for other projects that use a build kit.
+- **Owner actions:** `docs/owner-actions.md` now starts with "Where to start", the 15 actions in the order to do
+  them. No entry was removed or renumbered.
+- **Left for later, on purpose** (all in `agent/later.md` or the phase notes above): automatic sync suggestions,
+  maintainability flags on the receipt itself, email notifications (owner action 12), an AI check for vague claims,
+  a debounce for pull-request events, the repository picker fix (needs the owner's go-ahead), and the
+  extension-host test.
 

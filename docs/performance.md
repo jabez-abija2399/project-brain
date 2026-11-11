@@ -154,3 +154,54 @@ split; the indexer and the RLS reader load only for `codeceipt index` and `codec
 built bundle). The start note is asked for while the snapshot is taken, waits at most 1.5 s, and otherwise shows the
 note saved last time (per project, at most 7 days old). Not measured: the stop hook with a linked repo and changes
 (it still builds a receipt on the server; making the done gate AI-free and < 200 ms is Phase 4).
+
+## 6. Final results (Phase 12, 2026-11-11, main after Phase 11)
+
+Measured in one session on the same kind of machine as the baseline (a shared cloud container, so wall-clock numbers
+move by 20-30% between runs). The code now includes everything from Phases 3-11, which the Phase 2 numbers did not.
+
+### Verifying this repository
+| What | Baseline (Phase 0) | After Phase 1 | Now | Note |
+|---|---|---|---|---|
+| Passing tests | 1,537 (kit baseline) | — | **1,996** | 459 more tests, about 30% more |
+| Full local gate (`verify.sh`) | ≈ 21 min | 10 min 38 s | **≈ 11 min 40 s** | from the log's start and end times, not a stopwatch; build and e2e run in CI only |
+| CI `verify` (one job) | 27.5 min | 14 min | **13.5 min** (pull request #80) | the parallel workflow (owner action 5) is not applied yet |
+
+The gate takes about a minute longer than after Phase 1, with about 30% more tests.
+
+### Codeceipt's footprint in an agent session
+| What | Baseline | After Phase 2 | Now | Budget (test) |
+|---|---|---|---|---|
+| MCP tool definitions (`tools/list`) | 10,247 chars ≈ 2,560 tokens | 5,754 chars | **6,479 chars ≈ 1,620 tokens** | ≤ 6,500 chars (PERF-2A-01) |
+| Start note, worst case | 1,493 chars | ≤ 1,500 chars | within budget (test passes; not re-measured) | ≤ 2,000 chars ≈ 500 tokens (PERF-2A-09) |
+| `where_did_we_stop` p95 | 23.7 ms | — | **27.7 ms** | < 150 ms |
+| `get_context_pack` p95 | 26.6 ms | 14.1 ms | **25.2 ms** | < 150 ms (PERF-2A-13) |
+| `find_similar_component` p95 | 13.5 ms | — | **13.8 ms** | < 150 ms |
+
+- The tool definitions grew by 725 characters since Phase 2a: `propose_blueprint` was added in Phase 3a. They are
+  21 characters under the budget, so the next new tool must make room first.
+- `get_context_pack` is slower than right after Phase 2a (25.2 against 14.1 ms). The two runs used different
+  machines and test files; the cause was not investigated. It stays six times under budget.
+
+### Hooks and commands (Node bundle, median of 5, temp HOME, git repo not connected)
+| Command | Baseline | After Phase 2b | Now | Budget |
+|---|---|---|---|---|
+| `node -e 0` (the machine's floor) | 36 ms | — | 25 ms | — |
+| `codeceipt --version` | 519 ms | 68 ms | **83 ms** | — |
+| `hook session-start` | 565 ms | 115 ms | **148 ms** | < 300 ms |
+| `hook stop` | 532 ms | 83 ms | **109 ms** | < 200 ms, no AI |
+| `hook prompt` | 521 ms | 71 ms | **119 ms** | never blocks |
+| `hook pre-tool-use` (new in Phase 5b) | — | — | **102 ms** | < 200 ms |
+| `codeceipt guard --staged`, 1 file (new in 5a) | — | — | **111 ms** | < 2 s for 100 files |
+| `codeceipt status` / `status --json` (new in 9a, 11) | — | — | **100 / 102 ms** | — |
+| `codeceipt review` (new in 7a) | — | — | **126 ms** | — |
+
+Every hook is within its budget. They are 15-50 ms slower than right after Phase 2b; the CLI has gained about ten
+commands since. The cause of the difference was not isolated.
+
+### Not measured
+- The native binary (it needs the release build: owner action 8). Phase 2b measured it at 135-165 ms for hooks.
+- Hooks in a connected repo against the real server, and production latency (Neon, Vercel).
+- Tokens actually used per agent session, and how often the done gate or the guard stops an agent: this needs real
+  sessions after the release.
+

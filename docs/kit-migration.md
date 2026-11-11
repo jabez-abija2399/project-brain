@@ -10,7 +10,8 @@ Status:
 - **not built**: nothing yet; the phase column says where the roadmap
   ([roadmap/autonomous-plan.md](roadmap/autonomous-plan.md)) builds it.
 
-Audited 2026-11-06 against main `61d0d79`. Phase 12 updates this page with measured results.
+Audited 2026-11-06 against main `61d0d79`. Updated 2026-11-11 after the roadmap: see
+[After the roadmap](#after-the-roadmap-phase-12-2026-11-11) near the end.
 
 ## Plan and criteria
 
@@ -85,6 +86,55 @@ Audited 2026-11-06 against main `61d0d79`. Phase 12 updates this page with measu
 | Fast/strict mode | `verify.config` | Stop gate on/off | partial | Presets (Careful, Balanced, Fast) → 6 |
 | Multi-agent hook parity | `kit.py hooks` | Hooks for Claude Code, Cursor, Codex, OpenCode, Antigravity | covered | Pre-tool-use and stop where each agent supports them → 4, 5 |
 
-## What to switch off first (after the listed phase is merged and measured)
-Phase 12 fills this in with measured results. Order expected from the gaps above: session brief (2b), test integrity
-at commit (5), boundaries and protected files (5), spec approvals (6), workflows (7).
+## After the roadmap (Phase 12, 2026-11-11)
+
+The tables above are the audit from before the roadmap and are kept as they were. This section says where each
+area stands now that Phases 0-11 are merged. "Merged" means the code is on main with tests; most of it reaches users
+only after the owner actions in [owner-actions.md](owner-actions.md) (above all action 8, the CLI release, and the
+optional migrations 0054-0056).
+
+| Kit area | Now in Codeceipt | Status now | Still only in the kit |
+|---|---|---|---|
+| Feature registry, criteria with kinds, pass records | Project Blueprint: versions with restore, criteria in plain text and EARS form with a kind and a proof status, at least one must-never per feature, flags for vague or contradicting criteria (Phase 3) | covered | Criterion ids in test names (`kit.py pass` greps the log); Codeceipt links tests to criteria by file |
+| Feature lifecycle (start needs dependencies, done needs proof) | Dependencies and build order in the Blueprint; the done gate holds an agent back while criteria are open (Phase 4a); receipts show progress per feature and newly proven criteria (4c) | partial | A hard "cannot start before its dependencies are done" stop |
+| Spec changes need human approval | Agents only propose; the owner approves on the web. Approval policies with risk levels, presets, pause, undo and an append-only audit log; agents can never approve (Phase 6) | covered | — |
+| Session brief | Start note within a tested budget, saved copy when the server is slow (Phase 2) | covered | — |
+| Progress handoff, decisions, directives, known issues, parking lot | `save_progress`, receipts, decisions, directives, open and postponed items carried into the start note; one next step everywhere (Phase 9) | covered | Severity on known issues ("fix HIGH first") |
+| Edit scope (the kit's scope file) | The definition of done names the request's feature files (5c); receipts list files outside it | partial | Blocking a commit that touches a file outside the scope |
+| Import boundaries, protected files | Blueprint boundaries and protected paths; edits under a protected path are stopped before they happen in Claude Code, Cursor, Codex and Antigravity (5b); `codeceipt guard` checks them at commit and in CI (5a) | covered | Import-direction rules between packages are checked only as path rules |
+| Human-only override variables | Owner-only actions; policy changes are owner-only and audited (Phase 6) | covered | — |
+| Secrets unreadable (`.env`) | New secrets are found and masked at commit, in CI and in receipts (5a) | partial | Blocking the read of `.env` files |
+| No `--no-verify`, hooksPath, force push | Not built | not built | All of it |
+| Test integrity (deleted, skipped, weakened, config) | The same checks at session end, at commit (`guard --staged`) and in CI (`guard --ci`) (5a) | covered | Snapshot-change warning; the passing-test ratchet as a hard stop |
+| The gate (`verify.sh`) | Build and test evidence on receipts; opt-in `codeceipt prove` runs the tests linked to a request (5d); the claim checker compares "tests pass" with a fresh local report (10a) | partial | One command that runs typecheck, lint, tests and scanners and whose stale results never count |
+| Stop gate | Gentle, strict and off modes; works without the AI receipt; Codex and Antigravity included (4a) | covered | — |
+| Security scanners | Secret scan and hidden-character scan in Guard; RLS reviewer | partial | semgrep and osv-scanner (run them in CI as today) |
+| Dependency check and cooldown | `check_package`; Guard flags packages the owner disallowed; adding a dependency is a policy action (Phases 5, 6) | partial | Blocking an install before it happens; the 7-day cooldown |
+| File size limit, duplicates | `codeceipt review` flags files over 300 lines and large changes (7a); `find_similar_component` | partial | A duplicate-code flag on new code |
+| Pre-commit hook | `codeceipt guard --staged`, offered at setup, never installed silently (5a) | covered | — |
+| Fresh-context security pass, peer review, evaluator | `/codeceipt-review` and `codeceipt review` print the eight build-checklist rules a change touches (7a) | partial | A second agent's independent verdict; QA on the running app |
+| `/feature`, `/bugfix`, `/change` workflows | `/codeceipt-feature`, `/codeceipt-fix`, `/codeceipt-review` in the plugins (7a) | covered | `/kickoff`, `/perf`, `/audit`, `/state` |
+| Verify before claiming | Claim checker: what the agent said, checked on the user's machine (10a) | covered | — |
+| Fast/strict mode | Presets Careful, Balanced, Fast (Phase 6); stop gate and guard modes | covered | — |
+| Multi-agent hook parity | Start, prompt, pre-tool-use and stop hooks where each agent supports them (research in `roadmap/research-agent-hooks.md`) | covered | — |
+
+New in Codeceipt, with no kit equivalent: Discover (a Blueprint from an existing codebase), import from and export to
+other spec formats (Phase 8), receipts on pull requests (10b), the web pages, and the VS Code extension (Phase 11).
+
+## What to switch off first
+Nothing should be switched off in this repository yet: the pieces below are merged but **unreleased** (owner action
+8) and several need a migration applied (actions 9, 11, 13). After those, in this order, one at a time, watching a
+few sessions between each:
+
+1. **Session brief**: use the Codeceipt start note. Lowest risk: it only informs.
+2. **Test-integrity checks at commit**: `codeceipt guard --staged` as the pre-commit hook, and `guard --ci` in CI
+   (a workflow change: owner-owned).
+3. **Protected files**: the Blueprint's protected paths with the pre-tool-use hook in strict mode.
+4. **Spec-change approval**: approval policies (preset Careful to start).
+5. **Workflows**: `/codeceipt-feature`, `-fix`, `-review`.
+
+Keep in the kit for now, because Codeceipt has no equivalent (see the last column above): `verify.sh` as the single
+gate, the edit scope as a commit stop, the dependency install block and cooldown, the `.env` read block, the
+`--no-verify` and force-push block, semgrep and osv-scanner, and the independent peer review.
+
+For another project that uses a build kit, see [switching-from-a-build-kit.md](switching-from-a-build-kit.md).
