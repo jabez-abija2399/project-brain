@@ -2,7 +2,12 @@ import { requireProjectAccess, requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { AppError, toResponse } from "@/server/errors";
 import { featureNameSchema, parseInput } from "@/server/validate";
-import { FeatureNameTakenError, MAX_PAGE_SIZE, featuresRepo } from "@brain/db";
+import {
+  FeatureNameTakenError,
+  FileMovedConcurrentlyError,
+  MAX_PAGE_SIZE,
+  featuresRepo,
+} from "@brain/db";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -40,6 +45,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
   } catch (err) {
     if (err instanceof FeatureNameTakenError) {
       return toResponse(new AppError(409, "feature_name_taken", err.message));
+    }
+    if (err instanceof FileMovedConcurrentlyError) {
+      return toResponse(new AppError(409, "file_moved_concurrently", err.message));
     }
     return toResponse(err);
   }

@@ -13,6 +13,8 @@ export {
 export {
   featuresRepo,
   FeatureNameTakenError,
+  FileMovedConcurrentlyError,
+  uniqueConstraintOf,
   MAX_FEATURES_PER_PROJECT,
   type FeatureMapInput,
   type FeatureUpdate,

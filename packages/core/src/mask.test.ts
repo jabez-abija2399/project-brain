@@ -29,3 +29,20 @@ describe("@brain/core mask", () => {
     expect(maskSecretsIn('syntax error at or near ";"')).toBe('syntax error at or near ";"');
   });
 });
+
+describe("mask speed (backlog)", () => {
+  it("BL-26 attack: long runs broken by dashes or slashes are masked in linear time", async () => {
+    const { maskSecretsIn } = await import("./mask");
+    for (const evil of ["a-".repeat(100_000), "a/".repeat(100_000), `${"x".repeat(200_000)}`]) {
+      const start = performance.now();
+      maskSecretsIn(evil);
+      expect(performance.now() - start).toBeLessThan(500);
+    }
+    // Still masked: a long random value with a digit and a letter.
+    const key = ["Q7xT2mK9", "vR4wZp8a", "B3dE5gH7", "kL0nP2qS"].join("");
+    expect(maskSecretsIn(`token ${key}`)).not.toContain(key);
+    // Not masked: a long run of letters only.
+    const word = "abcdefghijklmnopqrstuvwxyzabcdefghij";
+    expect(maskSecretsIn(word)).toBe(word);
+  });
+});

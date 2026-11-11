@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
 import { type ProjectToken, projectTokens, projects } from "../schema";
 import { type Page, type PageOptions, pageBounds, toPage } from "./page";
@@ -65,7 +65,12 @@ export const projectTokensRepo = {
       .select()
       .from(projectTokens)
       .where(eq(projectTokens.projectId, projectId))
-      .orderBy(desc(projectTokens.createdAt), desc(projectTokens.id))
+      // Active tokens first (at most 20), so revoked ones can never push one past the first page (backlog).
+      .orderBy(
+        sql`${projectTokens.revokedAt} IS NOT NULL`,
+        desc(projectTokens.createdAt),
+        desc(projectTokens.id),
+      )
       .limit(limit + 1)
       .offset(offset);
     return toPage(rows, limit, offset);

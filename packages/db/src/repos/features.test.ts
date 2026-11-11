@@ -158,3 +158,19 @@ describe("KI-037 a re-index deletes features left with no files", () => {
     expect((await featuresRepo.list(db, other)).map((f) => f.name)).toEqual(["empty"]);
   });
 });
+
+describe("unique-violation names (backlog)", () => {
+  it("BL-22 a unique violation is told apart by its constraint name, through the driver's cause chain", async () => {
+    const { uniqueConstraintOf } = await import("./features");
+    expect(
+      uniqueConstraintOf({
+        cause: { code: "23505", constraint: "feature_files_one_primary_uniq" },
+      }),
+    ).toBe("feature_files_one_primary_uniq");
+    expect(
+      uniqueConstraintOf({ code: "23505", constraint_name: "features_project_name_uniq" }),
+    ).toBe("features_project_name_uniq");
+    expect(uniqueConstraintOf({ code: "23503" })).toBeNull();
+    expect(uniqueConstraintOf(new Error("x"))).toBeNull();
+  });
+});

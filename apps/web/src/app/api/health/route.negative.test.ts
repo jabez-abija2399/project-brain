@@ -1,5 +1,5 @@
 import { configuredServices } from "@/server/env";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const originalUrl = process.env.DATABASE_URL;
 
@@ -39,5 +39,38 @@ describe("GET /api/health (unreachable DB)", () => {
       db: false,
       services: configuredServices(process.env),
     });
+  });
+});
+
+describe("GET /api/health cache (backlog)", () => {
+  afterEach(() => {
+    process.env.DATABASE_URL = originalUrl;
+    vi.useRealTimers();
+    vi.doUnmock("@brain/db");
+    vi.resetModules();
+  });
+
+  it("BL-15 one database check serves a burst of requests for 5 s, and concurrent ones share it", async () => {
+    vi.resetModules();
+    let checks = 0;
+    vi.doMock("@brain/db", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@brain/db")>()),
+      checkDb: async () => {
+        checks++;
+        await new Promise((r) => setTimeout(r, 20));
+        return { ok: false, reason: "down" };
+      },
+    }));
+    vi.useFakeTimers({ toFake: ["Date"] });
+    process.env.DATABASE_URL = "postgres://x:x@127.0.0.1:1/cache-test";
+    const { GET } = await import("./route");
+    const burst = await Promise.all(Array.from({ length: 10 }, () => GET()));
+    expect(burst.every((r) => r.status === 503)).toBe(true);
+    expect(checks).toBe(1);
+    for (let i = 0; i < 10; i++) await GET();
+    expect(checks).toBe(1);
+    vi.setSystemTime(Date.now() + 6_000);
+    await GET();
+    expect(checks).toBe(2);
   });
 });

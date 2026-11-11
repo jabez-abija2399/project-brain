@@ -91,6 +91,8 @@ export async function captureRequest(
     })),
   );
   await attachRepeats(db, projectId, created.request.id, repeats);
+  // A request matched to a feature means work on it has started.
+  if (feature) await featuresRepo.markInProgress(db, projectId, feature.id);
   return {
     recorded: true,
     request_id: created.request.id,

@@ -271,6 +271,41 @@ describe("FEAT-009 security: webhook signature (AC-009-03)", () => {
     expect(sent).toHaveLength(1);
   });
 
+  it("BL-16 a suspended installation, or a repository removed from it, unlinks the projects linked there", async () => {
+    await link(projectId, owner.id);
+    const removed = JSON.stringify({
+      action: "removed",
+      installation: { id: 77 },
+      repositories_removed: [{ full_name: "acme/other" }],
+    });
+    expect((await deliver(removed, { event: "installation_repositories" })).status).toBe(200);
+    expect((await projectRow(projectId))?.installationId).toBe(77);
+    const ours = JSON.stringify({
+      action: "removed",
+      installation: { id: 77 },
+      repositories_removed: [{ full_name: "acme/app" }],
+    });
+    expect((await deliver(ours, { event: "installation_repositories" })).status).toBe(200);
+    expect((await projectRow(projectId))?.installationId ?? null).toBeNull();
+
+    await link(projectId, owner.id);
+    const suspend = JSON.stringify({ action: "suspend", installation: { id: 77 } });
+    expect((await deliver(suspend, { event: "installation" })).status).toBe(200);
+    expect((await projectRow(projectId))?.installationId ?? null).toBeNull();
+  });
+
+  it("BL-17 attack: an unsigned repository-removed event changes nothing", async () => {
+    await link(projectId, owner.id);
+    const body = JSON.stringify({
+      action: "removed",
+      installation: { id: 77 },
+      repositories_removed: [{ full_name: "acme/app" }],
+    });
+    const res = await deliver(body, { event: "installation_repositories", signature: null });
+    expect(res.status).toBe(401);
+    expect((await projectRow(projectId))?.installationId).toBe(77);
+  });
+
   it("AC-009-03 attack: unsigned invalid JSON and unsigned uninstall events are refused before parsing or any write", async () => {
     const junk = await deliver("{not json", { signature: null });
     expect(junk.status).toBe(401);

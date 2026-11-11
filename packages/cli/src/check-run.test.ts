@@ -214,3 +214,35 @@ describe("FEAT-022 build and test evidence (CLI)", () => {
     expect(t.out.join("\n")).toContain("stops after 30 s");
   });
 });
+
+describe("check setting in worktrees (backlog)", () => {
+  it("BL-21 a worktree uses the main checkout's check command; an unrelated repo does not", async () => {
+    const { execFileSync } = await import("node:child_process");
+    const { mkdtempSync, realpathSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const { runGit } = await import("./scan-secrets");
+    const { checkKey, checkSettingFor } = await import("./check-run");
+    const main = realpathSync(mkdtempSync(join(tmpdir(), "cc-wt-main-")));
+    const g = (cwd: string, ...a: string[]) =>
+      execFileSync("git", ["-c", "user.email=t@e.x", "-c", "user.name=t", ...a], { cwd });
+    g(main, "init", "-q", "-b", "main");
+    g(main, "commit", "-q", "--allow-empty", "-m", "base");
+    const wt = join(realpathSync(mkdtempSync(join(tmpdir(), "cc-wt-"))), "tree");
+    g(main, "worktree", "add", "-q", wt);
+    const checks = { [checkKey(main)]: { command: "npm test" } };
+    expect(await checkSettingFor(runGit, main, checks)).toEqual({ command: "npm test" });
+    expect(await checkSettingFor(runGit, wt, checks)).toEqual({ command: "npm test" });
+    const other = realpathSync(mkdtempSync(join(tmpdir(), "cc-wt-other-")));
+    g(other, "init", "-q");
+    expect(await checkSettingFor(runGit, other, checks)).toBeUndefined();
+    // Its own setting wins over the main checkout's.
+    const own = { ...checks, [checkKey(wt)]: { command: "pnpm test" } };
+    expect(await checkSettingFor(runGit, wt, own)).toEqual({ command: "pnpm test" });
+    // Attack (security review): a folder with a hand-written .git file naming the trusted repo's git folder.
+    const { writeFileSync } = await import("node:fs");
+    const evil = realpathSync(mkdtempSync(join(tmpdir(), "cc-wt-evil-")));
+    writeFileSync(join(evil, ".git"), `gitdir: ${join(main, ".git")}\n`);
+    expect(await checkSettingFor(runGit, evil, checks)).toBeUndefined();
+  });
+});

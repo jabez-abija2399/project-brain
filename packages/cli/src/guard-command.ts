@@ -30,6 +30,8 @@ export type GuardMode = "strict" | "gentle" | "off";
 export const GUARD_MODES = new Set<GuardMode>(["strict", "gentle", "off"]);
 const USAGE =
   "Usage: codeceipt guard [--staged | --ci [--base <branch>]] [--mode strict|gentle|off] [--json] | codeceipt guard --install-hook";
+/** Text held at once while checking a change (both versions of every file). */
+export const MAX_TOTAL_BYTES = 64 * 1024 * 1024;
 export const MAX_FILES = 500;
 const BOUNDARY_TIMEOUT_MS = 1500;
 export const PARALLEL = 16;
@@ -45,6 +47,8 @@ export type GuardDeps = {
   /** The mode from `codeceipt config guard` (strict when nothing is set). */
   savedMode: GuardMode;
   env?: Record<string, string | undefined>;
+  /** Tests only: a smaller limit than MAX_TOTAL_BYTES. */
+  maxTotalBytes?: number;
 };
 
 export type Source = { kind: "staged" } | { kind: "ci"; base: string } | { kind: "worktree" };
@@ -262,11 +266,18 @@ export async function runGuard(args: string[], deps: GuardDeps): Promise<number>
     (async () => {
       const out: GuardFile[] = [];
       const read = safe.slice(0, MAX_FILES);
+      // Backlog (Phase 7a review LOW 2): at most MAX_TOTAL_BYTES of text are held at once; files past it are
+      // reported as too large to check, never silently passed.
+      let held = 0;
       for (let i = 0; i < read.length; i += PARALLEL) {
         const chunk = read.slice(i, i + PARALLEL);
-        out.push(
-          ...(await Promise.all(chunk.map((f) => readFile(deps.git, root, f, source, base)))),
-        );
+        if (held >= (deps.maxTotalBytes ?? MAX_TOTAL_BYTES)) {
+          out.push(...chunk.map((path) => ({ path, before: null, after: null, tooLarge: true })));
+          continue;
+        }
+        const got = await Promise.all(chunk.map((f) => readFile(deps.git, root, f, source, base)));
+        for (const f of got) held += (f.before?.length ?? 0) + (f.after?.length ?? 0);
+        out.push(...got);
       }
       return out;
     })(),

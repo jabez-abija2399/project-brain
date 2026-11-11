@@ -184,17 +184,6 @@ export async function requireProjectAccess(
   return project;
 }
 
-// Helper for the sign-in happy path when no real OAuth is wired up:
-// create a user row directly (used by tests). Not a production export.
-export async function createUserForTests(
-  db: BrainDb,
-  input: { email: string; name: string },
-): Promise<SessionUser> {
-  const id = randomUUID();
-  await db.insert(schema.users).values({ id, email: input.email, name: input.name });
-  return { id, email: input.email, name: input.name };
-}
-
 // Ids from URLs are opaque text up to 100 characters with no control characters.
 export function isPlausibleId(id: string): boolean {
   // biome-ignore lint/suspicious/noControlCharactersInRegex: control characters are what this rejects

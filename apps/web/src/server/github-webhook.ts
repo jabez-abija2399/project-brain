@@ -35,6 +35,14 @@ const installationSchema = z.object({
   action: z.string(),
   installation: z.object({ id: z.number().int().positive() }),
 });
+const installationReposSchema = z.object({
+  action: z.string(),
+  installation: z.object({ id: z.number().int().positive() }),
+  repositories_removed: z
+    .array(z.object({ full_name: repoName }))
+    .max(1000)
+    .optional(),
+});
 
 const json = (body: Record<string, unknown>, status: number) => NextResponse.json(body, { status });
 
@@ -62,7 +70,12 @@ export async function handleWebhook(
   const event = req.headers.get("x-github-event") ?? "";
   const deliveryId = req.headers.get("x-github-delivery") ?? "";
   if (event === "ping") return json({ ok: true }, 200);
-  if (event !== "push" && event !== "installation" && event !== "pull_request") {
+  if (
+    event !== "push" &&
+    event !== "installation" &&
+    event !== "installation_repositories" &&
+    event !== "pull_request"
+  ) {
     return json({ error: "unsupported_event" }, 400);
   }
   if (!/^[A-Za-z0-9-]{1,100}$/.test(deliveryId)) return json({ error: "bad_delivery_id" }, 400);
@@ -83,9 +96,24 @@ export async function handleWebhook(
   if (event === "installation") {
     const parsed = installationSchema.safeParse(body);
     if (!parsed.success) return json({ error: "bad_payload" }, 400);
-    // Uninstalled: the App lost access, so linked projects stop receiving pushes.
-    if (parsed.data.action === "deleted") {
+    // Uninstalled or suspended: the App lost access, so linked projects stop receiving pushes (their jobs would only
+    // fail on the installation token). After an unsuspend the owner links the repository again.
+    if (parsed.data.action === "deleted" || parsed.data.action === "suspend") {
       await githubRepo.unlinkInstallation(db, parsed.data.installation.id);
+    }
+    return json({ ok: true }, 200);
+  }
+
+  if (event === "installation_repositories") {
+    const parsed = installationReposSchema.safeParse(body);
+    if (!parsed.success) return json({ error: "bad_payload" }, 400);
+    // Repositories taken out of the installation: projects linked to them are unlinked.
+    if (parsed.data.action === "removed") {
+      await githubRepo.unlinkRepos(
+        db,
+        parsed.data.installation.id,
+        (parsed.data.repositories_removed ?? []).map((r) => r.full_name),
+      );
     }
     return json({ ok: true }, 200);
   }

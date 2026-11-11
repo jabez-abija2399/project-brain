@@ -2,9 +2,9 @@ import { DELETE as revokeToken } from "@/app/api/projects/[id]/tokens/[tokenId]/
 import { POST as createToken, GET as listTokens } from "@/app/api/projects/[id]/tokens/route";
 import { GET as listProjects } from "@/app/api/projects/route";
 import { type TestWorld, createTestWorld } from "@/server/test-helpers";
-import { projectsRepo } from "@brain/db";
+import { projectTokensRepo, projectsRepo } from "@brain/db";
 import { projectTokens } from "@brain/db/schema";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 function req(url: string, method = "GET") {
   return new Request(url, { method, headers: { "content-type": "application/json" } });
@@ -124,5 +124,40 @@ describe("FEAT-003 limits: active tokens per project and list pagination", () =>
       );
       expect(t.status, qs).toBe(400);
     }
+  });
+
+  it("BL-18 token creation is rate limited per user (30 a minute), even with tokens revoked in between", async () => {
+    // The limit counts per calendar minute: the calls run at the start of one, so they never cross into the next.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-11T10:00:00Z"));
+    const user = await world.createUser();
+    world.signInAs(user);
+    const project = await projectsRepo.create(world.db, user.id, { name: "demo" });
+    const url = `http://x/api/projects/${project.id}/tokens`;
+    const statuses: number[] = [];
+    for (let i = 0; i < 31; i++) {
+      const res = await createToken(req(url, "POST"), paramsOf({ id: project.id }));
+      statuses.push(res.status);
+      if (res.status === 201) {
+        const { id } = (await res.json()) as { id: string };
+        await revokeToken(req(`${url}/${id}`, "DELETE"), paramsOf({ id: project.id, tokenId: id }));
+      }
+    }
+    expect(statuses.slice(0, 30).every((s) => s === 201)).toBe(true);
+    expect(statuses[30]).toBe(429);
+    vi.useRealTimers();
+  });
+
+  it("BL-19 an active token is on the first page even behind 60 newer revoked ones", async () => {
+    const user = await world.createUser();
+    const project = await projectsRepo.create(world.db, user.id, { name: "demo" });
+    const keep = await projectTokensRepo.create(world.db, project.id, "keep");
+    for (let i = 0; i < 60; i++) {
+      const t = await projectTokensRepo.create(world.db, project.id, `old ${i}`);
+      await projectTokensRepo.revoke(world.db, project.id, t.row.id);
+    }
+    const { items } = await projectTokensRepo.listForProject(world.db, project.id);
+    expect(items.some((t) => t.id === keep.row.id)).toBe(true);
+    expect(items[0]?.id).toBe(keep.row.id);
   });
 });

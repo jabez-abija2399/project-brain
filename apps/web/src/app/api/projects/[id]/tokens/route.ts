@@ -1,6 +1,7 @@
 import { requireProjectAccess, requireUser } from "@/server/auth";
 import { getDb } from "@/server/db";
 import { AppError, toResponse } from "@/server/errors";
+import { rateLimit } from "@/server/rate-limit";
 import { parsePage } from "@/server/validate";
 import { type ProjectToken, TokenLimitError, projectTokensRepo } from "@brain/db";
 import { NextResponse } from "next/server";
@@ -9,6 +10,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+const TOKENS_PER_MINUTE = 30;
 
 // Allowlist of token fields the client may see. Never return the hash.
 function toPublicToken(row: ProjectToken) {
@@ -40,6 +43,8 @@ export async function POST(req: Request, { params }: Ctx) {
     const { id } = await params;
     const db = getDb();
     await requireProjectAccess(db, id, user);
+    // Backlog (FEAT-003 review): the 20-active-token cap bounds the list, not the rate; mint at most 30 a minute.
+    await rateLimit(db, `tokens:create:${user.id}`, TOKENS_PER_MINUTE);
     const { token, row } = await projectTokensRepo.create(db, id);
     // The plaintext `token` is in this response exactly once; it is never
     // persisted or returned again. Only the sha-256 hash is stored.

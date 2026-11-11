@@ -2,7 +2,7 @@ import { existsSync, lstatSync } from "node:fs";
 import { basename, dirname, extname, join, posix } from "node:path";
 import { isTestFile, plainText } from "@brain/core";
 import { CliError, EXIT, request } from "./api";
-import { DEFAULT_TIMEOUT_S, checkKey, runCheck } from "./check-run";
+import { DEFAULT_TIMEOUT_S, checkSettingFor, runCheck } from "./check-run";
 import type { CliConfig } from "./config";
 import { readSettings } from "./config";
 import { type Git, changedFiles, repoRoot } from "./scan-secrets";
@@ -101,7 +101,7 @@ export async function runProve(args: string[], deps: ProveDeps): Promise<number>
   }
   if (rest.length > 0) throw new CliError(EXIT.usage, USAGE);
   const root = await repoRoot(deps.git, deps.cwd);
-  const setting = readSettings(deps.configFile).checks?.[checkKey(root)];
+  const setting = await checkSettingFor(deps.git, root, readSettings(deps.configFile).checks);
   if (!setting) {
     throw new CliError(
       EXIT.usage,

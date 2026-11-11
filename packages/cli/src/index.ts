@@ -9,7 +9,14 @@ import {
   sameRepo,
 } from "@brain/core";
 import { CliError, EXIT, REPO_MISMATCH_MESSAGE, request } from "./api";
-import { DEFAULT_TIMEOUT_S, MAX_TIMEOUT_S, MIN_TIMEOUT_S, checkKey, runCheck } from "./check-run";
+import {
+  DEFAULT_TIMEOUT_S,
+  MAX_TIMEOUT_S,
+  MIN_TIMEOUT_S,
+  checkKey,
+  checkSettingFor,
+  runCheck,
+} from "./check-run";
 import {
   type CliConfig,
   configPath,
@@ -990,7 +997,7 @@ async function runPromptHook(args: string[], deps: CliDeps, path: string): Promi
 async function repoCheck(deps: CliDeps, path: string, folder: string) {
   const root = await repoRoot(deps.git ?? runGit, folder).catch(() => null);
   if (!root) return null;
-  const setting = readSettings(path).checks?.[checkKey(root)];
+  const setting = await checkSettingFor(deps.git ?? runGit, root, readSettings(path).checks);
   return setting ? { root, ...setting } : null;
 }
 

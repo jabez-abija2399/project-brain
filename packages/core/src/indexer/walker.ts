@@ -31,14 +31,34 @@ export type WalkResult = {
   errors: IndexError[];
 };
 
-export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): WalkResult {
+// Backlog (FEAT-004 review L7): an arbitrary repo cannot make the walk hold unbounded lists. Past MAX_WALK_FILES the
+// walk stops and says so (the server caps a project's files lower still); past MAX_SKIPPED_LISTED skipped paths are
+// counted, not listed.
+export const MAX_WALK_FILES = 20_000;
+export const MAX_SKIPPED_LISTED = 5_000;
+
+export function walkRepo(
+  root: string,
+  maxBytes: number = DEFAULT_MAX_BYTES,
+  limits: { files?: number; skipped?: number } = {},
+): WalkResult {
+  const maxFiles = limits.files ?? MAX_WALK_FILES;
+  const maxSkipped = limits.skipped ?? MAX_SKIPPED_LISTED;
   const files: WalkEntry[] = [];
-  const skipped: SkippedFile[] = [];
+  const skippedAll: SkippedFile[] = [];
+  let skippedMore = 0;
+  const skipped = {
+    push(entry: SkippedFile) {
+      if (skippedAll.length < maxSkipped) skippedAll.push(entry);
+      else skippedMore++;
+    },
+  };
   const errors: IndexError[] = [];
+  let stopped = false;
   const stack: { dir: string; rules: DirRules }[] = [
     { dir: root, rules: { ".gitignore": [], ".codeceiptignore": [] } },
   ];
-  while (stack.length > 0) {
+  while (stack.length > 0 && !stopped) {
     const { dir, rules: inherited } = stack.pop() as { dir: string; rules: DirRules };
     const base = toPosix(relative(root, dir));
     const rules = { ...inherited };
@@ -109,13 +129,21 @@ export function walkRepo(root: string, maxBytes: number = DEFAULT_MAX_BYTES): Wa
         skipped.push({ path: rel, reason: "binary" });
         continue;
       }
+      if (files.length >= maxFiles) {
+        stopped = true;
+        errors.push({ path: ".", line: 1, message: `walk stopped at ${maxFiles} files` });
+        break;
+      }
       files.push({ absPath: abs, relPath: rel, size: st.size });
     }
   }
+  if (skippedMore > 0) {
+    errors.push({ path: ".", line: 1, message: `${skippedMore} more skipped paths not listed` });
+  }
   files.sort((a, b) => a.relPath.localeCompare(b.relPath));
-  skipped.sort((a, b) => a.path.localeCompare(b.path));
+  const skippedSorted = skippedAll.sort((a, b) => a.path.localeCompare(b.path));
   errors.sort((a, b) => a.path.localeCompare(b.path));
-  return { files, skipped, errors };
+  return { files, skipped: skippedSorted, errors };
 }
 
 // One .gitignore or .codeceiptignore file; its patterns are relative to the directory it lives in (base, "" for
