@@ -6,13 +6,16 @@ import { useState } from "react";
 type View = {
   code: string | null;
   suggestedName: string | null;
+  requestedMinutesAgo?: number | null;
   projects: { id: string; name: string }[];
 };
 
 // Approve exactly the code shown in the terminal, for one of the user's projects or a new one.
 export function DeviceApproval({ initialCode, view }: { initialCode: string; view: View }) {
   const [code, setCode] = useState(view.code ?? initialCode);
-  const [choice, setChoice] = useState(view.projects[0]?.id ?? "new");
+  // A new project is the default: approving a code someone else started (a phishing link) then hands them an
+  // empty project, never one of yours. Picking an existing project is one deliberate click.
+  const [choice, setChoice] = useState("new");
   const [name, setName] = useState(view.suggestedName ?? "");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState<"approved" | "denied" | null>(null);
@@ -85,6 +88,17 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
         />
       </label>
       <dl className="facts">
+        {typeof view.requestedMinutesAgo === "number" ? (
+          <div>
+            <dt>When</dt>
+            <dd>
+              {view.requestedMinutesAgo < 1
+                ? "Requested less than a minute ago."
+                : `Requested ${view.requestedMinutesAgo} minute${view.requestedMinutesAgo === 1 ? "" : "s"} ago.`}{" "}
+              If you did not just run <code>npx codeceipt</code> yourself, press Deny.
+            </dd>
+          </div>
+        ) : null}
         <div>
           <dt>Which computer</dt>
           <dd>

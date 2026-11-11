@@ -53,6 +53,13 @@ async function pending(userCode: string) {
 }
 
 describe("launch: device approval attacks", () => {
+  it("BL-07 the approval page says when the code was requested", async () => {
+    const s = await startDevice(world.db, req(), {}, T0);
+    expect((await deviceView(world.db, owner, s.user_code, at(30))).requestedMinutesAgo).toBe(0);
+    expect((await deviceView(world.db, owner, s.user_code, at(185))).requestedMinutesAgo).toBe(3);
+    expect((await deviceView(world.db, owner, "", at(1))).requestedMinutesAgo).toBeNull();
+  });
+
   it("BL-06 attack: two approvals racing for one code with a new project leave exactly one project", async () => {
     const s = await startDevice(world.db, req(), {}, T0);
     const before = (await projectsRepo.listByOwner(world.db, owner.id, { limit: 100, offset: 0 }))

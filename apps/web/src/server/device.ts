@@ -197,6 +197,10 @@ export async function deviceView(
   return {
     code: pending ? code : null,
     suggestedName: pending?.suggestedName ?? null,
+    // When the code was asked for, so a code sent by someone else (a link in a message) is easier to spot.
+    requestedMinutesAgo: pending
+      ? Math.max(0, Math.floor((now.getTime() - pending.createdAt.getTime()) / 60_000))
+      : null,
     projects: items.map((p) => ({ id: p.id, name: p.name })),
   };
 }
