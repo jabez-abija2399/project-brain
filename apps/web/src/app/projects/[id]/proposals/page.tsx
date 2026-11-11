@@ -25,14 +25,27 @@ export default async function ProposalsPage(props: ListPageProps) {
             Rules your agent proposed
           </h2>
           <p className="muted m0">
-            A rule you confirm goes into every session's start note. Proposals older than 30 days
-            are no longer shown.
+            An agent wrote these. A rule you confirm is given to every agent session from now on, so
+            read it as you would a stranger's instruction: confirm only a rule you would have
+            written yourself. Proposals older than 30 days are no longer shown.
           </p>
           <ul className="stack plain-list">
             {rules.map((r) => (
               <li key={r.id} className="card stack">
-                <span className="wrap">{r.text}</span>
-                <DirectiveActions projectId={list.project.id} directiveId={r.id} />
+                <span className="muted">
+                  Written by an agent,{" "}
+                  <time dateTime={r.createdAt}>
+                    {r.createdAt.slice(0, 16).replace("T", " ")} UTC
+                  </time>
+                </span>
+                <blockquote className="wrap m0" id={`rule-${r.id}`}>
+                  {r.text}
+                </blockquote>
+                <DirectiveActions
+                  projectId={list.project.id}
+                  directiveId={r.id}
+                  describedBy={`rule-${r.id}`}
+                />
               </li>
             ))}
           </ul>

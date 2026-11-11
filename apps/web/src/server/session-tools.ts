@@ -334,7 +334,6 @@ export async function listFeatures(db: BrainDb, token: ToolToken, raw: unknown) 
   });
 }
 
-// Dashboard side (the project owner's session, never an MCP token): confirms a proposal so it becomes active.
 /** The owner dismisses an agent's directive proposal (backlog). Another project's or a non-proposal is 404. */
 export async function dismissDirective(
   db: BrainDb,
@@ -356,6 +355,7 @@ export async function directiveProposals(db: BrainDb, user: SessionUser, project
   return rows.map((d) => ({ id: d.id, text: d.text, createdAt: d.createdAt.toISOString() }));
 }
 
+// Dashboard side (the project owner's session, never an MCP token): confirms a proposal so it becomes active.
 export async function confirmDirective(
   db: BrainDb,
   user: SessionUser,

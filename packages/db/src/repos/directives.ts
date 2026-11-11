@@ -33,7 +33,12 @@ export const directivesRepo = {
   },
 
   /** The owner dismisses a proposal; false when there is no such proposal in this project. */
-  async dismiss(db: BrainDb, projectId: string, directiveId: string): Promise<boolean> {
+  async dismiss(
+    db: BrainDb,
+    projectId: string,
+    directiveId: string,
+    now: Date = new Date(),
+  ): Promise<boolean> {
     const rows = await db
       .update(directives)
       .set({ status: "dismissed" })
@@ -42,6 +47,7 @@ export const directivesRepo = {
           eq(directives.projectId, projectId),
           eq(directives.id, directiveId),
           eq(directives.status, "proposal"),
+          gt(directives.createdAt, new Date(now.getTime() - PROPOSAL_MAX_AGE_MS)),
         ),
       )
       .returning({ id: directives.id });
@@ -88,6 +94,9 @@ export const directivesRepo = {
         .limit(1);
       if (!row) return { kind: "not_found" };
       if (row.status !== "proposal") return { kind: "not_proposal", status: row.status };
+      // A proposal past its 30 days is no longer offered, so it cannot be confirmed either (security review).
+      if (row.createdAt.getTime() <= now.getTime() - PROPOSAL_MAX_AGE_MS)
+        return { kind: "not_found" };
       // Lengths are counted in JavaScript units, the same units the note and the zod cap use.
       const active = await tx
         .select({ text: directives.text })

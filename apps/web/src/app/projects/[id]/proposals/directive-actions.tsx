@@ -8,14 +8,23 @@ import { useState } from "react";
 export function DirectiveActions({
   projectId,
   directiveId,
+  describedBy,
 }: {
   projectId: string;
   directiveId: string;
+  /** The rule's text, so screen readers say which rule each button is for. */
+  describedBy: string;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<"active" | "dismissed" | null>(null);
   const [message, setMessage] = useState("");
   async function decide(status: "active" | "dismissed") {
+    // Confirming hands this rule to every future session: one more question first (security review).
+    if (
+      status === "active" &&
+      !window.confirm("Give this rule to every agent session from now on?")
+    )
+      return;
     setBusy(status);
     setMessage("");
     try {
@@ -47,20 +56,22 @@ export function DirectiveActions({
     <div className="stack">
       <div className="row">
         <Button
-          variant="primary"
-          loading={busy === "active"}
-          disabled={busy !== null}
-          onClick={() => decide("active")}
-        >
-          Confirm
-        </Button>
-        <Button
-          variant="ghost"
+          variant="secondary"
           loading={busy === "dismissed"}
           disabled={busy !== null}
+          aria-describedby={describedBy}
           onClick={() => decide("dismissed")}
         >
           Dismiss
+        </Button>
+        <Button
+          variant="ghost"
+          loading={busy === "active"}
+          disabled={busy !== null}
+          aria-describedby={describedBy}
+          onClick={() => decide("active")}
+        >
+          Confirm
         </Button>
       </div>
       {message ? <output className="m0">{message}</output> : null}

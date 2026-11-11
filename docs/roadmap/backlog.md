@@ -56,3 +56,8 @@ Also: the start page's live status refreshes in place instead of reloading; the 
 make the Blueprint too large. Not done on purpose (reasons in `agent/later.md`): deleting start blobs; renaming "Your
 first receipt" (wording only, pinned by three tests).
 
+Wave C security review (fresh context): no HIGH. MEDIUM fixed (BL-31 and the page): a rule an agent proposes is shown
+as quoted text "Written by an agent" with its date, Dismiss is the main button, and Confirm asks once more, because a
+confirmed rule reaches every later session. LOW fixed: the buttons say which rule they are for; an expired proposal
+can be neither confirmed nor dismissed. The cross-site install link (predates this) is recorded in `agent/later.md`.
+

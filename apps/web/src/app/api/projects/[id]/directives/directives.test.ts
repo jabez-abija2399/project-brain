@@ -114,4 +114,22 @@ describe("PATCH /api/projects/:id/directives/:did (FEAT-010 owner confirmation)"
     const later = new Date(now.getTime() + 31 * 24 * 60 * 60 * 1000);
     expect(await directivesRepo.listProposals(world.db, projectId, later)).toEqual([]);
   });
+
+  it("BL-31 attack: another project's directive id, a cross-site request, or an expired proposal is refused", async () => {
+    world.signInAs(owner);
+    const other = (await projectsRepo.create(world.db, owner.id, { name: "other" })).id;
+    expect((await dismiss(other, directiveId)).status).toBe(404);
+    expect((await dismiss(projectId, directiveId, { origin: "https://evil.example" })).status).toBe(
+      403,
+    );
+    expect(await statusOf()).toBe("proposal");
+    // Older than 30 days: neither dismissed nor confirmed.
+    await world.pg.query(
+      "UPDATE directives SET created_at = now() - interval '31 days' WHERE id = $1",
+      [directiveId],
+    );
+    expect((await dismiss(projectId, directiveId)).status).toBe(404);
+    expect((await patch(projectId, directiveId, { status: "active" })).status).toBe(404);
+    expect(await statusOf()).toBe("proposal");
+  });
 });
