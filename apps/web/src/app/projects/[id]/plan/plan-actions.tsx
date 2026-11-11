@@ -34,6 +34,11 @@ export function PlanActions({
         setMessage(
           "The agent replaced this draft after you opened the page. Reload to see the new one.",
         );
+      } else if (res.status === 413) {
+        // Backlog (Phase 3c): approving would make the Blueprint larger than it can hold.
+        setMessage(
+          "This plan would make the Blueprint too large. Retire criteria or test links you no longer need on the Blueprint tab, then approve again.",
+        );
       } else {
         setMessage("That did not work. Reload the page and try again.");
       }
