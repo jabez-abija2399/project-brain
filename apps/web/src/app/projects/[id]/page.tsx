@@ -3,6 +3,7 @@ import { orNotFound, pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { safeDisplay } from "@brain/core";
 import { projectTokensRepo } from "@brain/db";
+import { DeleteProject } from "./delete-project";
 import { ProjectNav } from "./project-nav";
 import ProjectTokensPanel from "./tokens-panel";
 
@@ -36,6 +37,12 @@ export default async function ProjectDetailPage({
             lastUsedAt: t.lastUsedAt ? t.lastUsedAt.toISOString() : null,
           }))}
         />
+      </section>
+      <section className="card stack" aria-labelledby="delete-title">
+        <h2 id="delete-title" className="section-title m0">
+          Delete this project
+        </h2>
+        <DeleteProject projectId={project.id} name={project.name} />
       </section>
     </main>
   );
