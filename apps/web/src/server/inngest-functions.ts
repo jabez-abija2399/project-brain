@@ -30,12 +30,21 @@ export const indexPushFunction = inngest.createFunction(
 );
 
 // Roadmap Phase 10b: one pull-request job at a time per project; only sent for projects with PR receipts on.
-export const prReceiptFunction = inngest.createFunction(
-  {
-    id: "pr-receipt",
-    triggers: [{ event: PR_EVENT }],
-    concurrency: { limit: 1, key: "event.data.projectId" },
+// Backlog: many pushes to one pull request within 30 s make one job (the last push's), at least every 5 minutes, so a
+// burst of pushes updates the comment once instead of once per push.
+export const PR_RECEIPT_OPTIONS = {
+  id: "pr-receipt",
+  triggers: [{ event: PR_EVENT }],
+  concurrency: { limit: 1, key: "event.data.projectId" },
+  debounce: {
+    key: 'event.data.projectId + "-" + string(event.data.number)',
+    period: "30s" as const,
+    timeout: "5m" as const,
   },
+};
+
+export const prReceiptFunction = inngest.createFunction(
+  PR_RECEIPT_OPTIONS,
   async ({ event, step }) => {
     const data = event.data as PrEventData;
     return runPrReceipt(
