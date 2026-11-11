@@ -296,6 +296,15 @@ provider yet, and adding one needs an account and a secret, which only you can c
 
 **Check:** an agent's request that needs your approval sends you one email with a link to the Approvals tab.
 
+
+**Built (2026-11-11):** the hourly approval email is in the app and switched off until both variables exist.
+1. postmarkapp.com → sign up → **Sender Signatures** → add and verify the address emails come from.
+2. **Servers** → your server → **API Tokens** → copy the **Server API token**.
+3. Vercel → project → **Settings** → **Environment Variables** (Production): `POSTMARK_API_KEY` = the token,
+   `POSTMARK_FROM` = the verified address → **Save** → **Deployments** → latest → **Redeploy**.
+
+What it sends: at most one email an hour per owner, only when an agent asked for an approval in the last full hour:
+counts per project and a link to its Approvals tab. The agent's own words are never in the email.
 ---
 
 ## 13. Apply migration 0056 (project settings) — DONE 2026-11-11 (by Claude, owner-approved)
