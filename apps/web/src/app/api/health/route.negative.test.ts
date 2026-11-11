@@ -1,5 +1,5 @@
 import { configuredServices } from "@/server/env";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const originalUrl = process.env.DATABASE_URL;
 
@@ -39,5 +39,25 @@ describe("GET /api/health (unreachable DB)", () => {
       db: false,
       services: configuredServices(process.env),
     });
+  });
+});
+
+describe("GET /api/health cache (backlog)", () => {
+  afterEach(() => {
+    process.env.DATABASE_URL = originalUrl;
+    vi.useRealTimers();
+  });
+
+  it("BL-15 a burst of checks reuses one answer for 5 s; another database address is checked again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    process.env.DATABASE_URL = "postgres://x:x@127.0.0.1:1/none";
+    const { GET } = await import("./route");
+    expect((await GET()).status).toBe(503);
+    // The same address within 5 s: answered at once from the cached result (no new connection attempt).
+    const start = performance.now();
+    for (let i = 0; i < 20; i++) expect((await GET()).status).toBe(503);
+    expect(performance.now() - start).toBeLessThan(200);
+    vi.setSystemTime(Date.now() + 6_000);
+    expect((await GET()).status).toBe(503);
   });
 });

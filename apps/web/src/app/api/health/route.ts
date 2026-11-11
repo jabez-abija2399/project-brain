@@ -11,8 +11,23 @@ export const runtime = "nodejs";
 const TIMEOUT_MS = 8000;
 const REACH_TIMEOUT_MS = 2000;
 
+// Backlog (FEAT-001 review L2): every anonymous GET used to open a new database connection. An answer is reused for
+// CACHE_MS on this instance (keyed by the database address), so a burst of checks costs one connection.
+const CACHE_MS = 5_000;
+let cached: { url: string; at: number; status: number; body: unknown } | null = null;
+
 export async function GET() {
   const url = process.env.DATABASE_URL ?? "";
+  const now = Date.now();
+  if (cached && cached.url === url && now - cached.at < CACHE_MS) {
+    return NextResponse.json(cached.body, { status: cached.status });
+  }
+  const res = await check(url);
+  cached = { url, at: now, status: res.status, body: await res.clone().json() };
+  return res;
+}
+
+async function check(url: string): Promise<NextResponse> {
   const result = await checkDb(url, TIMEOUT_MS, REACH_TIMEOUT_MS);
   // Which optional services are set up, as true/false only (never a value).
   const services = configuredServices(process.env);
