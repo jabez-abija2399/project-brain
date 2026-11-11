@@ -127,3 +127,5 @@ apps/web/src/app/projects/[[]id]/approvals/* # Phase 6b: approvals page
 apps/web/src/app/projects/[[]id]/project-nav.tsx # Phase 6b: Approvals tab
 apps/web/src/server/approvals-page* # Phase 6b
 apps/web/src/app/globals.css # Phase 6b: table-scroll
+packages/vscode-extension/* # Phase 11: VS Code extension
+pnpm-lock.yaml # Phase 11: @types/vscode

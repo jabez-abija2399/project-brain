@@ -478,3 +478,17 @@ criteria, must-never rules, protected paths and linked tests, at most 1,500 char
 server before migration 0054, a slow server or any error prints nothing, as before. Recording the request (D-024)
 still happens in the background, unchanged. Cursor (beforeSubmitPrompt cannot add context) and the others are
 unchanged.
+
+## D-031 | 2026-11-11 | The VS Code extension only reads, through the installed CLI (Roadmap Phase 11)
+Context: the roadmap asks for Codeceipt inside the editor. An extension runs with the user's full rights, and a
+cloned repository is untrusted input.
+Decision: `packages/vscode-extension` has no runtime dependency and no network code. It runs the installed
+`codeceipt` (found by absolute path outside the opened folders, never through a shell) with two fixed argument lists,
+`status --json` and `last --json`, and shows the answer in a status bar item and a tree view. No web view (so no
+content-security-policy surface), no token, nothing written by the extension itself, nothing in an untrusted workspace
+or outside a git repository. The command gets a PATH without project folders, and the CLI starts git by full path. Links open only when
+https (http for localhost). The one new dev dependency is `@types/vscode` (types only).
+Not done: an extension-host test with `@vscode/test-electron` (a large download that needs a display; CI has neither),
+the `.vsix` build and marketplace publishing: owner action 15.
+Alternatives: calling the API from the extension with its own token (a second place for the token, and a second
+client to keep in step); a web view showing the receipt page (a larger attack surface for little gain).

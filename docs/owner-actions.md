@@ -150,6 +150,8 @@ absent; where_did_we_stop with features: true answers it)", then run
   (`--ci`) for weakened tests, new secrets, hidden characters and the Blueprint's boundaries.
 - **Phase 5b:** edits under a protected path are stopped before they happen, through each agent's pre-tool-use hook
   (Claude Code, Cursor, Codex, Antigravity).
+- **Phase 11:** `codeceipt status --json` and `codeceipt last --json` print the same answers as data, for the
+  VS Code extension (action 15) and other tools.
 - **Phase 10a:** receipts check what the agent said it did (tests added, tests pass, files changed or left alone)
   against the change.
 - **Phase 9a:** `codeceipt status` prints the one next step, the same one the Overview page shows.
@@ -310,3 +312,42 @@ repository, and within a minute one comment titled "Codeceipt receipt" appears; 
 
 **To undo:** turn the switch off on the Connect tab (nothing more is posted), or set the two permissions back to
 **No access**.
+
+---
+
+## 15. Try, package and publish the VS Code extension — pending, optional
+
+**Why:** Phase 11 built a small editor extension (`packages/vscode-extension`, see
+[vscode-extension.md](vscode-extension.md)) that shows the last receipt and the next step. It is tested, but nobody
+can install it until it is packaged, and publishing needs a marketplace account, which only you can create. Do
+action 8 first: the extension needs CLI 0.3.7.
+
+**A. Try it (computer, 5 minutes):**
+1. In a terminal in the repository: `pnpm install`, then `pnpm --filter codeceipt-vscode build`.
+2. Open the folder `packages/vscode-extension` in VS Code and press **F5**. A second window opens.
+3. In that window open a folder you connected with `npx codeceipt`.
+4. Check: the status bar (bottom left) says "Codeceipt: ..."; the Explorer has a "Codeceipt" section with the next
+   step and the last receipt; **Ctrl/Cmd+Shift+P → "Codeceipt: Open receipts in the browser"** opens the Receipts
+   page.
+5. Open a folder and choose "No, I don't trust the authors": the extension must show nothing.
+
+**B. Package it (computer):**
+1. In `packages/vscode-extension/package.json` remove the line `"private": true,` (the packaging tool refuses
+   private packages) and add an icon if you want one.
+2. Run `npx @vscode/vsce package --no-dependencies` in `packages/vscode-extension`. It writes
+   `codeceipt-vscode-0.1.0.vsix`. (`@vscode/vsce` is Microsoft's packaging tool; it is run once here, not added to
+   the project.)
+3. Anyone can now install the file: **Extensions → ... → Install from VSIX**.
+
+**C. Publish it (optional):**
+1. VS Code Marketplace: create a publisher named `codeceipt` at `https://marketplace.visualstudio.com/manage`
+   (needs a Microsoft account), then upload the `.vsix` there.
+2. Open VSX (used by Cursor, Windsurf and Antigravity): sign in at `https://open-vsx.org` with GitHub, create the
+   `codeceipt` namespace, and upload the same `.vsix`.
+3. Tell me the two links and I will add them to the quickstart and the landing page.
+
+**Not done by me, on purpose:** an automated test that starts a real VS Code (`@vscode/test-electron`). It downloads
+a full editor and needs a display; CI has neither. If you want it, say so and I will add it with a CI job proposal in
+`docs/owner-pending/`.
+
+**To undo:** unpublish the extension on each marketplace page; users uninstall it from the Extensions view.
