@@ -511,3 +511,14 @@ No migration.
 Alternatives: a new database column for the allowed list (a production migration, and linking would break until it
 is applied); storing the person's GitHub token (a long-lived secret kept for one screen).
 
+
+## D-033 | 2026-11-12 | Cloud sessions use a key from the environment, sent to the hosted server only
+Context: Claude Code on the web runs the repository's hooks in a fresh clone with no link file and no saved token, so
+every hook stayed silent. The owner asked to use Codeceipt with web builders.
+Decision: when a repository has no saved token, the CLI uses `CODECEIPT_TOKEN` + `CODECEIPT_PROJECT_ID` from the
+environment (docs/cloud-sessions.md). The saved login always wins; with a link file the key is used only for the same
+project on the same server. The key goes to the default server only (`CODECEIPT_API_URL` is ignored for it), because
+a repository's `.claude/settings.json` can set environment variables for the agent and must not redirect the key.
+Values are checked by pattern (no spaces or line breaks). The repository fingerprint still rides with uploads.
+Alternatives: writing a link file in the cloud clone (nothing to read the token from either); honouring
+`CODECEIPT_API_URL` (a malicious repository could send the key to its own server).

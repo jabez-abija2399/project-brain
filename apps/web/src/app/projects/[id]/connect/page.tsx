@@ -15,6 +15,9 @@ export const dynamic = "force-dynamic";
 // The public address the CLI talks to (never a secret).
 const appUrl = () => (process.env.BETTER_AUTH_URL || "http://localhost:3000").replace(/\/+$/, "");
 
+// The only server a key from a cloud environment is ever sent to (packages/cli cloudSessionConfig).
+const HOSTED_URL = "https://codeceipts.vercel.app";
+
 // Connect project (docs/DESIGN.md screen 3): the same `npx codeceipt` flow as the start page, with the status of
 // this project: linked, first index, first receipt. No token is shown or pasted anywhere.
 export default async function ConnectPage({ params }: { params: Promise<{ id: string }> }) {
@@ -66,6 +69,49 @@ export default async function ConnectPage({ params }: { params: Promise<{ id: st
           </>
         ) : (
           <p className="muted m0">The GitHub App is not set up on this server.</p>
+        )}
+      </section>
+      {/* Cloud sessions (docs/cloud-sessions.md): a fresh clone has no saved login, so the key comes from the
+          cloud environment's variables. The project id is not a secret; the key is created on the Tokens tab. */}
+      <section className="card stack" aria-labelledby="cloud-sessions">
+        <h2 className="section-title m0" id="cloud-sessions">
+          Claude Code on the web
+        </h2>
+        {appUrl() === HOSTED_URL ? (
+          <>
+            <p className="muted m0">
+              Cloud sessions start from a fresh copy of the repository, so they cannot use the login
+              on your computer. Give them a key instead, in the cloud environment's settings
+              (claude.ai/code, environment settings):
+            </p>
+            <ol className="m0 stack">
+              <li>
+                On the <Link href={`/projects/${project.id}`}>Tokens</Link> tab, create a token and
+                copy it.
+              </li>
+              <li>
+                Add two environment variables: <code className="wrap">CODECEIPT_TOKEN</code> = the
+                token, and <code className="wrap">CODECEIPT_PROJECT_ID={project.id}</code>.
+              </li>
+              <li>
+                If the network access is limited, allow{" "}
+                <code className="wrap">codeceipts.vercel.app</code> and{" "}
+                <code className="wrap">registry.npmjs.org</code>.
+              </li>
+              <li>
+                Run <code className="wrap">npx codeceipt</code> once on any computer (or ask a local
+                session to) and commit the <code className="wrap">.claude</code> folder, so cloud
+                sessions find the hooks.
+              </li>
+            </ol>
+            <p className="muted m0">
+              Every command in that environment can read the key: use an environment and a token for
+              this repository only, and open only repositories you trust there. Pushes and pull
+              requests from cloud sessions also update this project through the GitHub App above.
+            </p>
+          </>
+        ) : (
+          <p className="muted m0">Cloud sessions work with the hosted Codeceipt server only.</p>
         )}
       </section>
       {/* Roadmap Phase 10b: receipts on pull requests, off until the owner turns them on. */}

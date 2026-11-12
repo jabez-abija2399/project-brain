@@ -456,3 +456,14 @@ with 0057 listed under `migrations.pending` and `optional: true`.
 
 **Check:** `https://codeceipts.vercel.app/api/health` no longer lists `0057_user_preferences`.
 
+
+## 17. Release CLI 0.3.11 (Claude Code on the web) — pending
+
+**Why:** 0.3.11 lets hooks in Claude Code on the web use a key from the cloud environment (docs/cloud-sessions.md).
+Until it is released, cloud sessions stay silent (pushes and pull requests still get receipts through GitHub).
+
+**Steps (phone works):** GitHub → Releases → **Draft a new release** → **Choose a tag** → type `cli-v0.3.11` →
+**Create new tag on publish**, target `main` → **Publish release**. Then Actions → **release-cli** → approve the
+waiting jobs (twice). Tell Claude "0.3.11 is released"; Claude pins the website installers.
+
+**Then, to try it:** follow docs/cloud-sessions.md for one repository (token, two environment variables, network).

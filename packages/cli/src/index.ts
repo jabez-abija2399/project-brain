@@ -157,14 +157,20 @@ function isSafeApiUrl(raw: string): boolean {
 
 async function login(args: string[], deps: CliDeps, path: string): Promise<void> {
   // CODECEIPT_* first; the PROJECTBRAIN_* names from before the rename still work (D-019).
-  const apiUrl = flag(args, "--api-url") ?? brandEnv(deps.env, "API_URL") ?? DEFAULT_API_URL;
+  // D-033: a token from the environment goes to --api-url or the default server, never to an environment API_URL
+  // (a repository's own agent settings can set environment variables, and must not redirect the key).
+  const envToken = brandEnv(deps.env, "TOKEN");
+  const apiUrl =
+    flag(args, "--api-url") ??
+    (envToken ? undefined : brandEnv(deps.env, "API_URL")) ??
+    DEFAULT_API_URL;
   if (args.length > 0) throw new CliError(EXIT.usage, `Unknown argument: ${args[0]}`);
   if (!isSafeApiUrl(apiUrl))
     throw new CliError(
       EXIT.usage,
       "--api-url must be https (plain http only for localhost, 127.0.0.1 or [::1]).",
     );
-  const token = (brandEnv(deps.env, "TOKEN") ?? (await deps.readStdin())).trim();
+  const token = (envToken ?? (await deps.readStdin())).trim();
   if (!token) throw new CliError(EXIT.usage, "No token: paste it on stdin or set CODECEIPT_TOKEN.");
   const who = await request<{ project_id: string }>(
     deps.fetch,
@@ -212,7 +218,13 @@ export async function projectConfig(
     return config;
   }
   const link = readRepoLink(gitDir);
-  if (!link) throw new CliError(EXIT.auth, NOT_LINKED);
+  const cloud = cloudSessionConfig(deps.env);
+  if (!link) {
+    // A cloud session (Claude Code on the web) starts in a fresh clone: no link file and no saved token. The key the
+    // owner put in the cloud environment stands in for both; the server still checks it against the repo fingerprint.
+    if (!cloud) throw new CliError(EXIT.auth, NOT_LINKED);
+    return { ...cloud, repo: fingerprintToken(await repoFingerprint(deps.git ?? runGit, dir)) };
+  }
   // Real-test bug J: the link must belong to this repository (a copied .git, or a folder inside another repo, carries
   // another repo's link). A mismatch uploads nothing; an older link without a fingerprint gets this repo's once.
   const fingerprint = await repoFingerprint(deps.git ?? runGit, dir);
@@ -223,9 +235,39 @@ export async function projectConfig(
     writeRepoLink(gitDir, { ...link, fingerprint });
   }
   // The token may still be in the config folder from before the rename (D-019).
-  const config = readProjectToken(path, link) ?? readProjectToken(legacyConfigPath(path), link);
+  const config =
+    readProjectToken(path, link) ??
+    readProjectToken(legacyConfigPath(path), link) ??
+    (cloud && cloud.projectId === link.projectId && sameOrigin(cloud.apiUrl, link.apiUrl)
+      ? cloud
+      : null);
   if (!config) throw new CliError(EXIT.auth, NO_TOKEN);
   return { ...config, repo: fingerprintToken(fingerprint) };
+}
+
+const CLOUD_PROJECT_ID = /^[A-Za-z0-9_-]{1,100}$/;
+const CLOUD_TOKEN = /^[A-Za-z0-9_-]{8,200}$/;
+
+/**
+ * Cloud sessions (docs/cloud-sessions.md): CODECEIPT_TOKEN + CODECEIPT_PROJECT_ID from the environment, used only when
+ * the repo has no saved login. The key is sent to the default server only: CODECEIPT_API_URL is ignored here, so a
+ * repo's own settings (which can set environment variables for the agent) can never redirect the key elsewhere.
+ */
+export function cloudSessionConfig(env: Record<string, string | undefined>): CliConfig | null {
+  const token = env.CODECEIPT_TOKEN?.trim();
+  const projectId = env.CODECEIPT_PROJECT_ID?.trim();
+  if (!token || !projectId || !CLOUD_TOKEN.test(token) || !CLOUD_PROJECT_ID.test(projectId)) {
+    return null;
+  }
+  return { apiUrl: DEFAULT_API_URL, projectId, token };
+}
+
+function sameOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return false;
+  }
 }
 
 export const GIT_UNREADABLE =
