@@ -208,6 +208,7 @@ jobs:
             packages/cli/dist/README.md
             packages/cli/dist/codeceipt.mjs
             packages/cli/dist/child.mjs
+            packages/cli/dist/chunks/
           if-no-files-found: error
           retention-days: 3
 
