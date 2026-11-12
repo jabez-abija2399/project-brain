@@ -278,7 +278,8 @@ describe("D-019 rename to Codeceipt", () => {
         description: "A receipt for every AI change.",
       });
       // Launch part 7: the first public release has only the codeceipt command; init upgrades old projectbrain hooks.
-      expect(manifest.bin).toEqual({ codeceipt: "./codeceipt.mjs" });
+      // npm 11 drops a bin written "./codeceipt.mjs" at publish (0.3.9), so the path has no "./".
+      expect(manifest.bin).toEqual({ codeceipt: "codeceipt.mjs" });
       expect(Object.keys(manifest.dependencies).sort()).toEqual(
         ["@electric-sql/pglite", "ignore", "libpg-query", "typescript"].sort(),
       );
