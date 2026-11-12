@@ -173,7 +173,7 @@ absent; where_did_we_stop with features: true answers it)", then run
 
 **Check:** `python3 scripts/kit.py show FEAT-011` shows the new wording.
 
-## 8. Release CLI 0.3.10 (0.3.9 on npm is broken; was 0.3.7, then 0.3.8; fast hooks, stop gate modes, Codeceipt Guard) — pending
+## 8. Release CLI 0.3.10 — DONE 2026-11-12 (0.3.9 on npm is broken; was 0.3.7, then 0.3.8; fast hooks, stop gate modes, Codeceipt Guard)
 
 **Why:** it replaces 0.3.5 and 0.3.6, which were never released, and contains:
 - **Phase 2b:** every hook starts about 5× faster (the indexer loads only for `codeceipt index`), and the start note
@@ -368,7 +368,7 @@ production the switch reads as off and cannot be turned on; everything else work
 
 ---
 
-## 14. Let the GitHub App comment on pull requests — pending, a permission change
+## 14. Let the GitHub App comment on pull requests — DONE 2026-11-12 (Contents read, Pull requests + Checks read/write, Push + Pull request events)
 
 **Why:** Phase 10b can post a project's receipts as one comment on each pull request, with a check run that never
 blocks a merge. The Codeceipt GitHub App today can only read code and hears only about pushes. Until you do this,
