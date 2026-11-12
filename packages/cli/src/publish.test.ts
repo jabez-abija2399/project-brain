@@ -29,7 +29,7 @@ describe("publish-ready CLI", () => {
     expect(manifest.version).toBe("0.3.10");
     expect(VERSION).toBe("0.3.10");
     expect(json(join(pkgDir, "package.json")).version).toBe("0.3.10");
-    // npm 11 removes a bin written "./codeceipt.mjs" at publish (0.3.10 shipped without its command).
+    // npm 11 removes a bin written "./codeceipt.mjs" at publish (0.3.9 shipped without its command).
     expect(manifest.bin).toEqual({ codeceipt: "codeceipt.mjs" });
     // Phase 2b: on-demand chunks (the indexer, the RLS reader) ship in chunks/ next to the entry.
     expect(manifest.files).toEqual(["codeceipt.mjs", "chunks/", "child.mjs", "README.md"]);
