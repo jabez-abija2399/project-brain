@@ -23,13 +23,14 @@ afterAll(() => {
 const json = (path: string) => JSON.parse(readFileSync(path, "utf8"));
 
 describe("publish-ready CLI", () => {
-  it("the package is codeceipt 0.3.9 with one command, codeceipt, and no workspace dependencies", () => {
+  it("the package is codeceipt 0.3.10 with one command, codeceipt, and no workspace dependencies", () => {
     const manifest = json(join(outDir, "package.json"));
     expect(manifest.name).toBe("codeceipt");
-    expect(manifest.version).toBe("0.3.9");
-    expect(VERSION).toBe("0.3.9");
-    expect(json(join(pkgDir, "package.json")).version).toBe("0.3.9");
-    expect(manifest.bin).toEqual({ codeceipt: "./codeceipt.mjs" });
+    expect(manifest.version).toBe("0.3.10");
+    expect(VERSION).toBe("0.3.10");
+    expect(json(join(pkgDir, "package.json")).version).toBe("0.3.10");
+    // npm 11 removes a bin written "./codeceipt.mjs" at publish (0.3.10 shipped without its command).
+    expect(manifest.bin).toEqual({ codeceipt: "codeceipt.mjs" });
     // Phase 2b: on-demand chunks (the indexer, the RLS reader) ship in chunks/ next to the entry.
     expect(manifest.files).toEqual(["codeceipt.mjs", "chunks/", "child.mjs", "README.md"]);
     expect(Object.keys(manifest.dependencies).filter((d) => d.startsWith("@brain/"))).toEqual([]);
@@ -60,7 +61,7 @@ describe("publish-ready CLI", () => {
       version: string;
       files: { path: string }[];
     }[];
-    expect([pack?.name, pack?.version]).toEqual(["codeceipt", "0.3.9"]);
+    expect([pack?.name, pack?.version]).toEqual(["codeceipt", "0.3.10"]);
     const paths = pack?.files.map((f) => f.path) ?? [];
     expect(paths.filter((p) => !p.startsWith("chunks/")).sort()).toEqual(
       ["README.md", "child.mjs", "codeceipt.mjs", "package.json"].sort(),

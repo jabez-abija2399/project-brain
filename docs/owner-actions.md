@@ -173,7 +173,7 @@ absent; where_did_we_stop with features: true answers it)", then run
 
 **Check:** `python3 scripts/kit.py show FEAT-011` shows the new wording.
 
-## 8. Release CLI 0.3.9 (was 0.3.7, then 0.3.8; fast hooks, stop gate modes, Codeceipt Guard) — pending
+## 8. Release CLI 0.3.10 (0.3.9 on npm is broken; was 0.3.7, then 0.3.8; fast hooks, stop gate modes, Codeceipt Guard) — pending
 
 **Why:** it replaces 0.3.5 and 0.3.6, which were never released, and contains:
 - **Phase 2b:** every hook starts about 5× faster (the indexer loads only for `codeceipt index`), and the start note
@@ -236,6 +236,17 @@ commit whose CLI is still 0.3.7 and the release stopped at "Tag matches the CLI 
 either, so the version moved to 0.3.9. **Wait until Claude says the 0.3.9 change is merged**, then: **Releases** →
 **Draft a new release** → tag `cli-v0.3.9` → **Create new tag on publish**, target `main` → **Publish release** →
 approve **release** twice → tell Claude "0.3.9 is released".
+
+**2026-11-12: 0.3.9 is out but its npm package is broken; release 0.3.10.** The GitHub release and its native
+binaries (the website installers) are fine. The npm package `codeceipt@0.3.9` is not: npm 11 removed its command
+(`"./codeceipt.mjs"` is rejected; `npx codeceipt` fails), and the release workflow hands only 4 files to the npm job,
+leaving out `chunks/` (index, guard, menu and others). Code fix is in the 0.3.10 PR. Your part:
+1. GitHub → `.github/workflows/release-cli.yml` → pencil → in the `build-npm` job, step "Hand the package to
+   publish-npm", the `path:` list ends with `packages/cli/dist/child.mjs`. Add one line under it, same indent:
+   `            packages/cli/dist/chunks/` → **Commit directly to main**.
+2. After Claude says the 0.3.10 change is merged: **Releases** → **Draft a new release** → tag `cli-v0.3.10`, target
+   `main` → **Publish release** → approve **release** twice → tell Claude "0.3.10 is released".
+3. Optional, from a computer with npm login: `npm deprecate codeceipt@0.3.9 "broken package, use 0.3.10"`.
 ---
 
 ## 9. Apply migration 0054 (Project Blueprint) — DONE 2026-11-11 (by Claude, owner-approved)

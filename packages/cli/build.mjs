@@ -65,7 +65,9 @@ async function publishManifest() {
       directory: "packages/cli",
     },
     type: "module",
-    bin: { codeceipt: "./codeceipt.mjs" },
+    // npm 11 drops a bin path written "./codeceipt.mjs" ("script name ... was invalid and removed": 0.3.9 shipped
+    // without the command), so the path is given without "./".
+    bin: { codeceipt: "codeceipt.mjs" },
     files: ["codeceipt.mjs", "chunks/", "child.mjs", "README.md"],
     engines: { node: ">=20" },
     dependencies: Object.fromEntries(external.map((name) => [name, pkg.dependencies[name]])),

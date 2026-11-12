@@ -80,3 +80,4 @@
 - 2026-11-12: Owner: approval emails use Resend instead of Postmark (no Postmark account).
 - 2026-11-12: The CLI release moves to 0.3.8 (the cli-v0.3.7 tag cannot be deleted; owner tried).
 - 2026-11-12: CLI release moves to 0.3.9 (cli-v0.3.8 was tagged on main before the version change merged).
+- 2026-11-12: CLI 0.3.9 published; its npm package is broken (bin removed by npm 11, chunks/ not handed to the npm job); fixing as 0.3.10.
