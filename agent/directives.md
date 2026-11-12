@@ -83,3 +83,4 @@
 - 2026-11-12: CLI 0.3.9 published; its npm package is broken (bin removed by npm 11, chunks/ not handed to the npm job); fixing as 0.3.10.
 - 2026-11-12: CLI 0.3.10 released (npm + native); website installers pinned to 0.3.10. Owner set the GitHub App permissions (action 14).
 - 2026-11-12: Owner: do everything possible to make Codeceipt production-ready; fix the landing page and other sections.
+- 2026-11-12: Owner asked to use Codeceipt with web-based builders like Claude Code on the web; building cloud-session support (CLI 0.3.11).

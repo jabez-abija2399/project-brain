@@ -82,7 +82,10 @@ export function Landing({ notice }: { notice?: string } = {}) {
 
         <Section id="agents" title="Works with your agent">
           <AgentTabs />
-          <p className="lp-aside">Lovable, Bolt and Replit projects connect through GitHub.</p>
+          <p className="lp-aside">
+            Claude Code on the web works too (one key in its environment settings). Lovable, Bolt
+            and Replit projects connect through GitHub.
+          </p>
         </Section>
 
         <Section id="problem" title="Agents are fast. They are not careful.">
