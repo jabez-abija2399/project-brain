@@ -1,7 +1,7 @@
 import { maskSecretsIn } from "./mask";
 import { plainText } from "./text";
 
-// Owner action 12 (Postmark): the hourly email that tells an owner their agents are waiting for an approval. Plain
+// Owner action 12 (Resend): the hourly email that tells an owner their agents are waiting for an approval. Plain
 // text only, and only counts, project names and links to the Approvals tab: the request text an agent wrote is never
 // put in an email (it could pose as instructions or a phishing link); the owner reads it on the signed-in page.
 

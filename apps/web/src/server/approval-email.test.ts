@@ -2,11 +2,11 @@ import { renderApprovalEmail } from "@brain/core";
 import { adminRepo, approvalRequestsRepo, projectsRepo } from "@brain/db";
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { type Mail, postmarkSender, sendApprovalEmails } from "./approval-email";
+import { type Mail, resendSender, sendApprovalEmails } from "./approval-email";
 import type { SessionUser } from "./auth";
 import { type TestWorld, createTestWorld } from "./test-helpers";
 
-// Owner action 12: the hourly approval email through Postmark.
+// Owner action 12: the hourly approval email through Resend.
 const APP = "https://codeceipts.test";
 const MADE = new Date("2026-03-02T10:30:00Z");
 const RUN = new Date("2026-03-02T11:07:00Z");
@@ -56,9 +56,9 @@ const outbox = () => {
 };
 
 describe("approval emails", () => {
-  it("BL-44 nothing is sent, and no call is made, until Postmark is configured", async () => {
-    expect(postmarkSender({})).toBeNull();
-    expect(postmarkSender({ POSTMARK_API_KEY: "k" })).toBeNull();
+  it("BL-44 nothing is sent, and no call is made, until Resend is configured", async () => {
+    expect(resendSender({})).toBeNull();
+    expect(resendSender({ RESEND_API_KEY: "k" })).toBeNull();
     const p = await projectsRepo.create(world.db, ada.id, { name: "salon" });
     await request(p.id);
     expect(await sendApprovalEmails(world.db, null, APP, RUN)).toMatchObject({
@@ -117,10 +117,10 @@ describe("approval emails", () => {
     expect(renderApprovalEmail(APP, [{ id: "p1", name: "x", count: 0 }])).toBeNull();
   });
 
-  it("BL-48 the Postmark call sends the key only in its header, to Postmark, and reports failure as false", async () => {
+  it("BL-48 the Resend call sends the key only in its header, to Resend, and reports failure as false", async () => {
     const calls: { url: string; init: RequestInit }[] = [];
-    const send = postmarkSender(
-      { POSTMARK_API_KEY: "test-key", POSTMARK_FROM: "alerts@codeceipts.test" },
+    const send = resendSender(
+      { RESEND_API_KEY: "test-key", RESEND_FROM: "alerts@codeceipts.test" },
       (async (url: string, init: RequestInit) => {
         calls.push({ url, init });
         return new Response("{}", { status: calls.length === 1 ? 200 : 422 });
@@ -128,15 +128,16 @@ describe("approval emails", () => {
     );
     expect(await send?.({ to: "ada@example.com", subject: "s", text: "t" })).toBe(true);
     expect(await send?.({ to: "ada@example.com", subject: "s", text: "t" })).toBe(false);
-    expect(calls[0]?.url).toBe("https://api.postmarkapp.com/email");
-    expect((calls[0]?.init.headers as Record<string, string>)["x-postmark-server-token"]).toBe(
-      "test-key",
+    expect(calls[0]?.url).toBe("https://api.resend.com/emails");
+    expect((calls[0]?.init.headers as Record<string, string>).authorization).toBe(
+      "Bearer test-key",
     );
     expect(String(calls[0]?.init.body)).not.toContain("test-key");
     expect(JSON.parse(String(calls[0]?.init.body))).toMatchObject({
-      From: "alerts@codeceipts.test",
-      To: "ada@example.com",
-      MessageStream: "outbound",
+      from: "alerts@codeceipts.test",
+      to: ["ada@example.com"],
+      subject: "s",
+      text: "t",
     });
   });
 
