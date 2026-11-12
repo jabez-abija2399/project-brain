@@ -212,12 +212,24 @@ Users get all of this through the release.
 0.3.7 after `codeceipt update`.
 
 
+**2026-11-12: the first try stopped at macOS.** Run #16 cancelled `build-macos` with "The configuration
+'macos-14-arm64-us-default' is not supported": GitHub retired the macOS 14 machines. Nothing was published. Fix (phone):
+1. GitHub → repository → `.github/workflows/release-cli.yml` → pencil icon → line 74: change `runs-on: macos-14` to
+   `runs-on: macos-15` → **Commit changes** → commit directly to `main`.
+2. A re-run would use the old file, so start over: **Releases** → the `cli-v0.3.7` release → **Delete**; then
+   **Tags** → `cli-v0.3.7` → **⋯** → **Delete tag**.
+3. **Releases** → **Draft a new release** → tag `cli-v0.3.7` → **Create new tag on publish**, target `main` →
+   **Publish release**.
+4. **Actions** → **release-cli** → the new run → approve **release** twice. Tell Claude "0.3.7 is released".
+
 **2026-11-12: released as 0.3.8 instead.** The `cli-v0.3.7` tag could not be deleted (tag rules protect release
 tags), so the version moved to 0.3.8 and the `cli-v0.3.7` tag and its draft release can simply stay. Steps:
-1. Make the macOS fix above (`runs-on: macos-15`, line 74 of `.github/workflows/release-cli.yml`), committed to `main`.
+1. Make the macOS fix above (`runs-on: macos-15`, line 74 of `.github/workflows/release-cli.yml`), committed to `main`
+   (done by the owner, 2026-11-12).
 2. After Claude says the 0.3.8 change is merged: **Releases** → **Draft a new release** → tag `cli-v0.3.8` →
    **Create new tag on publish**, target `main` → **Publish release**.
 3. **Actions** → **release-cli** → the new run → approve **release** twice. Tell Claude "0.3.8 is released".
+
 ---
 
 ## 9. Apply migration 0054 (Project Blueprint) — DONE 2026-11-11 (by Claude, owner-approved)
@@ -285,7 +297,7 @@ stays 200, with 0055 listed under `migrations.pending` and `optional: true`.
 
 ---
 
-## 12. Choose an email provider for approval notifications — owner chose Postmark 2026-11-11; waiting for the key in Vercel
+## 12. Choose an email provider for approval notifications — owner chose Resend 2026-11-12; waiting for the key in Vercel
 
 **Why:** Phase 6 asks for email (and browser) notifications when an agent asks for something. Codeceipt has no email
 provider yet, and adding one needs an account and a secret, which only you can create. Until then:
@@ -304,11 +316,14 @@ provider yet, and adding one needs an account and a secret, which only you can c
 **Check:** an agent's request that needs your approval sends you one email with a link to the Approvals tab.
 
 
-**Built (2026-11-11):** the hourly approval email is in the app and switched off until both variables exist.
-1. postmarkapp.com → sign up → **Sender Signatures** → add and verify the address emails come from.
-2. **Servers** → your server → **API Tokens** → copy the **Server API token**.
-3. Vercel → project → **Settings** → **Environment Variables** (Production): `POSTMARK_API_KEY` = the token,
-   `POSTMARK_FROM` = the verified address → **Save** → **Deployments** → latest → **Redeploy**.
+**Built (2026-11-11, switched to Resend 2026-11-12):** the hourly approval email is in the app and switched off until
+both variables exist.
+1. resend.com → sign up → **Domains** → **Add Domain** → add the DNS records it shows at your domain provider and wait
+   for "Verified". (Without your own domain, Resend only sends test emails to your own address from
+   `onboarding@resend.dev`.)
+2. **API Keys** → **Create API Key** (permission: Sending access) → copy it once.
+3. Vercel → project → **Settings** → **Environment Variables** (Production): `RESEND_API_KEY` = the key,
+   `RESEND_FROM` = e.g. `Codeceipt <alerts@yourdomain.com>` → **Save** → **Deployments** → latest → **Redeploy**.
 
 What it sends: at most one email an hour per owner, only when an agent asked for an approval in the last full hour:
 counts per project and a link to its Approvals tab. The agent's own words are never in the email.
