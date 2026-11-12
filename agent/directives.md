@@ -78,3 +78,5 @@
 - 2026-11-11: Owner asked Claude to apply the pending production migrations itself through the Neon connector ("do database update, you have neon access"); done for 0051-0057 with a backup branch first. Other production database changes still need the owner's explicit ask.
 - 2026-11-11: Owner: stop gate default stays strict (action 10); approval emails will use Postmark (action 12); owner created tag cli-v0.3.7 (action 8).
 - 2026-11-12: Owner: approval emails use Resend instead of Postmark (no Postmark account).
+- 2026-11-12: The CLI release moves to 0.3.8 (the cli-v0.3.7 tag cannot be deleted; owner tried).
+- 2026-11-12: CLI release moves to 0.3.9 (cli-v0.3.8 was tagged on main before the version change merged).
