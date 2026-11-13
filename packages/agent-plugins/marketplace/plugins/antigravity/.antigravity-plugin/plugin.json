@@ -2,7 +2,7 @@
   "name": "codeceipt",
   "displayName": "Codeceipt",
   "description": "A receipt for every AI change: what you asked, what changed and what is missing, built from git. Picks up where the last session stopped.",
-  "version": "0.3.11",
+  "version": "0.3.12",
   "author": {
     "name": "Codeceipt",
     "url": "https://codeceipts.vercel.app"

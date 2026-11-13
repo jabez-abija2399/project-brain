@@ -467,3 +467,12 @@ Until it is released, cloud sessions stay silent (pushes and pull requests still
 waiting jobs (twice). Tell Claude "0.3.11 is released"; Claude pins the website installers.
 
 **Then, to try it:** follow docs/cloud-sessions.md for one repository (token, two environment variables, network).
+
+## 18. Release CLI 0.3.12 (cloud-session doctor, CLAUDE.md) — pending
+
+**Why:** in a cloud session, `codeceipt doctor` stops reporting the environment key as "not logged in", and
+`codeceipt init --claude` writes `CLAUDE.md` (`@AGENTS.md`) so Claude Code reads the Codeceipt section.
+
+**Steps (phone works):** GitHub → Releases → **Draft a new release** → tag `cli-v0.3.12`, **Create new tag on
+publish**, target `main` → **Publish release** → Actions → **release-cli** → approve twice → tell Claude "0.3.12 is
+released".
