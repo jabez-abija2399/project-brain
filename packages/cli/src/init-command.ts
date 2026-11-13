@@ -286,7 +286,7 @@ class Writer {
     if (current !== null && /^@AGENTS\.md\s*$/m.test(current)) {
       return void this.result.kept.push("CLAUDE.md reads AGENTS.md");
     }
-    if (current !== null && current.includes(AGENTS_START)) {
+    if (current?.includes(AGENTS_START)) {
       return void this.result.kept.push("CLAUDE.md has the Codeceipt section");
     }
     const sep = current === null || current === "" ? "" : current.endsWith("\n") ? "\n" : "\n\n";
