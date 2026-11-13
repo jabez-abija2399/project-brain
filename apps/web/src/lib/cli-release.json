@@ -1,12 +1,12 @@
 {
-  "version": "0.3.10",
+  "version": "0.3.11",
   "sha256": {
-    "darwin-arm64": "dc21fdc23a2a1724d9a62155bc44542b9c62bd7fa2d58e8d7b13a6f160eced6a",
-    "darwin-x64": "197402258c3201ae49b1b28f36c141d92f5dcd57ecb4355639cac7943e215f66",
-    "linux-x64": "60725f2be06cefc674be2bec91f86ad41e13df7a44b6b967dddf3128eb987569",
-    "linux-arm64": "a10507a3d5e1ffb30430a92d8e1cee76fff0943ece145f641485a4da454d7b7a",
-    "linux-x64-musl": "0c2d243cc8851c3d9cb9ecddd4fedeb229422038447857683161cb1128d0b1ca",
-    "linux-arm64-musl": "b0bf0c09027a2f38b2a6a01c820cf38849bb3c6cb56712cdcf844d806cebc7f2",
-    "windows-x64": "15fe263cd86a2e81e8536c5f5023f6abdf8524e454dcb088513213007a190fd8"
+    "darwin-arm64": "135d8c76644d0d764eced1aaaa8d03ced2aad5bb39bec0d9a9abc6e9a105322f",
+    "darwin-x64": "ff528801a9c4eb5f6941afab45b3260872541149c2cf342949615d65ab4784f1",
+    "linux-x64": "1c27cca15793abce0874c4720b461138b8547597ed09a8ee23acadfaa56b056e",
+    "linux-arm64": "c9d025d9722651f2d9aee52034feaf11b66667d06b681993dd8b19bd6a98112d",
+    "linux-x64-musl": "6a2cc6e7f840cbd836aeed57e5c96590bbf0f378733039e6171b0c6eb7c28292",
+    "linux-arm64-musl": "d201e7c2c940fee3f171a30a2c5a5748afe8f899cf5ce724bbb8a2e6a76b33cd",
+    "windows-x64": "067fd2af27c4e6d06ce92dfb338525db871daded6d2f9123a563d50788c552de"
   }
 }
