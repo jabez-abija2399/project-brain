@@ -36,6 +36,8 @@ export type DoctorDeps = {
   repoProject: () => Promise<CliConfig>;
   inGitRepo: () => Promise<boolean>;
   hasLogin: () => boolean;
+  // D-033: a project key from the environment (CODECEIPT_TOKEN + CODECEIPT_PROJECT_ID), as in a cloud session.
+  cloudKey: boolean;
   // The repo's top folder (the key for hook runs and Claude Code transcripts), or null outside a repo.
   repoRoot: () => Promise<string | null>;
 };
@@ -199,7 +201,15 @@ export async function runDoctor(deps: DoctorDeps): Promise<number> {
   // 2. Duplicate installs: the first codeceipt on PATH is the one agents and terminals run.
   const onPath = codeceiptsOnPath(deps.env, deps.platform);
   const first = onPath[0];
-  if (!first) {
+  if (!first && deps.cloudKey) {
+    lines.push({
+      ok: null,
+      text: "No codeceipt on PATH: hooks run it through npx (normal in a cloud session)",
+      fix: [
+        "Optional, faster hooks: add `npm install -g codeceipt` to the environment's setup script",
+      ],
+    });
+  } else if (!first) {
     lines.push({
       ok: false,
       text: "No codeceipt on PATH: terminals and agents cannot find the command",
@@ -238,7 +248,9 @@ export async function runDoctor(deps: DoctorDeps): Promise<number> {
   lines.push(
     deps.hasLogin()
       ? { ok: true, text: "Logged in" }
-      : { ok: false, text: "Not logged in on this computer", fix: ["codeceipt"] },
+      : deps.cloudKey
+        ? { ok: true, text: "Using the project key from this environment (CODECEIPT_TOKEN)" }
+        : { ok: false, text: "Not logged in on this computer", fix: ["codeceipt"] },
   );
   let config: CliConfig | null = null;
   const inRepo = await deps.inGitRepo();
@@ -313,6 +325,11 @@ export async function runDoctor(deps: DoctorDeps): Promise<number> {
           ok: false,
           text: `${a.name} hooks call ${missing.join(", ")}, which is not there`,
           fix: [`codeceipt init ${a.flag}`],
+        });
+      } else if (paths.length === 0 && !first && deps.cloudKey) {
+        lines.push({
+          ok: true,
+          text: `${a.name} hooks are set up (they run codeceipt through npx here)`,
         });
       } else if (paths.length === 0 && !first) {
         lines.push({

@@ -9,7 +9,7 @@ exist there, so Codeceipt needs a key in the cloud environment instead.
 | Where you build | How Codeceipt sees it |
 | --- | --- |
 | Claude Code, Cursor, Codex on your computer | `npx codeceipt` once per repository; receipts after every session |
-| Claude Code on the web | the steps below (CLI 0.3.11 or later); receipts after every session |
+| Claude Code on the web | the steps below (CLI 0.3.11 or later; 0.3.12 recommended); receipts after every session |
 | Lovable, Bolt, Replit, anything that pushes to GitHub | Connect GitHub on the project's Connect tab; receipts on push and, if turned on, on pull requests |
 
 ## Set it up (works from a phone)
@@ -24,7 +24,13 @@ exist there, so Codeceipt needs a key in the cloud environment instead.
    - `CODECEIPT_PROJECT_ID` = the project id (shown on the project's **Connect** tab)
 4. **Network.** If the environment's network access is limited, allow `codeceipts.vercel.app` and
    `registry.npmjs.org`.
-5. Start a session, ask for a change, and open the project's **Receipts** tab when it ends.
+5. Optional, faster hooks: add `npm install -g codeceipt` to the environment's **setup script**.
+6. Start a session, ask for a change, and open the project's **Receipts** tab when it ends. If a session says the
+   Codeceipt tools are missing, start a new one: tools load only when a session starts.
+
+`codeceipt doctor` in a cloud session (0.3.12 or later) says "Using the project key from this environment" and treats
+running through npx as normal. `codeceipt init --claude` also writes `CLAUDE.md` with `@AGENTS.md`, so Claude Code
+reads the Codeceipt section.
 
 ## Safety
 

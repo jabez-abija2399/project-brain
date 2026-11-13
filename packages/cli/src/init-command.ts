@@ -277,6 +277,23 @@ class Writer {
     this.result.added.push(`${rel}: MCP server ${SERVER_NAME}`);
   }
 
+  // Claude Code reads CLAUDE.md, not AGENTS.md: one import line makes it read the AGENTS.md section too. Created when
+  // missing; an existing CLAUDE.md gets the line added at the end, never anything removed.
+  claudeImport() {
+    const abs = this.safe("CLAUDE.md");
+    if (!abs) return void this.result.skipped.push("CLAUDE.md (a symlink or outside the repo)");
+    const current = existsSync(abs) ? readFileSync(abs, "utf8") : null;
+    if (current !== null && /^@AGENTS\.md\s*$/m.test(current)) {
+      return void this.result.kept.push("CLAUDE.md reads AGENTS.md");
+    }
+    if (current?.includes(AGENTS_START)) {
+      return void this.result.kept.push("CLAUDE.md has the Codeceipt section");
+    }
+    const sep = current === null || current === "" ? "" : current.endsWith("\n") ? "\n" : "\n\n";
+    this.write(abs, `${current ?? ""}${sep}@AGENTS.md\n`);
+    this.result.added.push("CLAUDE.md: reads AGENTS.md (@AGENTS.md)");
+  }
+
   agentsSection() {
     const abs = this.safe("AGENTS.md");
     if (!abs) return void this.result.skipped.push("AGENTS.md (a symlink or outside the repo)");
@@ -724,6 +741,7 @@ export function runInit(
     w.file(SHARED_SKILL_PATH, SHARED_SKILL);
   }
   w.agentsSection();
+  if (agents.includes("claude")) w.claudeImport();
   return w.result;
 }
 

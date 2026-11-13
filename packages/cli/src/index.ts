@@ -336,6 +336,7 @@ export async function main(argv: string[], deps: CliDeps): Promise<number> {
         repoProject: () => projectConfig(deps, path, deps.cwd),
         inGitRepo: async () => (await gitDirOf(deps.git ?? runGit, deps.cwd)) !== null,
         hasLogin: () => hasAnyLogin(path),
+        cloudKey: cloudSessionConfig(deps.env) !== null,
         repoRoot: () => repoRoot(deps.git ?? runGit, deps.cwd).catch(() => null),
       });
     }

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -202,5 +202,60 @@ describe("cloud sessions: key from the environment", () => {
     await c.run(dir, ["login"], `${TOKEN_A}\n`, { CODECEIPT_API_URL: "https://brain.test" });
     expect(s.calls.length).toBeGreaterThan(0);
     for (const call of s.calls) expect(new URL(call.url).origin).toBe("https://brain.test");
+  });
+
+  it("CS-12 doctor in a cloud session counts the environment key as the login and npx as normal", async () => {
+    const s = server();
+    const dir = repo();
+    const c = cli(s.fetchImpl);
+    expect(await c.run(dir, ["init", "--claude"], "", CLOUD)).toBe(0);
+    c.out.length = 0;
+    await c.run(dir, ["doctor"], "", CLOUD);
+    const text = c.out.join("\n");
+    expect(text).toContain("Using the project key from this environment (CODECEIPT_TOKEN)");
+    expect(text).toContain("This repo is linked to project proj-a");
+    expect(text).toContain("hooks run it through npx (normal in a cloud session)");
+    expect(text).toContain("Claude Code hooks are set up (they run codeceipt through npx here)");
+    expect(text).not.toContain("Not logged in on this computer");
+    expect(text).not.toContain("fall back to npx (slower");
+    expect(text).not.toContain(TOKEN_A);
+  });
+
+  it("CS-13 without the environment key, doctor still reports the missing login", async () => {
+    const s = server();
+    const dir = repo();
+    const c = cli(s.fetchImpl);
+    await c.run(dir, ["doctor"], "", {});
+    expect(c.out.join("\n")).toContain("Not logged in on this computer");
+  });
+
+  it("CS-14 init --claude makes Claude Code read AGENTS.md through CLAUDE.md, and keeps what the user wrote", async () => {
+    const s = server();
+    const c = cli(s.fetchImpl);
+    const fresh = repo();
+    expect(await c.run(fresh, ["init", "--claude"], "", CLOUD)).toBe(0);
+    expect(readFileSync(join(fresh, "CLAUDE.md"), "utf8")).toBe("@AGENTS.md\n");
+    expect(c.out).toContain("  added   CLAUDE.md: reads AGENTS.md (@AGENTS.md)");
+    // A second run adds nothing.
+    expect(await c.run(fresh, ["init", "--claude"], "", CLOUD)).toBe(0);
+    expect(readFileSync(join(fresh, "CLAUDE.md"), "utf8")).toBe("@AGENTS.md\n");
+    // An existing CLAUDE.md keeps every line and gets the import at the end.
+    const own = repo();
+    writeFileSync(join(own, "CLAUDE.md"), "# My rules\nUse pnpm.");
+    expect(await c.run(own, ["init", "--claude"], "", CLOUD)).toBe(0);
+    expect(readFileSync(join(own, "CLAUDE.md"), "utf8")).toBe(
+      "# My rules\nUse pnpm.\n\n@AGENTS.md\n",
+    );
+  });
+
+  it("CS-15 attack: a CLAUDE.md that is a symlink is never written through", async () => {
+    const s = server();
+    const c = cli(s.fetchImpl);
+    const dir = repo();
+    const outside = join(mkdtempSync(join(tmpdir(), "cc-cloud-out-")), "target.md");
+    writeFileSync(outside, "untouched\n");
+    symlinkSync(outside, join(dir, "CLAUDE.md"));
+    expect(await c.run(dir, ["init", "--claude"], "", CLOUD)).toBe(0);
+    expect(readFileSync(outside, "utf8")).toBe("untouched\n");
   });
 });
