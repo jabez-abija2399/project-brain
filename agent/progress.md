@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-038 public pages | status: done
+Changed: Landing hero labels the first step ("1. Run this in your app's folder", then "Already set up? Sign in"); Checks and Where it fits moved after the FAQ (6 sections before it). Quickstart uses the landing's 3 steps (Set up with the command first, Work as usual, Get your receipt) and numbered troubleshooting. Shared receipt has the public header/footer, title, purpose sentence and state guide. 404 gives signed-out visitors Home as the one primary action; a dead share link has its own page ("Ask them to send you a new link"). Older tests follow the new order and headings.
+Verified (ran this session): verify.sh PASS; public-pages.test (5, one per AC); real Chromium pass over 10 public pages at 375 and 1280 px, light and dark: no horizontal overflow (40/40).
+NOT VERIFIED: the browser pass used server-rendered pages with the site CSS, not the deployed site; it is not a repo test (Playwright is not a project dependency).
+Next: all of FEAT-027..038 done; owner: merge to main, set BETA_LIMITS=on.
+
 ## 2026-11-25 | FEAT-037 account, keys, admin, suspended | status: done
 Changed: Account plan section is a card (beta usage or plan); "Connection keys" with plainer text and a Copy key button on the one-time secret; "Signed-in browsers" with a "This browser" pill (auth.currentSessionId) listed first; Sign out everywhere asks through ConfirmDialog; Suspend states consequences, takes an optional reason kept in the audit Detail, danger style (Restore primary); admin overview leads with a status sentence; Suspended page plainer and offers Sign out.
 Verified (ran this session): verify.sh PASS; account-admin-design.test (4, one per AC; non-admin 404 on every admin page and the suspend action).

@@ -99,25 +99,17 @@ export default async function QuickstartPage() {
         machine.
       </p>
 
-      <h2>1. Sign in with GitHub</h2>
+      {/* FEAT-038: the same three steps as the landing page (Set up, Work as usual, Get your receipt), and the
+          working command first. */}
+      <h2>1. Set up</h2>
       <p>
-        Sign in on the Codeceipt home page. You land on <strong>Get your first receipt</strong>,
-        which shows the three steps below and ticks each one off by itself as it happens.
-      </p>
-      <Screenshot of="the Get your first receipt page with three waiting steps" />
-
-      <h2>2. Install and run codeceipt in your project</h2>
-      <p>
-        Install the Codeceipt app with one line (no Node.js needed; it updates itself), then run{" "}
-        <code>codeceipt</code> in your app&apos;s folder (a git repository).
+        Once per repository, about two minutes. Open a terminal in your app&apos;s folder (a git
+        repository) and run this first:
       </p>
       <InstallOptions />
-      <p>The terminal shows a short code, like BCDF-GHJK, and opens your browser.</p>
-      <Screenshot of="the terminal showing the code and Waiting for approval" />
-
-      <h2>3. Approve in the browser</h2>
       <p>
-        Check that the code on the page matches the one in your terminal, pick a project or create
+        The terminal shows a short code, like BCDF-GHJK, and opens your browser. Check that the code
+        on the page matches the one in your terminal, sign in with GitHub, pick a project or create
         one, and approve. Codeceipt then links this repo to the project, indexes your code on your
         machine (only names, paths and hashes are sent) and sets up the agents it finds.
       </p>
@@ -142,7 +134,7 @@ export default async function QuickstartPage() {
         token and never count as changes in your receipts.
       </p>
 
-      <h2>4. Open Claude Code or Cursor and make a change</h2>
+      <h2>2. Work as usual</h2>
       <p>
         Start your agent in the same folder and ask for something small. It checks where you
         stopped, turns your request into a checklist and builds it. When it is done, end the
@@ -163,11 +155,11 @@ export default async function QuickstartPage() {
         you finish instead.
       </p>
 
-      <h2>5. Your first receipt</h2>
+      <h2>3. Get your receipt</h2>
       <p>
-        The start page shows all three steps done and your first receipt, with what each part means:
-        what you asked, the checklist (done, partly done or missed), files changed outside the
-        request, security findings, test checks and what could not be verified.{" "}
+        The start page shows every step done and your first receipt, with what each part means: what
+        you asked, the checklist (done, partly done or missed), files changed outside the request,
+        security findings, test checks and what could not be verified.{" "}
         <strong>Done, no test proves it</strong> means the change is there but no test changed to
         show it works; <strong>Not verified</strong> means Codeceipt could not check it at all.
         Every receipt after that is on your project&apos;s Receipts tab.
@@ -175,14 +167,17 @@ export default async function QuickstartPage() {
       <Screenshot of="the first receipt on the start page, with one item missed" />
 
       <h2>Troubleshooting</h2>
-      <div className="faq">
+      {/* FEAT-038: numbered, so "see 3 in Troubleshooting" means one thing. */}
+      <ol className="faq faq-numbered">
         {TROUBLE.map((t) => (
-          <details key={t.q}>
-            <summary>{t.q}</summary>
-            <p>{t.a}</p>
-          </details>
+          <li key={t.q}>
+            <details>
+              <summary>{t.q}</summary>
+              <p>{t.a}</p>
+            </details>
+          </li>
         ))}
-      </div>
+      </ol>
     </DocPage>
   );
 }

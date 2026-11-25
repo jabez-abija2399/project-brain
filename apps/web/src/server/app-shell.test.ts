@@ -132,7 +132,9 @@ describe("app shell", () => {
 
 describe("404 page", () => {
   it("says what happened in the shared shell, with one primary way back", async () => {
-    const html = renderToStaticMarkup(createElement(NotFound));
+    // FEAT-038: a signed-in visitor goes back to their projects (a signed-out one gets Home: public-pages.test.ts).
+    setSessionResolver(async () => ({ id: "u1", email: "u1@example.test", name: "U" }));
+    const html = renderToStaticMarkup((await NotFound()) as ReactElement);
     expect(html).toContain("<h1>Page not found</h1>");
     expect(text(html)).toContain("does not exist, or you do not have access to it");
     expect(html.match(/btn-primary/g)).toHaveLength(1);

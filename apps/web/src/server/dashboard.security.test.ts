@@ -129,7 +129,7 @@ describe("FEAT-017 security: ownership and cross-project leaks", () => {
       await digestOf(ReceiptsPage(props("does-not-exist"))),
     );
     // The 404 page itself never says whose it is or that it exists.
-    const notFound = renderToStaticMarkup(createElement(NotFound));
+    const notFound = renderToStaticMarkup((await NotFound()) as ReactElement);
     expect(notFound).toContain("Page not found");
     expect(notFound).not.toMatch(/forbidden|permission denied|belongs to|Rival/i);
   });

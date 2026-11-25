@@ -48,13 +48,16 @@ describe("install options", () => {
     expect(t).toMatch(/with the first native release/);
   });
 
-  it("the quickstart shows the install options in step 2, before the approval step", async () => {
+  // FEAT-038: the quickstart uses the landing page's three steps; the install options open step 1 (Set up), before
+  // the approval it describes and before step 2.
+  it("the quickstart shows the install options in step 1, before the approval step", async () => {
     setSessionResolver(async () => null);
     const html = renderToStaticMarkup((await QuickstartPage()) as ReactElement);
     const t = text(html);
     const at = t.indexOf("macOS, Linux, WSL");
-    expect(at).toBeGreaterThan(t.indexOf("2. Install and run codeceipt in your project"));
-    expect(at).toBeLessThan(t.indexOf("3. Approve in the browser"));
+    expect(at).toBeGreaterThan(t.indexOf("1. Set up"));
+    expect(at).toBeLessThan(t.indexOf("approve. Codeceipt then links this repo"));
+    expect(at).toBeLessThan(t.indexOf("2. Work as usual"));
     expect(t).toContain("Homebrew and winget: coming soon");
   });
 });

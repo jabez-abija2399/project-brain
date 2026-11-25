@@ -1258,3 +1258,16 @@
 .lp-note code {
   overflow-wrap: anywhere;
 }
+/* FEAT-038: the hero's first step label. */
+.lp-step-label {
+  font-weight: 600;
+  color: var(--text);
+}
+/* FEAT-038: numbered troubleshooting; the number sits beside each question. */
+.faq-numbered {
+  padding-left: 1.5rem;
+}
+.faq-numbered > li::marker {
+  color: var(--muted);
+  font-weight: 600;
+}
