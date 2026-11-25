@@ -765,7 +765,8 @@ describe("FEAT-017 security: proposals, connect and error pages", () => {
     const page = await html(ProposalsPage(props(projectId)));
     expect(page).not.toContain(stripeKey());
     expect(page).not.toMatch(/<script/);
-    expect(page).toContain("Proposed: </span>Use sk_l***");
+    // FEAT-035: the proposed wording is the added text of the change, still masked and on one line.
+    expect(page).toContain("<ins>Use sk_l***");
   });
 
   it("AC-017-04 attack: the connect page never shows a project token, the auth secret or any env value but the public URL", async () => {
