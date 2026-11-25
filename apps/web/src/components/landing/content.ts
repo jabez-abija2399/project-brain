@@ -212,7 +212,7 @@ export const STEPS: Step[] = [
     does: [
       "Run `codeceipt last` in the same folder: done, missed and every item that needs attention, by name.",
       "Or open the Receipts page on your dashboard for the full receipt and its evidence.",
-      "Something missed? Click Send fix to agent on the receipt and paste the prompt into your agent.",
+      "Something missed? Click Copy fix for your agent on the receipt and paste the prompt into your agent.",
     ],
     lines: [
       { kind: "cmd", text: "codeceipt last --evidence" },

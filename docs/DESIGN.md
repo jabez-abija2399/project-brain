@@ -50,7 +50,7 @@ Spacing 4/8/12/16/24/32/48. Landing-only styles: apps/web/src/app/landing.css; e
 | ReceiptCard | apps/web/src/components/receipt-card | collapsed, expanded | receipts feed, feature page |
 | CopyCommand | apps/web/src/components/copy-command | command text + copy | onboarding |
 | JourneySteps | apps/web/src/components/journey-steps | linked, indexed, receipt (each done or waiting) | start page, Connect tab |
-| CopyButton | apps/web/src/components/ui/copy-button | label, text; copied / failed feedback | receipts ("Send fix to agent"), CopyCommand |
+| CopyButton | apps/web/src/components/ui/copy-button | label, text; copied / failed feedback | receipts ("Copy fix for your agent"), CopyCommand |
 | Pagination | apps/web/src/components/ui/pagination | page, pages, basePath (?page=N, 50 per page) | features, receipts, proposals |
 | Disclosure | apps/web/src/components/ui/disclosure | open; summary; body rendered on first open (INP) | ReceiptCard |
 | ReceiptsFilter | apps/web/src/components/receipts-filter | chips with counts, search, shortcuts (/ j k o), day headings | receipts feed |

@@ -49,7 +49,7 @@ describe("landing: how to use Codeceipt", () => {
     // 3. Read the receipt and act on it.
     expect(receipt).toContain("codeceipt last");
     expect(receipt).toMatch(/Receipts page/);
-    expect(receipt).toMatch(/Send fix to agent/);
+    expect(receipt).toMatch(/Copy fix for your agent/);
   });
 
   it("each step has a numbered list of what to do, and the guide links to troubleshooting", () => {

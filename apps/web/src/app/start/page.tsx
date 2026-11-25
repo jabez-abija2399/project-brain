@@ -89,7 +89,7 @@ export default async function StartPage({
         }
         action={
           // FEAT-031: one primary action per state; the receipts are the next step only once one exists.
-          // With the first receipt on the page, its own "Send fix to agent" is the primary action.
+          // With the first receipt on the page, its own "Copy fix for your agent" is the primary action.
           receipts && steps.receipt ? (
             <Link className="btn btn-secondary" href={receipts}>
               Open all receipts

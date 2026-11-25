@@ -99,7 +99,7 @@ describe("FEAT-021 shareable receipt links", () => {
     expect(html).toContain("Receipt by Codeceipt");
     expect(html).toContain("sk_l***");
     // Read-only: no owner actions and no fix prompt.
-    expect(html).not.toContain("Send fix to agent");
+    expect(html).not.toContain("Copy fix for your agent");
     expect(html).not.toMatch(/Close|Dismiss/);
   });
 
