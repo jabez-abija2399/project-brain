@@ -35,9 +35,9 @@ export function Seal({ state, count }: { state: SealState; count?: number }) {
           />
         </svg>
       ) : state === "needs" ? (
-        <b aria-hidden="true">{count !== undefined && count > 99 ? "99+" : (count ?? "!")}</b>
+        <b>{count !== undefined && count > 99 ? "99+" : (count ?? "!")}</b>
       ) : (
-        <b aria-hidden="true">·</b>
+        <b>·</b>
       )}
     </span>
   );

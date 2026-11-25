@@ -158,7 +158,7 @@ describe("FEAT-040 design v3", () => {
     });
     const needs = await html(OverviewPage(props() as never));
     expect(needs).toMatch(
-      /<span class="seal seal-needs" role="img" aria-label="Needs you" data-seal="needs"><b aria-hidden="true">1<\/b>/,
+      /<span class="seal seal-needs" role="img" aria-label="Needs you" data-seal="needs"><b>1<\/b>/,
     );
     expect(needs).toContain("1 receipt needs your attention this week");
     // A security problem outranks everything else.
