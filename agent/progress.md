@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-034 features and plan | status: done
+Changed: a todo feature with a done item reads In progress (board rows in server/dashboard.ts and the counts in dashboardRepo.featureCounts); chips carry the counts (mini-stats removed); feature names link to the new features/[featureId] page (server/feature-detail.ts, receiptsRepo.listForFeature: status, progress, items, receipts); "Nothing planned yet" text; plan items read Must / Must never; plan banner on Features; "Not right? Tell your agent what to change"; files column hidden on phones. features-board and plan-page tests follow the approved wording.
+Verified (ran this session): verify.sh PASS; features-plan.test (4, one per AC; 404 for another user's or another project's feature).
+NOT VERIFIED: phone layout in a browser.
+Next: FEAT-035 To decide.
+
 ## 2026-11-25 | FEAT-033 receipts | status: done
 Changed: receipt-card summary = verdict sentence + at most 3 badges (first result, worst problem, "+N more"); commit and "already in your files" in the body; "Copy fix for your agent" with "Copied. Paste it into Claude Code or Cursor."; All N items done stamp; receipts feed grouped Needs you / Agent is fixing (a newer receipt for the same request) / All good (feed rows carry requestId); filter bar: no-match message with Clear search / Show all, "?" shortcut sheet; celebrations cookie (lib/celebrate.ts) read by the shell (data-celebrate) with an Account switch. Older tests now use the new button name and summary.
 Verified (ran this session): verify.sh PASS; receipts-redesign.test (5, one per AC; XSS negative).

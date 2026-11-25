@@ -3395,37 +3395,52 @@
           "id": "AC-034-01",
           "kind": "happy",
           "check": "A feature's status agrees with its progress (any done item means at least 'In progress'); stats are the filter chips; rows open a feature page with its receipts and items",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:32; log contains AC-034-01"
         },
         {
           "id": "AC-034-02",
           "kind": "happy",
           "check": "Plan shows 'Must' / 'Must never' with icons instead of [positive]/[negative], appears as a banner on Features when a draft waits, and offers 'Not right? Tell your agent what to change.'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:32; log contains AC-034-02"
         },
         {
           "id": "AC-034-03",
           "kind": "boundary",
           "check": "At 375 px features show as cards, not a 6-column table",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:32; log contains AC-034-03"
         },
         {
           "id": "AC-034-04",
           "kind": "permission",
           "check": "A feature page of another user's project answers 404",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:32; log contains AC-034-04"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/features/[featureId]/page.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/plan-sections.tsx",
+        "apps/web/src/components/features-filter.tsx",
+        "apps/web/src/server/dashboard.ts",
+        "apps/web/src/server/feature-detail.ts",
+        "apps/web/src/server/features-board.test.ts",
+        "apps/web/src/server/features-plan.test.ts",
+        "apps/web/src/server/plan-page.test.ts",
+        "packages/db/src/repos/dashboard.ts",
+        "packages/db/src/repos/receipts.ts"
+      ]
     },
     {
       "id": "FEAT-035",
@@ -3630,6 +3645,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2121
+    "tests_passed": 2125
   }
 }
