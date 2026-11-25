@@ -147,7 +147,8 @@ describe("production build: the receipts page renders with receipts on several d
     const res = await fetch(`${BASE}/projects/${projectId}/receipts`, { headers: { cookie } });
     const html = await res.text();
     expect(res.status).toBe(200);
-    const headings = [...html.matchAll(/<li class="day-heading"[^>]*><h2[^>]*>([^<]*)<\/h2>/g)].map(
+    // FEAT-039 (AC-039-03): dates are h3 labels inside each group.
+    const headings = [...html.matchAll(/<li class="day-heading"[^>]*><h3[^>]*>([^<]*)<\/h3>/g)].map(
       (m) => m[1],
     );
     expect(headings).toEqual(expectedDays);

@@ -8,7 +8,10 @@ bottom edge, monospace text. Monospace only for receipts, terminals and code; ev
 Generous spacing, max content width 1120 px, one display size (landing hero), one section size, one body size.
 No gradients, glows, all-caps labels, emoji, coloured words inside headlines, identical card grids with soft shadows,
 or arrows on buttons. Motion: the landing receipt prints once on load; terminal sequences play only when clicked;
-prefers-reduced-motion shows the final state. Every page starts with breadcrumbs (where useful), a title, one purpose
+prefers-reduced-motion shows the final state. Polish (FEAT-039, 2026-11-25): project tabs are a wrapping segmented
+bar whose current tab is filled with the text colour (so it reads in both themes); counts that ask for attention are
+solid accent pills; receipt cards in the feed are paper with the torn edge; list pages lead with a group heading and
+a count pill, dates are small labels. Every page starts with breadcrumbs (where useful), a title, one purpose
 sentence and at most one primary action, inside the shared shell (header with project switcher and sign out, the
 landing page's footer). Screenshots: docs/screenshots/ (landing-*, pages/*).
 

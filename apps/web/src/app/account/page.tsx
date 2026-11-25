@@ -79,13 +79,6 @@ export default async function AccountPage() {
         </div>
       </section>
 
-      <section className="stack" aria-labelledby="celebrate">
-        <h2 id="celebrate" className="section-title">
-          Celebrations
-        </h2>
-        <CelebrateToggle on={await celebrateOn()} />
-      </section>
-
       <section className="card stack" aria-labelledby="plan" data-testid="plan-card">
         <h2 id="plan" className="section-title">
           Plan
@@ -145,6 +138,14 @@ export default async function AccountPage() {
         </p>
         <SessionList sessions={browsers} current={thisBrowser} />
         <SignOutEverywhere />
+      </section>
+
+      {/* FEAT-039: preferences come after the plan, keys and browsers. */}
+      <section className="stack" aria-labelledby="celebrate">
+        <h2 id="celebrate" className="section-title">
+          Celebrations
+        </h2>
+        <CelebrateToggle on={await celebrateOn()} />
       </section>
 
       <section className="stack" aria-labelledby="export">

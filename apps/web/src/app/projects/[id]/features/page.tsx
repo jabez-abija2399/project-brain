@@ -146,13 +146,25 @@ export default async function FeatureBoardPage(props: ListPageProps) {
                       </span>
                     ),
                 },
-                { key: "files", header: "Files", cell: (r) => r.files },
+                // FEAT-039: a column of zeros says nothing; it shows once any feature has files.
+                ...(board.rows.some((r) => r.files > 0)
+                  ? [
+                      {
+                        key: "files",
+                        header: "Files",
+                        cell: (r: (typeof board.rows)[number]) => r.files,
+                      },
+                    ]
+                  : []),
                 {
                   key: "open",
                   header: "Open items",
                   cell: (r) =>
                     r.openItems > 0 ? (
                       <StatusBadge status="warning" label={`${r.openItems} open`} />
+                    ) : r.totalItems === 0 ? (
+                      // FEAT-039: nothing planned is not "done": a neutral word, no green check.
+                      <span className="muted">Nothing planned</span>
                     ) : (
                       <StatusBadge status="done" label="None open" />
                     ),

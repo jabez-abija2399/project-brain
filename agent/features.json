@@ -3696,9 +3696,128 @@
         "apps/web/src/server/pages.test.ts",
         "apps/web/src/server/public-pages.test.ts"
       ]
+    },
+    {
+      "id": "FEAT-039",
+      "title": "UI polish: fix the review findings and a more attractive look in the Receipt direction",
+      "priority": 1,
+      "depends_on": [
+        "FEAT-038"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-039-01",
+          "kind": "happy",
+          "check": "On a 375 px phone the account menu button shows the word 'Menu' and every project tab with its count badge is visible without scrolling the tab row",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-01"
+        },
+        {
+          "id": "AC-039-02",
+          "kind": "happy",
+          "check": "Opening /projects/<id> lands on that project's Overview, not Settings",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-02"
+        },
+        {
+          "id": "AC-039-03",
+          "kind": "happy",
+          "check": "Receipts: the group titles (Needs you, Agent is fixing, All good) are the main headings above the dates, the state guide starts closed, Close/Dismiss/Share are styled buttons, and the shortcut hint is one '? all shortcuts' link",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-03"
+        },
+        {
+          "id": "AC-039-04",
+          "kind": "happy",
+          "check": "To decide shows requests and proposals as one list of identical cards whose heading count equals the tab badge, each with Approve and Reject",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-04"
+        },
+        {
+          "id": "AC-039-05",
+          "kind": "happy",
+          "check": "Features: a feature with nothing planned shows a neutral 'Nothing planned' instead of a green check, the Files column is hidden when every count is 0, and the last receipt date stays on one line",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-05"
+        },
+        {
+          "id": "AC-039-06",
+          "kind": "happy",
+          "check": "Blueprint with no rules shows one empty state with one primary action instead of one 'no promises yet' card per feature",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-06"
+        },
+        {
+          "id": "AC-039-07",
+          "kind": "happy",
+          "check": "Account lists the profile, then the plan, then keys and browsers; the celebrations switch sits with the other preferences after them",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-07"
+        },
+        {
+          "id": "AC-039-08",
+          "kind": "happy",
+          "check": "A refreshed look using tokens only: page header band, receipt cards with the torn paper edge, stronger count badges (4.5:1 contrast in light and dark), consistent card padding; still no gradients",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-08"
+        },
+        {
+          "id": "AC-039-09",
+          "kind": "boundary",
+          "check": "Every signed-in and public page at 375 and 1440 px, in light and dark, has no horizontal overflow and no element outside the viewport",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-09"
+        },
+        {
+          "id": "AC-039-10",
+          "kind": "permission",
+          "check": "/projects/<id> of another user's project (or a made-up id) is still the 404 page after the redirect change",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 15:38; log contains AC-039-10"
+        }
+      ],
+      "status": "done",
+      "notes": "Owner 2026-11-25: 'fix, I need the best UI design, attractive'. Findings from the UI review of 2026-11-25. Stay in the Receipt direction (docs/DESIGN.md).",
+      "files": [
+        "apps/web/next.config.ts",
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/approvals/approval-sections.tsx",
+        "apps/web/src/app/projects/[id]/approvals/request-decision.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/page.tsx",
+        "apps/web/src/app/projects/[id]/decide/page.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/proposals/proposal-actions.tsx",
+        "apps/web/src/app/projects/[id]/receipts/page.tsx",
+        "apps/web/src/components/checklist-item-actions.tsx",
+        "apps/web/src/components/open-items-cleanup.tsx",
+        "apps/web/src/components/receipts-filter.tsx",
+        "apps/web/src/components/share-receipt.tsx",
+        "apps/web/src/components/state-guide.tsx",
+        "apps/web/src/components/ui/button.tsx",
+        "apps/web/src/server/dashboard.security.test.ts",
+        "apps/web/src/server/project-tabs.test.ts",
+        "apps/web/src/server/receipts-find.test.ts",
+        "apps/web/src/server/receipts-redesign.test.ts",
+        "apps/web/src/server/ui-polish.test.ts"
+      ]
     }
   ],
   "meta": {
-    "tests_passed": 2142
+    "tests_passed": 2152
   }
 }

@@ -111,10 +111,12 @@ export default async function BlueprintPage({
       <div>{nav}</div>
       <section className="overview-hero stack" aria-labelledby="blueprint-summary">
         <h2 id="blueprint-summary" className="overview-headline">
-          {`Your app has ${parts} part${parts === 1 ? "" : "s"} and ${rules} promise${rules === 1 ? "" : "s"}.`}
+          {rules === 0
+            ? `Your app has ${parts} part${parts === 1 ? "" : "s"}.`
+            : `Your app has ${parts} part${parts === 1 ? "" : "s"} and ${rules} promise${rules === 1 ? "" : "s"}.`}
         </h2>
         <p className="muted m0">
-          {`${proven} ${proven === 1 ? "is" : "are"} proven by tests.`}
+          {rules === 0 ? "" : `${proven} ${proven === 1 ? "is" : "are"} proven by tests.`}
           {waiting > 0
             ? ` ${waiting} suggestion${waiting === 1 ? " is" : "s are"} waiting for you.`
             : ""}
@@ -127,7 +129,7 @@ export default async function BlueprintPage({
           ) : null}
           <Link href={`${base}/blueprint/discover`}>Safety check and Discover</Link>
           <Link href={`${base}/blueprint/history`}>History</Link>
-          <span className="muted">Version {view.version}</span>
+          {view.version > 0 ? <span className="muted">Version {view.version}</span> : null}
         </p>
       </section>
       {view.proposals.length > 0 ? (
@@ -173,10 +175,19 @@ export default async function BlueprintPage({
           </ul>
         </section>
       ) : null}
-      <div className="row wrap">
-        <ViewChoice current={mode} />
-      </div>
-      {view.features.length === 0 && !mode ? null : view.features.length === 0 ? (
+      {rules > 0 ? (
+        <div className="row wrap">
+          <ViewChoice current={mode} />
+        </div>
+      ) : null}
+      {rules === 0 && parts > 0 ? (
+        // FEAT-039: no promises anywhere yet: one empty state with one next step, not a "no promises" card per part.
+        <EmptyState
+          title="No promises yet"
+          text={`Promises are what your app must always do and must never do, like "a full slot cannot be booked". Discover suggests them from your code for ${parts === 1 ? "your part" : `your ${parts} parts`}; you confirm the ones that are right.`}
+          action={{ label: "Suggest promises", href: `${base}/blueprint/discover` }}
+        />
+      ) : view.features.length === 0 ? (
         <EmptyState
           title="No features yet"
           text="Index your project or approve a plan, then confirm each feature in Discover."

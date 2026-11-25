@@ -105,10 +105,13 @@ describe("FEAT-030 project navigation", () => {
       { source: "/projects/:id/approvals", destination: "/projects/:id/decide", permanent: true },
       { source: "/projects/:id/plan", destination: "/projects/:id/features#plan", permanent: true },
       { source: "/projects/:id/connect", destination: "/projects/:id/settings", permanent: true },
-      { source: "/projects/:id", destination: "/projects/:id/settings#keys", permanent: true },
+      // FEAT-039 (AC-039-02): the project's own address opens its Overview.
+      { source: "/projects/:id", destination: "/projects/:id/overview", permanent: false },
     ]);
     // Next.js answers permanent redirects with 308, which keeps the method.
-    expect(redirects?.every((r) => r.permanent === true)).toBe(true);
+    expect(
+      redirects?.filter((r) => r.source !== "/projects/:id").every((r) => r.permanent === true),
+    ).toBe(true);
   });
 
   it("AC-030-04 permission: a stranger gets 404 on To decide and Settings, and counts never include another user's data", async () => {

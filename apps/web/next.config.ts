@@ -18,7 +18,8 @@ const config: NextConfig = {
       { source: "/projects/:id/approvals", destination: "/projects/:id/decide", permanent: true },
       { source: "/projects/:id/plan", destination: "/projects/:id/features#plan", permanent: true },
       { source: "/projects/:id/connect", destination: "/projects/:id/settings", permanent: true },
-      { source: "/projects/:id", destination: "/projects/:id/settings#keys", permanent: true },
+      // FEAT-039: a project's own address opens its Overview (temporary, so browsers do not cache the target).
+      { source: "/projects/:id", destination: "/projects/:id/overview", permanent: false },
     ];
   },
   // No page may be framed by another site (clickjacking, e.g. a one-click approve on /device).

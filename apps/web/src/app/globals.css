@@ -1779,3 +1779,212 @@ a.stat-card:hover {
   display: grid;
   gap: 4px;
 }
+/* FEAT-039: a date in a table cell stays on one line. */
+.receipt-when time {
+  white-space: nowrap;
+}
+
+/* ---------- FEAT-039: UI polish (review of 2026-11-25), same Receipt direction, tokens only ---------- */
+/* Phones: the account menu shows the word "Menu" (it was an empty button). */
+@media (max-width: 560px) {
+  .user-menu-short {
+    display: inline;
+  }
+}
+/* Page titles: a little larger and tighter, so each page has one clear anchor. */
+.page h1 {
+  font-size: 1.875rem;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+/* Project tabs: a quiet segmented bar. It wraps on phones, so every tab and its count is always visible. */
+.project-nav,
+.project-nav.project-nav[data-end] {
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.project-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+.project-nav a:hover {
+  background: var(--surface-2);
+}
+/* The current tab and a pressed chip use the text colour as their fill: dark in light mode, light in dark mode. */
+.project-nav a[aria-current="page"],
+.chip[aria-pressed="true"],
+.chip[aria-current="true"] {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+}
+.chip[aria-pressed="true"] .chip-count {
+  background: color-mix(in srgb, var(--bg) 22%, transparent);
+  color: var(--bg);
+}
+@media (max-width: 560px) {
+  .project-nav a {
+    flex: 1 1 auto;
+    justify-content: center;
+    padding: 8px 10px;
+  }
+}
+/* Counts that ask for attention: solid accent, 4.5:1 or better in both themes. */
+.tab-badge {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.chip-count {
+  font-weight: 600;
+}
+/* Cards lift slightly off the page. */
+.card {
+  box-shadow: var(--shadow-sm);
+}
+@media (min-width: 720px) {
+  .card {
+    padding: 24px;
+  }
+}
+.btn-primary {
+  box-shadow: var(--shadow-sm);
+}
+/* Receipts in the feed are paper: ink top, a soft shadow and the torn bottom edge of the landing receipt. */
+.receipt-card {
+  border: 0;
+  border-top: 3px solid var(--ink);
+  border-radius: 4px 4px 0 0;
+  box-shadow: var(--shadow-md);
+  margin-bottom: 10px;
+}
+.receipt-card.card-highlighted {
+  box-shadow: inset 3px 0 0 var(--danger), var(--shadow-md);
+}
+.receipt-card::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -7px;
+  height: 8px;
+  background: var(--paper);
+  clip-path: polygon(
+    0 0,
+    0% 0,
+    2.5% 100%,
+    5% 0,
+    7.5% 100%,
+    10% 0,
+    12.5% 100%,
+    15% 0,
+    17.5% 100%,
+    20% 0,
+    22.5% 100%,
+    25% 0,
+    27.5% 100%,
+    30% 0,
+    32.5% 100%,
+    35% 0,
+    37.5% 100%,
+    40% 0,
+    42.5% 100%,
+    45% 0,
+    47.5% 100%,
+    50% 0,
+    52.5% 100%,
+    55% 0,
+    57.5% 100%,
+    60% 0,
+    62.5% 100%,
+    65% 0,
+    67.5% 100%,
+    70% 0,
+    72.5% 100%,
+    75% 0,
+    77.5% 100%,
+    80% 0,
+    82.5% 100%,
+    85% 0,
+    87.5% 100%,
+    90% 0,
+    92.5% 100%,
+    95% 0,
+    97.5% 100%,
+    100% 0
+  );
+}
+/* Group headings (Receipts, To decide) lead; dates are small labels under them. */
+.group-head {
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+}
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.group-count {
+  min-width: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: var(--fs-small);
+  font-weight: 650;
+  line-height: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.receipt-group[data-group="you"] .group-count {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.receipt-group[data-group="good"] .group-count {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.receipt-group + .receipt-group {
+  margin-top: 24px;
+}
+.day-label {
+  font-size: var(--fs-small);
+  font-weight: 600;
+  color: var(--muted);
+}
+/* A checkbox stays on the same line as its label. */
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.check-row input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+}
+/* Empty states: calmer and friendlier, a solid card instead of a dashed box. */
+.empty {
+  border-style: solid;
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+  padding: 48px 24px;
+}
+.empty .section-title {
+  font-size: 1.25rem;
+}

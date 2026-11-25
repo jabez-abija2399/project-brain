@@ -63,7 +63,8 @@ describe("receipts feed page", () => {
     );
     expect(html).toMatch(/<input[^>]*type="search"[^>]*aria-label="Search receipts"/);
     expect(html).toContain('data-search="add star ratings to reviews"');
-    expect(html).toMatch(/<li class="day-heading"[^>]*><h2[^>]*>Today<\/h2><\/li>/);
+    // FEAT-039 (AC-039-03): dates are smaller headings inside each group.
+    expect(html).toMatch(/<li class="day-heading"[^>]*><h3[^>]*>Today<\/h3><\/li>/);
     expect(html).toContain("<kbd>/</kbd>");
     expect(html).toContain("<kbd>j</kbd>");
   });

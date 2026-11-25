@@ -117,9 +117,10 @@ describe("FEAT-033 receipts", () => {
     );
     const groups = [...html.matchAll(/data-group="(\w+)"/g)].map((m) => m[1]);
     expect(groups).toEqual(["you", "fixing", "good"]);
-    expect(text(html)).toContain("Needs you (2)");
-    expect(text(html)).toContain("Agent is fixing (1)");
-    expect(text(html)).toContain("All good (1)");
+    // FEAT-039: the count sits in a pill next to the group title.
+    expect(text(html)).toContain("Needs you 2");
+    expect(text(html)).toContain("Agent is fixing 1");
+    expect(text(html)).toContain("All good 1");
     expect(html).toContain(">Copy fix for your agent</button>");
     const cardHtml = card(missed);
     expect(cardHtml).toContain(">Copy fix for your agent</button>");
