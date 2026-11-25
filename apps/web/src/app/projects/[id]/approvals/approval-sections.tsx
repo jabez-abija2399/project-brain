@@ -1,6 +1,12 @@
 import { When } from "@/components/ui/when";
-import { CHOICE_LABELS, PRESET_TEXT, type approvalsPage } from "@/server/approvals-page";
+import {
+  ACTION_LABELS,
+  CHOICE_LABELS,
+  PRESET_TEXT,
+  type approvalsPage,
+} from "@/server/approvals-page";
 import { ApprovalAction } from "./approval-actions";
+import { RequestDecision } from "./request-decision";
 
 // FEAT-030: the Approvals page in two parts, so the To decide tab shows the waiting requests and Settings shows what
 // agents may do on their own. Both act only through the owner's routes (approval-actions.tsx).
@@ -25,59 +31,42 @@ export function PendingRequests({ pid, o }: { pid: string; o: Ready }) {
         </p>
       ) : (
         <ul className="plain-list stack">
-          {o.pending.map((r) => (
-            <li key={r.id} className="stack">
-              <span className="wrap">
-                <strong>{r.action.replaceAll("_", " ")}</strong>
-                {r.feature ? ` in ${r.feature}` : ""}
-                {r.path ? ` (${r.path})` : ""}
-              </span>
-              <span className="muted wrap">
-                Agent says: <q>{r.summary}</q>
-              </span>
-              <span className="muted">
-                {RISK_LABEL[r.risk as keyof typeof RISK_LABEL] ?? r.risk} risk
-                {r.agent ? `, asked by ${r.agent}` : ""}, expires <When iso={r.expiresAt} />
-              </span>
-              <span className="row wrap">
-                <ApprovalAction
-                  projectId={pid}
-                  path="decide"
-                  body={{ requestId: r.id, decision: "approve" }}
-                  label="Approve"
-                  done="Approved."
-                  variant="primary"
-                  ariaLabel={`Approve: ${r.summary}`}
-                />
-                <ApprovalAction
-                  projectId={pid}
-                  path="decide"
-                  body={{ requestId: r.id, decision: "reject" }}
-                  label="Reject"
-                  done="Rejected."
-                  ariaLabel={`Reject: ${r.summary}`}
-                />
-                <ApprovalAction
-                  projectId={pid}
-                  path="decide"
-                  body={{ requestId: r.id, decision: "approve", remember: true }}
-                  label="Always approve this kind"
-                  ariaLabel={`Always approve this kind: ${r.summary}`}
-                  done="Approved, and remembered."
-                  variant="ghost"
-                />
-                <ApprovalAction
-                  projectId={pid}
-                  path="decide"
-                  body={{ requestId: r.id, decision: "reject", remember: true }}
-                  label="Always reject this kind"
-                  ariaLabel={`Always reject this kind: ${r.summary}`}
-                  done="Rejected, and remembered."
-                  variant="ghost"
-                />
-              </span>
-            </li>
-          ))}
+          {o.pending.map((r) => {
+            // FEAT-035: the action as a sentence, and an expired request says so instead of offering buttons.
+            const sentence =
+              ACTION_LABELS[r.action as keyof typeof ACTION_LABELS] ??
+              r.action.replaceAll("_", " ");
+            const expired = new Date(r.expiresAt).getTime() <= Date.now();
+            return (
+              <li key={r.id} className="card stack" data-request={r.id}>
+                <span className="wrap">
+                  <span className="muted">Your agent wants to: </span>
+                  <strong>{sentence}</strong>
+                  {r.feature ? ` in ${r.feature}` : ""}
+                  {r.path ? ` (${r.path})` : ""}
+                </span>
+                <span className="muted wrap">
+                  Agent says: <q>{r.summary}</q>
+                </span>
+                <span className="muted">
+                  {RISK_LABEL[r.risk as keyof typeof RISK_LABEL] ?? r.risk} risk
+                  {r.agent ? `, asked by ${r.agent}` : ""}
+                  {expired ? null : (
+                    <>
+                      , expires <When iso={r.expiresAt} />
+                    </>
+                  )}
+                </span>
+                {expired ? (
+                  <p className="m0" data-testid="request-expired">
+                    This request expired. Your agent can ask again if it still needs it.
+                  </p>
+                ) : (
+                  <RequestDecision projectId={pid} requestId={r.id} summary={r.summary} />
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

@@ -19,9 +19,14 @@ export type ShownProposal = { proposedAt: Date; change: ChecklistChange };
 function sameProposal(row: ChecklistItem, shown: ShownProposal): boolean {
   return (
     row.proposedAt?.getTime() === shown.proposedAt.getTime() &&
-    JSON.stringify(row.proposedChange) === JSON.stringify(shown.change)
+    canonical(row.proposedChange) === canonical(shown.change)
   );
 }
+// FEAT-035: a proposal may carry a reason; Postgres jsonb reorders keys, so compare with the keys sorted.
+const canonical = (v: unknown) =>
+  v && typeof v === "object"
+    ? JSON.stringify(Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b))))
+    : JSON.stringify(v);
 
 export const checklistItemsRepo = {
   // Composite FK rejects a request of another project (0003_link_tables_project_id.sql).

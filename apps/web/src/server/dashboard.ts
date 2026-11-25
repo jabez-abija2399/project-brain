@@ -149,8 +149,10 @@ export async function pendingProposals(
             text: safeDisplay(r.text),
             // The exact proposal shown: the dashboard sends it back with confirm or reject (FEAT-017).
             proposedAt: r.proposedAt.toISOString(),
-            change: "text" in change ? { text: change.text } : { dismiss: true as const },
+            change,
             shownText: "text" in change ? safeDisplay(change.text) : null,
+            // FEAT-035: the agent's one-line reason, when it gave one.
+            reason: change.reason ? safeDisplay(change.reason, 300) : null,
           },
         ];
       }),

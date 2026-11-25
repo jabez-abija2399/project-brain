@@ -84,16 +84,23 @@ export function ChecklistProposals({
                     proposed <When iso={p.proposedAt} />
                   </span>
                 </span>
-                <span className="wrap">
-                  <span className="muted">Now: </span>
-                  {p.text}
-                </span>
-                {p.shownText !== null && (
-                  <span className="wrap">
-                    <span className="muted">Proposed: </span>
-                    {p.shownText}
-                  </span>
-                )}
+                {/* FEAT-035: a visual change: the old wording struck through, the new one added. */}
+                <p className="wrap m0 proposal-diff">
+                  <del>{p.text}</del>
+                  {p.shownText !== null ? (
+                    <>
+                      {" "}
+                      <ins>{p.shownText}</ins>
+                    </>
+                  ) : (
+                    <span className="muted"> (the agent wants to drop this item)</span>
+                  )}
+                </p>
+                {p.reason ? (
+                  <p className="muted wrap m0">
+                    Agent's reason: <q>{p.reason}</q>
+                  </p>
+                ) : null}
                 <ProposalActions
                   projectId={list.project.id}
                   itemId={p.id}

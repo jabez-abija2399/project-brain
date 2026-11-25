@@ -240,7 +240,8 @@ describe("FEAT-017 checklist proposals", () => {
       new Date("2026-10-29T10:00:01Z"),
     );
     const page = await html(ProposalsPage(props()));
-    expect(page).toContain("Proposed: </span>Show the 10 newest reviews");
+    // FEAT-035: the change is shown as old (struck through) and new (added).
+    expect(page).toContain("<ins>Show the 10 newest reviews</ins>");
     expect(page).toContain("Drop item");
     const shownA = {
       proposedAt: "2026-10-29T10:00:00.123Z",

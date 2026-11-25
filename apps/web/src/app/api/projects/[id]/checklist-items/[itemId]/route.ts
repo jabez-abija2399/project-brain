@@ -22,8 +22,10 @@ const shown = z
   .object({
     proposedAt: z.iso.datetime(),
     change: z.union([
-      z.object({ text: z.string().min(1).max(2000) }).strict(),
-      z.object({ dismiss: z.literal(true) }).strict(),
+      z
+        .object({ text: z.string().min(1).max(2000), reason: z.string().max(300).optional() })
+        .strict(),
+      z.object({ dismiss: z.literal(true), reason: z.string().max(300).optional() }).strict(),
     ]),
   })
   .strict();
@@ -35,7 +37,14 @@ const patchSchema = z.union([
   z
     .object({ confirm: z.literal(true), proposal: shown })
     .strict(),
-  z.object({ reject: z.literal(true), proposal: shown }).strict(),
+  // FEAT-035: the owner may say why not (optional); it reaches the agent as a decision.
+  z
+    .object({
+      reject: z.literal(true),
+      proposal: shown,
+      reason: z.string().trim().max(500).optional(),
+    })
+    .strict(),
   // H3 (2026-11-02): the owner dismisses the item itself (kept, never deleted; the start note stops listing it).
   z
     .object({ dismiss: z.literal(true) })
@@ -60,7 +69,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
     };
     const item =
       "reject" in body
-        ? await rejectChecklistChange(getDb(), user, id, itemId, proposal)
+        ? await rejectChecklistChange(getDb(), user, id, itemId, proposal, body.reason)
         : await confirmChecklistChange(getDb(), user, id, itemId, proposal);
     return NextResponse.json({ ok: true, item });
   } catch (err) {

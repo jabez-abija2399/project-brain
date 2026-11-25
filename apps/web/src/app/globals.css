@@ -1756,3 +1756,16 @@ a.stat-card:hover {
   background: var(--accent-soft);
   color: var(--text);
 }
+/* FEAT-035: a proposal as a change (old struck through, new added) and the reject reason. */
+.proposal-diff del {
+  color: var(--danger);
+  text-decoration-thickness: 2px;
+}
+.proposal-diff ins {
+  color: var(--success);
+  text-decoration: none;
+  font-weight: 600;
+}
+.why-not {
+  flex-basis: 100%;
+}

@@ -238,8 +238,22 @@ export async function decideRequest(
       user.id,
       new Date(),
     );
-    if (!row)
+    if (!row) {
+      // FEAT-035: an expired request says so (agents ask again if they still need it).
+      // (Opening the page marks old requests "expired"; one still "pending" past its time is expired too.)
+      if (
+        pending &&
+        (pending.status === "expired" ||
+          (pending.status === "pending" && pending.expiresAt.getTime() <= Date.now()))
+      ) {
+        throw new AppError(
+          409,
+          "expired",
+          "This request expired. Your agent can ask again if it still needs it.",
+        );
+      }
       throw new AppError(409, "not_pending", "This request was already decided or has expired.");
+    }
     if (rule && policy) {
       await save(tx, projectId, { ...policy, rules: [...policy.rules, rule] }, user.id);
       await approvalAuditRepo.append(tx, projectId, {

@@ -13,6 +13,7 @@ import {
   type ChecklistItem,
   type ShownProposal,
   checklistItemsRepo,
+  decisionsRepo,
   featuresRepo,
   requestsRepo,
 } from "@brain/db";
@@ -41,6 +42,7 @@ const createSchema = z
       .refine((v) => !v.includes("\u0000"), "must not contain NUL bytes"),
   })
   .strict();
+const MAX_REASON_CHARS = 300;
 const proposeSchema = z
   .object({
     projectId: id.optional(),
@@ -53,6 +55,14 @@ const proposeSchema = z
       .refine((v) => !v.includes("\u0000"), "must not contain NUL bytes")
       .optional(),
     dismiss: z.literal(true).optional(),
+    // FEAT-035: why, in one short line (shown to the owner next to the proposal).
+    reason: z
+      .string()
+      .trim()
+      .min(1)
+      .max(MAX_REASON_CHARS, `must be ${MAX_REASON_CHARS} characters or fewer`)
+      .refine((v) => !v.includes("\u0000"), "must not contain NUL bytes")
+      .optional(),
   })
   .strict()
   .refine((v) => (v.text === undefined) !== (v.dismiss === undefined), {
@@ -216,10 +226,12 @@ export async function proposeChecklistChange(
 ): Promise<{ ok: true; id: string; status: "proposal" }> {
   const input = parse(proposeSchema, raw);
   bindToken(token, input.projectId);
+  const reason =
+    input.reason !== undefined ? { reason: maskSecretsIn(oneLineText(input.reason)) } : {};
   const change =
     input.text !== undefined
-      ? { text: maskSecretsIn(oneLineText(input.text)) }
-      : { dismiss: true as const };
+      ? { text: maskSecretsIn(oneLineText(input.text)), ...reason }
+      : { dismiss: true as const, ...reason };
   const row = await checklistItemsRepo.propose(db, token.projectId, input.itemId, change, now);
   if (!row) throw new AppError(404, "not_found");
   return { ok: true, id: row.id, status: "proposal" };
@@ -268,6 +280,7 @@ export async function rejectChecklistChange(
   projectId: string,
   itemId: string,
   shown: ShownProposal,
+  reason?: string,
 ) {
   await requireProjectAccess(db, projectId, user);
   const result = await checklistItemsRepo.discardProposal(db, projectId, itemId, shown);
@@ -275,6 +288,17 @@ export async function rejectChecklistChange(
   if (result.kind === "no_proposal")
     throw new AppError(409, "no_proposal", "this item has no proposed change");
   if (result.kind === "changed") throw proposalChanged();
+  // FEAT-035: the owner's "why not" reaches the agent: it is recorded as a decision, which every session's start note
+  // and context pack list (masked like everything agents send or read).
+  const why = reason?.trim();
+  if (why) {
+    await decisionsRepo.insert(db, projectId, {
+      title: maskSecretsIn(
+        oneLineText(`The owner rejected a proposed change to "${result.item.text}"`).slice(0, 300),
+      ),
+      reason: maskSecretsIn(oneLineText(why)).slice(0, 500),
+    });
+  }
   return { id: result.item.id, text: result.item.text, status: result.item.status };
 }
 

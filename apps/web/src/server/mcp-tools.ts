@@ -336,6 +336,7 @@ export function registerBrainTools(server: McpServer): void {
         itemId: z.string().describe("Checklist item id"),
         text: z.string().optional().describe("New wording"),
         dismiss: z.literal(true).optional().describe("Propose dismissing it"),
+        reason: z.string().optional().describe("Why, in one short line (shown to the owner)"),
       }),
     },
     async (args, ctx) =>
