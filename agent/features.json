@@ -3832,80 +3832,106 @@
           "id": "AC-040-01",
           "kind": "happy",
           "check": "Signed-in pages have a left sidebar: wordmark, project switcher, inside a project its five sections (Home, Receipts, To decide, Features, Blueprint) with the current one marked and the To decide count, and Settings, Docs and the account menu at the bottom",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-01"
         },
         {
           "id": "AC-040-02",
           "kind": "happy",
           "check": "On a phone the sidebar is replaced by a top bar with the switcher and a floating bottom bar (Home, Receipts, Decide with its count, Features, More)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-02"
         },
         {
           "id": "AC-040-03",
           "kind": "happy",
           "check": "The Clearance look: cool canvas, one cobalt accent and Geist self-hosted at build time (no font request from the visitor's browser to another site); every text and badge colour pair is at least 4.5:1 in light and dark",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-03"
         },
         {
           "id": "AC-040-04",
           "kind": "happy",
           "check": "Project Home opens with a seal and one verdict sentence: Clear (nothing waits), Needs you with the count, or Unsafe when a security problem is open",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-04"
         },
         {
           "id": "AC-040-05",
           "kind": "happy",
           "check": "Every status badge shows a shape and a word: a filled circle for done, a half circle for partly done, a triangle for missed, a dashed circle for not verified; never colour alone",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-05"
         },
         {
           "id": "AC-040-06",
           "kind": "happy",
           "check": "Features show a four-stage track per feature (Planned, Being built, Checking, Done) with the current stage named",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-06"
         },
         {
           "id": "AC-040-07",
           "kind": "happy",
           "check": "Blueprint lists rules in two columns, Always and Never; To decide requests show a risk chip and a 'Why we're asking' block",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-07"
         },
         {
           "id": "AC-040-08",
           "kind": "boundary",
           "check": "Every signed-in and public page at 375 and 1440 px, light and dark, has no horizontal overflow and no element outside the viewport",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-08"
         },
         {
           "id": "AC-040-09",
           "kind": "permission",
           "check": "The sidebar shows counts and project sections only for the signed-in owner's own project; a path with another user's or a made-up project id shows no counts and no section links for it",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 18:11; log contains AC-040-09"
         }
       ],
-      "status": "in_progress",
-      "notes": "Owner 2026-11-25: 'yes build it' after reviewing docs/mockups/v3. Ask agent to explain / Decide later on requests need server support: later.md."
+      "status": "done",
+      "notes": "Owner 2026-11-25: 'yes build it' after reviewing docs/mockups/v3. Ask agent to explain / Decide later on requests need server support: later.md.",
+      "files": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/layout.tsx",
+        "apps/web/src/app/projects/[id]/approvals/approval-sections.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/page.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/layout.tsx",
+        "apps/web/src/app/projects/[id]/overview/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/page.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/components/shell/app-shell.tsx",
+        "apps/web/src/components/shell/nav-icons.tsx",
+        "apps/web/src/components/shell/sidebar.tsx",
+        "apps/web/src/components/ui/feature-track.tsx",
+        "apps/web/src/components/ui/seal.tsx",
+        "apps/web/src/components/ui/status-badge.tsx",
+        "apps/web/src/server/app-shell.test.ts",
+        "apps/web/src/server/blueprint-redesign.test.ts",
+        "apps/web/src/server/design-foundations.test.ts",
+        "apps/web/src/server/design-v3.test.ts",
+        "apps/web/src/server/features-board.test.ts",
+        "apps/web/src/server/plan-page.test.ts",
+        "apps/web/src/server/project-tabs.test.ts",
+        "apps/web/src/server/shell.ts",
+        "apps/web/src/server/ui-polish.test.ts"
+      ]
     }
   ],
   "meta": {
-    "tests_passed": 2152
+    "tests_passed": 2161
   }
 }
