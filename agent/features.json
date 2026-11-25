@@ -3524,37 +3524,47 @@
           "id": "AC-036-01",
           "kind": "happy",
           "check": "Rules read as plain sentences grouped 'It does' / 'It must never'; formal wording appears only in Full detail; no all-caps rule text",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:14; log contains AC-036-01"
         },
         {
           "id": "AC-036-02",
           "kind": "happy",
           "check": "A summary line and one health sentence per feature with one action; Safety check and History have their own title, purpose sentence and breadcrumbs",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:14; log contains AC-036-02"
         },
         {
           "id": "AC-036-03",
           "kind": "happy",
           "check": "Safety risks are written for people; SQL and file paths sit under Technical details; Discover has a 'Confirm this feature' button with progress",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:14; log contains AC-036-03"
         },
         {
           "id": "AC-036-04",
           "kind": "negative",
           "check": "Restoring an old version asks through ConfirmDialog and never deletes newer versions",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:14; log contains AC-036-04"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/blueprint/discover/page.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/history/page.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/page.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/server/blueprint-page.ts",
+        "apps/web/src/server/blueprint-pages.test.ts",
+        "apps/web/src/server/blueprint-redesign.test.ts"
+      ]
     },
     {
       "id": "FEAT-037",
@@ -3663,6 +3673,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2129
+    "tests_passed": 2133
   }
 }

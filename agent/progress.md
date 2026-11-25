@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-036 Blueprint | status: done
+Changed: Blueprint page: summary line ("Your app has N parts and M promises", proven count, waiting suggestions, one primary Review button), each feature a health sentence with one copyable prompt, rules in plain words (core plainSentence) grouped It must never / It does; Full detail adds proof, the formal wording in sentence case and hints (no capitals); ProjectNav `sub` for Safety check and History (breadcrumb, purpose); safety risks with people headlines and paths/SQL under Technical details; Discover "Confirm this feature" (adds its suggested rules), progress bar, step text, "Your whole app is mapped". Older Blueprint test follows the plain wording.
+Verified (ran this session): verify.sh PASS; blueprint-redesign.test (4, one per AC; restore keeps newer versions).
+NOT VERIFIED: browser check.
+Next: FEAT-037 account, keys, admin, suspended.
+
 ## 2026-11-25 | FEAT-035 To decide | status: done
 Changed: requests read "Your agent wants to: <action>" with Approve / Reject and a Remember-my-choice box (approvals/request-decision.tsx); expired requests say so and the decide route answers 409 "This request expired"; proposals show old (del) and new (ins) with the agent's optional reason (propose_checklist_change `reason`, kept in proposedChange; repo compares proposals with sorted keys); Reject asks "Why not? (optional)" and records it as a decision agents read. MCP tool list kept within its 6500-byte budget.
 Verified (ran this session): verify.sh PASS; decide-inbox.test (4, one per AC; token and stranger attacks on approve, reject, confirm).
