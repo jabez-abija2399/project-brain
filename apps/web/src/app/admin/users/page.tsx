@@ -2,6 +2,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { PageHeader } from "@/components/shell/page-header";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
 import { pageAdmin } from "@/server/admin";
 import { adminUsers } from "@/server/admin-data";
 import { getDb } from "@/server/db";
@@ -80,10 +81,14 @@ export default async function AdminUsersPage({
                     <span className="muted wrap">{u.email}</span>
                   </span>
                 </td>
-                <td data-label="Signed up">{u.createdAt.slice(0, 10)}</td>
+                <td data-label="Signed up">
+                  <When iso={u.createdAt} format="day" />
+                </td>
                 <td data-label="Projects">{u.projects}</td>
                 <td data-label="Receipts">{u.receipts}</td>
-                <td data-label="Last activity">{u.lastActivity?.slice(0, 10) ?? "never"}</td>
+                <td data-label="Last activity">
+                  {u.lastActivity ? <When iso={u.lastActivity} /> : "never"}
+                </td>
                 <td data-label="Status">
                   {u.suspendedAt ? (
                     <StatusBadge status="missed" label="Suspended" />

@@ -2,6 +2,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
 import { pageAdmin } from "@/server/admin";
 import { FUNNEL_WEEKS, adminFunnel, adminOverview } from "@/server/admin-data";
 import { getDb } from "@/server/db";
@@ -16,6 +17,20 @@ const Check = ({ ok, label }: { ok: boolean; label: string }) => (
     <span>{label}</span>
   </li>
 );
+
+type Overview = Awaited<ReturnType<typeof adminOverview>>;
+
+function statusSentence(o: Overview): string {
+  const down = [
+    o.health.database ? null : "the database",
+    o.health.githubApp ? null : "the GitHub App",
+    o.health.inngest ? null : "background jobs",
+    o.health.ai ? null : "AI",
+  ].filter(Boolean);
+  const head = down.length === 0 ? "All systems OK" : `Needs setup: ${down.join(", ")}`;
+  const held = o.suspended.users + o.suspended.projects;
+  return held > 0 ? `${head} · ${held} suspended` : head;
+}
 
 // Admin overview (2026-11-01): the whole service at a glance. Counts only; no receipt contents or code.
 export default async function AdminPage() {
@@ -32,6 +47,10 @@ export default async function AdminPage() {
         purpose={`Signed in as ${admin.login}. The service at a glance; every action here is recorded in the audit log.`}
       />
       <AdminNav current="/admin" />
+      {/* FEAT-037: lead with one status sentence. */}
+      <p className="overview-headline m0" data-testid="admin-status">
+        {statusSentence(o)}
+      </p>
       <div className="stat-grid">
         <StatCard
           id="users"
@@ -92,7 +111,7 @@ export default async function AdminPage() {
             <Check ok={o.health.ai} label="AI configured" />
           </ul>
           <p className="muted m0">
-            Checked {o.health.checkedAt.slice(0, 16).replace("T", " ")} UTC.
+            Checked <When iso={o.health.checkedAt} />.
           </p>
         </section>
       </div>
@@ -104,9 +123,7 @@ export default async function AdminPage() {
           <p className="muted m0">No sign-ups in the last {FUNNEL_WEEKS} weeks.</p>
         ) : (
           <table className="table">
-            <caption>
-              Sign-ups in the last {FUNNEL_WEEKS} weeks (weeks start on Monday, UTC)
-            </caption>
+            <caption>Sign-ups in the last {FUNNEL_WEEKS} weeks (weeks start on Monday)</caption>
             <thead>
               <tr>
                 <th scope="col">Week of</th>

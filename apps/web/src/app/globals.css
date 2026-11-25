@@ -403,7 +403,9 @@ details[open] > .disclosure-summary::after {
   color: var(--on-ink);
 }
 .receipts-filtered[data-filter="attention"] li[data-attention="false"],
-.receipts-filtered[data-filter="good"] li[data-attention="true"] {
+.receipts-filtered[data-filter="good"] li[data-attention="true"],
+.receipts-filtered[data-filter="missed"] li[data-missed="false"],
+.receipts-filtered[data-filter="findings"] li[data-findings="false"] {
   display: none;
 }
 .feed-toolbar {
@@ -1098,9 +1100,15 @@ a.stat-card:hover {
   outline-offset: -2px;
 }
 @media (max-width: 560px) {
-  .app-user,
-  .app-header-link {
+  .app-header-link,
+  .user-menu-name {
     display: none;
+  }
+  .user-menu-short {
+    display: inline;
+  }
+  .user-menu-docs {
+    display: block;
   }
   .switcher summary {
     max-width: 42vw;
@@ -1497,4 +1505,277 @@ a.stat-card:hover {
 .table-scroll {
   overflow-x: auto;
   max-width: 100%;
+}
+
+/* ---------- FEAT-028: account menu, confirm dialog, scrolling tab rows, glossary terms ---------- */
+.user-menu {
+  position: relative;
+}
+.user-menu summary {
+  list-style: none;
+  max-width: 18ch;
+}
+.user-menu summary::-webkit-details-marker {
+  display: none;
+}
+.user-menu-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.user-menu-short,
+.user-menu-docs {
+  display: none;
+}
+.user-menu-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+.user-menu-panel a {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+}
+.user-menu-panel a:hover {
+  background: var(--surface-2);
+}
+.user-menu-panel .signout .btn {
+  width: 100%;
+  justify-content: flex-start;
+}
+.confirm-dialog {
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+  display: grid;
+  gap: 12px;
+}
+.confirm-dialog:not([open]) {
+  display: none;
+}
+.confirm-dialog::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+.confirm-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+@media (max-width: 560px) {
+  .project-nav[data-end="false"] {
+    box-shadow: inset -16px 0 12px -12px var(--border-strong);
+  }
+}
+.term {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+.term-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  z-index: 40;
+  width: max-content;
+  max-width: min(280px, 80vw);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: var(--on-ink);
+  font-size: var(--fs-small);
+  line-height: 1.4;
+  text-align: left;
+  transform: translateX(-50%);
+  visibility: hidden;
+  opacity: 0;
+}
+.term-wrap {
+  position: relative;
+  display: inline;
+}
+.term-wrap:hover .term-tip,
+.term:focus + .term-tip,
+.term:focus-visible + .term-tip {
+  visibility: visible;
+  opacity: 1;
+}
+.glossary {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+}
+.glossary dd {
+  margin: 4px 0 0;
+}
+/* FEAT-030: a count on a project tab (Receipts, To decide). */
+.tab-badge {
+  display: inline-block;
+  min-width: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}
+/* FEAT-031: onboarding steps (one current, later ones dimmed), the terminal helper and the first-receipt print. */
+.journey-step-later {
+  opacity: 0.6;
+}
+.journey-step-current {
+  border-color: var(--accent);
+}
+.journey-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+.journey-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: journey-pulse 1.6s var(--ease) infinite;
+}
+@keyframes journey-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+.terminal-help summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.terminal-help[open] summary {
+  margin-bottom: 8px;
+}
+.print-once {
+  animation: receipt-print 900ms var(--ease) 1 both;
+  transform-origin: top;
+}
+@keyframes receipt-print {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey-dot,
+  .print-once {
+    animation: none;
+  }
+}
+.btn-chosen {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+/* FEAT-032: the overview's four numbers as a 2x2 grid on phones. */
+@media (max-width: 560px) {
+  .stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+/* FEAT-033: receipts grouped by who acts, a verdict line, the shortcut sheet, no-match text and the done stamp. */
+.receipt-group + .receipt-group {
+  margin-top: 16px;
+}
+.receipt-verdict {
+  font-size: var(--fs-small);
+}
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.shortcut-help[hidden] {
+  display: none;
+}
+.empty-match {
+  padding: 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+.done-stamp {
+  justify-self: start;
+  padding: 4px 12px;
+  border: 2px solid var(--success);
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  transform: rotate(-2deg);
+}
+[data-celebrate="off"] .done-stamp {
+  display: none;
+}
+[data-celebrate="off"] .print-once {
+  animation: none;
+}
+/* FEAT-034: on phones each feature is a card (the table rows stack); the file count is left out there. */
+@media (max-width: 640px) {
+  .table td[data-label="Files"] {
+    display: none;
+  }
+}
+.plan-banner {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+/* FEAT-035: a proposal as a change (old struck through, new added) and the reject reason. */
+.proposal-diff del {
+  color: var(--danger);
+  text-decoration-thickness: 2px;
+}
+.proposal-diff ins {
+  color: var(--success);
+  text-decoration: none;
+  font-weight: 600;
+}
+.why-not {
+  flex-basis: 100%;
+}
+/* FEAT-036: technical details under a safety risk. */
+.tech-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+.tech-details[open] {
+  display: grid;
+  gap: 4px;
 }

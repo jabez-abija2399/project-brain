@@ -11,6 +11,16 @@ const config: NextConfig = {
   // Trace server files from the monorepo root, so workspace packages outside apps/web are included in the deployed
   // functions (docs/deploy.md).
   outputFileTracingRoot: join(here, "../.."),
+  // FEAT-030: nine project tabs became six. The old pages' addresses move to their new place (308, permanent).
+  async redirects() {
+    return [
+      { source: "/projects/:id/proposals", destination: "/projects/:id/decide", permanent: true },
+      { source: "/projects/:id/approvals", destination: "/projects/:id/decide", permanent: true },
+      { source: "/projects/:id/plan", destination: "/projects/:id/features#plan", permanent: true },
+      { source: "/projects/:id/connect", destination: "/projects/:id/settings", permanent: true },
+      { source: "/projects/:id", destination: "/projects/:id/settings#keys", permanent: true },
+    ];
+  },
   // No page may be framed by another site (clickjacking, e.g. a one-click approve on /device).
   async headers() {
     return [

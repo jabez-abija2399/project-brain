@@ -1,5 +1,9 @@
 "use client";
 
+import { When } from "@/components/ui/when";
+import { formatRelative } from "@/lib/when";
+
+import { CopyButton } from "@/components/ui/copy-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 
@@ -30,7 +34,7 @@ export default function ProjectTokensPanel({
     try {
       const r = await fetch(`/api/projects/${projectId}/tokens`, { method: "POST" });
       if (!r.ok) {
-        setError("Could not create token");
+        setError("Couldn't create a key. Reload the page and try again.");
         return;
       }
       const body = (await r.json()) as {
@@ -56,7 +60,6 @@ export default function ProjectTokensPanel({
   }
 
   async function revoke(tokenId: string) {
-    if (!window.confirm("Revoke this token? Any machine using it will stop working.")) return;
     setBusy(true);
     setError(null);
     try {
@@ -64,7 +67,7 @@ export default function ProjectTokensPanel({
         method: "DELETE",
       });
       if (!r.ok) {
-        setError("Could not revoke token");
+        setError("Couldn't remove that key. Reload the page and try again.");
         return;
       }
       setTokens((prev) =>
@@ -79,7 +82,7 @@ export default function ProjectTokensPanel({
     <div className="stack stack-lg">
       <div>
         <button type="button" className="btn btn-primary" onClick={createToken} disabled={busy}>
-          {busy ? "Working…" : "Create token"}
+          {busy ? "Working…" : "Create a connection key"}
         </button>
       </div>
 
@@ -87,6 +90,8 @@ export default function ProjectTokensPanel({
         <output className="token-once">
           <strong>Copy this now: you won't see it again.</strong>
           <code className="wrap">{plaintext}</code>
+          {/* FEAT-037: one click to copy the key shown once. */}
+          <CopyButton label="Copy key" text={plaintext} />
         </output>
       ) : null}
 
@@ -98,17 +103,17 @@ export default function ProjectTokensPanel({
 
       {tokens.length === 0 ? (
         <div className="empty" data-testid="empty-state">
-          <h2 className="section-title">No tokens yet</h2>
+          <h2 className="section-title">No connection keys yet</h2>
           <p className="muted">
             Running npx codeceipt creates one for you; create one here only to connect by hand.
           </p>
         </div>
       ) : (
         <table className="table">
-          <caption>Tokens for this project, newest first</caption>
+          <caption>Connection keys for this project, newest first</caption>
           <thead>
             <tr>
-              <th scope="col">Token</th>
+              <th scope="col">Key</th>
               <th scope="col">Created</th>
               <th scope="col">Status</th>
               <th scope="col">
@@ -119,10 +124,12 @@ export default function ProjectTokensPanel({
           <tbody>
             {tokens.map((t) => (
               <tr key={t.id}>
-                <td data-label="Token">
+                <td data-label="Key">
                   <span className="mono">{t.id.slice(0, 8)}</span>
                 </td>
-                <td data-label="Created">{new Date(t.createdAt).toLocaleDateString()}</td>
+                <td data-label="Created">
+                  <When iso={t.createdAt} format="day" />
+                </td>
                 <td data-label="Status">
                   {t.revokedAt ? (
                     <StatusBadge status="missed" label="Revoked" />
@@ -131,7 +138,7 @@ export default function ProjectTokensPanel({
                       status="done"
                       label={
                         t.lastUsedAt
-                          ? `Active, last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
+                          ? `Active, last used ${formatRelative(t.lastUsedAt)}`
                           : "Active, never used"
                       }
                     />

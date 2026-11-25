@@ -17,11 +17,11 @@ first steps for that.
 ## Get started
 | You want to | In the terminal | On the web | Ask your agent |
 |---|---|---|---|
-| Connect this repo to a project | `codeceipt` or `codeceipt connect` | Connect tab | |
-| Log in with a token from stdin | `codeceipt login` | Tokens tab (create a token) | |
-| Set up your agents in this repo | `codeceipt init` | Connect tab | |
+| Connect this repo to a project | `codeceipt` or `codeceipt connect` | Settings tab (Connect) | |
+| Log in with a token from stdin | `codeceipt login` | Settings tab (Connection keys: create a key) | |
+| Set up your agents in this repo | `codeceipt init` | Settings tab (Connect) | |
 | Index the repo again | `codeceipt index` | | |
-| Disconnect this repo | `codeceipt unlink` | Tokens tab (revoke the token) | |
+| Disconnect this repo | `codeceipt unlink` | Settings tab (Connection keys: remove the key) | |
 | Check the install, login and hooks | `codeceipt doctor` | | |
 | Update the app | `codeceipt update` | | |
 | See the version | `codeceipt --version` | | |
@@ -30,12 +30,12 @@ first steps for that.
 ## Plan and describe your app
 | You want to | In the terminal | On the web | Ask your agent |
 |---|---|---|---|
-| Plan a new project | | Plan tab (approve the draft) | `plan_project` |
-| Bring in an existing spec | `codeceipt import` | Plan tab (approve the draft) | |
+| Plan a new project | | Features tab (the plan waiting at the top) | `plan_project` |
+| Bring in an existing spec | `codeceipt import` | Features tab (the plan waiting at the top) | |
 | See and edit what the app must and must never do | | Blueprint tab | `propose_blueprint` |
 | Put the Blueprint into AGENTS.md, OpenSpec or Spec Kit | `codeceipt export` | | |
 | See every feature and how far it is | | Features tab | `where_did_we_stop` with features |
-| Review the feature map your agent suggested | | Proposals tab | |
+| Review the feature map your agent suggested | | To decide tab | |
 
 ## Build
 | You want to | In the terminal | On the web | Ask your agent |
@@ -62,8 +62,8 @@ first steps for that.
 ## Stay in control
 | You want to | In the terminal | On the web | Ask your agent |
 |---|---|---|---|
-| Approve, reject or pause what agents ask for | `codeceipt approvals` (prints the link) | Approvals tab | Agents can only ask |
-| Revoke a token | | Tokens tab | |
-| Get receipts as a comment on pull requests | | Connect tab (turn it on) | |
+| Approve, reject or pause what agents ask for | `codeceipt approvals` (prints the link) | To decide tab (waiting requests); Settings tab (presets and pause) | Agents can only ask |
+| Remove a connection key | | Settings tab | |
+| Get receipts as a comment on pull requests | | Settings tab (turn it on) | |
 
 Old tool name kept for one release: `list_features` (use `where_did_we_stop` with features).

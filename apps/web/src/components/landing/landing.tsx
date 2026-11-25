@@ -69,12 +69,18 @@ export function Landing({ notice }: { notice?: string } = {}) {
                 you asked, what changed, what's missing. Built from git, not the agent's word. Your
                 code never leaves your machine.
               </p>
+              {/* FEAT-038: the first step, in order: run the command; signing in is for people already set up. */}
+              <p className="lp-step-label m0">1. Run this in your app's folder</p>
               <div className="lp-actions">
                 <CommandBox command={nativeReleased() ? INSTALL_SH : COMMAND} />
-                <SignInButton />
               </div>
+              <p className="lp-note">
+                Already set up? <a href="/sign-in">Sign in</a>
+              </p>
               <InstallNote />
-              <p className="lp-note">Free during the beta. Works in any git repository.</p>
+              <p className="lp-note">
+                Free during the beta (<a href="/pricing">limits</a>). Works in any git repository.
+              </p>
             </div>
             <HeroReceipt />
           </div>
@@ -149,6 +155,19 @@ export function Landing({ notice }: { notice?: string } = {}) {
           <PrivacyToggle />
         </Section>
 
+        <Section id="faq" title="Questions">
+          <div className="faq">
+            {FAQ.map((f) => (
+              <details key={f.q}>
+                <summary>{f.q}</summary>
+                <p>
+                  <InlineCode text={f.a} />
+                </p>
+              </details>
+            ))}
+          </div>
+        </Section>
+
         <Section id="checks" title="Checks built in" lead="Open a check to see an example line.">
           <div className="checks">
             {CHECKS.map((c) => (
@@ -190,19 +209,6 @@ export function Landing({ notice }: { notice?: string } = {}) {
               ))}
             </tbody>
           </table>
-        </Section>
-
-        <Section id="faq" title="Questions">
-          <div className="faq">
-            {FAQ.map((f) => (
-              <details key={f.q}>
-                <summary>{f.q}</summary>
-                <p>
-                  <InlineCode text={f.a} />
-                </p>
-              </details>
-            ))}
-          </div>
         </Section>
 
         <section className="lp-final" id="get-started" aria-labelledby="final-title">

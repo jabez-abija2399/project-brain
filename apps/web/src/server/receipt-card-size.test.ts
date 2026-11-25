@@ -48,14 +48,14 @@ describe("receipt card size (INP)", () => {
     const closed = card(false);
     expect(closed).toContain("10 missed");
     expect(closed).not.toContain("Widget199.tsx");
-    expect(closed).not.toContain("Send fix to agent");
+    expect(closed).not.toContain("Copy fix for your agent");
     expect(closed.length).toBeLessThan(3_000);
   });
 
   it("an open card renders its body", () => {
     const open = card(true);
     expect(open).toContain("Widget199.tsx");
-    expect(open).toContain("Send fix to agent");
+    expect(open).toContain("Copy fix for your agent");
   });
 
   it("PH4B-05 an open card starts with Review here first: at most three places, each with its reason", () => {

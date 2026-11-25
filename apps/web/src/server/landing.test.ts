@@ -39,9 +39,10 @@ describe("landing page", () => {
       "how",
       "read",
       "privacy",
+      // FEAT-038: at most 6 sections before the FAQ; the details (checks, where it fits) come after it.
+      "faq",
       "checks",
       "fit",
-      "faq",
       "get-started",
     ];
     const at = ids.map((id) => html.indexOf(`id="${id}"`));

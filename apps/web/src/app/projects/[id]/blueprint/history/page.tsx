@@ -1,3 +1,4 @@
+import { When } from "@/components/ui/when";
 import { historyPage } from "@/server/blueprint-page";
 import { orNotFound, pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
@@ -22,7 +23,15 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
   const view = await orNotFound(() => historyPage(getDb(), user, id));
   const base = `/projects/${view.project.id}`;
   const nav = (
-    <ProjectNav projectId={view.project.id} current="blueprint" name={view.project.name} />
+    <ProjectNav
+      projectId={view.project.id}
+      current="blueprint"
+      name={view.project.name}
+      sub={{
+        label: "History",
+        purpose: "Every saved version. Go back to any one; nothing is deleted.",
+      }}
+    />
   );
   if (!view.ready || view.versions.length === 0) {
     return (
@@ -45,9 +54,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
               {REASON[v.reason] ?? v.reason}
               {v.restoredFrom ? ` (from version ${v.restoredFrom})` : ""}
             </span>
-            <time className="muted" dateTime={v.createdAt.toISOString()}>
-              {v.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC
-            </time>
+            <When className="muted" iso={v.createdAt.toISOString()} />
             {v.version === view.current ? (
               <span className="muted">Current</span>
             ) : (

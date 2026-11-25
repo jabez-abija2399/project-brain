@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import type { BrainDb } from "../db";
-import { type NewReceipt, type Receipt, receipts } from "../schema";
+import { type NewReceipt, type Receipt, receipts, requests } from "../schema";
 
 export const receiptsRepo = {
   async insert(
@@ -95,6 +95,30 @@ export const receiptsRepo = {
       .select()
       .from(receipts)
       .where(eq(receipts.projectId, projectId))
+      .orderBy(desc(receipts.createdAt))
+      .limit(limit);
+  },
+
+  /** FEAT-034: the newest receipts for one feature of this project (through the requests they answer). */
+  async listForFeature(
+    db: BrainDb,
+    projectId: string,
+    featureId: string,
+    limit = 20,
+  ): Promise<{ id: string; createdAt: Date; asked: string; summaryJson: unknown }[]> {
+    return db
+      .select({
+        id: receipts.id,
+        createdAt: receipts.createdAt,
+        asked: requests.text,
+        summaryJson: receipts.summaryJson,
+      })
+      .from(receipts)
+      .innerJoin(
+        requests,
+        and(eq(requests.id, receipts.requestId), eq(requests.projectId, receipts.projectId)),
+      )
+      .where(and(eq(receipts.projectId, projectId), eq(requests.featureId, featureId)))
       .orderBy(desc(receipts.createdAt))
       .limit(limit);
   },

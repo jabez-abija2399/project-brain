@@ -1,4 +1,5 @@
 import { DocPage } from "@/components/landing/doc-page";
+import { supportHref } from "@/lib/support";
 import { isSignedIn } from "@/server/signed-in";
 import type { Metadata } from "next";
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = {
   description: "What Codeceipt stores, what it never stores, and the services it uses.",
 };
 
-// Launch part 6: plain language. [REVIEW] marks questions for a lawyer before the beta opens widely.
+// Launch part 6: plain language. REVIEW comments mark questions for a lawyer before the beta opens widely.
 export default async function PrivacyPage() {
   const signedIn = await isSignedIn();
   return (
@@ -71,12 +72,13 @@ export default async function PrivacyPage() {
       <h2>Services we use</h2>
       <ul>
         <li>
-          <strong>Vercel</strong> runs the website and API. It keeps standard request logs. [REVIEW]
-          Vercel log retention and data processing terms?
+          <strong>Vercel</strong> runs the website and API. It keeps standard request logs.{" "}
+          {/* REVIEW:
+          Vercel log retention and data processing terms?*/}
         </li>
         <li>
           <strong>Neon</strong> hosts the Postgres database that holds everything listed above.
-          [REVIEW] Region and data processing terms?
+          {/* REVIEW: Region and data processing terms?*/}
         </li>
         <li>
           <strong>GitHub</strong> signs you in and, if you install the GitHub App, tells us about
@@ -89,8 +91,9 @@ export default async function PrivacyPage() {
         <li>
           <strong>Anthropic</strong> (the Claude API) writes the summaries, checklists, plans and
           receipts. It receives component names and props, file names, your requests and checklist
-          items, never your source files. [REVIEW] Anthropic&apos;s API data retention and whether
-          it is listed as a subprocessor?
+          items, never your source files.{" "}
+          {/* REVIEW: Anthropic&apos;s API data retention and whether
+          it is listed as a subprocessor?*/}
         </li>
       </ul>
       <p>We do not use advertising or analytics trackers, and we do not sell your data.</p>
@@ -120,13 +123,12 @@ export default async function PrivacyPage() {
         </li>
         <li>
           <strong>Waitlist:</strong> deleting your account removes your waitlist entry too. If you
-          only joined the waitlist, email us and we remove your address. [REVIEW] Contact address?
+          only joined the waitlist, <a href={supportHref()}>contact us</a> and we remove your
+          address.
         </li>
       </ul>
-      <p>
-        [REVIEW] Legal basis for processing (GDPR), data controller name and address, and rights of
-        people in the EU and California?
-      </p>
+      {/* REVIEW: Legal basis for processing (GDPR), data controller name and address, and rights of
+        people in the EU and California?*/}
     </DocPage>
   );
 }

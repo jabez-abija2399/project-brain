@@ -68,6 +68,16 @@ export const billingRepo = {
     return row?.n ?? 0;
   },
 
+  /** The user's AI-judged receipts counted for a month (0 when none). */
+  async judgedIn(db: BrainDb, userId: string, month: string): Promise<number> {
+    const [row] = await db
+      .select({ n: judgedUsage.n })
+      .from(judgedUsage)
+      .where(and(eq(judgedUsage.userId, userId), eq(judgedUsage.month, month)))
+      .limit(1);
+    return row?.n ?? 0;
+  },
+
   /** Counts one AI-judged receipt for the user's month, only while under the limit (atomic; never counted back). */
   async reserveJudged(db: BrainDb, userId: string, month: string, limit: number): Promise<boolean> {
     if (limit <= 0) return false;

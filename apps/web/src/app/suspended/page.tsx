@@ -1,5 +1,7 @@
 import { SiteFooter } from "@/components/landing/site-footer";
 import { BareHeader } from "@/components/shell/app-shell";
+import { SignOutButton } from "@/components/shell/sign-out-button";
+import { supportHref } from "@/lib/support";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -20,18 +22,17 @@ export default async function SuspendedPage({
           <h1>{project ? "This project is suspended" : "Your account is suspended"}</h1>
           <p className="purpose">
             {project
-              ? "Codeceipt suspended this project. Its pages, CLI and MCP access do not work until it is restored."
-              : "Codeceipt suspended your account. The dashboard, the CLI and MCP do not work until it is restored."}{" "}
-            Reply to any email from Codeceipt or contact support to ask why and to restore it.
+              ? "Codeceipt suspended this project. Its pages are paused and your agents can't send receipts for it until it is restored."
+              : "Codeceipt suspended your account. Your agents can't send receipts and the dashboard is paused until it is restored."}{" "}
+            Reply to any email from Codeceipt or <a href={supportHref()}>contact support</a> to ask
+            why and to restore it.
           </p>
           <p className="muted m0">You can still export your data on the Account page.</p>
           <div className="row">
             <Link className="btn btn-primary" href="/account">
               Go to your account
             </Link>
-            <Link className="btn btn-ghost" href="/privacy">
-              Privacy
-            </Link>
+            <SignOutButton />
           </div>
         </div>
       </main>

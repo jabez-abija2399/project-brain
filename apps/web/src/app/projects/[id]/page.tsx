@@ -26,7 +26,7 @@ export default async function ProjectDetailPage({
       <ProjectNav projectId={project.id} current="" name={safeDisplay(project.name, 100)} />
       <section className="stack" aria-labelledby="tokens-title">
         <h2 id="tokens-title" className="section-title">
-          Project tokens
+          Connection keys
         </h2>
         <ProjectTokensPanel
           projectId={project.id}

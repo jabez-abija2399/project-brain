@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -18,11 +19,16 @@ export function DirectiveActions({
   const router = useRouter();
   const [busy, setBusy] = useState<"active" | "dismissed" | null>(null);
   const [message, setMessage] = useState("");
+  const [ask, dialog] = useConfirm();
   async function decide(status: "active" | "dismissed") {
     // Confirming hands this rule to every future session: one more question first (security review).
     if (
       status === "active" &&
-      !window.confirm("Give this rule to every agent session from now on?")
+      !(await ask({
+        title: "Give this rule to every agent session?",
+        body: "From now on, every agent working on this project starts with this rule.",
+        action: "Give the rule",
+      }))
     )
       return;
     setBusy(status);
@@ -54,6 +60,7 @@ export function DirectiveActions({
   }
   return (
     <div className="stack">
+      {dialog}
       <div className="row">
         <Button
           variant="secondary"

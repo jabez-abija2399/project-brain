@@ -60,13 +60,17 @@ describe("Connect tab", () => {
     const project = await projectsRepo.create(world.db, owner.id, { name: "shop" });
     const html = await connect(project.id);
     expect(titles(html)).toEqual([
-      "Run npx codeceipt in your project",
-      "Approve in the browser",
-      "Open Claude Code or Cursor and make a change",
+      "Connect this computer",
+      "Codeceipt reads your project",
+      "Get your first receipt",
     ]);
     expect(titles(html)).toEqual(titles(await render(StartPage())));
     expect(steps(html)).toEqual(["1:waiting", "2:waiting", "3:waiting"]);
-    expect(copies(html)).toEqual(["npx codeceipt"]);
+    // FEAT-031: plus the prompt that lets the agent run it (the "Never used a terminal?" helper).
+    expect(copies(html)).toEqual([
+      "npx codeceipt",
+      "Run npx codeceipt in this project and tell me the code it shows.",
+    ]);
     expect(html).not.toMatch(/codeceipt login|codeceipt init|codeceipt index|api-url/);
     expect(html).toContain('data-live="on"');
   });

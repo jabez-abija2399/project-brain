@@ -86,7 +86,7 @@ describe("Phase 9: next step", () => {
     const empty = await render();
     expect(empty).toContain("Next step");
     expect(empty).toContain("Connect a repository and finish one agent session");
-    expect(empty).toContain(`href="/projects/${pid}/connect"`);
+    expect(empty).toContain(`href="/projects/${pid}/settings"`);
     expect(empty).toContain("<code>npx codeceipt</code>");
     await agentAsk(world.db, pid, { action: "delete_feature", summary: "drop old" });
     expect(await render()).toContain(
@@ -108,8 +108,8 @@ describe("Phase 9: docs/actions.md", () => {
       "utf8",
     );
     const tabsBlock = nav.slice(nav.indexOf("const TABS"), nav.indexOf("] as const"));
-    const tabs = [...tabsBlock.matchAll(/label: "([A-Za-z]+)"/g)].map((m) => m[1] as string);
-    expect(tabs.length).toBeGreaterThan(5);
+    const tabs = [...tabsBlock.matchAll(/label: "([A-Za-z ]+)"/g)].map((m) => m[1] as string);
+    expect(tabs.length).toBeGreaterThanOrEqual(6);
     for (const t of tabs) expect(doc, t).toContain(`${t} tab`);
   });
 });

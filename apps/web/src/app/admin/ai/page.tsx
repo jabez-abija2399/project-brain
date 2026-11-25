@@ -14,6 +14,8 @@ export const metadata: Metadata = {
 };
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
+// FEAT-029: a per-call cost is a fraction of a cent, so it keeps 4 decimals (never "$0.00 a call").
+const unitUsd = (n: number) => `$${n.toFixed(4)}`;
 
 // AI usage (2026-11-01): calls and estimated cost per day and per project against the daily budget per project.
 export default async function AdminAiPage() {
@@ -25,7 +27,7 @@ export default async function AdminAiPage() {
       <PageHeader
         crumbs={[{ label: "Admin", href: "/admin" }, { label: "AI usage" }]}
         title="AI usage"
-        purpose={`Last 30 days. Each project may make ${u.budget} AI calls a day; cost is an estimate at ${usd(u.costPerCall)} a call.`}
+        purpose={`Last 30 days. Each project may make ${u.budget} AI calls a day; cost is an estimate at ${unitUsd(u.costPerCall)} a call.`}
       />
       <AdminNav current="/admin/ai" />
       <div className="stat-grid">

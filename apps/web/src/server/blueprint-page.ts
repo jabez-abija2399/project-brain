@@ -1,4 +1,4 @@
-import { formatEars, parseEars } from "@brain/core";
+import { formatEars, parseEars, plainSentence } from "@brain/core";
 import { blueprintRepo } from "@brain/db";
 import type { BrainDb } from "@brain/db";
 import { type SessionUser, requireProjectAccess } from "./auth";
@@ -54,9 +54,16 @@ export async function blueprintPage(db: BrainDb, user: SessionUser, projectId: s
           text: c.text,
           kind: c.kind,
           ears: earsOf(c.text),
+          // FEAT-036: the rule in plain words (Simple), and the formal wording without shouting (Full detail).
+          plain: plainOf(c.text),
+          formal: softCase(earsOf(c.text) ?? c.text),
           proof: v.proof[c.id] ?? "not_proven",
+          // FEAT-036: hints in sentence case too (no capitals anywhere on the page).
           flags: (flagsBy.get(c.id) ?? []).map((x) => ({
-            message: x.message,
+            message: x.message.replace(
+              /\b(WHEN|IF|THEN|WHILE|THE SYSTEM SHALL NOT|THE SYSTEM SHALL)\b/g,
+              (k) => k.toLowerCase(),
+            ),
             rewrite: x.rewrite ?? null,
           })),
           tests: v.tests.filter((t) => t.criterionId === c.id).length,
@@ -108,6 +115,21 @@ function order(
   v: { features: { id: string; buildOrder: number | null }[] },
 ): number {
   return v.features.find((x) => x.id === f.id)?.buildOrder ?? Number.MAX_SAFE_INTEGER;
+}
+
+/** "WHEN a user pays, THE SYSTEM SHALL email a receipt." -> "When a user pays, the system shall email a receipt." */
+function softCase(text: string): string {
+  const lowered = text.replace(
+    /\b(WHEN|IF|THEN|WHILE|THE SYSTEM SHALL NOT|THE SYSTEM SHALL)\b/g,
+    (k) => k.toLowerCase(),
+  );
+  return `${lowered.charAt(0).toUpperCase()}${lowered.slice(1)}`;
+}
+
+/** A rule in plain words: "When someone pays, the app sends a receipt." (the stored text when it is not EARS). */
+function plainOf(text: string): string {
+  const e = parseEars(text);
+  return e ? plainSentence(e) : softCase(text);
 }
 
 function earsOf(text: string): string | null {

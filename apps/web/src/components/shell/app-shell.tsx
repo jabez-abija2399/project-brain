@@ -3,7 +3,7 @@ import { SiteHeader } from "@/components/landing/site-header";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { ProjectSwitcher, type SwitcherProject } from "./project-switcher";
-import { SignOutButton } from "./sign-out-button";
+import { UserMenu } from "./user-menu";
 
 /** The app header with nothing personal in it (the 404 page): wordmark, Docs and Projects. */
 export function BareHeader() {
@@ -32,10 +32,12 @@ export function BareHeader() {
 export function AppShell({
   user,
   projects,
+  celebrate = true,
   children,
 }: {
   user: { name: string; email: string } | null;
   projects: SwitcherProject[];
+  celebrate?: boolean;
   children: ReactNode;
 }) {
   if (!user) {
@@ -53,7 +55,7 @@ export function AppShell({
     );
   }
   return (
-    <div className="shell">
+    <div className="shell" data-celebrate={celebrate ? "on" : "off"}>
       <a className="skip-link" href="#content">
         Skip to content
       </a>
@@ -67,16 +69,8 @@ export function AppShell({
             <Link className="app-header-link" href="/docs/quickstart">
               Docs
             </Link>
-            {/* Real-test D: a GitHub account without a display name still gets a visible, named link. */}
-            <Link
-              className="app-header-link app-user"
-              href="/account"
-              title={user.email}
-              aria-label={`Account: ${user.name.trim() || user.email.trim() || "your account"}`}
-            >
-              {user.name.trim() || user.email.trim() || "Account"}
-            </Link>
-            <SignOutButton />
+            {/* Real-test D: a GitHub account without a display name still gets a visible, named menu. */}
+            <UserMenu name={user.name} email={user.email} />
           </span>
         </div>
       </header>

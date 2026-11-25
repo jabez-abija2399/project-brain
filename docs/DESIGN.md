@@ -50,7 +50,7 @@ Spacing 4/8/12/16/24/32/48. Landing-only styles: apps/web/src/app/landing.css; e
 | ReceiptCard | apps/web/src/components/receipt-card | collapsed, expanded | receipts feed, feature page |
 | CopyCommand | apps/web/src/components/copy-command | command text + copy | onboarding |
 | JourneySteps | apps/web/src/components/journey-steps | linked, indexed, receipt (each done or waiting) | start page, Connect tab |
-| CopyButton | apps/web/src/components/ui/copy-button | label, text; copied / failed feedback | receipts ("Send fix to agent"), CopyCommand |
+| CopyButton | apps/web/src/components/ui/copy-button | label, text; copied / failed feedback | receipts ("Copy fix for your agent"), CopyCommand |
 | Pagination | apps/web/src/components/ui/pagination | page, pages, basePath (?page=N, 50 per page) | features, receipts, proposals |
 | Disclosure | apps/web/src/components/ui/disclosure | open; summary; body rendered on first open (INP) | ReceiptCard |
 | ReceiptsFilter | apps/web/src/components/receipts-filter | chips with counts, search, shortcuts (/ j k o), day headings | receipts feed |
@@ -67,6 +67,11 @@ Spacing 4/8/12/16/24/32/48. Landing-only styles: apps/web/src/app/landing.css; e
 | AgentTabs / HowTerminal / ReceiptStates / PrivacyToggle | apps/web/src/components/landing | WAI-ARIA tabs; step buttons + typed terminal; state buttons; toggle | landing |
 | StateGuide | apps/web/src/components/state-guide | what each receipt state means; open on first view | receipts feed |
 | DocPage | apps/web/src/components/landing/doc-page | title, table of contents from h2s, 68ch text | docs, privacy, terms |
+| When | apps/web/src/components/ui/when (+ lib/when.ts) | relative or day; local time in the browser, full date on hover; never "UTC" | every date (FEAT-028) |
+| ConfirmDialog / useConfirm | apps/web/src/components/ui/confirm-dialog | title, consequence, action, danger; native dialog (focus kept, Escape cancels) | every destructive action |
+| UserMenu | apps/web/src/components/shell/user-menu | Account, Docs (phones), Glossary, Admin (asked on open), Sign out | AppShell |
+| TabRow | apps/web/src/components/ui/tab-row | scrolls current tab into view; edge fade until the end on phones | project and admin tabs |
+| Term / withTerms | apps/web/src/components/ui/term (+ lib/glossary.ts) | dotted underline, tooltip on hover and focus; /glossary | jargon in running text |
 
 ## The screens that matter (max 3; polish these, everything else is plain components)
 0. Project overview (2026-11-01, the first tab): leads with the decision ("2 receipts need your attention this

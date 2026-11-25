@@ -1,3 +1,4 @@
+import { CelebrateToggle } from "@/components/account/celebrate-toggle";
 import { ConnectedComputers } from "@/components/account/connected-computers";
 import { DeleteAccount } from "@/components/account/delete-account";
 import { OAuthConnections } from "@/components/account/oauth-connections";
@@ -6,12 +7,17 @@ import { SignOutEverywhere } from "@/components/account/sign-out-everywhere";
 import { BillingButton } from "@/components/billing-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
+import { CELEBRATE_COOKIE, celebrationsOn } from "@/lib/celebrate";
+import { formatDay } from "@/lib/when";
 import { accountView, sessionsView } from "@/server/account";
 import { pageShowsAdminLink } from "@/server/admin";
+import { currentSessionId } from "@/server/auth";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { connectionsFor } from "@/server/mcp-oauth";
 import type { Metadata } from "next";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -19,13 +25,23 @@ export const metadata: Metadata = { title: "Account | Codeceipt", robots: { inde
 
 // The account page (2026-11-01): who you are, the computers that can send receipts, signing out everywhere, your data
 // as a download, and deleting the account for good. A suspended user can still export and delete.
+// FEAT-033: this browser's celebrations choice (on unless turned off; on when no cookies can be read).
+async function celebrateOn(): Promise<boolean> {
+  try {
+    return celebrationsOn((await cookies()).get(CELEBRATE_COOKIE)?.value);
+  } catch {
+    return true;
+  }
+}
+
 export default async function AccountPage() {
   const user = await pageUser({ allowSuspended: true });
-  const [a, apps, browsers, admin] = await Promise.all([
+  const [a, apps, browsers, admin, thisBrowser] = await Promise.all([
     accountView(getDb(), user),
     connectionsFor(getDb(), user),
     sessionsView(getDb(), user),
     pageShowsAdminLink(user),
+    currentSessionId(new Request("http://localhost/", { headers: await headers() })),
   ]);
   return (
     <main className="page page-narrow stack stack-lg">
@@ -53,7 +69,7 @@ export default async function AccountPage() {
             {a.name}
           </h2>
           <p className="muted m0">
-            {a.email} · signed in with GitHub since {a.createdAt.slice(0, 10)}
+            {a.email} · signed in with GitHub since <When iso={a.createdAt} format="day" />
           </p>
           {admin ? (
             <p className="m0">
@@ -63,15 +79,30 @@ export default async function AccountPage() {
         </div>
       </section>
 
-      <section className="stack" aria-labelledby="plan">
+      <section className="stack" aria-labelledby="celebrate">
+        <h2 id="celebrate" className="section-title">
+          Celebrations
+        </h2>
+        <CelebrateToggle on={await celebrateOn()} />
+      </section>
+
+      <section className="card stack" aria-labelledby="plan" data-testid="plan-card">
         <h2 id="plan" className="section-title">
           Plan
         </h2>
-        <p className="muted m0">
-          You are on the {a.billing.plan} plan
-          {a.billing.endsAt ? `; it ends on ${a.billing.endsAt.slice(0, 10)}, then Free` : ""}.
-        </p>
-        {a.billing.subscribed ? (
+        {a.billing.beta ? (
+          <p className="muted m0" data-testid="beta-usage">
+            Free beta: {a.billing.beta.projects} of {a.billing.beta.projectLimit} projects,{" "}
+            {a.billing.beta.judged} of {a.billing.beta.judgedLimit} AI-checked receipts this month
+            (resets on the 1st).
+          </p>
+        ) : (
+          <p className="muted m0">
+            You are on the {a.billing.plan} plan
+            {a.billing.endsAt ? `; it ends on ${formatDay(a.billing.endsAt)}, then Free` : ""}.
+          </p>
+        )}
+        {a.billing.beta ? null : a.billing.subscribed ? (
           <BillingButton action="portal" label="Manage billing" />
         ) : (
           <Link className="btn self-start" href="/pricing">
@@ -82,12 +113,12 @@ export default async function AccountPage() {
 
       <section className="stack" aria-labelledby="computers">
         <h2 id="computers" className="section-title">
-          Connected computers
+          Connection keys
         </h2>
         <p className="muted m0">
-          Each time you approve <code>npx codeceipt</code>, that computer gets a key for one
-          project. Revoke a key you no longer use; that computer then has to run{" "}
-          <code>npx codeceipt</code> again.
+          When you run <code>npx codeceipt</code> and approve it, that computer gets a connection
+          key that sends receipts for one project. Remove any key you no longer use; that computer
+          then has to run <code>npx codeceipt</code> again.
         </p>
         <ConnectedComputers initial={a.computers} />
       </section>
@@ -106,13 +137,13 @@ export default async function AccountPage() {
 
       <section className="stack" aria-labelledby="sessions">
         <h2 id="sessions" className="section-title">
-          Sessions
+          Signed-in browsers
         </h2>
         <p className="muted m0">
           The browsers signed in to this account. Sign one out, or sign out of every browser,
           including this one.
         </p>
-        <SessionList sessions={browsers} />
+        <SessionList sessions={browsers} current={thisBrowser} />
         <SignOutEverywhere />
       </section>
 
@@ -142,6 +173,15 @@ export default async function AccountPage() {
         </p>
         {a.suspended ? (
           <p className="muted m0">Not available while your account is suspended.</p>
+        ) : a.billing.subscribed && !a.billing.endsAt ? (
+          // FEAT-029: a paid plan is cancelled first, so nobody is charged for a deleted account.
+          <div className="stack" data-testid="delete-needs-cancel">
+            <p className="m0">
+              Cancel your plan in Manage billing first, then delete the account. You are never
+              charged again after cancelling.
+            </p>
+            <BillingButton action="portal" label="Manage billing" />
+          </div>
         ) : (
           <DeleteAccount name={a.name} />
         )}

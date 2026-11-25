@@ -1,5 +1,77 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-038 public pages | status: done
+Changed: Landing hero labels the first step ("1. Run this in your app's folder", then "Already set up? Sign in"); Checks and Where it fits moved after the FAQ (6 sections before it). Quickstart uses the landing's 3 steps (Set up with the command first, Work as usual, Get your receipt) and numbered troubleshooting. Shared receipt has the public header/footer, title, purpose sentence and state guide. 404 gives signed-out visitors Home as the one primary action; a dead share link has its own page ("Ask them to send you a new link"). Older tests follow the new order and headings.
+Verified (ran this session): verify.sh PASS; public-pages.test (5, one per AC); real Chromium pass over 10 public pages at 375 and 1280 px, light and dark: no horizontal overflow (40/40).
+NOT VERIFIED: the browser pass used server-rendered pages with the site CSS, not the deployed site; it is not a repo test (Playwright is not a project dependency).
+Next: all of FEAT-027..038 done; owner: merge to main, set BETA_LIMITS=on.
+
+## 2026-11-25 | FEAT-037 account, keys, admin, suspended | status: done
+Changed: Account plan section is a card (beta usage or plan); "Connection keys" with plainer text and a Copy key button on the one-time secret; "Signed-in browsers" with a "This browser" pill (auth.currentSessionId) listed first; Sign out everywhere asks through ConfirmDialog; Suspend states consequences, takes an optional reason kept in the audit Detail, danger style (Restore primary); admin overview leads with a status sentence; Suspended page plainer and offers Sign out.
+Verified (ran this session): verify.sh PASS; account-admin-design.test (4, one per AC; non-admin 404 on every admin page and the suspend action).
+NOT VERIFIED: "This browser" against a real better-auth session (resolver is stubbed in tests).
+Next: FEAT-038 public pages.
+
+## 2026-11-25 | FEAT-036 Blueprint | status: done
+Changed: Blueprint page: summary line ("Your app has N parts and M promises", proven count, waiting suggestions, one primary Review button), each feature a health sentence with one copyable prompt, rules in plain words (core plainSentence) grouped It must never / It does; Full detail adds proof, the formal wording in sentence case and hints (no capitals); ProjectNav `sub` for Safety check and History (breadcrumb, purpose); safety risks with people headlines and paths/SQL under Technical details; Discover "Confirm this feature" (adds its suggested rules), progress bar, step text, "Your whole app is mapped". Older Blueprint test follows the plain wording.
+Verified (ran this session): verify.sh PASS; blueprint-redesign.test (4, one per AC; restore keeps newer versions).
+NOT VERIFIED: browser check.
+Next: FEAT-037 account, keys, admin, suspended.
+
+## 2026-11-25 | FEAT-035 To decide | status: done
+Changed: requests read "Your agent wants to: <action>" with Approve / Reject and a Remember-my-choice box (approvals/request-decision.tsx); expired requests say so and the decide route answers 409 "This request expired"; proposals show old (del) and new (ins) with the agent's optional reason (propose_checklist_change `reason`, kept in proposedChange; repo compares proposals with sorted keys); Reject asks "Why not? (optional)" and records it as a decision agents read. MCP tool list kept within its 6500-byte budget.
+Verified (ran this session): verify.sh PASS; decide-inbox.test (4, one per AC; token and stranger attacks on approve, reject, confirm).
+NOT VERIFIED: browser check; the why-not decision in a real agent's start note (decisions are listed there already).
+Next: FEAT-036 Blueprint.
+
+## 2026-11-25 | FEAT-034 features and plan | status: done
+Changed: a todo feature with a done item reads In progress (board rows in server/dashboard.ts and the counts in dashboardRepo.featureCounts); chips carry the counts (mini-stats removed); feature names link to the new features/[featureId] page (server/feature-detail.ts, receiptsRepo.listForFeature: status, progress, items, receipts); "Nothing planned yet" text; plan items read Must / Must never; plan banner on Features; "Not right? Tell your agent what to change"; files column hidden on phones. features-board and plan-page tests follow the approved wording.
+Verified (ran this session): verify.sh PASS; features-plan.test (4, one per AC; 404 for another user's or another project's feature).
+NOT VERIFIED: phone layout in a browser.
+Next: FEAT-035 To decide.
+
+## 2026-11-25 | FEAT-033 receipts | status: done
+Changed: receipt-card summary = verdict sentence + at most 3 badges (first result, worst problem, "+N more"); commit and "already in your files" in the body; "Copy fix for your agent" with "Copied. Paste it into Claude Code or Cursor."; All N items done stamp; receipts feed grouped Needs you / Agent is fixing (a newer receipt for the same request) / All good (feed rows carry requestId); filter bar: no-match message with Clear search / Show all, "?" shortcut sheet; celebrations cookie (lib/celebrate.ts) read by the shell (data-celebrate) with an Account switch. Older tests now use the new button name and summary.
+Verified (ran this session): verify.sh PASS; receipts-redesign.test (5, one per AC; XSS negative).
+NOT VERIFIED: keyboard sheet and stamp in a real browser.
+Next: FEAT-034 features and plan.
+
+## 2026-11-25 | FEAT-032 overview | status: done
+Changed: overview hero holds the headline, the next step and one primary button (Review them, or the next step's page); the list under it is this week's receipts to check (+N more link); stat cards Needs attention / Things your agent missed / Built as asked / Security problems, each linking to receipts?filter=attention|missed|good|findings; "All clear. Everything your agents did this week checks out"; receipts page takes ?filter= (unknown values ignored) with Something missed and Security problems chips; lib/receipt-filters.ts; 2x2 stats on phones.
+Verified (ran this session): verify.sh PASS; overview-redesign.test (4, one per AC; stranger isolation and 404).
+NOT VERIFIED: browser check.
+Next: FEAT-033 receipts.
+
+## 2026-11-25 | FEAT-031 onboarding | status: done
+Changed: journey-steps (one current step with a Waiting line and pulse, later steps dimmed, done steps collapsed; "Never used a terminal?" with a copyable prompt for Claude Code/Cursor); /start (receipts link only once a receipt exists, chosen build style is not a primary button, first receipt: one summary sentence, printed once, How to read it in a Disclosure, next action); /device (expired or used code caught before the form, "What approving allows" in plain words, Deny warning once, after approval a link to Get started and a note about the terminal's questions).
+Verified (ran this session): verify.sh PASS; onboarding-flow.test (5, one per AC; attack: a code in the URL never links).
+NOT VERIFIED: live updates and animation in a browser.
+Next: FEAT-032 overview.
+
+## 2026-11-25 | FEAT-030 project navigation: 6 tabs | status: done
+Changed: project-nav (Overview, Receipts, Features, To decide, Blueprint, Settings; old pages highlight their new tab); [id]/layout.tsx + server/nav-counts.ts + nav-counts.tsx (owner-only counts: this week's receipts needing attention; pending approvals + checklist and rule proposals); new decide/ and settings/ pages built from extracted sections (approval-sections, proposal-sections, connect-sections, plan-sections); a waiting plan shows on Features; Tokens renamed Connection keys; next.config 308 redirects for /proposals, /approvals, /plan, /connect and /projects/:id; overview next-step links; docs/actions.md.
+Verified (ran this session): verify.sh PASS; project-tabs.test (4, one per AC; stranger 404 and count isolation).
+NOT VERIFIED: redirects in a running Next server (config asserted, not served); browser check.
+Next: FEAT-031 onboarding.
+
+## 2026-11-25 | FEAT-029 trust fixes | status: done
+Changed: privacy/terms REVIEW notes and quickstart screenshot boxes no longer render (kept in code); onboarding steps relabelled (Connect this computer / Codeceipt reads your project / Get your first receipt) and an earlier step is done when a later one is; receipt summaries hide zero counts, show "All done", say "1 security problem"; paid-plan delete shows Manage billing first and the client shows the 409 message; suspend refreshes the page; AI unit cost 4 decimals; CLI prints `npx codeceipt last` when only npx ran; lib/support.ts (SUPPORT_EMAIL or GitHub issues) on Suspended and Privacy. Older tests that pinned the old behaviour now assert the new one.
+Verified (ran this session): verify.sh PASS; trust-fixes.test (6) + setup-e2e AC-029-06.
+NOT VERIFIED: browser check; SUPPORT_EMAIL not set in Vercel (owner).
+Next: FEAT-030 project navigation.
+
+## 2026-11-25 | FEAT-028 shared design foundations | status: done
+Changed: lib/when.ts + ui/when.tsx (relative/day dates, local time in the browser, no "UTC") used on every dashboard, account and admin date; ui/confirm-dialog.tsx (native dialog, consequence, danger) replaces all window.confirm; shell/user-menu.tsx (Account, Docs on phones, Glossary, Sign out; Admin asked from /api/account/admin-link only when opened); footer Account link; ui/tab-row.tsx (current tab in view, edge shadow on phones); lib/glossary.ts + ui/term.tsx + /glossary. DESIGN.md inventory rows.
+Verified (ran this session): verify.sh PASS; design-foundations.test (6, one per AC; admin-link permission test).
+NOT VERIFIED: in a real browser at 375/1280 px (no app running here); tooltip usage on pages comes with FEAT-030+.
+Next: FEAT-029 trust fixes.
+
+## 2026-11-25 | FEAT-027 free beta with limits | status: done
+Changed: core plans.ts BETA (3 projects, 100 AI-checked receipts a month) + BETA_SUMMARY; billing.ts betaLimitsOn (BETA_LIMITS=on and no Stripe), project limit and monthly judge count use it, betaUsage; receipts record judge_skipped "beta_limit" and say "Not AI-checked: the beta's 100 a month are used. Resets on the 1st."; /pricing shows the beta (no prices or checkout) while billing is off; landing, FAQ and terms state the limits; Pricing in header and footer; account Plan shows usage; .env.example BETA_LIMITS; D-029 note.
+Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); billing-beta.test (6, one per AC, attack test for client-sent plan/limit and parallel creates).
+NOT VERIFIED: in the browser on production; BETA_LIMITS=on is not yet set in Vercel (owner action after deploy). No fresh-context security review.
+Next: FEAT-028 shared design foundations.
+
 ## 2026-11-04 | FEAT-026 activation funnel for the admin | status: done
 Changed: adminRepo.funnel (one aggregate SQL: weekly sign-up cohorts, linked a repo, first receipt, caught something, first receipt within 10 min); adminFunnel (last 12 weeks); table on /admin.
 Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); CI verify on 9d0e3e1 PASS (build, e2e, audit, gitleaks, semgrep, osv); kit.py pass for every AC from the test log. 10,000-user funnel in under 1 s on PGlite.

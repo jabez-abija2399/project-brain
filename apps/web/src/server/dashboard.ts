@@ -55,7 +55,12 @@ export async function featureBoard(
         id: r.id,
         name: safeDisplay(r.name, 100),
         // Free text in the database: anything but the known values is shown as "unknown".
-        status: ["todo", "in_progress", "done"].includes(r.status) ? r.status : "unknown",
+        // FEAT-034: a planned feature with any item done is in progress, so status agrees with progress.
+        status: !["todo", "in_progress", "done"].includes(r.status)
+          ? "unknown"
+          : r.status === "todo" && r.doneItems > 0
+            ? "in_progress"
+            : r.status,
         files: r.files,
         openItems: r.openItems,
         doneItems: r.doneItems,
@@ -100,6 +105,8 @@ export async function receiptsFeed(
         return {
           id: r.id,
           projectId: project.id,
+          // FEAT-033: the request it answers, so the feed can tell a receipt the agent already redid.
+          requestId: r.requestId ?? null,
           createdAt: r.createdAt.toISOString(),
           asked,
           commitSha:
@@ -142,8 +149,10 @@ export async function pendingProposals(
             text: safeDisplay(r.text),
             // The exact proposal shown: the dashboard sends it back with confirm or reject (FEAT-017).
             proposedAt: r.proposedAt.toISOString(),
-            change: "text" in change ? { text: change.text } : { dismiss: true as const },
+            change,
             shownText: "text" in change ? safeDisplay(change.text) : null,
+            // FEAT-035: the agent's one-line reason, when it gave one.
+            reason: change.reason ? safeDisplay(change.reason, 300) : null,
           },
         ];
       }),

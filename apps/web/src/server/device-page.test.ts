@@ -43,7 +43,7 @@ describe("/device page", () => {
     expect(html).toContain(`value="${s.user_code}"`);
     expect(html).toContain(">Shop</option>");
     expect(html).toContain(">A new project</option>");
-    expect(html).toContain("Only approve a code you started yourself");
+    expect(html).toContain("yourself? Press Deny.");
   });
 
   it("attack: a code with markup or other characters is reduced to letters and dashes before it is shown", async () => {

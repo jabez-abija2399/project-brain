@@ -11,12 +11,13 @@ export function SiteFooter({ signedIn = false }: { signedIn?: boolean }) {
         </span>
         <nav className="lp-footer-links" aria-label="Footer">
           <a href="/docs/quickstart">Docs</a>
+          <a href="/pricing">Pricing</a>
           <a href="/privacy">Privacy</a>
           <a href="/terms">Terms</a>
           <a href={NPM_URL} rel="noopener noreferrer">
             npm package
           </a>
-          {signedIn ? null : <a href="/sign-in">Sign in</a>}
+          {signedIn ? <a href="/account">Account</a> : <a href="/sign-in">Sign in</a>}
           <span className="lp-footer-year">
             {"©"} {new Date().getFullYear()} Codeceipt
           </span>

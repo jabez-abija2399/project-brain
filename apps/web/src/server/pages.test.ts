@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import QuickstartPage, { metadata as quickstartMeta } from "@/app/docs/quickstart/page";
 import Home from "@/app/page";
 import PrivacyPage, { metadata as privacyMeta } from "@/app/privacy/page";
@@ -42,14 +43,21 @@ describe("public pages", () => {
     for (const service of ["Vercel", "Neon", "GitHub", "Inngest", "Anthropic"]) {
       expect(t).toContain(service);
     }
-    expect(t).toContain("[REVIEW]");
+    // FEAT-029: the questions for a lawyer stay in the code as comments, never on the page.
+    expect(t).not.toContain("[REVIEW]");
+    expect(readFileSync(new URL("../app/privacy/page.tsx", import.meta.url), "utf8")).toContain(
+      "{/* REVIEW:",
+    );
   });
 
   it("/terms is plain language and marks the questions for a lawyer", async () => {
     const html = await render(TermsPage());
     expect(termsMeta.title).toBe("Terms | Codeceipt");
     expect(html).toMatch(/<h1[^>]*>Terms of use<\/h1>/);
-    expect(text(html)).toContain("[REVIEW]");
+    expect(text(html)).not.toContain("[REVIEW]");
+    expect(readFileSync(new URL("../app/terms/page.tsx", import.meta.url), "utf8")).toContain(
+      "{/* REVIEW:",
+    );
   });
 
   it("/docs/quickstart shows just `npx codeceipt`, plus troubleshooting", async () => {
@@ -66,21 +74,30 @@ describe("public pages", () => {
     expect(t).not.toContain("CODECEIPT_TOKEN");
   });
 
-  it("/docs/quickstart follows the first-time journey step by step, with screenshot placeholders", async () => {
+  it("/docs/quickstart follows the first-time journey step by step, screenshot spots kept but hidden", async () => {
     const html = await render(QuickstartPage());
     const t = text(html);
+    // FEAT-038 (AC-038-02): the landing page's three steps; the command comes before signing in and approving.
     const order = [
-      "Sign in with GitHub",
-      "Install and run codeceipt in your project",
-      "Approve in the browser",
+      "1. Set up",
+      "macOS, Linux, WSL",
+      "sign in with GitHub",
+      "approve. Codeceipt then links",
       "What happens next",
-      "Open Claude Code or Cursor and make a change",
+      "2. Work as usual",
       "Codeceipt receipt:",
-      "Your first receipt",
+      "3. Get your receipt",
+      "Every receipt after that",
     ].map((phrase) => t.indexOf(phrase));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
-    expect((t.match(/\[SCREENSHOT/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    // FEAT-029 (AC-029-01): the 5 screenshot spots stay in the code for later, but nothing shows until the image exists.
+    expect(t).not.toContain("[SCREENSHOT");
+    const source = readFileSync(
+      new URL("../app/docs/quickstart/page.tsx", import.meta.url),
+      "utf8",
+    );
+    expect((source.match(/<Screenshot of=/g) ?? []).length).toBeGreaterThanOrEqual(5);
     expect(t).toContain("codeceipt receipt");
   });
 

@@ -2,6 +2,8 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { SuspendButton } from "@/components/admin/suspend-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
+import { formatDay } from "@/lib/when";
 import { pageAdmin } from "@/server/admin";
 import { adminUser } from "@/server/admin-data";
 import { orNotFound } from "@/server/dashboard-page";
@@ -26,7 +28,7 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
           { label: d.user.name },
         ]}
         title={d.user.name}
-        purpose={`${d.user.email} · signed up ${d.user.createdAt.slice(0, 10)}`}
+        purpose={`${d.user.email} · signed up ${formatDay(d.user.createdAt)}`}
         action={
           self ? undefined : (
             <SuspendButton
@@ -41,7 +43,7 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
       <AdminNav current="/admin/users" />
       <p className="m0">
         {d.user.suspendedAt ? (
-          <StatusBadge status="missed" label={`Suspended ${d.user.suspendedAt.slice(0, 10)}`} />
+          <StatusBadge status="missed" label={`Suspended ${formatDay(d.user.suspendedAt)}`} />
         ) : (
           <StatusBadge status="done" label="Active" />
         )}
@@ -72,9 +74,13 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
                     {p.repo ? <span className="muted wrap">{p.repo}</span> : null}
                   </span>
                 </td>
-                <td data-label="Created">{p.createdAt.slice(0, 10)}</td>
+                <td data-label="Created">
+                  <When iso={p.createdAt} format="day" />
+                </td>
                 <td data-label="Receipts">{p.receipts}</td>
-                <td data-label="Last receipt">{p.lastReceiptAt?.slice(0, 10) ?? "none"}</td>
+                <td data-label="Last receipt">
+                  {p.lastReceiptAt ? <When iso={p.lastReceiptAt} /> : "none"}
+                </td>
                 <td data-label="Status">
                   <span className="row">
                     {p.suspendedAt ? (

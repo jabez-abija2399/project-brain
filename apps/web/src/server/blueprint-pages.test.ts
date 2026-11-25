@@ -83,11 +83,15 @@ describe("Phase 3c: Blueprint tab", () => {
     const simple = await render(BlueprintPage);
     expect(simple).not.toContain("Do you usually read the code your AI writes?");
     expect(simple).toContain("Checkout");
-    expect(simple).toContain("2 rules: 0 proven");
+    // FEAT-036: a health sentence instead of bare counts, and rules in plain words.
+    expect(simple).toContain("Checkout: 2 promises, none checked by a test yet.");
+    expect(simple).toContain("The app never stores card numbers.");
     expect(simple).not.toContain("Not proven yet");
     cookie = "detailed";
     const detailed = await render(BlueprintPage);
-    expect(detailed).toContain("THE SYSTEM SHALL NOT store card numbers.");
+    // FEAT-036: the formal wording is only in Full detail, and never in capitals.
+    expect(detailed).toContain("formal wording: The system shall not store card numbers.");
+    expect(detailed).not.toContain("THE SYSTEM SHALL");
     expect(detailed).toContain("Not proven yet");
     expect(detailed).toContain("Must never");
     expect(detailed).toMatch(/makes this optional/);
@@ -142,7 +146,7 @@ describe("Phase 3c: Discover and History pages", () => {
     expect(html).toContain("a table anyone can read and change");
     expect(html).toContain("Fix with my agent");
     expect(html).toMatch(/data-copy="[^"]*public\.orders/);
-    expect(html).toContain("Next: Orders");
+    expect(html).toContain("Step 2 of 2: Orders.");
     expect(html).toContain("Add this rule");
     expect(html).toContain("1 of 2 features confirmed");
   });

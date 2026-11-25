@@ -26,6 +26,11 @@ import { type TestWorld, createTestWorld } from "./test-helpers";
 // The admin section (2026-11-01): only GitHub logins in ADMIN_GITHUB_LOGINS, checked on the server for every page and
 // action; everyone else gets the normal 404. Counts only, never receipt contents or token values.
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
+// FEAT-029: the suspend button refreshes the page through the router; a static render only needs it to exist.
+vi.mock("next/navigation", async (orig) => ({
+  ...(await orig<typeof import("next/navigation")>()),
+  useRouter: () => ({ refresh() {}, push() {} }),
+}));
 
 const APP = "https://codeceipts.test";
 let world: TestWorld;

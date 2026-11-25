@@ -14,7 +14,10 @@ import { features } from "./features";
 import { projects } from "./projects";
 
 // A proposed change to a checklist item: new wording, or dismissing it (never applied without the owner).
-export type ChecklistChange = { text: string } | { dismiss: true };
+// FEAT-035: the agent may say why in one short line (shown to the owner with the proposal).
+export type ChecklistChange =
+  | { text: string; reason?: string }
+  | { dismiss: true; reason?: string };
 
 export const requests = pgTable(
   "requests",

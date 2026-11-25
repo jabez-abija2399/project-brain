@@ -37,7 +37,12 @@ export async function projectSteps(
   const receipt = feed.rows[0] ?? null;
   return {
     project: feed.project,
-    steps: { linked: linked || indexed, indexed, receipt: receipt !== null },
+    // FEAT-029: a step before a done step is done too (a receipt means it was linked and indexed).
+    steps: {
+      linked: linked || indexed || receipt !== null,
+      indexed: indexed || receipt !== null,
+      receipt: receipt !== null,
+    },
     receipt,
   };
 }

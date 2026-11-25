@@ -7,17 +7,24 @@ type Filter = "all" | "open" | "todo" | "in_progress" | "done";
 
 // Search and chips for the feature board. Each row carries a marker (data-feature, data-status, data-open) in its
 // first cell; rows that do not match get the hidden attribute, so typing re-renders nothing but this bar (INP).
-export function FeaturesFilter({ children }: { children?: ReactNode }) {
+export function FeaturesFilter({
+  counts,
+  children,
+}: {
+  /** FEAT-034: the project's counts shown on the chips (the chips are the summary). */
+  counts?: { total: number; todo: number; inProgress: number; done: number; withOpenItems: number };
+  children?: ReactNode;
+}) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [shown, setShown] = useState<number | null>(null);
   const root = useRef<HTMLDivElement>(null);
-  const chips: [Filter, string][] = [
-    ["all", "All"],
-    ["open", "Has open items"],
-    ["todo", "To do"],
-    ["in_progress", "In progress"],
-    ["done", "Done"],
+  const chips: [Filter, string, number | undefined][] = [
+    ["all", "All", counts?.total],
+    ["open", "With open items", counts?.withOpenItems],
+    ["todo", "To do", counts?.todo],
+    ["in_progress", "In progress", counts?.inProgress],
+    ["done", "Done", counts?.done],
   ];
 
   useEffect(() => {
@@ -40,7 +47,7 @@ export function FeaturesFilter({ children }: { children?: ReactNode }) {
     <div className="stack">
       <div className="feed-toolbar">
         <fieldset aria-label="Filter features" className="chips">
-          {chips.map(([key, label]) => (
+          {chips.map(([key, label, n]) => (
             <button
               key={key}
               type="button"
@@ -49,6 +56,7 @@ export function FeaturesFilter({ children }: { children?: ReactNode }) {
               onClick={() => setFilter(key)}
             >
               {label}
+              {n === undefined ? null : <span className="chip-count">{n}</span>}
             </button>
           ))}
         </fieldset>

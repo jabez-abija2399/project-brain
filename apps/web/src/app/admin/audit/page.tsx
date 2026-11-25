@@ -1,5 +1,6 @@
 import { AdminNav } from "@/components/admin/admin-nav";
 import { PageHeader } from "@/components/shell/page-header";
+import { When } from "@/components/ui/when";
 import { pageAdmin } from "@/server/admin";
 import { auditLog } from "@/server/admin-data";
 import { getDb } from "@/server/db";
@@ -35,7 +36,7 @@ export default async function AdminAuditPage() {
           <caption>The newest 200 actions</caption>
           <thead>
             <tr>
-              <th scope="col">When (UTC)</th>
+              <th scope="col">When</th>
               <th scope="col">Admin</th>
               <th scope="col">Action</th>
               <th scope="col">Target</th>
@@ -45,7 +46,9 @@ export default async function AdminAuditPage() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.id}>
-                <td data-label="When">{r.at.slice(0, 16).replace("T", " ")}</td>
+                <td data-label="When">
+                  <When iso={r.at} />
+                </td>
                 <td data-label="Admin">{r.admin}</td>
                 <td data-label="Action">{r.action.replaceAll("_", " ")}</td>
                 <td data-label="Target" className="mono wrap">

@@ -1,10 +1,9 @@
 import { EmptyState } from "@/components/ui/empty-state";
-import { StatusBadge } from "@/components/ui/status-badge";
 import { orNotFound, pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { planView } from "@/server/plan";
 import { ProjectNav } from "../project-nav";
-import { PlanActions } from "./plan-actions";
+import { PlanDraft } from "./plan-sections";
 
 export const dynamic = "force-dynamic";
 
@@ -34,69 +33,12 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
         ) : (
           <EmptyState
             title="No plan yet"
-            text="Your project plan appears here for your approval: ask your agent to plan the project from your idea (plan_project)."
+            text="Your plan appears here for you to approve: ask your agent to plan this app with Codeceipt."
             action={{ label: "Get started", href: "/start" }}
           />
         )
       ) : (
-        <section className="stack" aria-labelledby="draft-title">
-          <div className="card stack">
-            <span className="row">
-              <StatusBadge status="warning" label="Waiting for your approval" />
-              <span className="muted">
-                drafted{" "}
-                <time dateTime={draft.createdAt}>
-                  {draft.createdAt.slice(0, 16).replace("T", " ")} UTC
-                </time>
-              </span>
-            </span>
-            <h2 className="section-title" id="draft-title">
-              Draft plan: {draft.features.length} features
-            </h2>
-            {draft.restated.map((line, n) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: model-written lines may repeat; the order is fixed
-              <p key={n} className="wrap m0">
-                {line}
-              </p>
-            ))}
-            <p className="muted m0">
-              Approving adds the new features in this order with their checklists. Agents can then
-              build them but cannot change the plan.
-            </p>
-          </div>
-          <ol className="stack plain-list">
-            {draft.features.map((f, n) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: names may look alike; the build order is the identity
-              <li key={n} className="card stack">
-                <span className="row">
-                  <strong className="wrap">
-                    {n + 1}. {f.name}
-                  </strong>
-                  {f.existing ? (
-                    <StatusBadge status="done" label="Already built" />
-                  ) : (
-                    <StatusBadge status="open" label="New" />
-                  )}
-                </span>
-                {f.dependsOn.length > 0 && (
-                  <span className="muted wrap">Needs: {f.dependsOn.join(", ")}</span>
-                )}
-                {f.items.length > 0 && (
-                  <ul className="stack m0 list-indent">
-                    {f.items.map((i, k) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: item texts may repeat; the order is fixed
-                      <li key={k} className="wrap">
-                        <span className="muted">[{i.kind}] </span>
-                        {i.text}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ol>
-          <PlanActions projectId={view.project.id} draftId={draft.id} draftHash={draft.hash} />
-        </section>
+        <PlanDraft projectId={view.project.id} draft={draft} />
       )}
     </main>
   );

@@ -33,8 +33,8 @@ export function DeleteProject({ projectId, name }: { projectId: string; name: st
   return (
     <div className="stack">
       <p className="muted m0">
-        Deleting removes this project's receipts, plan, features and tokens for good. Your code is
-        not touched. Type the project's name to confirm.
+        Deleting removes this project's receipts, plan, features and connection keys for good. Your
+        code is not touched. Type the project's name to confirm.
       </p>
       <label className="stack">
         <span>Project name</span>

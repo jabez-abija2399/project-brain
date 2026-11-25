@@ -1,6 +1,6 @@
 import { BillingButton } from "@/components/billing-button";
 import { DocPage } from "@/components/landing/doc-page";
-import { FOUNDING, PLANS } from "@brain/core";
+import { BETA, FOUNDING, PLANS } from "@brain/core";
 
 const n = (v: number | null) => (v === null ? "Unlimited" : v.toLocaleString("en-US"));
 
@@ -45,6 +45,32 @@ export function PricingBody({ signedIn, founding }: { signedIn: boolean; foundin
         Cancel any time from your account page (Manage billing). Your plan stays until the end of
         the period you paid for, then the account is on Free. Nothing is deleted.
       </p>
+    </DocPage>
+  );
+}
+
+// FEAT-027: the free beta. No prices or checkout while billing is not set up; the same limits as everywhere else.
+export function BetaPricingBody({ signedIn }: { signedIn: boolean }) {
+  return (
+    <DocPage signedIn={signedIn} title="Pricing">
+      <p>Codeceipt is free during the beta. Every account gets:</p>
+      <ul>
+        <li>
+          <strong>{BETA.projects} projects</strong>, each with a receipt for every change and the
+          secret, Supabase RLS and test checks.
+        </li>
+        <li>
+          <strong>{BETA.judgedPerMonth} AI-checked receipts a month</strong>. Past that, receipts
+          are still made from git, without the AI check, and say so. The count resets on the 1st.
+        </li>
+      </ul>
+      <p>
+        Paid plans come after the beta. We will tell you by email before anything you rely on starts
+        to cost money, and nothing you made during the beta is deleted.
+      </p>
+      <a className="btn btn-primary self-start" href={signedIn ? "/start" : "/sign-in"}>
+        Start free
+      </a>
     </DocPage>
   );
 }

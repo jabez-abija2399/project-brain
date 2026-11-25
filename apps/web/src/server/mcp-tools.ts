@@ -330,12 +330,13 @@ export function registerBrainTools(server: McpServer): void {
     "propose_checklist_change",
     {
       description:
-        "Propose rewording or dismissing a checklist item; the owner confirms it in the dashboard.",
+        "Propose rewording or dismissing a checklist item, with a reason; owner confirms.",
       inputSchema: z.object({
         projectId,
         itemId: z.string().describe("Checklist item id"),
         text: z.string().optional().describe("New wording"),
         dismiss: z.literal(true).optional().describe("Propose dismissing it"),
+        reason: z.string().optional(),
       }),
     },
     async (args, ctx) =>

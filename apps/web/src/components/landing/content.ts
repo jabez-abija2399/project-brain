@@ -1,4 +1,6 @@
 import type { Status } from "@/components/ui/status-badge";
+// Client-safe: the plans module alone (the core index pulls in Node-only modules).
+import { BETA } from "@brain/core/plans";
 
 // The landing page's words and sample data (2026-11-01 redesign). Everything here describes what is built today; the
 // receipts, terminal lines and evidence match the CLI's real output (setup-command.ts, hooks.ts, last-evidence.ts).
@@ -211,7 +213,7 @@ export const STEPS: Step[] = [
     does: [
       "Run `codeceipt last` in the same folder: done, missed and every item that needs attention, by name.",
       "Or open the Receipts page on your dashboard for the full receipt and its evidence.",
-      "Something missed? Click Send fix to agent on the receipt and paste the prompt into your agent.",
+      "Something missed? Click Copy fix for your agent on the receipt and paste the prompt into your agent.",
     ],
     lines: [
       { kind: "cmd", text: "codeceipt last --evidence" },
@@ -369,7 +371,10 @@ export const FAQ: { q: string; a: string }[] = [
     q: "Which agents does it work with?",
     a: "Claude Code, Cursor and Codex make receipts on their own. OpenCode and Antigravity work too; there you run `codeceipt receipt` when you finish.",
   },
-  { q: "What does it cost?", a: "It's free during the beta." },
+  {
+    q: "What does it cost?",
+    a: `It's free during the beta, with ${BETA.projects} projects and ${BETA.judgedPerMonth} AI-checked receipts a month. Paid plans come after the beta.`,
+  },
   {
     q: "Does it work with Lovable?",
     a: "Yes, through GitHub: connect the repository your Lovable, Bolt or Replit project pushes to, and receipts are made on push.",

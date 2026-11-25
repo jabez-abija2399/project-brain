@@ -61,7 +61,8 @@ describe("Phase 6b: the Approvals tab", () => {
     expect(html).toContain("Waiting for you: 1");
     expect(html).toContain("Remove the old cart");
     expect(html).toContain("asked by claude");
-    expect(html).toContain("Always approve this kind");
+    // FEAT-035: two choices and a "Remember my choice" box replace the four buttons.
+    expect(html).toContain("Remember my choice for this kind of action");
     expect(html).toContain("(current)");
     expect(html).toContain("Pause for 1 hour");
     expect(html).toContain("Link the cart test");

@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -35,8 +36,9 @@ export function BlueprintAction({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [ask, dialog] = useConfirm();
   async function run() {
-    if (confirm && !window.confirm(confirm)) return;
+    if (confirm && !(await ask({ title: confirm, action: label }))) return;
     setBusy(true);
     setMessage("");
     try {
@@ -62,6 +64,7 @@ export function BlueprintAction({
   }
   return (
     <span className="row">
+      {dialog}
       <Button variant={variant} loading={busy} disabled={busy} onClick={run} aria-label={ariaLabel}>
         {label}
       </Button>

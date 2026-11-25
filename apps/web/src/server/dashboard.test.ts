@@ -128,7 +128,7 @@ describe("FEAT-017 dashboard", () => {
       "1 done",
       "1 missed",
       "1 outside scope",
-      "1 findings",
+      "1 security problem",
       "src/billing/Invoice.tsx",
       "RLS is off.",
     ]) {
@@ -140,7 +140,8 @@ describe("FEAT-017 dashboard", () => {
     await seedReceipts(1);
     const page = await html(ReceiptsPage(props()));
     const copy = page.match(/data-copy="([^"]*)"/)?.[1] ?? "";
-    expect(page).toContain("Send fix to agent");
+    // FEAT-033: the button says what it does (it copies the prompt).
+    expect(page).toContain("Copy fix for your agent");
     expect(copy).toContain("2. [missed] Email the owner (0)".slice(3));
     expect(copy).not.toContain("Show the reviews list");
   });
@@ -239,7 +240,8 @@ describe("FEAT-017 checklist proposals", () => {
       new Date("2026-10-29T10:00:01Z"),
     );
     const page = await html(ProposalsPage(props()));
-    expect(page).toContain("Proposed: </span>Show the 10 newest reviews");
+    // FEAT-035: the change is shown as old (struck through) and new (added).
+    expect(page).toContain("<ins>Show the 10 newest reviews</ins>");
     expect(page).toContain("Drop item");
     const shownA = {
       proposedAt: "2026-10-29T10:00:00.123Z",

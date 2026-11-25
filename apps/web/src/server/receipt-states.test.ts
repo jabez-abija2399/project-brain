@@ -48,10 +48,11 @@ describe("receipt states", () => {
       ],
     });
     const all = badges(html);
+    // FEAT-033: the summary shows the first thing to look at; the verdict sentence names the rest.
+    expect(html).toContain("1 done, no test proves it");
     expect(all).toEqual(
       expect.arrayContaining([
         "done|✓|1 done",
-        "done_untested|✓?|1 done, no test proves it",
         "not_verified|?|1 not verified",
         "done|✓|Done",
         "done_untested|✓?|Done, no test proves it",

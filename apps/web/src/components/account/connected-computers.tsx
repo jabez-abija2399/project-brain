@@ -1,5 +1,7 @@
 "use client";
 
+import { When } from "@/components/ui/when";
+
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 
@@ -13,7 +15,7 @@ export type Computer = {
   revokedAt: string | null;
 };
 
-const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "never");
+const day = (iso: string | null) => (iso ? <When iso={iso} /> : "never");
 
 // Every CLI key on the user's projects, with revoke (asks once to confirm). Revoking uses the project's existing
 // token route, which checks that the project is the user's own.

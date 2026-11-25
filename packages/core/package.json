@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./supabase": "./src/supabase/index.ts",
-    "./indexer": "./src/indexer/index.ts"
+    "./indexer": "./src/indexer/index.ts",
+    "./plans": "./src/plans.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

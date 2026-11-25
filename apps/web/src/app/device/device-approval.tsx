@@ -58,9 +58,18 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
 
   if (done === "approved") {
     return (
-      <output className="card block result result-done">
-        <strong>Approved.</strong> Go back to your terminal: it indexes your code and sets up your
-        agents on its own. Your first receipt arrives after your next agent session.
+      <output className="card block result result-done stack">
+        <span>
+          <strong>Approved.</strong> Go back to your terminal: it reads your code and sets up your
+          agents on its own. Your first receipt arrives after your next agent session.
+        </span>
+        <span className="muted">
+          Your terminal may ask one or two yes/no questions; pressing Enter accepts the recommended
+          answer.
+        </span>
+        <a className="btn btn-primary self-start" href="/start">
+          Watch your progress on Get started
+        </a>
       </output>
     );
   }
@@ -98,8 +107,7 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
             <dd>
               {view.requestedMinutesAgo < 1
                 ? "Requested less than a minute ago."
-                : `Requested ${view.requestedMinutesAgo} minute${view.requestedMinutesAgo === 1 ? "" : "s"} ago.`}{" "}
-              If you did not just run <code>npx codeceipt</code> yourself, press Deny.
+                : `Requested ${view.requestedMinutesAgo} minute${view.requestedMinutesAgo === 1 ? "" : "s"} ago.`}
             </dd>
           </div>
         ) : null}
@@ -116,8 +124,11 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
           </dd>
         </div>
         <div>
-          <dt>What it gets</dt>
-          <dd>A key that lets it send code-free evidence and receipts to one project.</dd>
+          <dt>What approving allows</dt>
+          <dd>
+            This lets Codeceipt on this computer send receipts to one project. Your source code
+            stays on your computer; only file names and short summaries are sent.
+          </dd>
         </div>
       </dl>
       <label className="field">
@@ -152,7 +163,7 @@ export function DeviceApproval({ initialCode, view }: { initialCode: string; vie
         </ol>
       </div>
       <p className="muted m0">
-        Only approve a code you started yourself with <code>npx codeceipt</code>.
+        Didn't just run <code>npx codeceipt</code> yourself? Press Deny.
       </p>
       <div className="row">
         <Button type="submit" variant="primary" loading={busy} disabled={busy || !code}>

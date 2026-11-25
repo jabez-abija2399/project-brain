@@ -182,6 +182,30 @@
       "features": [
         "FEAT-026"
       ]
+    },
+    {
+      "id": "REQ-027",
+      "text": "Codeceipt is free during the beta, with clear per-account limits, and every page says the same thing",
+      "features": [
+        "FEAT-027"
+      ]
+    },
+    {
+      "id": "REQ-028",
+      "text": "Every page is easy to understand for non-engineers and pleasant to use (docs/design-plan-2026-11.md)",
+      "features": [
+        "FEAT-028",
+        "FEAT-029",
+        "FEAT-030",
+        "FEAT-031",
+        "FEAT-032",
+        "FEAT-033",
+        "FEAT-034",
+        "FEAT-035",
+        "FEAT-036",
+        "FEAT-037",
+        "FEAT-038"
+      ]
     }
   ],
   "features": [
@@ -2800,9 +2824,881 @@
         "apps/web/src/server/admin-funnel.test.ts",
         "packages/db/src/repos/admin.ts"
       ]
+    },
+    {
+      "id": "FEAT-027",
+      "title": "Free beta with limits: one price story everywhere",
+      "priority": 1,
+      "depends_on": [
+        "FEAT-025"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": true,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-027-01",
+          "kind": "boundary",
+          "check": "With BETA_LIMITS=on and billing not configured, an account owning 3 projects can open them all, and creating a 4th (dashboard form, /device approval or /github/select) returns 402 with the message 'The free beta includes 3 projects. Delete one or wait for paid plans.'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-01"
+        },
+        {
+          "id": "AC-027-02",
+          "kind": "boundary",
+          "check": "With BETA_LIMITS=on, the 100th receipt of a UTC calendar month across the account's projects is AI-checked; the 101st is still made from git and says 'Not AI-checked: the beta's 100 a month are used. Resets on the 1st.'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-02"
+        },
+        {
+          "id": "AC-027-03",
+          "kind": "happy",
+          "check": "Landing hero, FAQ, /pricing and /terms all say 'Free during the beta' with the same limits (3 projects, 100 AI-checked receipts a month); no paid plan, price or checkout button is rendered while BETA_LIMITS=on; Pricing is linked in the public header and footer",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "billing-beta.test AC-027-03: pricing body, FAQ, header and footer; terms page renders BETA constants (terms/page.tsx)"
+        },
+        {
+          "id": "AC-027-04",
+          "kind": "happy",
+          "check": "/account shows 'Free beta: N of 3 projects, M of 100 AI-checked receipts this month (resets on the 1st)'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-04"
+        },
+        {
+          "id": "AC-027-05",
+          "kind": "attack",
+          "check": "Limits are counted on the server from the session's account; a projectId, plan or count sent by the client, a project token, or a second browser session cannot raise them (attacker test for each create route)",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-05"
+        },
+        {
+          "id": "AC-027-06",
+          "kind": "negative",
+          "check": "With BETA_LIMITS unset and billing not configured (self-hosted, tests), no project or receipt limit applies (D-029 unchanged)",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-06"
+        }
+      ],
+      "status": "done",
+      "notes": "Limits live in packages/core/src/plans.ts as a 'beta' plan; update D-029 in docs/decisions.md and .env.example. Set BETA_LIMITS=on in Vercel after it ships.",
+      "files": [
+        ".env.example",
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/pricing/page.tsx",
+        "apps/web/src/app/terms/page.tsx",
+        "apps/web/src/components/landing/content.ts",
+        "apps/web/src/components/landing/landing.tsx",
+        "apps/web/src/components/landing/site-footer.tsx",
+        "apps/web/src/components/landing/site-header.tsx",
+        "apps/web/src/components/pricing-body.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/server/account.ts",
+        "apps/web/src/server/app-shell.test.ts",
+        "apps/web/src/server/billing-beta.test.ts",
+        "apps/web/src/server/billing.ts",
+        "apps/web/src/server/receipt.ts",
+        "packages/core/src/fix-prompt.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/plans.ts",
+        "packages/db/src/repos/billing.ts"
+      ]
+    },
+    {
+      "id": "FEAT-028",
+      "title": "Shared design foundations: dates, confirm dialog, mobile menu, glossary",
+      "priority": 2,
+      "depends_on": [],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-028-01",
+          "kind": "happy",
+          "check": "Dates in the dashboard, account and admin read 'Today 14:19', 'yesterday' or '3 days ago' in the viewer's time zone with the full date on hover; no page renders 'UTC' or a raw ISO date",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-01"
+        },
+        {
+          "id": "AC-028-02",
+          "kind": "happy",
+          "check": "One ConfirmDialog (consequence sentence, danger style, focus trapped, Escape cancels) is used for every destructive action; apps/web/src contains no window.confirm",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-02"
+        },
+        {
+          "id": "AC-028-03",
+          "kind": "happy",
+          "check": "At 375 px a Menu button in the header opens Docs, Account and Sign out; Account is also in the footer",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-03"
+        },
+        {
+          "id": "AC-028-04",
+          "kind": "permission",
+          "check": "The header and mobile menu show Admin only to logins in ADMIN_GITHUB_LOGINS; other users never see the link and /admin still answers 404 for them",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-04"
+        },
+        {
+          "id": "AC-028-05",
+          "kind": "happy",
+          "check": "Glossary terms (receipt, blueprint, checklist item, connection key, RLS, MCP) have a dotted underline whose one-sentence tooltip opens on hover and on keyboard focus, and /glossary lists them all",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-05"
+        },
+        {
+          "id": "AC-028-06",
+          "kind": "boundary",
+          "check": "Project and admin tab rows at 375 px show a fade at the scroll edge and scroll the active tab into view",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-06"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/admin/audit/page.tsx",
+        "apps/web/src/app/admin/page.tsx",
+        "apps/web/src/app/admin/users/[id]/page.tsx",
+        "apps/web/src/app/admin/users/page.tsx",
+        "apps/web/src/app/admin/waitlist/page.tsx",
+        "apps/web/src/app/api/account/admin-link/route.ts",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/glossary/page.tsx",
+        "apps/web/src/app/projects/[id]/approvals/approval-actions.tsx",
+        "apps/web/src/app/projects/[id]/approvals/page.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/blueprint-actions.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/history/page.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/overview/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/page.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/app/projects/[id]/proposals/directive-actions.tsx",
+        "apps/web/src/app/projects/[id]/proposals/page.tsx",
+        "apps/web/src/app/projects/[id]/tokens-panel.tsx",
+        "apps/web/src/app/projects/page.tsx",
+        "apps/web/src/components/account/connected-computers.tsx",
+        "apps/web/src/components/account/oauth-connections.tsx",
+        "apps/web/src/components/account/session-list.tsx",
+        "apps/web/src/components/admin/admin-nav.tsx",
+        "apps/web/src/components/landing/site-footer.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/components/shell/app-shell.tsx",
+        "apps/web/src/components/shell/user-menu.tsx",
+        "apps/web/src/components/ui/confirm-dialog.tsx",
+        "apps/web/src/components/ui/tab-row.tsx",
+        "apps/web/src/components/ui/term.tsx",
+        "apps/web/src/components/ui/when.tsx",
+        "apps/web/src/lib/glossary.ts",
+        "apps/web/src/lib/when.ts",
+        "apps/web/src/server/admin.ts",
+        "apps/web/src/server/app-shell.test.ts",
+        "apps/web/src/server/design-foundations.test.ts"
+      ]
+    },
+    {
+      "id": "FEAT-029",
+      "title": "Trust fixes: things that look broken today",
+      "priority": 3,
+      "depends_on": [
+        "FEAT-028"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-029-01",
+          "kind": "negative",
+          "check": "No rendered page contains '[REVIEW]' or '[SCREENSHOT' (privacy, terms, quickstart)",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-01"
+        },
+        {
+          "id": "AC-029-02",
+          "kind": "happy",
+          "check": "Onboarding steps read 1 'Connect this computer' (done when linked), 2 'Codeceipt reads your project' (done when indexed), 3 'Get your first receipt'; a step before a done step always shows done",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-02"
+        },
+        {
+          "id": "AC-029-03",
+          "kind": "happy",
+          "check": "Receipt summaries hide zero counts, show 'All done' when nothing is wrong, and use correct singular/plural ('1 security problem')",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-03"
+        },
+        {
+          "id": "AC-029-04",
+          "kind": "negative",
+          "check": "A user with an active paid plan who tries to delete the account sees 'Cancel your plan in Manage billing first' with the billing button, not 'Reload the page'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-04"
+        },
+        {
+          "id": "AC-029-05",
+          "kind": "happy",
+          "check": "After an admin suspends or restores a user the status badge updates without a reload; AI usage shows unit costs with 3-4 decimals",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-05"
+        },
+        {
+          "id": "AC-029-06",
+          "kind": "happy",
+          "check": "The CLI's last line says 'npx codeceipt last' when started with npx; the Suspended page's Contact support is a working link; the Connect tab's keys link opens the keys page",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-06"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        ".env.example",
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/admin/ai/page.tsx",
+        "apps/web/src/app/docs/quickstart/page.tsx",
+        "apps/web/src/app/privacy/page.tsx",
+        "apps/web/src/app/suspended/page.tsx",
+        "apps/web/src/app/terms/page.tsx",
+        "apps/web/src/components/account/delete-account.tsx",
+        "apps/web/src/components/admin/suspend-button.tsx",
+        "apps/web/src/components/journey-steps.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/lib/support.ts",
+        "apps/web/src/server/admin-section.test.ts",
+        "apps/web/src/server/connect-page.test.ts",
+        "apps/web/src/server/dashboard.test.ts",
+        "apps/web/src/server/onboarding.ts",
+        "apps/web/src/server/pages.test.ts",
+        "apps/web/src/server/receipt-card-d025.test.ts",
+        "apps/web/src/server/setup-e2e.test.ts",
+        "apps/web/src/server/start-page.test.ts",
+        "apps/web/src/server/trust-fixes.test.ts",
+        "packages/cli/src/setup-command.ts"
+      ]
+    },
+    {
+      "id": "FEAT-030",
+      "title": "Project navigation: 6 tabs with counts",
+      "priority": 4,
+      "depends_on": [
+        "FEAT-029"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-030-01",
+          "kind": "happy",
+          "check": "A project shows the tabs Overview, Receipts, Features, To decide, Blueprint, Settings; Receipts and To decide show a count badge when something waits",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:17; log contains AC-030-01"
+        },
+        {
+          "id": "AC-030-02",
+          "kind": "happy",
+          "check": "Settings holds Connect, Connection keys (renamed from Tokens everywhere), approval presets and pause, and Delete project",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:17; log contains AC-030-02"
+        },
+        {
+          "id": "AC-030-03",
+          "kind": "boundary",
+          "check": "Old URLs (/plan, /proposals, /approvals, /connect, the Tokens page) redirect to their new place with a 308",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:17; log contains AC-030-03"
+        },
+        {
+          "id": "AC-030-04",
+          "kind": "permission",
+          "check": "A signed-in user who does not own the project gets 404 on every new tab and redirect target, and badge counts never include another user's data",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:17; log contains AC-030-04"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/next.config.ts",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/approvals/approval-sections.tsx",
+        "apps/web/src/app/projects/[id]/approvals/page.tsx",
+        "apps/web/src/app/projects/[id]/connect/connect-sections.tsx",
+        "apps/web/src/app/projects/[id]/connect/page.tsx",
+        "apps/web/src/app/projects/[id]/decide/page.tsx",
+        "apps/web/src/app/projects/[id]/delete-project.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/layout.tsx",
+        "apps/web/src/app/projects/[id]/nav-counts.tsx",
+        "apps/web/src/app/projects/[id]/overview/page.tsx",
+        "apps/web/src/app/projects/[id]/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/plan-sections.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/app/projects/[id]/proposals/page.tsx",
+        "apps/web/src/app/projects/[id]/proposals/proposal-sections.tsx",
+        "apps/web/src/app/projects/[id]/settings/page.tsx",
+        "apps/web/src/app/projects/[id]/tokens-panel.tsx",
+        "apps/web/src/server/nav-counts.ts",
+        "apps/web/src/server/next-step.test.ts",
+        "apps/web/src/server/overview-page.test.ts",
+        "apps/web/src/server/plan-page.test.ts",
+        "apps/web/src/server/project-tabs.test.ts",
+        "apps/web/src/server/trust-fixes.test.ts"
+      ]
+    },
+    {
+      "id": "FEAT-031",
+      "title": "Onboarding: from sign-in to the first receipt without confusion",
+      "priority": 5,
+      "depends_on": [
+        "FEAT-030"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": true,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-031-01",
+          "kind": "happy",
+          "check": "/start shows exactly one current step with a 'Waiting for…' line, one primary action per state, and a 'Never used a terminal?' helper including 'paste this into Claude Code or Cursor'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-01"
+        },
+        {
+          "id": "AC-031-02",
+          "kind": "negative",
+          "check": "/device with an expired or used code shows 'This code expired or was already used. Run npx codeceipt again' before any form",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-02"
+        },
+        {
+          "id": "AC-031-03",
+          "kind": "happy",
+          "check": "/device explains in plain words what approving allows and that source code stays on the computer; after approval it links to Get started",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-03"
+        },
+        {
+          "id": "AC-031-04",
+          "kind": "happy",
+          "check": "The first receipt shows 'Your first receipt is here', one summary sentence and one next action; the print animation runs once and not under prefers-reduced-motion",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-04"
+        },
+        {
+          "id": "AC-031-05",
+          "kind": "attack",
+          "check": "The device approval still requires the signed-in owner's explicit Approve; a code passed in the URL alone never links a computer (attacker test)",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-05"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/device/device-approval.tsx",
+        "apps/web/src/app/device/page.tsx",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/start/build-choice.tsx",
+        "apps/web/src/app/start/page.tsx",
+        "apps/web/src/components/journey-steps.tsx",
+        "apps/web/src/server/connect-page.test.ts",
+        "apps/web/src/server/device-page.test.ts",
+        "apps/web/src/server/onboarding-flow.test.ts",
+        "apps/web/src/server/start-page.test.ts"
+      ]
+    },
+    {
+      "id": "FEAT-032",
+      "title": "Overview: one decision, one button",
+      "priority": 6,
+      "depends_on": [
+        "FEAT-030"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-032-01",
+          "kind": "happy",
+          "check": "The headline and next step are one block with one primary button; the headline count equals the number of receipts in the list under it",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:54; log contains AC-032-01"
+        },
+        {
+          "id": "AC-032-02",
+          "kind": "happy",
+          "check": "Stat cards use plain labels ('Security problems', 'Things your agent missed', 'Built as asked') and each opens the receipts list already filtered to its items",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:54; log contains AC-032-02"
+        },
+        {
+          "id": "AC-032-03",
+          "kind": "boundary",
+          "check": "With nothing needing attention the page shows 'All clear. Everything your agents did this week checks out'; at 375 px stats are a 2x2 grid",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:54; log contains AC-032-03"
+        },
+        {
+          "id": "AC-032-04",
+          "kind": "permission",
+          "check": "Filter links and counts only ever include the signed-in owner's project data",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:54; log contains AC-032-04"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/overview/page.tsx",
+        "apps/web/src/app/projects/[id]/receipts/page.tsx",
+        "apps/web/src/components/receipts-filter.tsx",
+        "apps/web/src/lib/receipt-filters.ts",
+        "apps/web/src/server/overview-page.test.ts",
+        "apps/web/src/server/overview-redesign.test.ts"
+      ]
+    },
+    {
+      "id": "FEAT-033",
+      "title": "Receipts: a sentence first, details on request",
+      "priority": 7,
+      "depends_on": [
+        "FEAT-032"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-033-01",
+          "kind": "happy",
+          "check": "Each receipt summary shows a verdict sentence and at most 3 badges; SHAs, paths and package names sit in the body or under Technical details",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-01"
+        },
+        {
+          "id": "AC-033-02",
+          "kind": "happy",
+          "check": "The feed groups receipts as Needs you / Agent is fixing / All good; 'Copy fix for your agent' copies the prompt and confirms 'Copied. Paste it into Claude Code or Cursor.'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-02"
+        },
+        {
+          "id": "AC-033-03",
+          "kind": "boundary",
+          "check": "A search or filter with no matches shows 'No receipts match … Clear search'; '?' opens the shortcut sheet",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-03"
+        },
+        {
+          "id": "AC-033-04",
+          "kind": "happy",
+          "check": "A receipt with every item done prints an 'All N items done' stamp once; Account has a switch that turns celebrations off and it is respected on every page",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-04"
+        },
+        {
+          "id": "AC-033-05",
+          "kind": "negative",
+          "check": "Text from receipts (requests, file names) is shown as text, never as HTML; a request containing <script> renders literally",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-05"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/receipts/page.tsx",
+        "apps/web/src/app/start/page.tsx",
+        "apps/web/src/components/account/celebrate-toggle.tsx",
+        "apps/web/src/components/landing/content.ts",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/components/receipts-filter.tsx",
+        "apps/web/src/components/shell/app-shell.tsx",
+        "apps/web/src/components/ui/copy-button.tsx",
+        "apps/web/src/lib/celebrate.ts",
+        "apps/web/src/server/dashboard.test.ts",
+        "apps/web/src/server/dashboard.ts",
+        "apps/web/src/server/landing-guide.test.ts",
+        "apps/web/src/server/receipt-card-size.test.ts",
+        "apps/web/src/server/receipt-states.test.ts",
+        "apps/web/src/server/receipts-redesign.test.ts",
+        "apps/web/src/server/share-links.test.ts",
+        "apps/web/src/server/shell.ts",
+        "apps/web/src/server/trust-fixes.test.ts"
+      ]
+    },
+    {
+      "id": "FEAT-034",
+      "title": "Features and Plan in plain words",
+      "priority": 8,
+      "depends_on": [
+        "FEAT-030"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-034-01",
+          "kind": "happy",
+          "check": "A feature's status agrees with its progress (any done item means at least 'In progress'); stats are the filter chips; rows open a feature page with its receipts and items",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:32; log contains AC-034-01"
+        },
+        {
+          "id": "AC-034-02",
+          "kind": "happy",
+          "check": "Plan shows 'Must' / 'Must never' with icons instead of [positive]/[negative], appears as a banner on Features when a draft waits, and offers 'Not right? Tell your agent what to change.'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:32; log contains AC-034-02"
+        },
+        {
+          "id": "AC-034-03",
+          "kind": "boundary",
+          "check": "At 375 px features show as cards, not a 6-column table",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:32; log contains AC-034-03"
+        },
+        {
+          "id": "AC-034-04",
+          "kind": "permission",
+          "check": "A feature page of another user's project answers 404",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:32; log contains AC-034-04"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/features/[featureId]/page.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/plan-sections.tsx",
+        "apps/web/src/components/features-filter.tsx",
+        "apps/web/src/server/dashboard.ts",
+        "apps/web/src/server/feature-detail.ts",
+        "apps/web/src/server/features-board.test.ts",
+        "apps/web/src/server/features-plan.test.ts",
+        "apps/web/src/server/plan-page.test.ts",
+        "packages/db/src/repos/dashboard.ts",
+        "packages/db/src/repos/receipts.ts"
+      ]
+    },
+    {
+      "id": "FEAT-035",
+      "title": "To decide: one inbox for approvals and proposals",
+      "priority": 9,
+      "depends_on": [
+        "FEAT-030"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": true,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-035-01",
+          "kind": "happy",
+          "check": "Approval requests and proposals share one list; each card has Approve and Reject, a 'Remember my choice' checkbox, actions written as sentences and 'expires in N hours'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:59; log contains AC-035-01"
+        },
+        {
+          "id": "AC-035-02",
+          "kind": "happy",
+          "check": "Proposals show the old text struck through and the new text, plus the agent's reason; Reject asks 'Why not? (optional)' and the reason reaches the agent",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:59; log contains AC-035-02"
+        },
+        {
+          "id": "AC-035-03",
+          "kind": "attack",
+          "check": "Approve and reject still require the owner's session; a project token or another user cannot approve (attacker test per action)",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:59; log contains AC-035-03"
+        },
+        {
+          "id": "AC-035-04",
+          "kind": "boundary",
+          "check": "An expired request cannot be approved and says 'This request expired'",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:59; log contains AC-035-04"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/api/projects/[id]/checklist-items/[itemId]/route.ts",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/approvals/approval-sections.tsx",
+        "apps/web/src/app/projects/[id]/approvals/request-decision.tsx",
+        "apps/web/src/app/projects/[id]/proposals/proposal-actions.tsx",
+        "apps/web/src/app/projects/[id]/proposals/proposal-sections.tsx",
+        "apps/web/src/server/approvals-page.test.ts",
+        "apps/web/src/server/approvals.ts",
+        "apps/web/src/server/checklist.ts",
+        "apps/web/src/server/dashboard.security.test.ts",
+        "apps/web/src/server/dashboard.test.ts",
+        "apps/web/src/server/dashboard.ts",
+        "apps/web/src/server/decide-inbox.test.ts",
+        "apps/web/src/server/mcp-tools.ts",
+        "packages/db/src/repos/checklist-items.ts",
+        "packages/db/src/schema/receipts.ts"
+      ]
+    },
+    {
+      "id": "FEAT-036",
+      "title": "Blueprint, Safety check and History for non-engineers",
+      "priority": 10,
+      "depends_on": [
+        "FEAT-030"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-036-01",
+          "kind": "happy",
+          "check": "Rules read as plain sentences grouped 'It does' / 'It must never'; formal wording appears only in Full detail; no all-caps rule text",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:14; log contains AC-036-01"
+        },
+        {
+          "id": "AC-036-02",
+          "kind": "happy",
+          "check": "A summary line and one health sentence per feature with one action; Safety check and History have their own title, purpose sentence and breadcrumbs",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:14; log contains AC-036-02"
+        },
+        {
+          "id": "AC-036-03",
+          "kind": "happy",
+          "check": "Safety risks are written for people; SQL and file paths sit under Technical details; Discover has a 'Confirm this feature' button with progress",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:14; log contains AC-036-03"
+        },
+        {
+          "id": "AC-036-04",
+          "kind": "negative",
+          "check": "Restoring an old version asks through ConfirmDialog and never deletes newer versions",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:14; log contains AC-036-04"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/blueprint/discover/page.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/history/page.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/page.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/server/blueprint-page.ts",
+        "apps/web/src/server/blueprint-pages.test.ts",
+        "apps/web/src/server/blueprint-redesign.test.ts"
+      ]
+    },
+    {
+      "id": "FEAT-037",
+      "title": "Account, connection keys, admin and suspended pages",
+      "priority": 11,
+      "depends_on": [
+        "FEAT-027",
+        "FEAT-028"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": true,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-037-01",
+          "kind": "happy",
+          "check": "Account shows the plan card with usage, 'Connection keys' with copy-once secret and relative dates, and 'Signed-in browsers' with a 'This browser' pill",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:29; log contains AC-037-01"
+        },
+        {
+          "id": "AC-037-02",
+          "kind": "happy",
+          "check": "Suspending a user states the consequences, takes an optional reason shown in the audit log, and uses danger style; admin overview leads with one status sentence",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:29; log contains AC-037-02"
+        },
+        {
+          "id": "AC-037-03",
+          "kind": "permission",
+          "check": "Every admin page and action still answers 404 to non-admins (attacker test)",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:29; log contains AC-037-03"
+        },
+        {
+          "id": "AC-037-04",
+          "kind": "negative",
+          "check": "'Sign out everywhere' asks 'including this browser?' before acting",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:29; log contains AC-037-04"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/admin/page.tsx",
+        "apps/web/src/app/projects/[id]/tokens-panel.tsx",
+        "apps/web/src/app/suspended/page.tsx",
+        "apps/web/src/components/account/session-list.tsx",
+        "apps/web/src/components/account/sign-out-everywhere.tsx",
+        "apps/web/src/components/admin/suspend-button.tsx",
+        "apps/web/src/server/account-admin-design.test.ts",
+        "apps/web/src/server/admin-data.ts",
+        "apps/web/src/server/auth.ts"
+      ]
+    },
+    {
+      "id": "FEAT-038",
+      "title": "Public pages: landing, pricing, quickstart, shared receipt, 404",
+      "priority": 12,
+      "depends_on": [
+        "FEAT-027"
+      ],
+      "origin": "USER REQUIREMENT",
+      "spec": null,
+      "security_sensitive": false,
+      "review_required": false,
+      "acceptance": [
+        {
+          "id": "AC-038-01",
+          "kind": "happy",
+          "check": "The landing hero shows the first step in order ('1. Run this in your app's folder', then 'Already set up? Sign in'); the page has at most 6 sections before the FAQ",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-01"
+        },
+        {
+          "id": "AC-038-02",
+          "kind": "happy",
+          "check": "Quickstart uses the same 3 steps as the landing page with the working command first and numbered troubleshooting",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-02"
+        },
+        {
+          "id": "AC-038-03",
+          "kind": "happy",
+          "check": "A shared receipt page has the public header and footer, a title, a purpose sentence and a state legend",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-03"
+        },
+        {
+          "id": "AC-038-04",
+          "kind": "negative",
+          "check": "A signed-out visitor on a 404 gets 'Home' as the primary action; a dead share link says to ask the sender for a new one",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-04"
+        },
+        {
+          "id": "AC-038-05",
+          "kind": "boundary",
+          "check": "Every public page passes at 375 and 1280 px in light and dark with no horizontal scroll",
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-05"
+        }
+      ],
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/docs/quickstart/page.tsx",
+        "apps/web/src/app/landing.css",
+        "apps/web/src/app/not-found.tsx",
+        "apps/web/src/app/r/[token]/not-found.tsx",
+        "apps/web/src/app/r/[token]/page.tsx",
+        "apps/web/src/components/landing/landing.tsx",
+        "apps/web/src/server/app-shell.test.ts",
+        "apps/web/src/server/dashboard.security.test.ts",
+        "apps/web/src/server/install-options.test.ts",
+        "apps/web/src/server/landing.test.ts",
+        "apps/web/src/server/pages.test.ts",
+        "apps/web/src/server/public-pages.test.ts"
+      ]
     }
   ],
   "meta": {
-    "tests_passed": 1537
+    "tests_passed": 2142
   }
 }

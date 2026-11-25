@@ -166,11 +166,17 @@ export const dashboardRepo = {
       JOIN requests rq ON rq.id = ci.request_id AND rq.project_id = ci.project_id
       WHERE ci.project_id = features.project_id AND rq.feature_id = features.id
         AND ci.status IN ('open', 'partial', 'missed')))::int`;
+    const hasDone = sql`EXISTS (
+      SELECT 1 FROM checklist_items ci
+      JOIN requests rq ON rq.id = ci.request_id AND rq.project_id = ci.project_id
+      WHERE ci.project_id = features.project_id AND rq.feature_id = features.id
+        AND ci.status = 'done')`;
     const [row] = await db
       .select({
         total: count(),
-        todo: sql<number>`count(*) FILTER (WHERE ${features.status} = 'todo')::int`,
-        inProgress: sql<number>`count(*) FILTER (WHERE ${features.status} = 'in_progress')::int`,
+        // FEAT-034: a planned feature with any item done counts as in progress (it is no longer "to do").
+        todo: sql<number>`count(*) FILTER (WHERE ${features.status} = 'todo' AND NOT ${hasDone})::int`,
+        inProgress: sql<number>`count(*) FILTER (WHERE ${features.status} = 'in_progress' OR (${features.status} = 'todo' AND ${hasDone}))::int`,
         done: sql<number>`count(*) FILTER (WHERE ${features.status} = 'done')::int`,
         withOpenItems: hasOpen,
       })

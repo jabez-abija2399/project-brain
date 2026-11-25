@@ -1,3 +1,4 @@
+import { CopyButton } from "@/components/ui/copy-button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { type Status, StatusBadge } from "@/components/ui/status-badge";
 import { VIEW_COOKIE, blueprintPage, viewMode } from "@/server/blueprint-page";
@@ -22,6 +23,56 @@ const KIND: Record<string, string> = {
   must_never: "Must never",
   security: "Security",
 };
+
+type Feature = {
+  name: string;
+  rules: number;
+  proven: number;
+};
+
+// FEAT-036: one plain sentence about a feature's promises.
+function healthSentence(f: Feature): string {
+  if (f.rules === 0) return `${f.name} has no promises yet. Add what it must never do.`;
+  const promises = `${f.rules} promise${f.rules === 1 ? "" : "s"}`;
+  if (f.proven === f.rules) return `${f.name}: all ${promises} are checked by tests.`;
+  if (f.proven === 0) return `${f.name}: ${promises}, none checked by a test yet.`;
+  return `${f.name}: ${promises}, ${f.proven} checked by a test.`;
+}
+
+type Rule = {
+  id: string;
+  plain: string;
+  formal: string;
+  proof: string;
+  kind: string;
+  flags: { message: string; rewrite?: string | null }[];
+};
+
+// A rule in plain words; Full detail adds the formal wording and the wording hints.
+function RuleLine({ c, detailed }: { c: Rule; detailed: boolean }) {
+  return (
+    <li className="stack gap-4">
+      <span className="row wrap">
+        {detailed ? (
+          <StatusBadge status={PROOF[c.proof]?.status ?? "open"} label={PROOF[c.proof]?.label} />
+        ) : null}
+        <span className="wrap">{c.plain}</span>
+      </span>
+      {detailed ? (
+        <>
+          <span className="muted wrap list-indent">
+            {KIND[c.kind] ?? c.kind}, formal wording: {c.formal}
+          </span>
+          {c.flags.map((x) => (
+            <span key={x.message} className="muted wrap list-indent">
+              {x.message}
+            </span>
+          ))}
+        </>
+      ) : null}
+    </li>
+  );
+}
 
 // Roadmap Phase 3c: the Blueprint tab. What the app must do and must never do, per feature, and how sure we are of
 // each rule. Agents only propose; every change here is the owner's.
@@ -50,16 +101,35 @@ export default async function BlueprintPage({
     );
   }
   const mode = viewMode((await cookies()).get(VIEW_COOKIE)?.value, query);
+  // FEAT-036: one summary line, then each feature with a health sentence and one action.
+  const rules = view.features.reduce((n, f) => n + f.rules, 0);
+  const proven = view.features.reduce((n, f) => n + f.proven, 0);
+  const parts = view.features.length;
+  const waiting = view.proposals.length;
   return (
     <main className="page stack stack-lg">
       <div>{nav}</div>
-      <div className="row wrap">
-        <span className="muted">Version {view.version}</span>
-        <Link href={`${base}/blueprint/discover`}>Discover and safety check</Link>
-        <Link href={`${base}/blueprint/history`}>History</Link>
-        {mode ? <ViewChoice current={mode} /> : null}
-      </div>
-      {!mode ? <ViewChoice current={null} /> : null}
+      <section className="overview-hero stack" aria-labelledby="blueprint-summary">
+        <h2 id="blueprint-summary" className="overview-headline">
+          {`Your app has ${parts} part${parts === 1 ? "" : "s"} and ${rules} promise${rules === 1 ? "" : "s"}.`}
+        </h2>
+        <p className="muted m0">
+          {`${proven} ${proven === 1 ? "is" : "are"} proven by tests.`}
+          {waiting > 0
+            ? ` ${waiting} suggestion${waiting === 1 ? " is" : "s are"} waiting for you.`
+            : ""}
+        </p>
+        <p className="row wrap m0">
+          {waiting > 0 ? (
+            <a className="btn btn-primary" href="#proposals-title">
+              Review {waiting === 1 ? "it" : "them"}
+            </a>
+          ) : null}
+          <Link href={`${base}/blueprint/discover`}>Safety check and Discover</Link>
+          <Link href={`${base}/blueprint/history`}>History</Link>
+          <span className="muted">Version {view.version}</span>
+        </p>
+      </section>
       {view.proposals.length > 0 ? (
         <section className="card stack" aria-labelledby="proposals-title">
           <h2 className="section-title m0" id="proposals-title">
@@ -103,7 +173,10 @@ export default async function BlueprintPage({
           </ul>
         </section>
       ) : null}
-      {!mode ? null : view.features.length === 0 ? (
+      <div className="row wrap">
+        <ViewChoice current={mode} />
+      </div>
+      {view.features.length === 0 && !mode ? null : view.features.length === 0 ? (
         <EmptyState
           title="No features yet"
           text="Index your project or approve a plan, then confirm each feature in Discover."
@@ -111,54 +184,66 @@ export default async function BlueprintPage({
         />
       ) : (
         <section className="stack" aria-label="Features">
-          {view.features.map((f) => (
-            <article key={f.id} className="card stack">
-              <h2 className="section-title m0">{f.name}</h2>
-              {f.purpose ? <p className="m0 wrap">{f.purpose}</p> : null}
-              <span className="row wrap">
-                <span>
-                  {f.rules} {f.rules === 1 ? "rule" : "rules"}: {f.proven} proven
-                  {f.doneNotProven ? `, ${f.doneNotProven} done but not proven` : ""}
+          {view.features.map((f) => {
+            const does = f.criteria.filter((c) => c.kind === "behaviour");
+            const never = f.criteria.filter((c) => c.kind !== "behaviour");
+            return (
+              <article key={f.id} className="card stack" data-feature={f.id}>
+                <h2 className="section-title m0">{f.name}</h2>
+                {f.purpose ? <p className="m0 wrap">{f.purpose}</p> : null}
+                <p className="m0 wrap" data-testid="health">
+                  {healthSentence(f)}
+                </p>
+                <span className="row wrap">
+                  {f.contradicted ? (
+                    <StatusBadge status="missed" label={`${f.contradicted} contradicted`} />
+                  ) : null}
+                  {f.rules > f.proven ? (
+                    <CopyButton
+                      label={
+                        f.rules === 0 ? "Copy a prompt to add a rule" : "Copy a prompt for tests"
+                      }
+                      text={
+                        f.rules === 0
+                          ? `Add what the ${f.name} feature must never do to the Codeceipt Blueprint, as one rule.`
+                          : `Write a test for each rule of the ${f.name} feature in the Codeceipt Blueprint that no test proves yet, and link it.`
+                      }
+                    />
+                  ) : null}
                 </span>
-                {f.contradicted ? (
-                  <StatusBadge status="missed" label={`${f.contradicted} contradicted`} />
+                {never.length > 0 ? (
+                  <div className="stack gap-6">
+                    <h3 className="subhead m0">It must never</h3>
+                    <ul className="plain-list stack gap-6">
+                      {never.map((c) => (
+                        <RuleLine key={c.id} c={c} detailed={mode === "detailed"} />
+                      ))}
+                    </ul>
+                  </div>
                 ) : null}
-                {f.noMustNever ? (
-                  <StatusBadge status="warning" label="No must-never rule yet" />
+                {does.length > 0 ? (
+                  <div className="stack gap-6">
+                    <h3 className="subhead m0">It does</h3>
+                    <ul className="plain-list stack gap-6">
+                      {does.map((c) => (
+                        <RuleLine key={c.id} c={c} detailed={mode === "detailed"} />
+                      ))}
+                    </ul>
+                  </div>
                 ) : null}
-              </span>
-              {mode === "detailed" ? (
-                <div className="stack">
-                  {f.dependsOn.length ? (
-                    <p className="muted m0">Built after: {f.dependsOn.join(", ")}</p>
-                  ) : null}
-                  {f.areas.length ? (
-                    <p className="muted m0 wrap">Files: {f.areas.join(", ")}</p>
-                  ) : null}
-                  <ul className="plain-list stack">
-                    {f.criteria.map((c) => (
-                      <li key={c.id} className="stack">
-                        <span className="row wrap">
-                          <StatusBadge
-                            status={PROOF[c.proof]?.status ?? "open"}
-                            label={PROOF[c.proof]?.label}
-                          />
-                          <span className="muted">{KIND[c.kind] ?? c.kind}</span>
-                          <span className="wrap">{c.ears ?? c.text}</span>
-                        </span>
-                        {c.flags.map((x) => (
-                          <span key={x.message} className="muted wrap list-indent">
-                            {x.message}
-                            {x.rewrite ? ` Try: ${x.rewrite}` : ""}
-                          </span>
-                        ))}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-            </article>
-          ))}
+                {mode === "detailed" ? (
+                  <div className="stack">
+                    {f.dependsOn.length ? (
+                      <p className="muted m0">Needs first: {f.dependsOn.join(", ")}</p>
+                    ) : null}
+                    {f.areas.length ? (
+                      <p className="muted m0 wrap">Files: {f.areas.join(", ")}</p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </article>
+            );
+          })}
         </section>
       )}
       {mode === "detailed" && view.boundaries.length > 0 ? (
