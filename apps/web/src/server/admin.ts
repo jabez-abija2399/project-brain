@@ -116,7 +116,11 @@ export async function pageAdmin(): Promise<Admin> {
  * pages make no GitHub call), rate limited like every admin check, and false whenever no admin is configured.
  */
 export async function pageShowsAdminLink(user: SessionUser): Promise<boolean> {
+  return showsAdminLink(user, new Request("http://localhost/", { headers: await headers() }));
+}
+
+/** FEAT-028: the same answer for the header's account menu, asked only when the user opens the menu. */
+export async function showsAdminLink(user: SessionUser, req: Request): Promise<boolean> {
   if (!(process.env.ADMIN_GITHUB_LOGINS ?? "").trim()) return false;
-  const req = new Request("http://localhost/", { headers: await headers() });
   return (await checkedLogin(user, req)) !== null;
 }

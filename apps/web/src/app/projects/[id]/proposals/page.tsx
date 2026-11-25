@@ -1,6 +1,7 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
 import { pendingProposals } from "@/server/dashboard";
 import { type ListPageProps, loadListPage, pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
@@ -33,10 +34,7 @@ export default async function ProposalsPage(props: ListPageProps) {
             {rules.map((r) => (
               <li key={r.id} className="card stack">
                 <span className="muted">
-                  Written by an agent,{" "}
-                  <time dateTime={r.createdAt}>
-                    {r.createdAt.slice(0, 16).replace("T", " ")} UTC
-                  </time>
+                  Written by an agent, <When iso={r.createdAt} />
                 </span>
                 <blockquote className="wrap m0" id={`rule-${r.id}`}>
                   {r.text}
@@ -68,10 +66,7 @@ export default async function ProposalsPage(props: ListPageProps) {
                     label={p.shownText === null ? "Drop item" : "Reword item"}
                   />
                   <span className="muted">
-                    proposed{" "}
-                    <time dateTime={p.proposedAt}>
-                      {p.proposedAt.slice(0, 16).replace("T", " ")} UTC
-                    </time>
+                    proposed <When iso={p.proposedAt} />
                   </span>
                 </span>
                 <span className="wrap">

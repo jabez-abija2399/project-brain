@@ -1,6 +1,7 @@
 import { CommandBox } from "@/components/landing/command-box";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { onboarding } from "@/server/onboarding";
@@ -63,11 +64,7 @@ export default async function ProjectsPage({
                   ) : (
                     <StatusBadge status="open" label="Waiting" />
                   )}
-                  {p.last ? (
-                    <time className="muted" dateTime={p.last.createdAt}>
-                      {p.last.createdAt.slice(0, 10)}
-                    </time>
-                  ) : null}
+                  {p.last ? <When className="muted" iso={p.last.createdAt} /> : null}
                 </span>
               </Link>
             </li>

@@ -1,10 +1,12 @@
 "use client";
 
+import { formatRelative } from "@/lib/when";
+
 import { useState } from "react";
 
 export type BrowserSession = { id: string; label: string; since: string; lastUsed: string };
 
-const day = (iso: string) => iso.slice(0, 10);
+const day = (iso: string) => formatRelative(iso);
 
 // Backlog: the account's signed-in browsers, each with its own "Sign out". Ending this browser's own session signs
 // it out on the next page load.

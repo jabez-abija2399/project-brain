@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/shell/page-header";
+import { TabRow } from "@/components/ui/tab-row";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -54,7 +55,7 @@ export function ProjectNav({
         purpose={PURPOSE[tab.href]}
         action={action}
       />
-      <nav className="project-nav" aria-label="Project">
+      <TabRow label="Project">
         {TABS.map((t) => (
           <Link
             key={t.label}
@@ -64,7 +65,7 @@ export function ProjectNav({
             {t.label}
           </Link>
         ))}
-      </nav>
+      </TabRow>
     </div>
   );
 }

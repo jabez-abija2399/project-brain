@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/ui/empty-state";
+import { When } from "@/components/ui/when";
 import { CHOICE_LABELS, PRESET_TEXT, approvalsPage } from "@/server/approvals-page";
 import { VIEW_COOKIE, viewMode } from "@/server/blueprint-page";
 import { orNotFound, pageUser } from "@/server/dashboard-page";
@@ -78,8 +79,7 @@ export default async function ApprovalsPage({
                 </span>
                 <span className="muted">
                   {RISK_LABEL[r.risk as keyof typeof RISK_LABEL] ?? r.risk} risk
-                  {r.agent ? `, asked by ${r.agent}` : ""}, expires{" "}
-                  {new Date(r.expiresAt).toUTCString()}
+                  {r.agent ? `, asked by ${r.agent}` : ""}, expires <When iso={r.expiresAt} />
                 </span>
                 <span className="row wrap">
                   <ApprovalAction
@@ -159,8 +159,7 @@ export default async function ApprovalsPage({
           {paused ? (
             <>
               <span>
-                Automatic approvals are paused until{" "}
-                {new Date(o.policy.pausedUntil ?? "").toUTCString()}.
+                Automatic approvals are paused, back on <When iso={o.policy.pausedUntil} />.
               </span>
               <ApprovalAction
                 projectId={pid}

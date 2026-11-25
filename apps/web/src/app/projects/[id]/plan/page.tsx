@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
 import { orNotFound, pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { planView } from "@/server/plan";
@@ -44,10 +45,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
             <span className="row">
               <StatusBadge status="warning" label="Waiting for your approval" />
               <span className="muted">
-                drafted{" "}
-                <time dateTime={draft.createdAt}>
-                  {draft.createdAt.slice(0, 16).replace("T", " ")} UTC
-                </time>
+                drafted <When iso={draft.createdAt} />
               </span>
             </span>
             <h2 className="section-title" id="draft-title">

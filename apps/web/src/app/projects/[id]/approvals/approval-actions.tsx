@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -37,6 +38,7 @@ export function ApprovalAction({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [ask, dialog] = useConfirm();
   async function send(confirm: boolean): Promise<void> {
     const res = await fetch(
       `/api/projects/${encodeURIComponent(projectId)}/approvals${path ? `/${path}` : ""}`,
@@ -57,7 +59,13 @@ export function ApprovalAction({
       !confirm &&
       (answer.code === "confirm_loosening" || answer.code === "confirm_remember")
     ) {
-      if (window.confirm(`${answer.message ?? "This allows more than before."} Continue?`)) {
+      if (
+        await ask({
+          title: "This allows more than before",
+          body: answer.message ?? "Your agents will be able to do more without asking you.",
+          action: "Continue",
+        })
+      ) {
         return send(true);
       }
       setMessage("Nothing was changed.");
@@ -80,6 +88,7 @@ export function ApprovalAction({
   }
   return (
     <span className="row">
+      {dialog}
       <Button variant={variant} onClick={run} loading={busy} aria-label={ariaLabel}>
         {label}
       </Button>

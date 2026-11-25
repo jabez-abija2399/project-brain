@@ -2,6 +2,7 @@ import { AdminNav } from "@/components/admin/admin-nav";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
 import { pageAdmin } from "@/server/admin";
 import { FUNNEL_WEEKS, adminFunnel, adminOverview } from "@/server/admin-data";
 import { getDb } from "@/server/db";
@@ -92,7 +93,7 @@ export default async function AdminPage() {
             <Check ok={o.health.ai} label="AI configured" />
           </ul>
           <p className="muted m0">
-            Checked {o.health.checkedAt.slice(0, 16).replace("T", " ")} UTC.
+            Checked <When iso={o.health.checkedAt} />.
           </p>
         </section>
       </div>
@@ -104,9 +105,7 @@ export default async function AdminPage() {
           <p className="muted m0">No sign-ups in the last {FUNNEL_WEEKS} weeks.</p>
         ) : (
           <table className="table">
-            <caption>
-              Sign-ups in the last {FUNNEL_WEEKS} weeks (weeks start on Monday, UTC)
-            </caption>
+            <caption>Sign-ups in the last {FUNNEL_WEEKS} weeks (weeks start on Monday)</caption>
             <thead>
               <tr>
                 <th scope="col">Week of</th>

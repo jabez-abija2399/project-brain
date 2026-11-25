@@ -1,3 +1,4 @@
+import { TabRow } from "@/components/ui/tab-row";
 import Link from "next/link";
 
 const TABS = [
@@ -11,12 +12,12 @@ const TABS = [
 // The admin section's tabs (only rendered on admin pages, which check the admin first).
 export function AdminNav({ current }: { current: (typeof TABS)[number]["href"] }) {
   return (
-    <nav className="project-nav" aria-label="Admin">
+    <TabRow label="Admin">
       {TABS.map((t) => (
         <Link key={t.href} href={t.href} aria-current={t.href === current ? "page" : undefined}>
           {t.label}
         </Link>
       ))}
-    </nav>
+    </TabRow>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { When } from "@/components/ui/when";
+
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 
@@ -12,7 +14,7 @@ export type Connection = {
   revokedAt: string | null;
 };
 
-const day = (iso: string | null) => (iso ? iso.slice(0, 10) : "never");
+const day = (iso: string | null) => (iso ? <When iso={iso} /> : "never");
 
 // The apps connected by signing in (MCP OAuth). Revoking ends that app's access and refresh tokens at once.
 export function OAuthConnections({ initial }: { initial: Connection[] }) {

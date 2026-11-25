@@ -1,3 +1,4 @@
+import { When } from "@/components/ui/when";
 import {
   BETA,
   NO_REQUEST_NOTE,
@@ -112,9 +113,7 @@ export function ReceiptCard({
         summary={
           <div className="stack gap-6">
             <span className="muted receipt-meta">
-              <time dateTime={receipt.createdAt}>
-                {receipt.createdAt.slice(0, 16).replace("T", " ")} UTC
-              </time>
+              <When iso={receipt.createdAt} />
               {receipt.commitSha && (
                 <>
                   {" · "}

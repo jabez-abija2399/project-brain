@@ -1,5 +1,6 @@
 import { AdminNav } from "@/components/admin/admin-nav";
 import { PageHeader } from "@/components/shell/page-header";
+import { When } from "@/components/ui/when";
 import { pageAdmin } from "@/server/admin";
 import { getDb } from "@/server/db";
 import { MAX_PAGE_SIZE, waitlistRepo } from "@brain/db";
@@ -53,7 +54,9 @@ export default async function WaitlistAdminPage({
                 <td data-label="Email" className="mono wrap">
                   {row.email}
                 </td>
-                <td data-label="Joined">{row.createdAt.toISOString().slice(0, 10)}</td>
+                <td data-label="Joined">
+                  <When iso={row.createdAt.toISOString()} format="day" />
+                </td>
               </tr>
             ))}
           </tbody>

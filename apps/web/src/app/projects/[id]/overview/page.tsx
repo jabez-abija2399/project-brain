@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
 import { orNotFound, pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { projectOverview } from "@/server/overview";
@@ -147,9 +148,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
                         <StatusBadge key={r} status="missed" label={r} />
                       ))}
                     </span>
-                    <time className="muted" dateTime={a.createdAt}>
-                      {a.createdAt.slice(0, 16).replace("T", " ")} UTC
-                    </time>
+                    <When className="muted" iso={a.createdAt} />
                   </Link>
                 </li>
               ))}

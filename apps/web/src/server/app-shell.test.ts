@@ -64,17 +64,18 @@ describe("app shell", () => {
       "/privacy",
       "/terms",
       "https://www.npmjs.com/package/codeceipt",
+      "/account",
     ]);
-    // Signed in, the footer offers no Sign in.
+    // Signed in, the footer offers Account instead of Sign in (FEAT-028: Account is reachable on phones).
     expect(html.slice(html.indexOf("<footer"))).not.toContain("Sign in");
   });
 
   it("the footer is the same as the landing page's (same links, same order)", async () => {
     const { Landing } = await import("@/components/landing/landing");
     const landing = renderToStaticMarkup(createElement(Landing));
-    // Signed in, the footer is the landing page's without its Sign in link.
+    // Signed in, the footer is the landing page's with Account in place of its Sign in link.
     expect(footerLinks(await shell())).toEqual(
-      footerLinks(landing).filter((h) => h !== "/sign-in"),
+      footerLinks(landing).map((h) => (h === "/sign-in" ? "/account" : h)),
     );
   });
 

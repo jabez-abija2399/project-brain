@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { type Status, StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
 import { boardSort, featureBoard } from "@/server/dashboard";
 import { type ListPageProps, loadListPage } from "@/server/dashboard-page";
 import Link from "next/link";
@@ -27,7 +28,11 @@ const DAY_MS = 86_400_000;
 function ago(iso: string, now: Date): string {
   const days = Math.floor(
     (Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) -
-      Date.parse(`${iso.slice(0, 10)}T00:00:00.000Z`)) /
+      Date.UTC(
+        new Date(iso).getUTCFullYear(),
+        new Date(iso).getUTCMonth(),
+        new Date(iso).getUTCDate(),
+      )) /
       DAY_MS,
   );
   return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
@@ -152,7 +157,7 @@ export default async function FeatureBoardPage(props: ListPageProps) {
                   cell: (r) =>
                     r.lastReceiptAt ? (
                       <span className="receipt-when">
-                        <time dateTime={r.lastReceiptAt}>{r.lastReceiptAt.slice(0, 10)}</time>
+                        <When iso={r.lastReceiptAt} format="day" />
                         <span className="muted">{ago(r.lastReceiptAt, now)}</span>
                       </span>
                     ) : (

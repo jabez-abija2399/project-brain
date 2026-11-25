@@ -6,6 +6,8 @@ import { SignOutEverywhere } from "@/components/account/sign-out-everywhere";
 import { BillingButton } from "@/components/billing-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { When } from "@/components/ui/when";
+import { formatDay } from "@/lib/when";
 import { accountView, sessionsView } from "@/server/account";
 import { pageShowsAdminLink } from "@/server/admin";
 import { pageUser } from "@/server/dashboard-page";
@@ -53,7 +55,7 @@ export default async function AccountPage() {
             {a.name}
           </h2>
           <p className="muted m0">
-            {a.email} · signed in with GitHub since {a.createdAt.slice(0, 10)}
+            {a.email} · signed in with GitHub since <When iso={a.createdAt} format="day" />
           </p>
           {admin ? (
             <p className="m0">
@@ -76,7 +78,7 @@ export default async function AccountPage() {
         ) : (
           <p className="muted m0">
             You are on the {a.billing.plan} plan
-            {a.billing.endsAt ? `; it ends on ${a.billing.endsAt.slice(0, 10)}, then Free` : ""}.
+            {a.billing.endsAt ? `; it ends on ${formatDay(a.billing.endsAt)}, then Free` : ""}.
           </p>
         )}
         {a.billing.beta ? null : a.billing.subscribed ? (

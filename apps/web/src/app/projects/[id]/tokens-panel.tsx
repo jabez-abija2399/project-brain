@@ -1,5 +1,8 @@
 "use client";
 
+import { When } from "@/components/ui/when";
+import { formatRelative } from "@/lib/when";
+
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 
@@ -56,7 +59,6 @@ export default function ProjectTokensPanel({
   }
 
   async function revoke(tokenId: string) {
-    if (!window.confirm("Revoke this token? Any machine using it will stop working.")) return;
     setBusy(true);
     setError(null);
     try {
@@ -122,7 +124,9 @@ export default function ProjectTokensPanel({
                 <td data-label="Token">
                   <span className="mono">{t.id.slice(0, 8)}</span>
                 </td>
-                <td data-label="Created">{new Date(t.createdAt).toLocaleDateString()}</td>
+                <td data-label="Created">
+                  <When iso={t.createdAt} format="day" />
+                </td>
                 <td data-label="Status">
                   {t.revokedAt ? (
                     <StatusBadge status="missed" label="Revoked" />
@@ -131,7 +135,7 @@ export default function ProjectTokensPanel({
                       status="done"
                       label={
                         t.lastUsedAt
-                          ? `Active, last used ${new Date(t.lastUsedAt).toLocaleDateString()}`
+                          ? `Active, last used ${formatRelative(t.lastUsedAt)}`
                           : "Active, never used"
                       }
                     />

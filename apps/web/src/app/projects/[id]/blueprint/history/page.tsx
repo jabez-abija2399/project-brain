@@ -1,3 +1,4 @@
+import { When } from "@/components/ui/when";
 import { historyPage } from "@/server/blueprint-page";
 import { orNotFound, pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
@@ -45,9 +46,7 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
               {REASON[v.reason] ?? v.reason}
               {v.restoredFrom ? ` (from version ${v.restoredFrom})` : ""}
             </span>
-            <time className="muted" dateTime={v.createdAt.toISOString()}>
-              {v.createdAt.toISOString().slice(0, 16).replace("T", " ")} UTC
-            </time>
+            <When className="muted" iso={v.createdAt.toISOString()} />
             {v.version === view.current ? (
               <span className="muted">Current</span>
             ) : (
