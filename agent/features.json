@@ -3643,48 +3643,62 @@
           "id": "AC-038-01",
           "kind": "happy",
           "check": "The landing hero shows the first step in order ('1. Run this in your app's folder', then 'Already set up? Sign in'); the page has at most 6 sections before the FAQ",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-01"
         },
         {
           "id": "AC-038-02",
           "kind": "happy",
           "check": "Quickstart uses the same 3 steps as the landing page with the working command first and numbered troubleshooting",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-02"
         },
         {
           "id": "AC-038-03",
           "kind": "happy",
           "check": "A shared receipt page has the public header and footer, a title, a purpose sentence and a state legend",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-03"
         },
         {
           "id": "AC-038-04",
           "kind": "negative",
           "check": "A signed-out visitor on a 404 gets 'Home' as the primary action; a dead share link says to ask the sender for a new one",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-04"
         },
         {
           "id": "AC-038-05",
           "kind": "boundary",
           "check": "Every public page passes at 375 and 1280 px in light and dark with no horizontal scroll",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:56; log contains AC-038-05"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/docs/quickstart/page.tsx",
+        "apps/web/src/app/landing.css",
+        "apps/web/src/app/not-found.tsx",
+        "apps/web/src/app/r/[token]/not-found.tsx",
+        "apps/web/src/app/r/[token]/page.tsx",
+        "apps/web/src/components/landing/landing.tsx",
+        "apps/web/src/server/app-shell.test.ts",
+        "apps/web/src/server/dashboard.security.test.ts",
+        "apps/web/src/server/install-options.test.ts",
+        "apps/web/src/server/landing.test.ts",
+        "apps/web/src/server/pages.test.ts",
+        "apps/web/src/server/public-pages.test.ts"
+      ]
     }
   ],
   "meta": {
-    "tests_passed": 2137
+    "tests_passed": 2142
   }
 }
