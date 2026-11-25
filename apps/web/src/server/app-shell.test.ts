@@ -60,6 +60,7 @@ describe("app shell", () => {
     expect(html).toContain('<div id="content" class="shell-body"><main>page body</main></div>');
     expect(footerLinks(html)).toEqual([
       "/docs/quickstart",
+      "/pricing",
       "/privacy",
       "/terms",
       "https://www.npmjs.com/package/codeceipt",

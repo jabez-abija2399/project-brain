@@ -125,7 +125,9 @@ describe("FEAT-027 free beta with limits", () => {
     );
     const { FAQ } = await import("@/components/landing/content");
     const cost = FAQ.find((f) => f.q === "What does it cost?");
-    expect(cost?.a).toContain(BETA_SUMMARY);
+    expect(cost?.a).toContain(
+      "free during the beta, with 3 projects and 100 AI-checked receipts a month",
+    );
     const { SiteHeader } = await import("@/components/landing/site-header");
     const { SiteFooter } = await import("@/components/landing/site-footer");
     expect(renderToStaticMarkup(createElement(SiteHeader, {}))).toContain('href="/pricing"');
