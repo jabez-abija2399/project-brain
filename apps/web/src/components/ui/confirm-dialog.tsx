@@ -32,7 +32,8 @@ export function useConfirm(): [(options: ConfirmOptions) => Promise<boolean>, Re
     },
     [pending],
   );
-  return [confirm, pending ? <ConfirmDialog {...pending} onClose={close} /> : null];
+  const node = pending ? <ConfirmDialog key="confirm" {...pending} onClose={close} /> : null;
+  return [confirm, node];
 }
 
 export function ConfirmDialog({
@@ -43,10 +44,13 @@ export function ConfirmDialog({
   onClose,
 }: ConfirmOptions & { onClose: (ok: boolean) => void }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const cancel = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     const dialog = ref.current;
     const opener = document.activeElement as HTMLElement | null;
     if (dialog && !dialog.open) dialog.showModal?.();
+    // The safe choice has focus first.
+    cancel.current?.focus();
     return () => opener?.focus?.();
   }, []);
   return (
@@ -64,7 +68,7 @@ export function ConfirmDialog({
       </h2>
       {body ? <div className="muted">{body}</div> : null}
       <div className="row gap-8 confirm-actions">
-        <button type="button" className="btn btn-ghost" onClick={() => onClose(false)} autoFocus>
+        <button ref={cancel} type="button" className="btn btn-ghost" onClick={() => onClose(false)}>
           Cancel
         </button>
         <button

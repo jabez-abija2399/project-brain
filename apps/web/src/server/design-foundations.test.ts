@@ -94,7 +94,7 @@ describe("FEAT-028 shared design foundations", () => {
     expect(html).toContain('<dialog class="confirm-dialog" aria-labelledby="confirm-title">');
     expect(html).toContain("The computer using it stops sending receipts at once.");
     expect(html).toContain('class="btn btn-danger">Revoke key</button>');
-    expect(html).toMatch(/autofocus="">Cancel<\/button>/i);
+    expect(html).toContain('<button type="button" class="btn btn-ghost">Cancel</button>');
     const users = sourceFiles(SRC).filter((f) =>
       readFileSync(f, "utf8").includes("window.confirm"),
     );
@@ -161,10 +161,7 @@ describe("FEAT-028 shared design foundations", () => {
 
   it("AC-028-06 tab rows shade the scroll edge on phones and know when the row is scrolled to its end", () => {
     const html = render(
-      createElement(TabRow, {
-        label: "Project",
-        children: createElement("a", { href: "#" }, "Overview"),
-      }),
+      createElement(TabRow, { label: "Project" }, createElement("a", { href: "#" }, "Overview")),
     );
     expect(html).toBe(
       '<nav class="project-nav" aria-label="Project" data-end="false"><a href="#">Overview</a></nav>',

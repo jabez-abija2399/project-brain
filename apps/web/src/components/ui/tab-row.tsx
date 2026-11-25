@@ -4,7 +4,7 @@ import { type ReactNode, useEffect, useRef, useState } from "react";
 
 // FEAT-028: a row of tabs that scrolls sideways on phones. The current tab is scrolled into view, and a fade at the
 // right edge shows there is more until the row is scrolled to its end.
-export function TabRow({ label, children }: { label: string; children: ReactNode }) {
+export function TabRow({ label, children }: { label: string; children?: ReactNode }) {
   const ref = useRef<HTMLElement>(null);
   const [atEnd, setAtEnd] = useState(false);
   useEffect(() => {
