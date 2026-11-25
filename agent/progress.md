@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-029 trust fixes | status: done
+Changed: privacy/terms REVIEW notes and quickstart screenshot boxes no longer render (kept in code); onboarding steps relabelled (Connect this computer / Codeceipt reads your project / Get your first receipt) and an earlier step is done when a later one is; receipt summaries hide zero counts, show "All done", say "1 security problem"; paid-plan delete shows Manage billing first and the client shows the 409 message; suspend refreshes the page; AI unit cost 4 decimals; CLI prints `npx codeceipt last` when only npx ran; lib/support.ts (SUPPORT_EMAIL or GitHub issues) on Suspended and Privacy. Older tests that pinned the old behaviour now assert the new one.
+Verified (ran this session): verify.sh PASS; trust-fixes.test (6) + setup-e2e AC-029-06.
+NOT VERIFIED: browser check; SUPPORT_EMAIL not set in Vercel (owner).
+Next: FEAT-030 project navigation.
+
 ## 2026-11-25 | FEAT-028 shared design foundations | status: done
 Changed: lib/when.ts + ui/when.tsx (relative/day dates, local time in the browser, no "UTC") used on every dashboard, account and admin date; ui/confirm-dialog.tsx (native dialog, consequence, danger) replaces all window.confirm; shell/user-menu.tsx (Account, Docs on phones, Glossary, Sign out; Admin asked from /api/account/admin-link only when opened); footer Account link; ui/tab-row.tsx (current tab in view, edge shadow on phones); lib/glossary.ts + ui/term.tsx + /glossary. DESIGN.md inventory rows.
 Verified (ran this session): verify.sh PASS; design-foundations.test (6, one per AC; admin-link permission test).

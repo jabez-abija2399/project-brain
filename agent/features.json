@@ -3028,53 +3028,77 @@
           "id": "AC-029-01",
           "kind": "negative",
           "check": "No rendered page contains '[REVIEW]' or '[SCREENSHOT' (privacy, terms, quickstart)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-01"
         },
         {
           "id": "AC-029-02",
           "kind": "happy",
           "check": "Onboarding steps read 1 'Connect this computer' (done when linked), 2 'Codeceipt reads your project' (done when indexed), 3 'Get your first receipt'; a step before a done step always shows done",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-02"
         },
         {
           "id": "AC-029-03",
           "kind": "happy",
           "check": "Receipt summaries hide zero counts, show 'All done' when nothing is wrong, and use correct singular/plural ('1 security problem')",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-03"
         },
         {
           "id": "AC-029-04",
           "kind": "negative",
           "check": "A user with an active paid plan who tries to delete the account sees 'Cancel your plan in Manage billing first' with the billing button, not 'Reload the page'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-04"
         },
         {
           "id": "AC-029-05",
           "kind": "happy",
           "check": "After an admin suspends or restores a user the status badge updates without a reload; AI usage shows unit costs with 3-4 decimals",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-05"
         },
         {
           "id": "AC-029-06",
           "kind": "happy",
           "check": "The CLI's last line says 'npx codeceipt last' when started with npx; the Suspended page's Contact support is a working link; the Connect tab's keys link opens the keys page",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:59; log contains AC-029-06"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        ".env.example",
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/admin/ai/page.tsx",
+        "apps/web/src/app/docs/quickstart/page.tsx",
+        "apps/web/src/app/privacy/page.tsx",
+        "apps/web/src/app/suspended/page.tsx",
+        "apps/web/src/app/terms/page.tsx",
+        "apps/web/src/components/account/delete-account.tsx",
+        "apps/web/src/components/admin/suspend-button.tsx",
+        "apps/web/src/components/journey-steps.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/lib/support.ts",
+        "apps/web/src/server/admin-section.test.ts",
+        "apps/web/src/server/connect-page.test.ts",
+        "apps/web/src/server/dashboard.test.ts",
+        "apps/web/src/server/onboarding.ts",
+        "apps/web/src/server/pages.test.ts",
+        "apps/web/src/server/receipt-card-d025.test.ts",
+        "apps/web/src/server/setup-e2e.test.ts",
+        "apps/web/src/server/start-page.test.ts",
+        "apps/web/src/server/trust-fixes.test.ts",
+        "packages/cli/src/setup-command.ts"
+      ]
     },
     {
       "id": "FEAT-030",
@@ -3535,6 +3559,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2096
+    "tests_passed": 2103
   }
 }
