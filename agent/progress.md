@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-035 To decide | status: done
+Changed: requests read "Your agent wants to: <action>" with Approve / Reject and a Remember-my-choice box (approvals/request-decision.tsx); expired requests say so and the decide route answers 409 "This request expired"; proposals show old (del) and new (ins) with the agent's optional reason (propose_checklist_change `reason`, kept in proposedChange; repo compares proposals with sorted keys); Reject asks "Why not? (optional)" and records it as a decision agents read. MCP tool list kept within its 6500-byte budget.
+Verified (ran this session): verify.sh PASS; decide-inbox.test (4, one per AC; token and stranger attacks on approve, reject, confirm).
+NOT VERIFIED: browser check; the why-not decision in a real agent's start note (decisions are listed there already).
+Next: FEAT-036 Blueprint.
+
 ## 2026-11-25 | FEAT-034 features and plan | status: done
 Changed: a todo feature with a done item reads In progress (board rows in server/dashboard.ts and the counts in dashboardRepo.featureCounts); chips carry the counts (mini-stats removed); feature names link to the new features/[featureId] page (server/feature-detail.ts, receiptsRepo.listForFeature: status, progress, items, receipts); "Nothing planned yet" text; plan items read Must / Must never; plan banner on Features; "Not right? Tell your agent what to change"; files column hidden on phones. features-board and plan-page tests follow the approved wording.
 Verified (ran this session): verify.sh PASS; features-plan.test (4, one per AC; 404 for another user's or another project's feature).

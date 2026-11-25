@@ -3458,37 +3458,55 @@
           "id": "AC-035-01",
           "kind": "happy",
           "check": "Approval requests and proposals share one list; each card has Approve and Reject, a 'Remember my choice' checkbox, actions written as sentences and 'expires in N hours'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:59; log contains AC-035-01"
         },
         {
           "id": "AC-035-02",
           "kind": "happy",
           "check": "Proposals show the old text struck through and the new text, plus the agent's reason; Reject asks 'Why not? (optional)' and the reason reaches the agent",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:59; log contains AC-035-02"
         },
         {
           "id": "AC-035-03",
           "kind": "attack",
           "check": "Approve and reject still require the owner's session; a project token or another user cannot approve (attacker test per action)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:59; log contains AC-035-03"
         },
         {
           "id": "AC-035-04",
           "kind": "boundary",
           "check": "An expired request cannot be approved and says 'This request expired'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:59; log contains AC-035-04"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/api/projects/[id]/checklist-items/[itemId]/route.ts",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/approvals/approval-sections.tsx",
+        "apps/web/src/app/projects/[id]/approvals/request-decision.tsx",
+        "apps/web/src/app/projects/[id]/proposals/proposal-actions.tsx",
+        "apps/web/src/app/projects/[id]/proposals/proposal-sections.tsx",
+        "apps/web/src/server/approvals-page.test.ts",
+        "apps/web/src/server/approvals.ts",
+        "apps/web/src/server/checklist.ts",
+        "apps/web/src/server/dashboard.security.test.ts",
+        "apps/web/src/server/dashboard.test.ts",
+        "apps/web/src/server/dashboard.ts",
+        "apps/web/src/server/decide-inbox.test.ts",
+        "apps/web/src/server/mcp-tools.ts",
+        "packages/db/src/repos/checklist-items.ts",
+        "packages/db/src/schema/receipts.ts"
+      ]
     },
     {
       "id": "FEAT-036",
@@ -3645,6 +3663,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2125
+    "tests_passed": 2129
   }
 }
