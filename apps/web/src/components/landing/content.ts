@@ -1,5 +1,6 @@
 import type { Status } from "@/components/ui/status-badge";
-import { BETA } from "@brain/core";
+// Client-safe: the plans module alone (the core index pulls in Node-only modules).
+import { BETA } from "@brain/core/plans";
 
 // The landing page's words and sample data (2026-11-01 redesign). Everything here describes what is built today; the
 // receipts, terminal lines and evidence match the CLI's real output (setup-command.ts, hooks.ts, last-evidence.ts).
