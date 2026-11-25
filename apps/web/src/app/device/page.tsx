@@ -70,5 +70,17 @@ async function approval(user: SessionUser, code: string) {
     }
     throw err;
   }
+  // FEAT-031: a code that expired or was already used is caught before the form, not after Approve.
+  if (code && !view.code) {
+    return (
+      <div className="card stack" role="alert" data-testid="device-expired">
+        <h2 className="section-title m0">This code expired or was already used</h2>
+        <p className="m0">
+          Run <code>npx codeceipt</code> again in your app's folder to get a new code. Codes last 10
+          minutes and work once.
+        </p>
+      </div>
+    );
+  }
   return <DeviceApproval initialCode={code} view={view} />;
 }

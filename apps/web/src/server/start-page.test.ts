@@ -86,7 +86,11 @@ describe("guided start page", () => {
     expect(t).toContain("Codeceipt reads your project");
     expect(t).toContain("Get your first receipt");
     expect(steps(html)).toEqual(["1:waiting", "2:waiting", "3:waiting"]);
-    expect([...html.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1])).toEqual(["npx codeceipt"]);
+    // FEAT-031: plus the prompt that lets the agent run it (the "Never used a terminal?" helper).
+    expect([...html.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1])).toEqual([
+      "npx codeceipt",
+      "Run npx codeceipt in this project and tell me the code it shows.",
+    ]);
     // The page keeps checking on its own while a step is waiting.
     expect(html).toContain('data-live="on"');
   });

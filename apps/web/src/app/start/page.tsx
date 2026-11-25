@@ -1,6 +1,7 @@
 import { JourneySteps } from "@/components/journey-steps";
 import { ReceiptCard } from "@/components/receipt-card";
 import { PageHeader } from "@/components/shell/page-header";
+import { Disclosure } from "@/components/ui/disclosure";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildPreference } from "@/server/build-preference";
@@ -48,6 +49,20 @@ async function rememberedBuild(): Promise<string | undefined> {
   }
 }
 
+const FIRST_RECEIPT_FALLBACK = "Codeceipt checked your agent's work against what you asked.";
+
+// FEAT-031: one plain sentence about the first receipt ("Your agent did 3 of 4 things you asked; 1 needs a look").
+function firstReceiptSentence(view: { items: { status: string }[] }): string {
+  const asked = view.items.filter((i) => i.status !== "question").length;
+  if (asked === 0) return FIRST_RECEIPT_FALLBACK;
+  const done = view.items.filter((i) => i.status === "done" || i.status === "done_untested").length;
+  const look = asked - done;
+  const things = `thing${asked === 1 ? "" : "s"}`;
+  return look === 0
+    ? `Your agent did all ${asked} ${things} you asked. Every one is in the receipt below.`
+    : `Your agent did ${done} of ${asked} ${things} you asked; ${look} need${look === 1 ? "s" : ""} a look.`;
+}
+
 export default async function StartPage({
   searchParams,
 }: { searchParams?: Promise<{ build?: string }> } = {}) {
@@ -73,8 +88,10 @@ export default async function StartPage({
             : "Three steps, about five minutes. Your code stays on your machine."
         }
         action={
-          receipts ? (
-            <Link className="btn btn-primary" href={receipts}>
+          // FEAT-031: one primary action per state; the receipts are the next step only once one exists.
+          // With the first receipt on the page, its own "Send fix to agent" is the primary action.
+          receipts && steps.receipt ? (
+            <Link className="btn btn-secondary" href={receipts}>
               Open all receipts
             </Link>
           ) : undefined
@@ -84,8 +101,7 @@ export default async function StartPage({
         <output className="celebrate">
           <StatusBadge status="done" label="All 3 steps done" />
           <p className="m0">
-            Codeceipt checked your agent's work against your request, from git. Read the receipt
-            below; each part is explained under it.
+            {receipt ? firstReceiptSentence(receipt.view) : FIRST_RECEIPT_FALLBACK}
           </p>
         </output>
       ) : (
@@ -133,16 +149,24 @@ export default async function StartPage({
           <h2 className="section-title" id="first-receipt">
             Your first receipt
           </h2>
-          <ReceiptCard receipt={receipt} expanded />
-          <h3 className="subhead">How to read it</h3>
-          <dl className="guide">
-            {RECEIPT_GUIDE.map(([term, meaning]) => (
-              <div key={term}>
-                <dt>{term}:</dt>
-                <dd>{meaning}</dd>
-              </div>
-            ))}
-          </dl>
+          {/* FEAT-031: the first receipt prints once (not with prefers-reduced-motion). */}
+          <div className="print-once">
+            <ReceiptCard receipt={receipt} expanded />
+          </div>
+          <Disclosure open summary={<span className="subhead">How to read it</span>}>
+            <dl className="guide">
+              {RECEIPT_GUIDE.map(([term, meaning]) => (
+                <div key={term}>
+                  <dt>{term}:</dt>
+                  <dd>{meaning}</dd>
+                </div>
+              ))}
+            </dl>
+          </Disclosure>
+          <p className="m0">
+            Next: ask your agent for your next change. Every session ends with a receipt like this
+            one.
+          </p>
         </section>
       ) : null}
       <Link className="self-start" href="/projects?all=1">

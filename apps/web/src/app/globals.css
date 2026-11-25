@@ -1639,3 +1639,59 @@ a.stat-card:hover {
   line-height: 20px;
   text-align: center;
 }
+/* FEAT-031: onboarding steps (one current, later ones dimmed), the terminal helper and the first-receipt print. */
+.journey-step-later {
+  opacity: 0.6;
+}
+.journey-step-current {
+  border-color: var(--accent);
+}
+.journey-waiting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+.journey-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: journey-pulse 1.6s var(--ease) infinite;
+}
+@keyframes journey-pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+.terminal-help summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.terminal-help[open] summary {
+  margin-bottom: 8px;
+}
+.print-once {
+  animation: receipt-print 900ms var(--ease) 1 both;
+  transform-origin: top;
+}
+@keyframes receipt-print {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .journey-dot,
+  .print-once {
+    animation: none;
+  }
+}
+.btn-chosen {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}

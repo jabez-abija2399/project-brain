@@ -19,7 +19,7 @@ export function BuildChoice({
         <a
           key={style}
           href={`/start?build=${encodeURIComponent(style)}`}
-          className={`btn ${current === style ? "btn-primary" : "btn-secondary"}`}
+          className={`btn btn-secondary${current === style ? " btn-chosen" : ""}`}
           aria-current={current === style ? "true" : undefined}
           onClick={() => {
             const secure = window.location.protocol === "https:" ? "; secure" : "";
