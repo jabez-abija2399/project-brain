@@ -9,6 +9,17 @@ import { BlueprintEmpty } from "../not-ready";
 
 export const dynamic = "force-dynamic";
 
+// FEAT-036: each risk said the way a person would say it (the check's own wording stays under Technical details).
+const HEADLINE: Record<string, string> = {
+  secret: "A secret key is in your code, where others could find it",
+  rls_disabled: "Anyone on the internet can read and change this table",
+  policy_allows_everyone_to_write: "Anyone on the internet can write to this table",
+  rls_cannot_be_confirmed: "We can't confirm that this table is protected",
+  test_integrity: "Tests were removed or weakened",
+  no_must_never: "Some features have no rule for what must never happen",
+};
+const capitalize = (t: string) => `${t.charAt(0).toUpperCase()}${t.slice(1)}`;
+
 // Roadmap Phase 3c: Discover (the app as built, confirmed one feature at a time) and the safety check (the most
 // important existing risks, each with a prompt to hand to your agent).
 export default async function DiscoverPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,7 +28,16 @@ export default async function DiscoverPage({ params }: { params: Promise<{ id: s
   const view = await orNotFound(() => discoverPage(getDb(), user, id));
   const base = `/projects/${view.project.id}`;
   const nav = (
-    <ProjectNav projectId={view.project.id} current="blueprint" name={view.project.name} />
+    <ProjectNav
+      projectId={view.project.id}
+      current="blueprint"
+      name={view.project.name}
+      sub={{
+        label: "Safety check",
+        purpose:
+          "Problems that could hurt your users, most urgent first, then your app's parts to confirm.",
+      }}
+    />
   );
   if (!view.ready) {
     return (
@@ -51,10 +71,14 @@ export default async function DiscoverPage({ params }: { params: Promise<{ id: s
                     status={r.severity === "high" ? "missed" : "warning"}
                     label={r.severity === "high" ? "Fix first" : "Check"}
                   />
-                  <strong>{r.title}</strong>
+                  <strong>{HEADLINE[r.kind] ?? capitalize(r.title)}</strong>
                 </span>
-                <span className="muted wrap">{r.where}</span>
-                <span className="wrap">{r.why}</span>
+                {/* FEAT-036: the people version first; paths, tables and SQL sit under Technical details. */}
+                <details className="tech-details">
+                  <summary>Technical details</summary>
+                  <p className="muted wrap m0">{r.where}</p>
+                  <p className="wrap m0">{r.why}</p>
+                </details>
                 <CopyButton text={r.fixPrompt} label="Fix with my agent" />
               </li>
             ))}
@@ -65,17 +89,45 @@ export default async function DiscoverPage({ params }: { params: Promise<{ id: s
         <h2 className="section-title m0" id="discover-title">
           Discover: {confirmed} of {view.discover.features.length} features confirmed
         </h2>
+        <progress
+          className="progress"
+          value={confirmed}
+          max={Math.max(1, view.discover.features.length)}
+          aria-label={`${confirmed} of ${view.discover.features.length} features confirmed`}
+        />
         {view.discover.truncated ? (
           <p className="muted m0">This project is large, so this list is incomplete.</p>
         ) : null}
         {next ? (
           <div className="stack">
-            <h3 className="m0">Next: {next.name}</h3>
+            <h3 className="m0">
+              Step {confirmed + 1} of {view.discover.features.length}: {next.name}. Does this look
+              right?
+            </h3>
             <p className="muted m0">
               {next.files} files, {next.tests} related test files
               {next.routes.length ? `; pages and routes: ${next.routes.join(", ")}` : ""}
               {next.components.length ? `; components: ${next.components.join(", ")}` : ""}.
             </p>
+            {next.suggestions.length > 0 ? (
+              // FEAT-036: confirming keeps every suggested rule at once; each one can also be kept alone below.
+              <BlueprintAction
+                projectId={view.project.id}
+                path=""
+                body={{
+                  baseVersion: view.version,
+                  ops: next.suggestions.map((s) => ({
+                    op: "addCriterion",
+                    featureId: next.featureId,
+                    text: s.text,
+                    kind: s.kind,
+                  })),
+                }}
+                label="Confirm this feature"
+                variant="primary"
+                done="Confirmed. On to the next one."
+              />
+            ) : null}
             {next.suggestions.length === 0 ? (
               <p className="m0">
                 Nothing to suggest. Add the rules this feature must follow on the Blueprint tab.
@@ -109,7 +161,9 @@ export default async function DiscoverPage({ params }: { params: Promise<{ id: s
             )}
           </div>
         ) : (
-          <p className="m0">Every feature is confirmed.</p>
+          <p className="m0" data-testid="all-mapped">
+            Your whole app is mapped: every feature is confirmed.
+          </p>
         )}
       </section>
     </main>

@@ -1769,3 +1769,13 @@ a.stat-card:hover {
 .why-not {
   flex-basis: 100%;
 }
+/* FEAT-036: technical details under a safety risk. */
+.tech-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: var(--fs-small);
+}
+.tech-details[open] {
+  display: grid;
+  gap: 4px;
+}

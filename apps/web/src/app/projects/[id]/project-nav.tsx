@@ -48,11 +48,14 @@ export function ProjectNav({
   current,
   name,
   action,
+  sub,
 }: {
   projectId: string;
   current: string;
   name: string;
   action?: ReactNode;
+  /** FEAT-036: a page inside a tab (Safety check, History): its own breadcrumb and purpose sentence. */
+  sub?: { label: string; purpose: string };
 }) {
   const moved = MOVED[current];
   const active = moved?.tab ?? TABS.find((t) => t.href === current)?.href ?? "overview";
@@ -63,10 +66,15 @@ export function ProjectNav({
         crumbs={[
           { label: "Projects", href: "/projects?all=1" },
           { label: name, href: `/projects/${projectId}/overview` },
-          { label: moved?.crumb ?? tab.label },
+          ...(sub
+            ? [
+                { label: moved?.crumb ?? tab.label, href: `/projects/${projectId}/${tab.href}` },
+                { label: sub.label },
+              ]
+            : [{ label: moved?.crumb ?? tab.label }]),
         ]}
         title={name}
-        purpose={purposeOf(current) ?? PURPOSE[tab.href]}
+        purpose={sub?.purpose ?? purposeOf(current) ?? PURPOSE[tab.href]}
         action={action}
       />
       <TabRow label="Project">

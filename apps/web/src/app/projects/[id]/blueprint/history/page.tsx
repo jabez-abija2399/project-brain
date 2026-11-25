@@ -23,7 +23,15 @@ export default async function HistoryPage({ params }: { params: Promise<{ id: st
   const view = await orNotFound(() => historyPage(getDb(), user, id));
   const base = `/projects/${view.project.id}`;
   const nav = (
-    <ProjectNav projectId={view.project.id} current="blueprint" name={view.project.name} />
+    <ProjectNav
+      projectId={view.project.id}
+      current="blueprint"
+      name={view.project.name}
+      sub={{
+        label: "History",
+        purpose: "Every saved version. Go back to any one; nothing is deleted.",
+      }}
+    />
   );
   if (!view.ready || view.versions.length === 0) {
     return (
