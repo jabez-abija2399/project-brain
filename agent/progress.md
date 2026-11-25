@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-030 project navigation: 6 tabs | status: done
+Changed: project-nav (Overview, Receipts, Features, To decide, Blueprint, Settings; old pages highlight their new tab); [id]/layout.tsx + server/nav-counts.ts + nav-counts.tsx (owner-only counts: this week's receipts needing attention; pending approvals + checklist and rule proposals); new decide/ and settings/ pages built from extracted sections (approval-sections, proposal-sections, connect-sections, plan-sections); a waiting plan shows on Features; Tokens renamed Connection keys; next.config 308 redirects for /proposals, /approvals, /plan, /connect and /projects/:id; overview next-step links; docs/actions.md.
+Verified (ran this session): verify.sh PASS; project-tabs.test (4, one per AC; stranger 404 and count isolation).
+NOT VERIFIED: redirects in a running Next server (config asserted, not served); browser check.
+Next: FEAT-031 onboarding.
+
 ## 2026-11-25 | FEAT-029 trust fixes | status: done
 Changed: privacy/terms REVIEW notes and quickstart screenshot boxes no longer render (kept in code); onboarding steps relabelled (Connect this computer / Codeceipt reads your project / Get your first receipt) and an earlier step is done when a later one is; receipt summaries hide zero counts, show "All done", say "1 security problem"; paid-plan delete shows Manage billing first and the client shows the 409 message; suspend refreshes the page; AI unit cost 4 decimals; CLI prints `npx codeceipt last` when only npx ran; lib/support.ts (SUPPORT_EMAIL or GitHub issues) on Suspended and Privacy. Older tests that pinned the old behaviour now assert the new one.
 Verified (ran this session): verify.sh PASS; trust-fixes.test (6) + setup-e2e AC-029-06.

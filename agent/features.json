@@ -3116,37 +3116,65 @@
           "id": "AC-030-01",
           "kind": "happy",
           "check": "A project shows the tabs Overview, Receipts, Features, To decide, Blueprint, Settings; Receipts and To decide show a count badge when something waits",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:17; log contains AC-030-01"
         },
         {
           "id": "AC-030-02",
           "kind": "happy",
           "check": "Settings holds Connect, Connection keys (renamed from Tokens everywhere), approval presets and pause, and Delete project",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:17; log contains AC-030-02"
         },
         {
           "id": "AC-030-03",
           "kind": "boundary",
           "check": "Old URLs (/plan, /proposals, /approvals, /connect, the Tokens page) redirect to their new place with a 308",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:17; log contains AC-030-03"
         },
         {
           "id": "AC-030-04",
           "kind": "permission",
           "check": "A signed-in user who does not own the project gets 404 on every new tab and redirect target, and badge counts never include another user's data",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:17; log contains AC-030-04"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/next.config.ts",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/approvals/approval-sections.tsx",
+        "apps/web/src/app/projects/[id]/approvals/page.tsx",
+        "apps/web/src/app/projects/[id]/connect/connect-sections.tsx",
+        "apps/web/src/app/projects/[id]/connect/page.tsx",
+        "apps/web/src/app/projects/[id]/decide/page.tsx",
+        "apps/web/src/app/projects/[id]/delete-project.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/layout.tsx",
+        "apps/web/src/app/projects/[id]/nav-counts.tsx",
+        "apps/web/src/app/projects/[id]/overview/page.tsx",
+        "apps/web/src/app/projects/[id]/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/plan-sections.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/app/projects/[id]/proposals/page.tsx",
+        "apps/web/src/app/projects/[id]/proposals/proposal-sections.tsx",
+        "apps/web/src/app/projects/[id]/settings/page.tsx",
+        "apps/web/src/app/projects/[id]/tokens-panel.tsx",
+        "apps/web/src/server/nav-counts.ts",
+        "apps/web/src/server/next-step.test.ts",
+        "apps/web/src/server/overview-page.test.ts",
+        "apps/web/src/server/plan-page.test.ts",
+        "apps/web/src/server/project-tabs.test.ts",
+        "apps/web/src/server/trust-fixes.test.ts"
+      ]
     },
     {
       "id": "FEAT-031",
@@ -3559,6 +3587,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2103
+    "tests_passed": 2107
   }
 }
