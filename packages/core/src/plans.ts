@@ -17,6 +17,13 @@ export const PLANS: Record<PlanId, Plan> = {
   agency: { id: "agency", name: "Agency", priceUsd: 79, projects: 25, judgedPerMonth: 2000 },
 };
 
+/**
+ * FEAT-027: the free beta. While BETA_LIMITS=on and billing is not configured, every account gets these limits
+ * (over the AI-checked receipts, a receipt is still made from git and says so). Paid plans stay hidden until then.
+ */
+export const BETA = { projects: 3, judgedPerMonth: 100 } as const;
+export const BETA_SUMMARY = `Free during the beta: ${BETA.projects} projects and ${BETA.judgedPerMonth} AI-checked receipts a month.`;
+
 /** The founding offer: Builder for $8 a month, for 12 months, for the first 200 subscriptions. */
 export const FOUNDING = { plan: "builder" as PlanId, priceUsd: 8, months: 12, max: 200 };
 

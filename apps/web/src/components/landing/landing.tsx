@@ -74,7 +74,9 @@ export function Landing({ notice }: { notice?: string } = {}) {
                 <SignInButton />
               </div>
               <InstallNote />
-              <p className="lp-note">Free during the beta. Works in any git repository.</p>
+              <p className="lp-note">
+                Free during the beta (<a href="/pricing">limits</a>). Works in any git repository.
+              </p>
             </div>
             <HeroReceipt />
           </div>

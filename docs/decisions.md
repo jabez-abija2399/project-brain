@@ -465,6 +465,9 @@ and Codex use it already); Cursor and Antigravity on Windows without it fall bac
 - Plans and limits live in packages/core/src/plans.ts. Limits apply only when STRIPE_SECRET_KEY is set, so a
   self-hosted or test deployment is unlimited.
 - Over the monthly AI-judged receipt limit a receipt is still made from git, without the AI judge, and says so.
+- 2026-11-25 (FEAT-027, owner): free during the beta. With BETA_LIMITS=on and Stripe not set, every account gets
+  3 projects and 100 AI-checked receipts a month (packages/core/src/plans.ts BETA); /pricing shows no paid plan.
+  Without BETA_LIMITS a deployment stays unlimited, as before.
 - Alternatives: Paddle (merchant of record, handles VAT; fewer integrations), Lemon Squeezy (SDK unmaintained since 2023).
 
 ## D-030 | 2026-11-09 | The prompt hook may add a definition of done (Roadmap Phase 5c)

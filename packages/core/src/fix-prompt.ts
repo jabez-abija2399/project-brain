@@ -71,6 +71,8 @@ export type ReceiptView = {
   filesNotChecked: number;
   // FEAT-025: the plan's monthly AI-judged receipts were used up, so the AI judge did not run.
   judgeSkipped: boolean;
+  // FEAT-027: why it was skipped: the free beta's monthly limit or a paid plan's.
+  judgeSkippedBy?: "beta_limit" | "plan_limit";
   // Roadmap Phase 4c: changed files under a protected path and packages the owner's boundaries do not allow.
   // Present only when there is at least one hit (receipts made before Phase 4c have none).
   boundaryHits?: BoundaryHitView[];
@@ -298,7 +300,10 @@ export function receiptView(
     checkRun: checkRunOf(s.check_run),
     ...boundaryHitsOf(s.boundary_hits),
     fromPush: s.from_push === true,
-    judgeSkipped: s.judge_skipped === "plan_limit",
+    judgeSkipped: s.judge_skipped === "plan_limit" || s.judge_skipped === "beta_limit",
+    ...(s.judge_skipped === "plan_limit" || s.judge_skipped === "beta_limit"
+      ? { judgeSkippedBy: s.judge_skipped }
+      : {}),
     filesNotChecked: countOrNull(s.files_not_checked) ?? 0,
   };
 }

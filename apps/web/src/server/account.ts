@@ -3,6 +3,7 @@ import { PLANS, effectivePlan } from "@brain/core";
 import { type BrainDb, accountRepo, billingRepo, usersRepo } from "@brain/db";
 import { z } from "zod";
 import { type SessionUser, isPlausibleId } from "./auth";
+import { betaUsage } from "./billing";
 import { AppError } from "./errors";
 import { rateLimit } from "./rate-limit";
 import { SUSPENDED_USER } from "./suspension";
@@ -13,10 +14,11 @@ const DELETES_PER_MINUTE = 5;
 const EXPORTS_PER_MINUTE = 5;
 
 export async function accountView(db: BrainDb, user: SessionUser) {
-  const [row, computers, sub] = await Promise.all([
+  const [row, computers, sub, beta] = await Promise.all([
     usersRepo.getById(db, user.id),
     accountRepo.connectedComputers(db, user.id),
     billingRepo.forUser(db, user.id),
+    betaUsage(db, user.id),
   ]);
   if (!row) throw new AppError(404, "not_found");
   return {
@@ -34,6 +36,8 @@ export async function accountView(db: BrainDb, user: SessionUser) {
       plan: PLANS[effectivePlan(sub, new Date())].name,
       subscribed: sub !== null,
       endsAt: sub?.cancelAtPeriodEnd ? (sub.currentPeriodEnd?.toISOString() ?? null) : null,
+      // FEAT-027: the free beta's usage (null when its limits are off).
+      beta,
     },
     computers: computers.map((c) => ({
       id: c.id,

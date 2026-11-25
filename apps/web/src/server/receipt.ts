@@ -29,7 +29,7 @@ import {
   requestsRepo,
 } from "@brain/db";
 import { z } from "zod";
-import { judgeAllowed } from "./billing";
+import { betaLimitsOn, judgeAllowed } from "./billing";
 import {
   type NewDependency,
   lookupNewDependencies,
@@ -477,7 +477,7 @@ export async function generateReceipt(
       ...blueprint,
       test_integrity: integrity,
       ...(claims ? { claims } : {}),
-      ...(overPlan ? { judge_skipped: "plan_limit" } : {}),
+      ...(overPlan ? { judge_skipped: betaLimitsOn() ? "beta_limit" : "plan_limit" } : {}),
     },
   });
   // One receipt per session: the one it replaces goes, only within this project, for the same request and if recent.

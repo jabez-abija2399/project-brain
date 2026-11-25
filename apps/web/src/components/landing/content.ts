@@ -1,4 +1,5 @@
 import type { Status } from "@/components/ui/status-badge";
+import { BETA_SUMMARY } from "@brain/core";
 
 // The landing page's words and sample data (2026-11-01 redesign). Everything here describes what is built today; the
 // receipts, terminal lines and evidence match the CLI's real output (setup-command.ts, hooks.ts, last-evidence.ts).
@@ -369,7 +370,7 @@ export const FAQ: { q: string; a: string }[] = [
     q: "Which agents does it work with?",
     a: "Claude Code, Cursor and Codex make receipts on their own. OpenCode and Antigravity work too; there you run `codeceipt receipt` when you finish.",
   },
-  { q: "What does it cost?", a: "It's free during the beta." },
+  { q: "What does it cost?", a: `${BETA_SUMMARY} Paid plans come after the beta.` },
   {
     q: "Does it work with Lovable?",
     a: "Yes, through GitHub: connect the repository your Lovable, Bolt or Replit project pushes to, and receipts are made on push.",

@@ -67,11 +67,19 @@ export default async function AccountPage() {
         <h2 id="plan" className="section-title">
           Plan
         </h2>
-        <p className="muted m0">
-          You are on the {a.billing.plan} plan
-          {a.billing.endsAt ? `; it ends on ${a.billing.endsAt.slice(0, 10)}, then Free` : ""}.
-        </p>
-        {a.billing.subscribed ? (
+        {a.billing.beta ? (
+          <p className="muted m0" data-testid="beta-usage">
+            Free beta: {a.billing.beta.projects} of {a.billing.beta.projectLimit} projects,{" "}
+            {a.billing.beta.judged} of {a.billing.beta.judgedLimit} AI-checked receipts this month
+            (resets on the 1st).
+          </p>
+        ) : (
+          <p className="muted m0">
+            You are on the {a.billing.plan} plan
+            {a.billing.endsAt ? `; it ends on ${a.billing.endsAt.slice(0, 10)}, then Free` : ""}.
+          </p>
+        )}
+        {a.billing.beta ? null : a.billing.subscribed ? (
           <BillingButton action="portal" label="Manage billing" />
         ) : (
           <Link className="btn self-start" href="/pricing">

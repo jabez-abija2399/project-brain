@@ -39,6 +39,7 @@ export function SiteHeader({
         </button>
         <nav id="lp-nav" className="lp-nav" aria-label="Main" data-open={open ? "true" : "false"}>
           <a href="/docs/quickstart">Docs</a>
+          <a href="/pricing">Pricing</a>
           <a href="/privacy">Privacy</a>
           {signedIn ? (
             <a className="btn btn-primary" href="/projects">

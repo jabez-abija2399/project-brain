@@ -1,5 +1,6 @@
 import { DocPage } from "@/components/landing/doc-page";
 import { isSignedIn } from "@/server/signed-in";
+import { BETA } from "@brain/core";
 import type { Metadata } from "next";
 
 // Rendered per request: the header and footer depend on whether the visitor is signed in.
@@ -23,9 +24,10 @@ export default async function TermsPage() {
 
       <h2>The beta</h2>
       <p>
-        Codeceipt is free during the beta. It is new software: features change, and it can be down
-        or lose data. Keep your own backups and your own git history. We will tell you before the
-        beta ends and before anything you rely on starts to cost money.
+        Codeceipt is free during the beta, with {BETA.projects} projects and {BETA.judgedPerMonth}{" "}
+        AI-checked receipts a month per account. It is new software: features change, and it can be
+        down or lose data. Keep your own backups and your own git history. We will tell you before
+        the beta ends and before anything you rely on starts to cost money.
       </p>
 
       <h2>Your code and your data</h2>

@@ -201,6 +201,8 @@ export {
   type CleanupItem,
 } from "./item-dedup";
 export {
+  BETA,
+  BETA_SUMMARY,
   FOUNDING,
   PLANS,
   type Plan,

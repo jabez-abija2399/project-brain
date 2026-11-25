@@ -1,7 +1,15 @@
 // FEAT-025: plans and billing (D-029). Stripe Checkout and the customer portal hold every card; the plan changes only
 // from Stripe's webhook after its signature is verified, and prices come from server env, never from the client.
 // Limits apply only when STRIPE_SECRET_KEY is set, so a self-hosted or test deployment is unlimited.
-import { FOUNDING, PLANS, type PlanId, effectivePlan, isPlanId, monthStart } from "@brain/core";
+import {
+  BETA,
+  FOUNDING,
+  PLANS,
+  type PlanId,
+  effectivePlan,
+  isPlanId,
+  monthStart,
+} from "@brain/core";
 import { type BrainDb, billingRepo, projectsRepo } from "@brain/db";
 import { sql } from "drizzle-orm";
 import Stripe from "stripe";
@@ -41,6 +49,9 @@ export type BillingGateway = {
 };
 
 export const billingEnabled = () => Boolean(process.env.STRIPE_SECRET_KEY);
+/** FEAT-027: the free beta's limits apply when BETA_LIMITS=on and billing is not configured. */
+export const betaLimitsOn = () => process.env.BETA_LIMITS === "on" && !billingEnabled();
+export const BETA_PROJECT_LIMIT_MESSAGE = `The free beta includes ${BETA.projects} projects. Delete one or wait for paid plans.`;
 
 const priceEnv: Record<Exclude<PlanId, "free">, string> = {
   builder: "STRIPE_PRICE_BUILDER",
@@ -269,8 +280,14 @@ async function applyEvent(
   });
 }
 
-/** Project creation: the plan's project count (only when billing is on). */
+/** Project creation: the plan's project count (billing on), or the free beta's (BETA_LIMITS=on, billing off). */
 export async function assertCanCreateProject(db: BrainDb, userId: string): Promise<void> {
+  if (betaLimitsOn()) {
+    if ((await billingRepo.ownedProjects(db, userId)) >= BETA.projects) {
+      throw new AppError(402, "plan_limit", BETA_PROJECT_LIMIT_MESSAGE);
+    }
+    return;
+  }
   if (!billingEnabled()) return;
   const plan = PLANS[await planOf(db, userId)];
   if (plan.projects === null) return;
@@ -319,12 +336,29 @@ export async function judgeAllowed(
   projectId: string,
   now = new Date(),
 ): Promise<boolean> {
-  if (!billingEnabled()) return true;
+  const beta = betaLimitsOn();
+  if (!beta && !billingEnabled()) return true;
   const ownerId = await billingRepo.ownerOf(db, projectId);
   if (!ownerId) return false;
-  const plan = PLANS[await planOf(db, ownerId, now)];
+  const limit = beta ? BETA.judgedPerMonth : PLANS[await planOf(db, ownerId, now)].judgedPerMonth;
   const month = monthStart(now).toISOString().slice(0, 10);
-  return billingRepo.reserveJudged(db, ownerId, month, plan.judgedPerMonth);
+  return billingRepo.reserveJudged(db, ownerId, month, limit);
+}
+
+/** The account page's beta usage (null when the beta limits are off). Counts only the signed-in user's own data. */
+export async function betaUsage(db: BrainDb, userId: string, now = new Date()) {
+  if (!betaLimitsOn()) return null;
+  const month = monthStart(now).toISOString().slice(0, 10);
+  const [projects, judged] = await Promise.all([
+    billingRepo.ownedProjects(db, userId),
+    billingRepo.judgedIn(db, userId, month),
+  ]);
+  return {
+    projects,
+    projectLimit: BETA.projects,
+    judged: Math.min(judged, BETA.judgedPerMonth),
+    judgedLimit: BETA.judgedPerMonth,
+  };
 }
 
 export const PLAN_LIMIT_NOTE =
