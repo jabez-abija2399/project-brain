@@ -3260,37 +3260,46 @@
           "id": "AC-032-01",
           "kind": "happy",
           "check": "The headline and next step are one block with one primary button; the headline count equals the number of receipts in the list under it",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:54; log contains AC-032-01"
         },
         {
           "id": "AC-032-02",
           "kind": "happy",
           "check": "Stat cards use plain labels ('Security problems', 'Things your agent missed', 'Built as asked') and each opens the receipts list already filtered to its items",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:54; log contains AC-032-02"
         },
         {
           "id": "AC-032-03",
           "kind": "boundary",
           "check": "With nothing needing attention the page shows 'All clear. Everything your agents did this week checks out'; at 375 px stats are a 2x2 grid",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:54; log contains AC-032-03"
         },
         {
           "id": "AC-032-04",
           "kind": "permission",
           "check": "Filter links and counts only ever include the signed-in owner's project data",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:54; log contains AC-032-04"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/overview/page.tsx",
+        "apps/web/src/app/projects/[id]/receipts/page.tsx",
+        "apps/web/src/components/receipts-filter.tsx",
+        "apps/web/src/lib/receipt-filters.ts",
+        "apps/web/src/server/overview-page.test.ts",
+        "apps/web/src/server/overview-redesign.test.ts"
+      ]
     },
     {
       "id": "FEAT-033",
@@ -3599,6 +3608,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2112
+    "tests_passed": 2116
   }
 }

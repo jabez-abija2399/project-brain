@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-032 overview | status: done
+Changed: overview hero holds the headline, the next step and one primary button (Review them, or the next step's page); the list under it is this week's receipts to check (+N more link); stat cards Needs attention / Things your agent missed / Built as asked / Security problems, each linking to receipts?filter=attention|missed|good|findings; "All clear. Everything your agents did this week checks out"; receipts page takes ?filter= (unknown values ignored) with Something missed and Security problems chips; lib/receipt-filters.ts; 2x2 stats on phones.
+Verified (ran this session): verify.sh PASS; overview-redesign.test (4, one per AC; stranger isolation and 404).
+NOT VERIFIED: browser check.
+Next: FEAT-033 receipts.
+
 ## 2026-11-25 | FEAT-031 onboarding | status: done
 Changed: journey-steps (one current step with a Waiting line and pulse, later steps dimmed, done steps collapsed; "Never used a terminal?" with a copyable prompt for Claude Code/Cursor); /start (receipts link only once a receipt exists, chosen build style is not a primary button, first receipt: one summary sentence, printed once, How to read it in a Disclosure, next action); /device (expired or used code caught before the form, "What approving allows" in plain words, Deny warning once, after approval a link to Get started and a note about the terminal's questions).
 Verified (ran this session): verify.sh PASS; onboarding-flow.test (5, one per AC; attack: a code in the URL never links).
