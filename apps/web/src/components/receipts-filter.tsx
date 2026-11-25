@@ -1,10 +1,9 @@
 "use client";
 
+import type { Filter } from "@/lib/receipt-filters";
+
 import { matchesSearch, nextIndex } from "@/lib/ui-helpers";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-
-export type Filter = "all" | "attention" | "good" | "missed" | "findings";
-export const FILTERS: Filter[] = ["all", "attention", "good", "missed", "findings"];
 
 const typing = (el: EventTarget | null) =>
   el instanceof HTMLElement &&

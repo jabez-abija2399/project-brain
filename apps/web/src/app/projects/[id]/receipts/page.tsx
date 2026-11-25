@@ -1,9 +1,10 @@
 import { ReceiptCard } from "@/components/receipt-card";
-import { FILTERS, ReceiptsFilter } from "@/components/receipts-filter";
+import { ReceiptsFilter } from "@/components/receipts-filter";
 import { ShareReceipt } from "@/components/share-receipt";
 import { StateGuide } from "@/components/state-guide";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Pagination } from "@/components/ui/pagination";
+import { FILTERS } from "@/lib/receipt-filters";
 import { dayLabel } from "@/lib/ui-helpers";
 import { receiptsFeed } from "@/server/dashboard";
 import { type ListPageProps, loadListPage } from "@/server/dashboard-page";
