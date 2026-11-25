@@ -16,6 +16,7 @@ import Stripe from "stripe";
 import { z } from "zod";
 import type { SessionUser } from "./auth";
 import { AppError } from "./errors";
+import { effectiveLimits } from "./limits";
 import { rateLimit } from "./rate-limit";
 
 export type CheckoutArgs = {
@@ -51,7 +52,11 @@ export type BillingGateway = {
 export const billingEnabled = () => Boolean(process.env.STRIPE_SECRET_KEY);
 /** FEAT-027: the free beta's limits apply when BETA_LIMITS=on and billing is not configured. */
 export const betaLimitsOn = () => process.env.BETA_LIMITS === "on" && !billingEnabled();
-export const BETA_PROJECT_LIMIT_MESSAGE = `The free beta includes ${BETA.projects} projects. Delete one or wait for paid plans.`;
+export const betaProjectLimitMessage = (n: number) =>
+  `The free beta includes ${n} project${n === 1 ? "" : "s"}. Delete one or wait for paid plans.`;
+export const BETA_PROJECT_LIMIT_MESSAGE = betaProjectLimitMessage(BETA.projects);
+// The largest monthly count the AI check reserves against when a user has no limit (still counted, never refused).
+const NO_LIMIT = 2_000_000_000;
 
 const priceEnv: Record<Exclude<PlanId, "free">, string> = {
   builder: "STRIPE_PRICE_BUILDER",
@@ -281,10 +286,18 @@ async function applyEvent(
 }
 
 /** Project creation: the plan's project count (billing on), or the free beta's (BETA_LIMITS=on, billing off). */
-export async function assertCanCreateProject(db: BrainDb, userId: string): Promise<void> {
+export async function assertCanCreateProject(
+  db: BrainDb,
+  userId: string,
+  opts: { unlimited?: boolean } = {},
+): Promise<void> {
+  // FEAT-041: an admin creates any number of projects (the caller checked the admin on the server).
+  if (opts.unlimited) return;
   if (betaLimitsOn()) {
-    if ((await billingRepo.ownedProjects(db, userId)) >= BETA.projects) {
-      throw new AppError(402, "plan_limit", BETA_PROJECT_LIMIT_MESSAGE);
+    // FEAT-041: the user's own limit, else the admin's default, else the built-in one; null = no limit.
+    const { projects } = await effectiveLimits(db, userId);
+    if (projects !== null && (await billingRepo.ownedProjects(db, userId)) >= projects) {
+      throw new AppError(402, "plan_limit", betaProjectLimitMessage(projects));
     }
     return;
   }
@@ -310,6 +323,7 @@ export async function createProjectWithinLimit<T = void>(
   userId: string,
   name: string,
   then?: (tx: BrainDb, projectId: string) => Promise<T>,
+  opts: { unlimited?: boolean } = {},
 ): Promise<{
   id: string;
   project: Awaited<ReturnType<typeof projectsRepo.create>>;
@@ -320,7 +334,7 @@ export async function createProjectWithinLimit<T = void>(
     await tx.execute(
       sql`SELECT pg_advisory_xact_lock(hashtextextended(${`projects:${userId}`}, 0))`,
     );
-    await assertCanCreateProject(t, userId);
+    await assertCanCreateProject(t, userId, opts);
     const project = await projectsRepo.create(t, userId, { name });
     const result = then ? await then(t, project.id) : undefined;
     return { id: project.id, project, result };
@@ -340,7 +354,9 @@ export async function judgeAllowed(
   if (!beta && !billingEnabled()) return true;
   const ownerId = await billingRepo.ownerOf(db, projectId);
   if (!ownerId) return false;
-  const limit = beta ? BETA.judgedPerMonth : PLANS[await planOf(db, ownerId, now)].judgedPerMonth;
+  const limit = beta
+    ? ((await effectiveLimits(db, ownerId)).judgedPerMonth ?? NO_LIMIT)
+    : PLANS[await planOf(db, ownerId, now)].judgedPerMonth;
   const month = monthStart(now).toISOString().slice(0, 10);
   return billingRepo.reserveJudged(db, ownerId, month, limit);
 }
@@ -349,15 +365,17 @@ export async function judgeAllowed(
 export async function betaUsage(db: BrainDb, userId: string, now = new Date()) {
   if (!betaLimitsOn()) return null;
   const month = monthStart(now).toISOString().slice(0, 10);
-  const [projects, judged] = await Promise.all([
+  const [projects, judged, limits] = await Promise.all([
     billingRepo.ownedProjects(db, userId),
     billingRepo.judgedIn(db, userId, month),
+    effectiveLimits(db, userId),
   ]);
+  // FEAT-041: null = no limit.
   return {
     projects,
-    projectLimit: BETA.projects,
-    judged: Math.min(judged, BETA.judgedPerMonth),
-    judgedLimit: BETA.judgedPerMonth,
+    projectLimit: limits.projects,
+    judged: limits.judgedPerMonth === null ? judged : Math.min(judged, limits.judgedPerMonth),
+    judgedLimit: limits.judgedPerMonth,
   };
 }
 

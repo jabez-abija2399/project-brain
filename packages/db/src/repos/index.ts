@@ -83,3 +83,4 @@ export {
   approvalRequestsRepo,
 } from "./approvals";
 export { userPreferencesRepo } from "./user-preferences";
+export { usageLimitsRepo, type Limits, type UserLimitsRow } from "./usage-limits";

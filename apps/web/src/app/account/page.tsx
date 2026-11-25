@@ -85,8 +85,15 @@ export default async function AccountPage() {
         </h2>
         {a.billing.beta ? (
           <p className="muted m0" data-testid="beta-usage">
-            Free beta: {a.billing.beta.projects} of {a.billing.beta.projectLimit} projects,{" "}
-            {a.billing.beta.judged} of {a.billing.beta.judgedLimit} AI-checked receipts this month
+            {/* FEAT-041: a limit can be "no limit" (null), set by an admin. */}
+            Free beta:{" "}
+            {a.billing.beta.projectLimit === null
+              ? `${a.billing.beta.projects} projects (no limit)`
+              : `${a.billing.beta.projects} of ${a.billing.beta.projectLimit} projects`}
+            ,{" "}
+            {a.billing.beta.judgedLimit === null
+              ? `${a.billing.beta.judged} AI-checked receipts this month (no limit)`
+              : `${a.billing.beta.judged} of ${a.billing.beta.judgedLimit} AI-checked receipts this month`}{" "}
             (resets on the 1st).
           </p>
         ) : (

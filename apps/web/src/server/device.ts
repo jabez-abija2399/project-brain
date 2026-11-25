@@ -150,6 +150,8 @@ export async function approveDevice(
   user: SessionUser,
   raw: unknown,
   now = new Date(),
+  /** FEAT-041: an admin (checked on the server by the route) creates any number of projects. */
+  opts: { unlimited?: boolean } = {},
 ): Promise<{ ok: true; project_id: string } | { ok: true; denied: true }> {
   await rateLimit(db, `device:approve:${user.id}`, APPROVALS_PER_MINUTE_PER_USER, now);
   const input = parse(approveSchema, normalizeCode(raw));
@@ -169,18 +171,24 @@ export async function approveDevice(
     // One transaction under the owner's lock: the plan limit holds for parallel creates, and two approvals racing
     // for one code cannot leave an empty project behind (the loser's project is rolled back with its decision).
     projectId = (
-      await createProjectWithinLimit(db, user.id, input.new_project_name, async (t, id) => {
-        if (
-          !(await deviceCodesRepo.decide(
-            t,
-            input.user_code,
-            { userId: user.id, projectId: id },
-            now,
-          ))
-        ) {
-          throw new AppError(404, "not_found");
-        }
-      })
+      await createProjectWithinLimit(
+        db,
+        user.id,
+        input.new_project_name,
+        async (t, id) => {
+          if (
+            !(await deviceCodesRepo.decide(
+              t,
+              input.user_code,
+              { userId: user.id, projectId: id },
+              now,
+            ))
+          ) {
+            throw new AppError(404, "not_found");
+          }
+        },
+        opts,
+      )
     ).id;
   }
   console.info("[device]", JSON.stringify({ event: "approved", projectId, actor: "session" }));

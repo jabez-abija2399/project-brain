@@ -91,3 +91,4 @@
 - 2026-11-25: Owner decisions on the design plan: free during the beta with per-account limits; follow Claude's recommendations for the rest (tabs 9 -> 6, 'Connection keys', celebrations on with an off switch).
 - 2026-11-25: Owner: fix every UI review finding and make the whole UI more attractive (the best UI design), in the Receipt direction; show before/after.
 - 2026-11-25: Owner: current design is still not good enough. Plan a new design from scratch (not based on the current one) with a sidebar; research inspiration deeply, use the design plugins for references; start from why people use Codeceipt.
+- 2026-11-25: Owner: admins can create any number of projects; beta limits are flexible: an admin can change the defaults and give specific users their own limits.
