@@ -3,8 +3,8 @@
 ## 2026-11-25 | FEAT-041 flexible beta limits | status: done
 Changed: migration 0058 (optional) adds usage_limits: a "default" row and per-user rows; null = no limit. server/limits.ts resolves user > default > built-in (3/100), failing closed to built-in. Project create (web + CLI approve) skips the limit for a server-checked admin. /admin/limits (admin only): default limits form, give a user limits by email, list with "Use the default"; POST /api/admin/limits validates (0..100000 projects, 0..1000000 AI checks, strict bodies) and writes change + audit row in one transaction. Account shows "no limit".
 Verified (ran this session): verify.sh PASS; beta-limits-admin.test (6, one per AC, incl. attack: non-admin/signed-out/token get 404 and change nothing); db package tests.
-NOT VERIFIED: migration 0058 on the production database (owner runs `pnpm --filter @brain/db migrate` or it is applied after approval); the deployed site.
-Next: apply 0058 in Neon.
+Production: migration 0058 applied to the Neon "project brain" default branch (2026-11-25, with its _brain_migrations row); PR #103 deployed. NOT VERIFIED: clicking through /admin/limits signed in.
+Next: owner tries /admin/limits.
 
 ## 2026-11-25 | FEAT-040 design v3 "Clearance" | status: done
 Changed: signed-in app is a sidebar shell (wordmark, switcher, Home/Receipts/To decide/Features/Blueprint with counts, project settings/account/docs, account menu); phones get a top bar and a floating bottom bar; sections left the page header (title now names the section). Cool palette + cobalt accent, Geist via next/font (self-hosted). Home leads with the clearance seal (Clear/Needs you/Unsafe/Not started). Status badges draw shapes in CSS (circle/half/triangle/dashed). Features: 4-stage track. Blueprint: Always/Never columns. To decide: risk chip + "Why we're asking". Counts computed once in server/shell.ts for the owner's own project only. Older tests that pinned the tab row/old headings updated to the approved criteria.
