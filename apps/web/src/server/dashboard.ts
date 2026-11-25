@@ -55,7 +55,12 @@ export async function featureBoard(
         id: r.id,
         name: safeDisplay(r.name, 100),
         // Free text in the database: anything but the known values is shown as "unknown".
-        status: ["todo", "in_progress", "done"].includes(r.status) ? r.status : "unknown",
+        // FEAT-034: a planned feature with any item done is in progress, so status agrees with progress.
+        status: !["todo", "in_progress", "done"].includes(r.status)
+          ? "unknown"
+          : r.status === "todo" && r.doneItems > 0
+            ? "in_progress"
+            : r.status,
         files: r.files,
         openItems: r.openItems,
         doneItems: r.doneItems,

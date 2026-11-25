@@ -1744,3 +1744,15 @@ a.stat-card:hover {
 [data-celebrate="off"] .print-once {
   animation: none;
 }
+/* FEAT-034: on phones each feature is a card (the table rows stack); the file count is left out there. */
+@media (max-width: 640px) {
+  .table td[data-label="Files"] {
+    display: none;
+  }
+}
+.plan-banner {
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+  color: var(--text);
+}

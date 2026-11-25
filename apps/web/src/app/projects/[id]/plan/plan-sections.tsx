@@ -4,6 +4,9 @@ import type { planView } from "@/server/plan";
 import { PlanActions } from "./plan-actions";
 
 // FEAT-030: the draft plan, shown on the Plan page and at the top of the Features tab while it waits.
+// Item kinds that say what must never happen (a negative, boundary, permission or attack case).
+const RISK = new Set(["negative", "boundary", "permission", "attack"]);
+
 type Draft = NonNullable<Awaited<ReturnType<typeof planView>>["draft"]>;
 
 export function PlanDraft({ projectId, draft }: { projectId: string; draft: Draft }) {
@@ -52,7 +55,12 @@ export function PlanDraft({ projectId, draft }: { projectId: string; draft: Draf
                 {f.items.map((i, k) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: item texts may repeat; the order is fixed
                   <li key={k} className="wrap">
-                    <span className="muted">[{i.kind}] </span>
+                    {/* FEAT-034: plain words and an icon instead of the planner's [kind] tag. */}
+                    {RISK.has(i.kind) ? (
+                      <StatusBadge status="warning" label="Must never" />
+                    ) : (
+                      <StatusBadge status="done" label="Must" />
+                    )}{" "}
                     {i.text}
                   </li>
                 ))}
@@ -62,6 +70,9 @@ export function PlanDraft({ projectId, draft }: { projectId: string; draft: Draf
         ))}
       </ol>
       <PlanActions projectId={projectId} draftId={draft.id} draftHash={draft.hash} />
+      <p className="muted m0">
+        Not right? Tell your agent what to change, and it drafts the plan again.
+      </p>
     </section>
   );
 }

@@ -33,7 +33,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
         ) : (
           <EmptyState
             title="No plan yet"
-            text="Your project plan appears here for your approval: ask your agent to plan the project from your idea (plan_project)."
+            text="Your plan appears here for you to approve: ask your agent to plan this app with Codeceipt."
             action={{ label: "Get started", href: "/start" }}
           />
         )

@@ -57,7 +57,8 @@ describe("feature board", () => {
     await seed();
     const html = await render();
     const t = text(html);
-    for (const part of ["2 features", "To do 2", "In progress 0", "Done 0", "With open items 1"]) {
+    // FEAT-034: Reviews has 1 of 2 done, so it is in progress (status agrees with progress).
+    for (const part of ["2 features", "To do 1", "In progress 1", "Done 0", "With open items 1"]) {
       expect(t).toContain(part);
     }
     expect(t).toContain("1 of 2 done");
@@ -66,7 +67,7 @@ describe("feature board", () => {
       /<progress class="progress" value="1" max="2" aria-label="Reviews: 1 of 2 done"/,
     );
     // Every row carries what the filter reads: name, status, open items.
-    expect(html).toContain('data-feature="reviews" data-status="todo" data-open="1"');
+    expect(html).toContain('data-feature="reviews" data-status="in_progress" data-open="1"');
     expect(html).toContain('data-feature="billing" data-status="todo" data-open="0"');
     expect(html).toMatch(/<input[^>]*type="search"[^>]*aria-label="Search features"/);
   });

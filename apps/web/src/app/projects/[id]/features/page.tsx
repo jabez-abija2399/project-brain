@@ -61,6 +61,12 @@ export default async function FeatureBoardPage(props: ListPageProps) {
       </div>
       {plan.draft ? (
         <section className="stack" id="plan" aria-label="Plan waiting for your approval">
+          {/* FEAT-034: a banner first, then the draft to review. */}
+          <p className="plan-banner m0" data-testid="plan-banner">
+            Your agent drafted a plan with {plan.draft.features.length} feature
+            {plan.draft.features.length === 1 ? "" : "s"}. Review it below and approve it, or tell
+            your agent what to change.
+          </p>
           <PlanDraft projectId={board.project.id} draft={plan.draft} />
         </section>
       ) : null}
@@ -72,20 +78,6 @@ export default async function FeatureBoardPage(props: ListPageProps) {
         />
       ) : (
         <>
-          <ul className="mini-stats" aria-label="Features by status">
-            {(
-              [
-                ["To do", c.todo, "neutral"],
-                ["In progress", c.inProgress, "warning"],
-                ["Done", c.done, "success"],
-                ["With open items", c.withOpenItems, c.withOpenItems > 0 ? "danger" : "neutral"],
-              ] as const
-            ).map(([label, n, tone]) => (
-              <li key={label} className={`mini-stat stat-${tone}`}>
-                <span className="stat-label">{label}</span> <strong>{n}</strong>
-              </li>
-            ))}
-          </ul>
           <nav className="sort row" aria-label="Sort features">
             <span className="muted">Sort:</span>
             {SORTS.map(([key, label]) => (
@@ -99,7 +91,7 @@ export default async function FeatureBoardPage(props: ListPageProps) {
               </Link>
             ))}
           </nav>
-          <FeaturesFilter>
+          <FeaturesFilter counts={c}>
             <DataTable
               caption={`${board.total} features`}
               rows={board.rows}
@@ -115,7 +107,9 @@ export default async function FeatureBoardPage(props: ListPageProps) {
                       data-status={r.status}
                       data-open={r.openItems}
                     >
-                      <strong>{r.name}</strong>
+                      <Link href={`${base}/features/${r.id}`}>
+                        <strong>{r.name}</strong>
+                      </Link>
                       {r.nextItem && <span className="muted wrap">Next: {r.nextItem}</span>}
                     </span>
                   ),
@@ -147,7 +141,9 @@ export default async function FeatureBoardPage(props: ListPageProps) {
                         </span>
                       </span>
                     ) : (
-                      <span className="muted">No checklist yet</span>
+                      <span className="muted">
+                        Nothing planned yet. Ask your agent: &ldquo;plan the {r.name} feature&rdquo;
+                      </span>
                     ),
                 },
                 { key: "files", header: "Files", cell: (r) => r.files },

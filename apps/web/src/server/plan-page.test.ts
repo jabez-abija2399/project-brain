@@ -73,7 +73,11 @@ describe("FEAT-019 Plan tab", () => {
     expect(html).toContain("1. Accounts");
     expect(html).toContain("Already built");
     expect(html).toContain("New");
-    expect(html).toContain("[negative] </span>Booking a full class is refused");
+    // FEAT-034: plain words and an icon instead of the planner's [negative] tag.
+    expect(html).toMatch(
+      /<span>Must never<\/span><\/span> (<!-- -->)?Booking a full class is refused/,
+    );
+    expect(html).not.toContain("[negative]");
     expect(html).toContain("Approve this plan");
     // Status is never color alone: each badge has an icon and a label.
     expect(html).toMatch(
