@@ -3583,37 +3583,49 @@
           "id": "AC-037-01",
           "kind": "happy",
           "check": "Account shows the plan card with usage, 'Connection keys' with copy-once secret and relative dates, and 'Signed-in browsers' with a 'This browser' pill",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:29; log contains AC-037-01"
         },
         {
           "id": "AC-037-02",
           "kind": "happy",
           "check": "Suspending a user states the consequences, takes an optional reason shown in the audit log, and uses danger style; admin overview leads with one status sentence",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:29; log contains AC-037-02"
         },
         {
           "id": "AC-037-03",
           "kind": "permission",
           "check": "Every admin page and action still answers 404 to non-admins (attacker test)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:29; log contains AC-037-03"
         },
         {
           "id": "AC-037-04",
           "kind": "negative",
           "check": "'Sign out everywhere' asks 'including this browser?' before acting",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 11:29; log contains AC-037-04"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/admin/page.tsx",
+        "apps/web/src/app/projects/[id]/tokens-panel.tsx",
+        "apps/web/src/app/suspended/page.tsx",
+        "apps/web/src/components/account/session-list.tsx",
+        "apps/web/src/components/account/sign-out-everywhere.tsx",
+        "apps/web/src/components/admin/suspend-button.tsx",
+        "apps/web/src/server/account-admin-design.test.ts",
+        "apps/web/src/server/admin-data.ts",
+        "apps/web/src/server/auth.ts"
+      ]
     },
     {
       "id": "FEAT-038",
@@ -3673,6 +3685,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2133
+    "tests_passed": 2137
   }
 }

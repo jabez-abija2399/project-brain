@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-037 account, keys, admin, suspended | status: done
+Changed: Account plan section is a card (beta usage or plan); "Connection keys" with plainer text and a Copy key button on the one-time secret; "Signed-in browsers" with a "This browser" pill (auth.currentSessionId) listed first; Sign out everywhere asks through ConfirmDialog; Suspend states consequences, takes an optional reason kept in the audit Detail, danger style (Restore primary); admin overview leads with a status sentence; Suspended page plainer and offers Sign out.
+Verified (ran this session): verify.sh PASS; account-admin-design.test (4, one per AC; non-admin 404 on every admin page and the suspend action).
+NOT VERIFIED: "This browser" against a real better-auth session (resolver is stubbed in tests).
+Next: FEAT-038 public pages.
+
 ## 2026-11-25 | FEAT-036 Blueprint | status: done
 Changed: Blueprint page: summary line ("Your app has N parts and M promises", proven count, waiting suggestions, one primary Review button), each feature a health sentence with one copyable prompt, rules in plain words (core plainSentence) grouped It must never / It does; Full detail adds proof, the formal wording in sentence case and hints (no capitals); ProjectNav `sub` for Safety check and History (breadcrumb, purpose); safety risks with people headlines and paths/SQL under Technical details; Discover "Confirm this feature" (adds its suggested rules), progress bar, step text, "Your whole app is mapped". Older Blueprint test follows the plain wording.
 Verified (ran this session): verify.sh PASS; blueprint-redesign.test (4, one per AC; restore keeps newer versions).
