@@ -2841,53 +2841,74 @@
           "id": "AC-027-01",
           "kind": "boundary",
           "check": "With BETA_LIMITS=on and billing not configured, an account owning 3 projects can open them all, and creating a 4th (dashboard form, /device approval or /github/select) returns 402 with the message 'The free beta includes 3 projects. Delete one or wait for paid plans.'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-01"
         },
         {
           "id": "AC-027-02",
           "kind": "boundary",
           "check": "With BETA_LIMITS=on, the 100th receipt of a UTC calendar month across the account's projects is AI-checked; the 101st is still made from git and says 'Not AI-checked: the beta's 100 a month are used. Resets on the 1st.'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-02"
         },
         {
           "id": "AC-027-03",
           "kind": "happy",
           "check": "Landing hero, FAQ, /pricing and /terms all say 'Free during the beta' with the same limits (3 projects, 100 AI-checked receipts a month); no paid plan, price or checkout button is rendered while BETA_LIMITS=on; Pricing is linked in the public header and footer",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "billing-beta.test AC-027-03: pricing body, FAQ, header and footer; terms page renders BETA constants (terms/page.tsx)"
         },
         {
           "id": "AC-027-04",
           "kind": "happy",
           "check": "/account shows 'Free beta: N of 3 projects, M of 100 AI-checked receipts this month (resets on the 1st)'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-04"
         },
         {
           "id": "AC-027-05",
           "kind": "attack",
           "check": "Limits are counted on the server from the session's account; a projectId, plan or count sent by the client, a project token, or a second browser session cannot raise them (attacker test for each create route)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-05"
         },
         {
           "id": "AC-027-06",
           "kind": "negative",
           "check": "With BETA_LIMITS unset and billing not configured (self-hosted, tests), no project or receipt limit applies (D-029 unchanged)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:05; log contains AC-027-06"
         }
       ],
-      "status": "in_progress",
-      "notes": "Limits live in packages/core/src/plans.ts as a 'beta' plan; update D-029 in docs/decisions.md and .env.example. Set BETA_LIMITS=on in Vercel after it ships."
+      "status": "done",
+      "notes": "Limits live in packages/core/src/plans.ts as a 'beta' plan; update D-029 in docs/decisions.md and .env.example. Set BETA_LIMITS=on in Vercel after it ships.",
+      "files": [
+        ".env.example",
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/pricing/page.tsx",
+        "apps/web/src/app/terms/page.tsx",
+        "apps/web/src/components/landing/content.ts",
+        "apps/web/src/components/landing/landing.tsx",
+        "apps/web/src/components/landing/site-footer.tsx",
+        "apps/web/src/components/landing/site-header.tsx",
+        "apps/web/src/components/pricing-body.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/server/account.ts",
+        "apps/web/src/server/app-shell.test.ts",
+        "apps/web/src/server/billing-beta.test.ts",
+        "apps/web/src/server/billing.ts",
+        "apps/web/src/server/receipt.ts",
+        "packages/core/src/fix-prompt.ts",
+        "packages/core/src/index.ts",
+        "packages/core/src/plans.ts",
+        "packages/db/src/repos/billing.ts"
+      ]
     },
     {
       "id": "FEAT-028",
@@ -3474,6 +3495,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 1537
+    "tests_passed": 2090
   }
 }

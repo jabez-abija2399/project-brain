@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-027 free beta with limits | status: done
+Changed: core plans.ts BETA (3 projects, 100 AI-checked receipts a month) + BETA_SUMMARY; billing.ts betaLimitsOn (BETA_LIMITS=on and no Stripe), project limit and monthly judge count use it, betaUsage; receipts record judge_skipped "beta_limit" and say "Not AI-checked: the beta's 100 a month are used. Resets on the 1st."; /pricing shows the beta (no prices or checkout) while billing is off; landing, FAQ and terms state the limits; Pricing in header and footer; account Plan shows usage; .env.example BETA_LIMITS; D-029 note.
+Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); billing-beta.test (6, one per AC, attack test for client-sent plan/limit and parallel creates).
+NOT VERIFIED: in the browser on production; BETA_LIMITS=on is not yet set in Vercel (owner action after deploy). No fresh-context security review.
+Next: FEAT-028 shared design foundations.
+
 ## 2026-11-04 | FEAT-026 activation funnel for the admin | status: done
 Changed: adminRepo.funnel (one aggregate SQL: weekly sign-up cohorts, linked a repo, first receipt, caught something, first receipt within 10 min); adminFunnel (last 12 weeks); table on /admin.
 Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); CI verify on 9d0e3e1 PASS (build, e2e, audit, gitleaks, semgrep, osv); kit.py pass for every AC from the test log. 10,000-user funnel in under 1 s on PGlite.
