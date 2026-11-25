@@ -36,6 +36,7 @@ export const MIGRATION_IDS = [
   "0055_approvals",
   "0056_project_settings",
   "0057_user_preferences",
+  "0058_usage_limits",
 ] as const;
 
 // Migrations the app works without (caches and other speed-ups with a built-in fallback). While one is pending,
@@ -51,6 +52,8 @@ export const OPTIONAL_MIGRATIONS: ReadonlySet<string> = new Set([
   "0056_project_settings",
   // Backlog: the "How do you build?" answer per account; the browser cookie is used before it.
   "0057_user_preferences",
+  // FEAT-041: flexible beta limits; the built-in limits (3 projects, 100 a month) are used before it.
+  "0058_usage_limits",
 ]);
 
 /** The pending migrations the app cannot work without. */

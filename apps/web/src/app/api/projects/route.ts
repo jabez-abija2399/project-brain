@@ -1,3 +1,4 @@
+import { isAdmin } from "@/server/admin";
 import { requireUser } from "@/server/auth";
 import { createProjectWithinLimit } from "@/server/billing";
 import { getDb } from "@/server/db";
@@ -31,7 +32,11 @@ export async function POST(req: Request) {
     const user = await requireUser(req);
     const input = await parseInput(req, createSchema);
     const db = getDb();
-    const { project } = await createProjectWithinLimit(db, user.id, input.name);
+    // FEAT-041: an admin (GitHub login in ADMIN_GITHUB_LOGINS, checked here on the server) has no project limit.
+    const unlimited = await isAdmin(user, req).catch(() => false);
+    const { project } = await createProjectWithinLimit(db, user.id, input.name, undefined, {
+      unlimited,
+    });
     return NextResponse.json({ ok: true, project }, { status: 201 });
   } catch (err) {
     return toResponse(err);
