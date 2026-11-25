@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-028 shared design foundations | status: done
+Changed: lib/when.ts + ui/when.tsx (relative/day dates, local time in the browser, no "UTC") used on every dashboard, account and admin date; ui/confirm-dialog.tsx (native dialog, consequence, danger) replaces all window.confirm; shell/user-menu.tsx (Account, Docs on phones, Glossary, Sign out; Admin asked from /api/account/admin-link only when opened); footer Account link; ui/tab-row.tsx (current tab in view, edge shadow on phones); lib/glossary.ts + ui/term.tsx + /glossary. DESIGN.md inventory rows.
+Verified (ran this session): verify.sh PASS; design-foundations.test (6, one per AC; admin-link permission test).
+NOT VERIFIED: in a real browser at 375/1280 px (no app running here); tooltip usage on pages comes with FEAT-030+.
+Next: FEAT-029 trust fixes.
+
 ## 2026-11-25 | FEAT-027 free beta with limits | status: done
 Changed: core plans.ts BETA (3 projects, 100 AI-checked receipts a month) + BETA_SUMMARY; billing.ts betaLimitsOn (BETA_LIMITS=on and no Stripe), project limit and monthly judge count use it, betaUsage; receipts record judge_skipped "beta_limit" and say "Not AI-checked: the beta's 100 a month are used. Resets on the 1st."; /pricing shows the beta (no prices or checkout) while billing is off; landing, FAQ and terms state the limits; Pricing in header and footer; account Plan shows usage; .env.example BETA_LIMITS; D-029 note.
 Verified (ran this session): verify.sh PASS (typecheck, lint, unit/integration, kit guard); billing-beta.test (6, one per AC, attack test for client-sent plan/limit and parallel creates).

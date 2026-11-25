@@ -2924,53 +2924,93 @@
           "id": "AC-028-01",
           "kind": "happy",
           "check": "Dates in the dashboard, account and admin read 'Today 14:19', 'yesterday' or '3 days ago' in the viewer's time zone with the full date on hover; no page renders 'UTC' or a raw ISO date",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-01"
         },
         {
           "id": "AC-028-02",
           "kind": "happy",
           "check": "One ConfirmDialog (consequence sentence, danger style, focus trapped, Escape cancels) is used for every destructive action; apps/web/src contains no window.confirm",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-02"
         },
         {
           "id": "AC-028-03",
           "kind": "happy",
           "check": "At 375 px a Menu button in the header opens Docs, Account and Sign out; Account is also in the footer",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-03"
         },
         {
           "id": "AC-028-04",
           "kind": "permission",
           "check": "The header and mobile menu show Admin only to logins in ADMIN_GITHUB_LOGINS; other users never see the link and /admin still answers 404 for them",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-04"
         },
         {
           "id": "AC-028-05",
           "kind": "happy",
           "check": "Glossary terms (receipt, blueprint, checklist item, connection key, RLS, MCP) have a dotted underline whose one-sentence tooltip opens on hover and on keyboard focus, and /glossary lists them all",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-05"
         },
         {
           "id": "AC-028-06",
           "kind": "boundary",
           "check": "Project and admin tab rows at 375 px show a fade at the scroll edge and scroll the active tab into view",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 08:32; log contains AC-028-06"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/admin/audit/page.tsx",
+        "apps/web/src/app/admin/page.tsx",
+        "apps/web/src/app/admin/users/[id]/page.tsx",
+        "apps/web/src/app/admin/users/page.tsx",
+        "apps/web/src/app/admin/waitlist/page.tsx",
+        "apps/web/src/app/api/account/admin-link/route.ts",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/glossary/page.tsx",
+        "apps/web/src/app/projects/[id]/approvals/approval-actions.tsx",
+        "apps/web/src/app/projects/[id]/approvals/page.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/blueprint-actions.tsx",
+        "apps/web/src/app/projects/[id]/blueprint/history/page.tsx",
+        "apps/web/src/app/projects/[id]/features/page.tsx",
+        "apps/web/src/app/projects/[id]/overview/page.tsx",
+        "apps/web/src/app/projects/[id]/plan/page.tsx",
+        "apps/web/src/app/projects/[id]/project-nav.tsx",
+        "apps/web/src/app/projects/[id]/proposals/directive-actions.tsx",
+        "apps/web/src/app/projects/[id]/proposals/page.tsx",
+        "apps/web/src/app/projects/[id]/tokens-panel.tsx",
+        "apps/web/src/app/projects/page.tsx",
+        "apps/web/src/components/account/connected-computers.tsx",
+        "apps/web/src/components/account/oauth-connections.tsx",
+        "apps/web/src/components/account/session-list.tsx",
+        "apps/web/src/components/admin/admin-nav.tsx",
+        "apps/web/src/components/landing/site-footer.tsx",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/components/shell/app-shell.tsx",
+        "apps/web/src/components/shell/user-menu.tsx",
+        "apps/web/src/components/ui/confirm-dialog.tsx",
+        "apps/web/src/components/ui/tab-row.tsx",
+        "apps/web/src/components/ui/term.tsx",
+        "apps/web/src/components/ui/when.tsx",
+        "apps/web/src/lib/glossary.ts",
+        "apps/web/src/lib/when.ts",
+        "apps/web/src/server/admin.ts",
+        "apps/web/src/server/app-shell.test.ts",
+        "apps/web/src/server/design-foundations.test.ts"
+      ]
     },
     {
       "id": "FEAT-029",
@@ -3495,6 +3535,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2090
+    "tests_passed": 2096
   }
 }
