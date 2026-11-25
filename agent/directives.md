@@ -88,3 +88,4 @@
 - 2026-11-13: Owner building Saysite in Claude Code on the web; doctor misread the environment key and init wrote no CLAUDE.md: fixing in CLI 0.3.12.
 - 2026-11-25: Owner moved hosting to the new Vercel account (project codeceipt, https://codeceipts.vercel.app).
 - 2026-11-25: Owner wants every section's design to be user-friendly, easy to understand and lovable: research inspiration and plan improvements for every page, none left out.
+- 2026-11-25: Owner decisions on the design plan: free during the beta with per-account limits; follow Claude's recommendations for the rest (tabs 9 -> 6, 'Connection keys', celebrations on with an off switch).

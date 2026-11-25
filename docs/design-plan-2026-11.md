@@ -199,11 +199,13 @@ Old URLs redirect. Projects list hides the project switcher. **Owner confirms th
   account. It's free." Privacy/terms: contact address, Sent / Never sent summary first, Stripe under Services.
 - P3 404 as a tiny torn receipt; final band reprints a mini receipt; footer line "Thank you for building carefully."
 
-## Decisions for the owner (before the phase that needs them)
-1. Pricing: "free during beta" or the paid plans (Phase 1).
-2. Tabs 9 -> 6 with "To decide" and "Settings" (Phase 2).
-3. Name for tokens/keys/computers: "Connection keys" (Phase 9).
-4. Celebrations on by default with an off switch in Account (Phases 5 and 8).
+## Owner decisions (2026-11-25)
+1. Pricing: free during the beta, with per-account limits (proposed: 3 projects, 100 AI-checked receipts a month;
+   over the limit a receipt is still made from git and says so). Paid plans stay hidden until the beta ends.
+2. Tabs 9 -> 6 with "To decide" and "Settings": yes (Claude's recommendation).
+3. "Connection keys" for tokens/keys/computers: yes.
+4. Celebrations on by default with an off switch in Account: yes.
+Features FEAT-027 to FEAT-038 in agent/plan.json carry these as acceptance criteria, one per session.
 
 ## After each phase
 Refresh docs/screenshots (several are older than the code), check 375 and 1280 px in light and dark, keyboard
