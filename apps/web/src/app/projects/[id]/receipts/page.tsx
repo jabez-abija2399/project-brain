@@ -1,5 +1,5 @@
 import { ReceiptCard } from "@/components/receipt-card";
-import { ReceiptsFilter } from "@/components/receipts-filter";
+import { FILTERS, ReceiptsFilter } from "@/components/receipts-filter";
 import { ShareReceipt } from "@/components/share-receipt";
 import { StateGuide } from "@/components/state-guide";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,8 +14,20 @@ export const dynamic = "force-dynamic";
 
 // Receipts feed (docs/DESIGN.md screen 1): newest first, 50 per page, under day headings; the newest receipt opens
 // expanded. Chips, search and keyboard shortcuts filter it in the browser.
-export default async function ReceiptsPage(props: ListPageProps) {
+type ReceiptRow = {
+  view: { items: { status: string }[]; findings: unknown[]; findingsOmitted: number };
+};
+const hasMissed = (r: ReceiptRow) => r.view.items.some((i) => i.status === "missed");
+const hasFindings = (r: ReceiptRow) => r.view.findings.length + r.view.findingsOmitted > 0;
+
+export default async function ReceiptsPage(
+  props: ListPageProps & { searchParams: Promise<{ filter?: string | string[] }> },
+) {
   const feed = await loadListPage(props, receiptsFeed);
+  // FEAT-032: the overview's cards open this list already filtered (?filter=attention|good|missed|findings).
+  const asked = (await props.searchParams).filter;
+  const wanted = Array.isArray(asked) ? asked[0] : asked;
+  const initialFilter = FILTERS.find((f) => f === wanted) ?? "all";
   const base = `/projects/${feed.project.id}`;
   const now = new Date();
   let lastDay = "";
@@ -34,6 +46,9 @@ export default async function ReceiptsPage(props: ListPageProps) {
           <ReceiptsFilter
             total={feed.rows.length}
             attention={feed.rows.filter((r) => receiptNeedsAttention(r.view)).length}
+            missed={feed.rows.filter(hasMissed).length}
+            findings={feed.rows.filter(hasFindings).length}
+            initial={initialFilter}
           >
             <ol className="stack plain-list">
               {feed.rows.flatMap((r, n) => {
@@ -50,6 +65,8 @@ export default async function ReceiptsPage(props: ListPageProps) {
                   <li
                     key={r.id}
                     data-attention={receiptNeedsAttention(r.view)}
+                    data-missed={hasMissed(r)}
+                    data-findings={hasFindings(r)}
                     data-search={(r.view.noRequest
                       ? NO_REQUEST_NOTE
                       : (r.asked ?? "")

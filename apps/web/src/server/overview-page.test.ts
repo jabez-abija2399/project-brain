@@ -85,9 +85,9 @@ describe("project overview", () => {
     const stats = [...html.matchAll(/data-stat="([\w-]+)"/g)].map((m) => m[1]);
     expect(stats).toEqual(["attention", "missed", "done-rate", "findings"]);
     expect(t).toContain("Needs attention 1");
-    expect(t).toContain("Open missed items 1");
-    expect(t).toContain("Done this week 50%");
-    expect(t).toContain("Security findings 1");
+    expect(t).toContain("Things your agent missed 1");
+    expect(t).toContain("Built as asked 50%");
+    expect(t).toContain("Security problems 1");
     // 14 days, each bar labelled for screen readers.
     expect(html.match(/data-day="\d{4}-\d{2}-\d{2}"/g)).toHaveLength(14);
     expect(html).toMatch(/aria-label="\d{4}-\d{2}-\d{2}: 1 all good, 1 needs attention"/);
@@ -106,7 +106,7 @@ describe("project overview", () => {
   it("a new project says what to do next, and never shows a made-up done rate", async () => {
     const t = text(await render());
     expect(t).toContain("No receipts yet");
-    expect(t).toContain("Done this week —");
+    expect(t).toContain("Built as asked —");
     expect(await render()).toContain(`href="/projects/${projectId}/settings"`);
   });
 

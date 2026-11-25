@@ -3,7 +3,8 @@
 import { matchesSearch, nextIndex } from "@/lib/ui-helpers";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
-type Filter = "all" | "attention" | "good";
+export type Filter = "all" | "attention" | "good" | "missed" | "findings";
+export const FILTERS: Filter[] = ["all", "attention", "good", "missed", "findings"];
 
 const typing = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
@@ -15,13 +16,21 @@ const typing = (el: EventTarget | null) =>
 export function ReceiptsFilter({
   total,
   attention,
+  missed = 0,
+  findings = 0,
+  initial = "all",
   children,
 }: {
   total: number;
   attention: number;
+  /** FEAT-032: receipts with a missed item, and with a security problem (their chips show when any exist). */
+  missed?: number;
+  findings?: number;
+  /** FEAT-032: the filter the page opens with (?filter= from the overview's cards). */
+  initial?: Filter;
   children?: ReactNode;
 }) {
-  const [filter, setFilter] = useState<Filter>("all");
+  const [filter, setFilter] = useState<Filter>(initial);
   const [query, setQuery] = useState("");
   const list = useRef<HTMLDivElement>(null);
   const search = useRef<HTMLInputElement>(null);
@@ -29,6 +38,12 @@ export function ReceiptsFilter({
     ["all", "All", total],
     ["attention", "Needs attention", attention],
     ["good", "All good", total - attention],
+    ...(missed > 0 || initial === "missed"
+      ? [["missed", "Something missed", missed] as [Filter, string, number]]
+      : []),
+    ...(findings > 0 || initial === "findings"
+      ? [["findings", "Security problems", findings] as [Filter, string, number]]
+      : []),
   ];
 
   // Search: hide cards that do not match, and day headings left with no visible card.
