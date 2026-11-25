@@ -1574,11 +1574,8 @@ a.stat-card:hover {
   flex-wrap: wrap;
 }
 @media (max-width: 560px) {
-  .project-nav {
-    mask-image: linear-gradient(to right, #000 85%, transparent);
-  }
-  .project-nav[data-end="true"] {
-    mask-image: none;
+  .project-nav[data-end="false"] {
+    box-shadow: inset -16px 0 12px -12px var(--border-strong);
   }
 }
 .term {

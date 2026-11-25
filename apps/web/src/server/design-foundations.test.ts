@@ -159,18 +159,21 @@ describe("FEAT-028 shared design foundations", () => {
     expect(page).toContain("GLOSSARY.map");
   });
 
-  it("AC-028-06 tab rows fade at the scroll edge on phones and know when the row is scrolled to its end", () => {
+  it("AC-028-06 tab rows shade the scroll edge on phones and know when the row is scrolled to its end", () => {
     const html = render(
-      createElement(TabRow, { label: "Project" }, createElement("a", { href: "#" }, "Overview")),
+      createElement(TabRow, {
+        label: "Project",
+        children: createElement("a", { href: "#" }, "Overview"),
+      }),
     );
     expect(html).toBe(
       '<nav class="project-nav" aria-label="Project" data-end="false"><a href="#">Overview</a></nav>',
     );
     const css = readFileSync(join(SRC, "app/globals.css"), "utf8");
+    // No gradients (docs/DESIGN.md): an inset shadow marks the edge until the row is scrolled to its end.
     expect(css).toMatch(
-      /\.project-nav \{\s*mask-image: linear-gradient\(to right, #000 85%, transparent\);/,
+      /\.project-nav\[data-end="false"\] \{\s*box-shadow: inset -16px 0 12px -12px var\(--border-strong\);/,
     );
-    expect(css).toMatch(/\.project-nav\[data-end="true"\] \{\s*mask-image: none;/);
     for (const file of ["app/projects/[id]/project-nav.tsx", "components/admin/admin-nav.tsx"]) {
       expect(readFileSync(join(SRC, file), "utf8")).toContain("<TabRow");
     }

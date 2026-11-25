@@ -21,22 +21,30 @@ export function Term({ name, children }: { name: string; children?: ReactNode })
 /** Running text with the first mention of each glossary word made a Term (at most one of each). */
 export function withTerms(text: string, keys: string[] = GLOSSARY.map((t) => t.key)): ReactNode {
   const terms = keys.map(glossaryTerm).filter((t): t is GlossaryTerm => t !== null);
-  let parts: ReactNode[] = [text];
+  // Pieces of the text in order; a piece with a term key becomes a Term. Keys are the piece's start offset.
+  let pieces: { at: number; text: string; term?: string }[] = [{ at: 0, text }];
   for (const term of terms) {
     let done = false;
-    parts = parts.flatMap((part) => {
-      if (done || typeof part !== "string") return [part];
-      const m = term.match.exec(part);
-      if (!m) return [part];
+    pieces = pieces.flatMap((piece) => {
+      if (done || piece.term) return [piece];
+      const m = term.match.exec(piece.text);
+      if (!m) return [piece];
       done = true;
+      const start = piece.at + m.index;
       return [
-        part.slice(0, m.index),
-        <Term key={term.key} name={term.key}>
-          {m[0]}
-        </Term>,
-        part.slice(m.index + m[0].length),
+        { at: piece.at, text: piece.text.slice(0, m.index) },
+        { at: start, text: m[0], term: term.key },
+        { at: start + m[0].length, text: piece.text.slice(m.index + m[0].length) },
       ];
     });
   }
-  return parts.map((p, i) => (typeof p === "string" ? <Fragment key={`t${i}`}>{p}</Fragment> : p));
+  return pieces.map((p) =>
+    p.term ? (
+      <Term key={`term-${p.at}`} name={p.term}>
+        {p.text}
+      </Term>
+    ) : (
+      <Fragment key={`text-${p.at}`}>{p.text}</Fragment>
+    ),
+  );
 }
