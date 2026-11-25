@@ -1,12 +1,10 @@
 import { PageHeader } from "@/components/shell/page-header";
-import { TabRow } from "@/components/ui/tab-row";
-import Link from "next/link";
 import type { ReactNode } from "react";
-import { TabBadge } from "./nav-counts";
 
-// FEAT-030: six tabs. Receipts and To decide show a count when something waits for the owner.
+// FEAT-030: six sections. FEAT-040: they live in the sidebar (components/shell/sidebar.tsx); this list names the
+// section in the breadcrumb and the page title.
 const TABS = [
-  { href: "overview", label: "Overview" },
+  { href: "overview", label: "Home" },
   { href: "receipts", label: "Receipts", badge: "receipts" },
   { href: "features", label: "Features" },
   { href: "decide", label: "To decide", badge: "decide" },
@@ -41,8 +39,8 @@ export const PURPOSE = {
 } as const;
 const purposeOf = (key: string): string | undefined => (PURPOSE as Record<string, string>)[key];
 
-// The project header on every project page: breadcrumbs, the project name, what this page is for, one optional
-// primary action, and the tabs.
+// The project header on every project page: breadcrumbs, the page's title, what this page is for and one optional
+// primary action. FEAT-040: the sections moved to the sidebar; the title names the section (Home shows the project).
 export function ProjectNav({
   projectId,
   current,
@@ -73,22 +71,10 @@ export function ProjectNav({
               ]
             : [{ label: moved?.crumb ?? tab.label }]),
         ]}
-        title={name}
+        title={sub ? sub.label : active === "overview" ? name : (moved?.crumb ?? tab.label)}
         purpose={sub?.purpose ?? purposeOf(current) ?? PURPOSE[tab.href]}
         action={action}
       />
-      <TabRow label="Project">
-        {TABS.map((t) => (
-          <Link
-            key={t.href}
-            href={`/projects/${projectId}/${t.href}`}
-            aria-current={t.href === active ? "page" : undefined}
-          >
-            {t.label}
-            {"badge" in t ? <TabBadge of={t.badge} /> : null}
-          </Link>
-        ))}
-      </TabRow>
     </div>
   );
 }

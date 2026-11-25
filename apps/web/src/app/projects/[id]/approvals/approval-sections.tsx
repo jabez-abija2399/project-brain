@@ -1,3 +1,4 @@
+import { StatusBadge } from "@/components/ui/status-badge";
 import { When } from "@/components/ui/when";
 import {
   ACTION_LABELS,
@@ -15,6 +16,21 @@ type Ready = Extract<View["overview"], { ready: true }>;
 
 const PRESETS = ["careful", "balanced", "fast"] as const;
 export const RISK_LABEL = { low: "Low", medium: "Medium", high: "High", locked: "Locked" } as const;
+
+// FEAT-040 (design v3): why a request waits for the owner, in one plain sentence per risk level (Stripe Radar's
+// "risk insights"), next to what it touches.
+const WHY: Record<string, string> = {
+  high: "It can remove work or data that is hard to get back.",
+  medium: "It changes more than a normal edit, so your settings keep it for you.",
+  low: "Your settings keep this kind of action for you.",
+  locked: "Your settings never let an agent do this on its own.",
+};
+const RISK_TONE: Record<string, "missed" | "warning" | "neutral"> = {
+  high: "missed",
+  locked: "missed",
+  medium: "warning",
+  low: "neutral",
+};
 
 export function PendingRequests({
   pid,
@@ -213,6 +229,10 @@ function RequestCards({ pid, o }: { pid: string; o: Ready }) {
         const expired = new Date(r.expiresAt).getTime() <= Date.now();
         return (
           <li key={r.id} className="card stack" data-request={r.id}>
+            <StatusBadge
+              status={RISK_TONE[r.risk] ?? "neutral"}
+              label={`${RISK_LABEL[r.risk as keyof typeof RISK_LABEL] ?? r.risk} risk`}
+            />
             <span className="wrap">
               <span className="muted">Your agent wants to: </span>
               <strong>{sentence}</strong>
@@ -231,6 +251,18 @@ function RequestCards({ pid, o }: { pid: string; o: Ready }) {
                 </>
               )}
             </span>
+            <div className="why" data-testid="why-asking">
+              <h3 className="subhead m0">Why we're asking</h3>
+              <ul className="m0">
+                <li>{WHY[r.risk] ?? WHY.low}</li>
+                {r.path ? (
+                  <li>
+                    It touches <code>{r.path}</code>
+                  </li>
+                ) : null}
+                {r.feature ? <li>Feature: {r.feature}</li> : null}
+              </ul>
+            </div>
             {expired ? (
               <p className="m0" data-testid="request-expired">
                 This request expired. Your agent can ask again if it still needs it.

@@ -199,9 +199,12 @@ describe("FEAT-039 UI polish", () => {
     const sheet = css();
     expect(sheet).not.toMatch(/gradient\(/);
     expect(sheet).toMatch(/\.receipt-card::after \{[^}]*clip-path: polygon\(/);
-    expect(lastRule(sheet, ".tab-badge {")).toMatch(
-      /background: var\(--accent\);\s*color: var\(--on-accent\);/,
-    );
+    // FEAT-040: later rules place the badge in the sidebar; the FEAT-039 colour rule is the one checked here.
+    expect(
+      sheet
+        .slice(sheet.indexOf("FEAT-039: UI polish"))
+        .slice(sheet.slice(sheet.indexOf("FEAT-039: UI polish")).indexOf(".tab-badge {")),
+    ).toMatch(/background: var\(--accent\);\s*color: var\(--on-accent\);/);
     // Read each scope's colour tokens with one fixed pattern (no regex built from input).
     // The first definition in a scope is the theme's own (later ones are receipt-paper overrides).
     const tokens = (scope: string) => {

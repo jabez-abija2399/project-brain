@@ -63,9 +63,9 @@ describe("feature board", () => {
     }
     expect(t).toContain("1 of 2 done");
     expect(t).toContain("Next: Show the average rating");
-    expect(html).toMatch(
-      /<progress class="progress" value="1" max="2" aria-label="Reviews: 1 of 2 done"/,
-    );
+    // FEAT-040 (AC-040-06): the stage on a four-step track, then the count.
+    expect(html).toContain('role="img" aria-label="Reviews: Being built"');
+    expect(t).toContain("1 of 2 done");
     // Every row carries what the filter reads: name, status, open items.
     expect(html).toContain('data-feature="reviews" data-status="in_progress" data-open="1"');
     expect(html).toContain('data-feature="billing" data-status="todo" data-open="0"');
