@@ -107,13 +107,15 @@ export default async function QuickstartPage() {
         repository) and run this first:
       </p>
       <InstallOptions />
+      <Screenshot of="the terminal showing the code and Waiting for approval" />
       <p>
         The terminal shows a short code, like BCDF-GHJK, and opens your browser. Check that the code
         on the page matches the one in your terminal, sign in with GitHub, pick a project or create
         one, and approve. Codeceipt then links this repo to the project, indexes your code on your
         machine (only names, paths and hashes are sent) and sets up the agents it finds.
       </p>
-      <Screenshot of="the approval page with the code and the project picker" />
+      <Screenshot of="the sign-in page and the approval page with the code and the project picker" />
+      <Screenshot of="the Get your first receipt page with its steps ticking off" />
       <p>The terminal ends with a short summary and what happens next:</p>
       <pre className="lp-doc-terminal">
         <code>

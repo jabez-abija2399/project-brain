@@ -77,14 +77,17 @@ describe("public pages", () => {
   it("/docs/quickstart follows the first-time journey step by step, screenshot spots kept but hidden", async () => {
     const html = await render(QuickstartPage());
     const t = text(html);
+    // FEAT-038 (AC-038-02): the landing page's three steps; the command comes before signing in and approving.
     const order = [
-      "Sign in with GitHub",
-      "Install and run codeceipt in your project",
-      "Approve in the browser",
+      "1. Set up",
+      "macOS, Linux, WSL",
+      "sign in with GitHub",
+      "approve. Codeceipt then links",
       "What happens next",
-      "Open Claude Code or Cursor and make a change",
+      "2. Work as usual",
       "Codeceipt receipt:",
-      "Your first receipt",
+      "3. Get your receipt",
+      "Every receipt after that",
     ].map((phrase) => t.indexOf(phrase));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
