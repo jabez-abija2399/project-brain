@@ -1,12 +1,24 @@
 "use client";
 
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useState } from "react";
 
 // Ends every session of this account (server side), then goes to the landing page.
 export function SignOutEverywhere() {
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [ask, dialog] = useConfirm();
   async function go() {
+    // FEAT-037: it signs this browser out too, so it asks first.
+    if (
+      !(await ask({
+        title: "Sign out everywhere, including this browser?",
+        body: "Every browser signed in to your account is signed out. Your agents keep working: their keys are not touched.",
+        action: "Sign out everywhere",
+        danger: true,
+      }))
+    )
+      return;
     setBusy(true);
     setFailed(false);
     try {
@@ -20,6 +32,7 @@ export function SignOutEverywhere() {
   }
   return (
     <div className="stack gap-6">
+      {dialog}
       <button type="button" className="btn self-start" onClick={go} disabled={busy}>
         {busy ? "Signing out…" : "Sign out of all sessions"}
       </button>

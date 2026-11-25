@@ -3,6 +3,7 @@
 import { When } from "@/components/ui/when";
 import { formatRelative } from "@/lib/when";
 
+import { CopyButton } from "@/components/ui/copy-button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useState } from "react";
 
@@ -89,6 +90,8 @@ export default function ProjectTokensPanel({
         <output className="token-once">
           <strong>Copy this now: you won't see it again.</strong>
           <code className="wrap">{plaintext}</code>
+          {/* FEAT-037: one click to copy the key shown once. */}
+          <CopyButton label="Copy key" text={plaintext} />
         </output>
       ) : null}
 

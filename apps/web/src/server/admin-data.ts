@@ -1,4 +1,4 @@
-import { safeDisplay } from "@brain/core";
+import { maskSecretsIn, oneLineText, safeDisplay } from "@brain/core";
 import { ADMIN_PAGE, type BrainDb, adminAuditRepo, adminRepo, waitlistRepo } from "@brain/db";
 import { z } from "zod";
 import type { Admin } from "./admin";
@@ -172,6 +172,8 @@ const suspendSchema = z
     targetType: z.enum(["user", "project"]),
     targetId: z.string().regex(/^[\w-]{1,100}$/),
     suspended: z.boolean(),
+    // FEAT-037: why, kept in the audit log's Detail column (optional).
+    reason: z.string().trim().max(200).optional(),
   })
   .strict();
 
@@ -181,7 +183,7 @@ export async function setSuspended(admin: Admin, db: BrainDb, raw: unknown, now 
   const parsed = suspendSchema.safeParse(raw);
   if (!parsed.success)
     throw new AppError(400, "invalid_input", "send { targetType, targetId, suspended }");
-  const { targetType, targetId, suspended } = parsed.data;
+  const { targetType, targetId, suspended, reason } = parsed.data;
   if (targetType === "user" && targetId === admin.user.id) {
     throw new AppError(400, "cannot_suspend_self", "An admin cannot suspend their own account.");
   }
@@ -196,6 +198,7 @@ export async function setSuspended(admin: Admin, db: BrainDb, raw: unknown, now 
       action: suspended ? `suspend_${targetType}` : `unsuspend_${targetType}`,
       targetType,
       targetId,
+      ...(reason ? { detail: maskSecretsIn(oneLineText(reason)).slice(0, 200) } : {}),
     },
   });
   if (!changed) throw new AppError(404, "not_found");

@@ -18,6 +18,20 @@ const Check = ({ ok, label }: { ok: boolean; label: string }) => (
   </li>
 );
 
+type Overview = Awaited<ReturnType<typeof adminOverview>>;
+
+function statusSentence(o: Overview): string {
+  const down = [
+    o.health.database ? null : "the database",
+    o.health.githubApp ? null : "the GitHub App",
+    o.health.inngest ? null : "background jobs",
+    o.health.ai ? null : "AI",
+  ].filter(Boolean);
+  const head = down.length === 0 ? "All systems OK" : `Needs setup: ${down.join(", ")}`;
+  const held = o.suspended.users + o.suspended.projects;
+  return held > 0 ? `${head} · ${held} suspended` : head;
+}
+
 // Admin overview (2026-11-01): the whole service at a glance. Counts only; no receipt contents or code.
 export default async function AdminPage() {
   const admin = await pageAdmin();
@@ -33,6 +47,10 @@ export default async function AdminPage() {
         purpose={`Signed in as ${admin.login}. The service at a glance; every action here is recorded in the audit log.`}
       />
       <AdminNav current="/admin" />
+      {/* FEAT-037: lead with one status sentence. */}
+      <p className="overview-headline m0" data-testid="admin-status">
+        {statusSentence(o)}
+      </p>
       <div className="stat-grid">
         <StatCard
           id="users"

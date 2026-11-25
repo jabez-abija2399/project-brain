@@ -120,6 +120,27 @@ export async function getSessionUser(req: Request): Promise<SessionUser | null> 
   return resolver(req);
 }
 
+// FEAT-037: which of the user's sessions is this browser (the account page marks it "This browser").
+type SessionIdResolver = (req: Request) => Promise<string | null>;
+const defaultSessionId: SessionIdResolver = async (req) => {
+  try {
+    const s = (await getAuth().api.getSession({ headers: req.headers })) as {
+      session?: { id?: string };
+    } | null;
+    return s?.session?.id ?? null;
+  } catch {
+    return null;
+  }
+};
+let sessionIdResolver: SessionIdResolver = defaultSessionId;
+/** Test-only, like setSessionResolver. */
+export function setSessionIdResolverForTests(fn: SessionIdResolver | null) {
+  sessionIdResolver = fn ?? defaultSessionId;
+}
+export async function currentSessionId(req: Request): Promise<string | null> {
+  return sessionIdResolver(req);
+}
+
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 /** The app's own origin: BETTER_AUTH_URL's (the address users sign in on), else the request's. */

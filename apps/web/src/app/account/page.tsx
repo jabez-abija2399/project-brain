@@ -12,11 +12,12 @@ import { CELEBRATE_COOKIE, celebrationsOn } from "@/lib/celebrate";
 import { formatDay } from "@/lib/when";
 import { accountView, sessionsView } from "@/server/account";
 import { pageShowsAdminLink } from "@/server/admin";
+import { currentSessionId } from "@/server/auth";
 import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { connectionsFor } from "@/server/mcp-oauth";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -35,11 +36,12 @@ async function celebrateOn(): Promise<boolean> {
 
 export default async function AccountPage() {
   const user = await pageUser({ allowSuspended: true });
-  const [a, apps, browsers, admin] = await Promise.all([
+  const [a, apps, browsers, admin, thisBrowser] = await Promise.all([
     accountView(getDb(), user),
     connectionsFor(getDb(), user),
     sessionsView(getDb(), user),
     pageShowsAdminLink(user),
+    currentSessionId(new Request("http://localhost/", { headers: await headers() })),
   ]);
   return (
     <main className="page page-narrow stack stack-lg">
@@ -84,7 +86,7 @@ export default async function AccountPage() {
         <CelebrateToggle on={await celebrateOn()} />
       </section>
 
-      <section className="stack" aria-labelledby="plan">
+      <section className="card stack" aria-labelledby="plan" data-testid="plan-card">
         <h2 id="plan" className="section-title">
           Plan
         </h2>
@@ -111,12 +113,12 @@ export default async function AccountPage() {
 
       <section className="stack" aria-labelledby="computers">
         <h2 id="computers" className="section-title">
-          Connected computers
+          Connection keys
         </h2>
         <p className="muted m0">
-          Each time you approve <code>npx codeceipt</code>, that computer gets a key for one
-          project. Revoke a key you no longer use; that computer then has to run{" "}
-          <code>npx codeceipt</code> again.
+          When you run <code>npx codeceipt</code> and approve it, that computer gets a connection
+          key that sends receipts for one project. Remove any key you no longer use; that computer
+          then has to run <code>npx codeceipt</code> again.
         </p>
         <ConnectedComputers initial={a.computers} />
       </section>
@@ -135,13 +137,13 @@ export default async function AccountPage() {
 
       <section className="stack" aria-labelledby="sessions">
         <h2 id="sessions" className="section-title">
-          Sessions
+          Signed-in browsers
         </h2>
         <p className="muted m0">
           The browsers signed in to this account. Sign one out, or sign out of every browser,
           including this one.
         </p>
-        <SessionList sessions={browsers} />
+        <SessionList sessions={browsers} current={thisBrowser} />
         <SignOutEverywhere />
       </section>
 
