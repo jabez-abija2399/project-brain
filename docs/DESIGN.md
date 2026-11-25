@@ -1,7 +1,13 @@
 # Design contract: Codeceipt
 Short on purpose: use one component library as-is; spend design effort only on the key screens.
 
-## Direction: "Receipt" (owner, 2026-11-01; replaces "Bright ledger")
+## Direction v3: "Clearance" (owner, 2026-11-25; replaces "Receipt")
+Plan, research and mock-ups: docs/design-plan-v3.md, docs/design-research-2026-11.md, docs/mockups/v3/. A sidebar app
+shell (phones: top bar + floating bottom bar); cool canvas #F5F6F8, ink #11141B, one cobalt accent #2747D6; Geist and
+Geist Mono via next/font; the clearance seal leads Home; status = shape + colour + word; hairlines over shadows. The
+receipt paper stays the signature for receipts. Tokens keep their names below; their values follow v3.
+
+## Earlier direction: "Receipt" (owner, 2026-11-01; replaces "Bright ledger")
 A warm off-white ground, ink text, one indigo accent and status colours (green done, amber partial or untested, red
 missed), always with an icon and a word. The signature element is the receipt: white paper (in both themes), a torn
 bottom edge, monospace text. Monospace only for receipts, terminals and code; everything else uses the UI font.

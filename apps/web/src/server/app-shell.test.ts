@@ -44,7 +44,9 @@ const text = (h: string) =>
     .replace(/&#x27;/g, "'")
     .replace(/\s+/g, " ");
 const footerLinks = (h: string) =>
-  [...h.slice(h.indexOf("<footer")).matchAll(/<a[^>]*href="([^"]+)"/g)].map((m) => m[1]);
+  [...h.slice(h.indexOf("<footer"), h.indexOf("</footer>")).matchAll(/<a[^>]*href="([^"]+)"/g)].map(
+    (m) => m[1],
+  );
 
 describe("app shell", () => {
   it("signed in: skip link, wordmark, project switcher, sign out, the page, and the landing page's footer", async () => {
@@ -105,6 +107,8 @@ describe("app shell", () => {
   });
 
   it("every project page starts with breadcrumbs, the name, one sentence on its purpose and the tabs", () => {
+    // FEAT-040: the tabs moved to the sidebar (project-tabs.test.ts); the page header names the section, and Home
+    // shows the project's name.
     for (const current of [
       "overview",
       "features",
@@ -121,11 +125,12 @@ describe("app shell", () => {
       expect(html).toContain('<nav aria-label="Breadcrumb" class="crumbs">');
       expect(html).toContain('href="/projects?all=1">Projects</a>');
       expect(html).toMatch(/<span aria-current="page">[A-Z][a-z]+<\/span>/);
-      expect(html).toContain('<h1 class="wrap">edutech</h1>');
+      expect(html).toMatch(/<h1 class="wrap">[A-Z][\w ]*|<h1 class="wrap">edutech<\/h1>/);
+      if (current === "overview") expect(html).toContain('<h1 class="wrap">edutech</h1>');
       const purpose = PURPOSE[current as keyof typeof PURPOSE];
       expect(purpose).toMatch(/^[A-Z].*\.$/);
       expect(html).toContain(`<p class="purpose">${purpose.replaceAll("'", "&#x27;")}</p>`);
-      expect(html.match(/aria-current="page"/g)).toHaveLength(2);
+      expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     }
   });
 });

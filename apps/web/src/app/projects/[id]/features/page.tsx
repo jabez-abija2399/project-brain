@@ -1,8 +1,8 @@
 import { FeaturesFilter } from "@/components/features-filter";
 import { DataTable } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FeatureTrack, featureStage } from "@/components/ui/feature-track";
 import { Pagination } from "@/components/ui/pagination";
-import { ProgressBar } from "@/components/ui/progress-bar";
 import { type Status, StatusBadge } from "@/components/ui/status-badge";
 import { When } from "@/components/ui/when";
 import { boardSort, featureBoard } from "@/server/dashboard";
@@ -131,11 +131,8 @@ export default async function FeatureBoardPage(props: ListPageProps) {
                   cell: (r) =>
                     r.totalItems > 0 ? (
                       <span className="progress-cell">
-                        <ProgressBar
-                          done={r.doneItems}
-                          total={r.totalItems}
-                          label={`${r.name}: ${r.doneItems} of ${r.totalItems} done`}
-                        />
+                        {/* FEAT-040: the stage the feature is in, then the count. */}
+                        <FeatureTrack stage={featureStage(r)} label={r.name} />
                         <span className="muted">
                           {r.doneItems} of {r.totalItems} done
                         </span>

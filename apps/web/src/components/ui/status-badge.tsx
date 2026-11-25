@@ -1,4 +1,6 @@
-// Status is never shown by color alone (docs/DESIGN.md): every badge has an icon and a label.
+// Status is never shown by color alone (docs/DESIGN.md): every badge has an icon and a label. FEAT-040: the four main
+// states are also drawn as shapes in CSS (globals.css, "Status shapes"); the glyph stays in the markup for assistive
+// tech and copy-paste.
 export type Status =
   | "done"
   | "done_untested"

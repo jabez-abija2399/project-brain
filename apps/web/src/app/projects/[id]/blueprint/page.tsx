@@ -222,26 +222,29 @@ export default async function BlueprintPage({
                     />
                   ) : null}
                 </span>
-                {never.length > 0 ? (
-                  <div className="stack gap-6">
-                    <h3 className="subhead m0">It must never</h3>
-                    <ul className="plain-list stack gap-6">
-                      {never.map((c) => (
-                        <RuleLine key={c.id} c={c} detailed={mode === "detailed"} />
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {does.length > 0 ? (
-                  <div className="stack gap-6">
-                    <h3 className="subhead m0">It does</h3>
-                    <ul className="plain-list stack gap-6">
-                      {does.map((c) => (
-                        <RuleLine key={c.id} c={c} detailed={mode === "detailed"} />
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
+                {/* FEAT-040: two columns, Always and Never. */}
+                <div className="rule-columns">
+                  {does.length > 0 ? (
+                    <div className="stack gap-6">
+                      <h3 className="subhead m0">Always</h3>
+                      <ul className="plain-list stack gap-6">
+                        {does.map((c) => (
+                          <RuleLine key={c.id} c={c} detailed={mode === "detailed"} />
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {never.length > 0 ? (
+                    <div className="stack gap-6">
+                      <h3 className="subhead m0">Never</h3>
+                      <ul className="plain-list stack gap-6">
+                        {never.map((c) => (
+                          <RuleLine key={c.id} c={c} detailed={mode === "detailed"} />
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
                 {mode === "detailed" ? (
                   <div className="stack">
                     {f.dependsOn.length ? (

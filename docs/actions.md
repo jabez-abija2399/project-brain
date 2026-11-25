@@ -25,7 +25,7 @@ first steps for that.
 | Check the install, login and hooks | `codeceipt doctor` | | |
 | Update the app | `codeceipt update` | | |
 | See the version | `codeceipt --version` | | |
-| Know what to do next | `codeceipt status` | Overview tab | `where_did_we_stop` |
+| Know what to do next | `codeceipt status` | Home tab (in the sidebar) | `where_did_we_stop` |
 
 ## Plan and describe your app
 | You want to | In the terminal | On the web | Ask your agent |

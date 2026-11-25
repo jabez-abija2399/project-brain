@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-040 design v3 "Clearance" | status: done
+Changed: signed-in app is a sidebar shell (wordmark, switcher, Home/Receipts/To decide/Features/Blueprint with counts, project settings/account/docs, account menu); phones get a top bar and a floating bottom bar; sections left the page header (title now names the section). Cool palette + cobalt accent, Geist via next/font (self-hosted). Home leads with the clearance seal (Clear/Needs you/Unsafe/Not started). Status badges draw shapes in CSS (circle/half/triangle/dashed). Features: 4-stage track. Blueprint: Always/Never columns. To decide: risk chip + "Why we're asking". Counts computed once in server/shell.ts for the owner's own project only. Older tests that pinned the tab row/old headings updated to the approved criteria.
+Verified (ran this session): verify.sh PASS; design-v3.test (9, one per AC); next build compiles; Chromium check of 14 rendered pages at 375 and 1280 px, light and dark: no overflow. Research/plan/mock-ups: docs/design-research-2026-11.md, docs/design-plan-v3.md, docs/mockups/v3/.
+NOT VERIFIED: the deployed site; "Ask agent to explain"/"Decide later" not built (later.md).
+Next: owner review on the live site.
+
 ## 2026-11-25 | FEAT-039 UI polish | status: done
 Changed: phone menu shows "Menu"; project tabs are a wrapping segmented bar (current tab filled with the text colour, works in dark), solid count badges; /projects/<id> opens Overview (307); Receipts lead with group headings and count pills, dates are small labels, guide starts closed, small outlined action buttons, one shortcut hint, receipt cards are paper with the torn edge; To decide is one list with one count and Approve/Reject everywhere; Features: "Nothing planned", no all-zero Files column, dates on one line; Blueprint with no promises shows one empty state; Account puts the plan first; cards lift slightly, empty states are solid cards.
 Verified (ran this session): verify.sh PASS; ui-polish.test (10, one per AC); Chromium check of 14 pages at 375 and 1280 px, light and dark: no horizontal overflow. Before/after: agent/screenshots/feat-039/.

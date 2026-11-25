@@ -88,10 +88,11 @@ describe("FEAT-036 Blueprint", () => {
     cookie = "simple";
     const simple = await render(BlueprintPage);
     const t = text(simple);
-    expect(t).toContain("It must never");
+    // FEAT-040 (AC-040-07): the groups are two columns, Always then Never.
+    expect(simple).toContain('<h3 class="subhead m0">Never</h3>');
     expect(t).toContain("The app never stores card numbers.");
-    expect(t).toContain("It does");
-    expect(t.indexOf("It must never")).toBeLessThan(t.indexOf("It does"));
+    expect(simple).toContain('<h3 class="subhead m0">Always</h3>');
+    expect(simple).toContain('class="rule-columns"');
     expect(simple).not.toContain("formal wording");
     expect(simple).not.toMatch(/THE SYSTEM SHALL|\bWHEN\b|\bSHALL\b/);
     cookie = "detailed";

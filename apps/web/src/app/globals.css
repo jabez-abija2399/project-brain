@@ -1,36 +1,37 @@
-/* Codeceipt design system ("Receipt", docs/DESIGN.md, 2026-11-01): a warm off-white ground, ink text, one indigo
+/* Codeceipt design system. FEAT-040: design v3 "Clearance" (docs/design-plan-v3.md): a cool canvas, one cobalt
+   accent and Geist; earlier ("Receipt", docs/DESIGN.md, 2026-11-01): a warm off-white ground, ink text, one indigo
    accent, status colours with an icon and a word, and the receipt (white paper, torn edge, monospace) as the one
    signature element. No gradients, glows or all-caps labels. Landing-only styles live in landing.css. */
 :root {
-  --bg: #f7f5f0;
+  --bg: #f5f6f8;
   --surface: #ffffff;
-  --surface-2: #f1eee7;
-  --border: #e6e2d8;
-  --border-strong: #cfc9bc;
-  --text: #17181c;
-  --muted: #5c5850;
-  --accent: #4f46e5;
-  --accent-soft: #eeedfd;
+  --surface-2: #eef0f3;
+  --border: #e2e5ea;
+  --border-strong: #cfd3da;
+  --text: #11141b;
+  --muted: #5b6270;
+  --accent: #2747d6;
+  --accent-soft: #e9edfd;
   --on-accent: #ffffff;
-  --success: #047857;
-  --success-soft: #e5f4ec;
-  --warning: #9a4508;
-  --warning-soft: #fbf0e1;
-  --danger: #c11f1f;
-  --danger-soft: #fbe9e7;
+  --success: #0b7a55;
+  --success-soft: #e4f4ec;
+  --warning: #995605;
+  --warning-soft: #fbf0dc;
+  --danger: #c42b2b;
+  --danger-soft: #fbe8e8;
   /* Always dark, in both themes: the printer, tooltips and the final call to action. */
-  --ink: #17181c;
-  --on-ink: #f7f5f0;
-  --on-ink-muted: #c9c4b8;
+  --ink: #11141b;
+  --on-ink: #f5f6f8;
+  --on-ink-muted: #c3c8d1;
   /* The receipt is white paper in both themes. */
   --paper: #ffffff;
-  --paper-text: #17181c;
-  --paper-muted: #57534b;
-  --paper-line: #e6e2d8;
-  --radius: 12px;
-  --radius-sm: 8px;
-  --shadow-sm: 0 1px 2px rgb(23 24 28 / 6%);
-  --shadow-md: 0 8px 24px rgb(23 24 28 / 8%), 0 1px 3px rgb(23 24 28 / 6%);
+  --paper-text: #11141b;
+  --paper-muted: #535a67;
+  --paper-line: #e6e8ec;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgb(17 20 27 / 5%);
+  --shadow-md: 0 12px 32px rgb(17 20 27 / 10%), 0 1px 2px rgb(17 20 27 / 6%);
   --ring: 0 0 0 3px color-mix(in srgb, var(--accent) 40%, transparent);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   /* Type scale: one display size (the landing hero), one section size, one body size, plus small print. */
@@ -39,32 +40,34 @@
   --fs-title: 1.625rem;
   --fs-body: 1rem;
   --fs-small: 0.875rem;
-  --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-ui: var(--font-geist), Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono: var(--font-geist-mono), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
   --content: 1120px;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #131210;
-    --surface: #1c1b18;
-    --surface-2: #25231f;
-    --border: #37342e;
-    --border-strong: #4d4941;
-    --text: #f1eee8;
-    --muted: #aca59a;
-    --accent: #a5b4fc;
-    --accent-soft: #262742;
-    --on-accent: #17181c;
-    --success: #5fd39a;
-    --success-soft: #13291f;
-    --warning: #f0b34a;
-    --warning-soft: #2e2412;
-    --danger: #f58c8c;
-    --danger-soft: #33191a;
-    --ink: #0b0b0a;
-    --on-ink: #f1eee8;
-    --on-ink-muted: #bdb7ab;
+    --bg: #0d1015;
+    --surface: #141821;
+    --surface-2: #1b2029;
+    --border: #232a35;
+    --border-strong: #323a47;
+    --text: #eceef2;
+    --muted: #a3a9b5;
+    --accent: #8ea2ff;
+    --accent-soft: #1c2346;
+    --on-accent: #0d1015;
+    --success: #4fd1a0;
+    --success-soft: #10261e;
+    --warning: #f2b453;
+    --warning-soft: #2b2111;
+    --danger: #ff8a80;
+    --danger-soft: #2e1616;
+    --ink: #070a0e;
+    --on-ink: #eceef2;
+    --on-ink-muted: #b6bcc7;
     --paper: #fbfaf7;
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
     --shadow-md: 0 10px 30px rgb(0 0 0 / 45%);
@@ -1294,20 +1297,20 @@ a.stat-card:hover {
 
 /* ---------- Receipt cards: paper in both themes ---------- */
 .receipt-card {
-  --success: #047857;
-  --success-soft: #e5f4ec;
-  --warning: #9a4508;
-  --warning-soft: #fbf0e1;
-  --danger: #c11f1f;
-  --danger-soft: #fbe9e7;
+  --success: #0b7a55;
+  --success-soft: #e4f4ec;
+  --warning: #995605;
+  --warning-soft: #fbf0dc;
+  --danger: #c42b2b;
+  --danger-soft: #fbe8e8;
   --muted: var(--paper-muted);
   --text: var(--paper-text);
   --surface: var(--paper);
-  --surface-2: #f1eee7;
+  --surface-2: #eef0f3;
   --border: var(--paper-line);
-  --border-strong: #cfc9bc;
-  --accent: #4f46e5;
-  --accent-soft: #eeedfd;
+  --border-strong: #cfd3da;
+  --accent: #2747d6;
+  --accent-soft: #e9edfd;
   --on-accent: #ffffff;
   color-scheme: light;
   position: relative;
@@ -1987,4 +1990,408 @@ a.stat-card:hover {
 }
 .empty .section-title {
   font-size: 1.25rem;
+}
+
+/* ---------- FEAT-040: design v3 "Clearance" (docs/design-plan-v3.md) ---------- */
+/* App shell: a quiet sidebar on wide screens; a top bar and a floating bottom bar on phones. */
+.app-v3 {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: 100vh;
+}
+.app-v3 > .skip-link {
+  position: absolute;
+}
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 12px;
+  background: var(--surface-2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.side-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 8px 10px;
+  color: var(--text);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+.brand-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.sidebar .switcher {
+  margin-bottom: 8px;
+}
+.sidebar .switcher summary {
+  max-width: none;
+  width: 100%;
+}
+.side-nav {
+  display: grid;
+  gap: 2px;
+}
+.side-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-weight: 550;
+  font-size: 0.9375rem;
+  text-decoration: none;
+}
+.side-nav a:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+.side-nav a[aria-current="page"] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.side-nav svg,
+.tabbar svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.side-nav .tab-badge,
+.tabbar .tab-badge {
+  margin-left: auto;
+  background: var(--warning);
+  color: var(--on-accent);
+}
+@media (prefers-color-scheme: dark) {
+  .side-nav .tab-badge,
+  .tabbar .tab-badge {
+    color: var(--bg);
+  }
+}
+.side-foot {
+  margin-top: auto;
+  padding-top: 8px;
+}
+.side-me {
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.side-me .user-menu summary {
+  width: 100%;
+  max-width: none;
+  justify-content: flex-start;
+}
+.side-me .user-menu-panel {
+  top: auto;
+  bottom: calc(100% + 6px);
+  left: 0;
+  right: auto;
+}
+.app-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.app-main > .shell-body {
+  flex: 1 0 auto;
+}
+.app-v3 .app-header,
+.tabbar {
+  display: none;
+}
+.app-v3 .page {
+  max-width: 1040px;
+  margin: 0;
+  padding: 28px 40px 64px;
+}
+.app-v3 .page-narrow {
+  max-width: 760px;
+}
+.app-v3 .lp-footer {
+  margin-top: 24px;
+}
+@media (max-width: 860px) {
+  .app-v3 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sidebar {
+    display: none;
+  }
+  .app-v3 .app-header {
+    display: block;
+  }
+  .app-v3 .app-header .switcher {
+    flex: 1;
+    min-width: 0;
+  }
+  .app-v3 .page {
+    padding: 18px 16px 112px;
+  }
+  .tabbar {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 25;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 2px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
+  .tabbar > a,
+  .tabbar summary {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    gap: 2px;
+    min-height: 48px;
+    padding: 6px 2px;
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-decoration: none;
+    list-style: none;
+    cursor: pointer;
+  }
+  .tabbar summary::-webkit-details-marker {
+    display: none;
+  }
+  .tabbar > a[aria-current="page"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .tabbar svg {
+    width: 20px;
+    height: 20px;
+  }
+  .tabbar .tab-badge {
+    position: absolute;
+    top: 2px;
+    left: 54%;
+    min-width: 17px;
+    margin: 0;
+    padding: 0 4px;
+    font-size: 0.65rem;
+    line-height: 17px;
+  }
+  .tabbar-more {
+    position: relative;
+  }
+  .tabbar-menu {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 10px);
+    display: grid;
+    min-width: 200px;
+    padding: 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow-md);
+  }
+  .tabbar-menu a {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    text-decoration: none;
+  }
+  .tabbar-menu a:hover {
+    background: var(--surface-2);
+  }
+}
+/* Status shapes: shape + colour + word (Lighthouse-style), so a state never depends on colour alone. The glyph in the
+   badge's icon span is replaced by a drawn shape: filled circle = done, half circle = partly done, triangle = missed,
+   dashed circle = not verified or open. */
+.badge:is(
+    [data-status="done"],
+    [data-status="already_present"],
+    [data-status="closed_by_owner"],
+    [data-status="partial"],
+    [data-status="done_untested"],
+    [data-status="missed"],
+    [data-status="not_verified"],
+    [data-status="open"],
+    [data-status="not_done"]
+  )
+  > span[aria-hidden="true"]:first-child {
+  flex: none;
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-size: 0;
+  color: inherit;
+}
+.badge:is([data-status="done"], [data-status="already_present"], [data-status="closed_by_owner"])
+  > span[aria-hidden="true"]:first-child {
+  border-radius: 50%;
+  background: currentColor;
+}
+.badge:is([data-status="partial"], [data-status="done_untested"])
+  > span[aria-hidden="true"]:first-child {
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  box-shadow: inset 3px 0 0 currentColor;
+}
+.badge[data-status="missed"] > span[aria-hidden="true"]:first-child {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 9px solid currentColor;
+}
+.badge:is([data-status="not_verified"], [data-status="open"], [data-status="not_done"])
+  > span[aria-hidden="true"]:first-child {
+  border-radius: 50%;
+  border: 1.5px dashed currentColor;
+}
+/* The verdict: the seal and one sentence lead the page (Home, Receipts, To decide). */
+.verdict {
+  display: flex;
+  gap: 22px;
+  align-items: flex-start;
+  padding: 8px 0 28px;
+  border-bottom: 1px solid var(--border);
+}
+.verdict-body {
+  min-width: 0;
+}
+.seal {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  color: var(--accent);
+}
+.seal::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border: 1px dashed currentColor;
+  border-radius: 50%;
+  opacity: 0.5;
+}
+.seal svg {
+  width: 30px;
+  height: 30px;
+}
+.seal b {
+  font-size: 1.625rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.seal-needs {
+  color: var(--warning);
+}
+.seal-unsafe {
+  color: var(--danger);
+}
+.seal-start {
+  color: var(--muted);
+}
+.verdict .overview-headline {
+  font-size: clamp(1.625rem, 1.2rem + 1.4vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-weight: 650;
+  max-width: 24ch;
+}
+@media (max-width: 560px) {
+  .verdict {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .seal {
+    width: 60px;
+    height: 60px;
+  }
+}
+/* Headings and cards: hairlines instead of stacked shadows; titles a touch tighter. */
+.app-v3 .card,
+.app-v3 .empty {
+  box-shadow: none;
+}
+.app-v3 .page h1 {
+  font-size: 1.75rem;
+  letter-spacing: -0.02em;
+}
+/* Feature tracks: four stages, the current one named. */
+.feature-track {
+  display: grid;
+  gap: 5px;
+  min-width: 140px;
+}
+.track-bars {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+}
+.track-bars span {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+}
+.track-bars .on {
+  background: var(--accent);
+}
+.feature-track[data-stage="4"] .track-bars .on {
+  background: var(--success);
+}
+.track-now {
+  font-size: var(--fs-small);
+  font-weight: 600;
+}
+/* To decide: why a request waits for you. */
+.why {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+}
+.why ul {
+  padding-left: 18px;
+  color: var(--muted);
+}
+.why code {
+  overflow-wrap: anywhere;
+}
+.rule-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px 24px;
+}
+/* A badge in a stacked card keeps its own width. */
+.stack > .badge {
+  justify-self: start;
+  width: fit-content;
 }

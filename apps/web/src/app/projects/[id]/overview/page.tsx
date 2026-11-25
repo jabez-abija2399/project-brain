@@ -3,6 +3,7 @@ import { ChecklistItem } from "@/components/checklist-item";
 import { OpenItemsCleanup } from "@/components/open-items-cleanup";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { Seal } from "@/components/ui/seal";
 import { StatCard } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { When } from "@/components/ui/when";
@@ -45,59 +46,63 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
         <ProjectNav projectId={o.project.id} current="overview" name={o.project.name} />
       </div>
 
-      {/* FEAT-032: the decision and the next step in one block, with one button. */}
-      <section className="overview-hero stack" aria-labelledby="health">
-        <StatusBadge
-          status={week.attention > 0 ? "missed" : o.totalReceipts > 0 ? "done" : "neutral"}
-          label={
-            week.attention > 0
-              ? "Needs attention"
-              : o.totalReceipts > 0
-                ? "All clear"
-                : "Not started"
+      {/* FEAT-032: the decision and the next step in one block, with one button. FEAT-040: led by the seal. */}
+      <section className="overview-hero verdict" aria-labelledby="health">
+        <Seal
+          state={
+            week.findings > 0
+              ? "unsafe"
+              : week.attention > 0
+                ? "needs"
+                : o.totalReceipts > 0
+                  ? "clear"
+                  : "start"
           }
+          count={week.attention}
         />
-        <h2 id="health" className="overview-headline">
-          {week.attention > 0
-            ? `${plural(week.attention, "receipt needs", "receipts need")} your attention this week`
-            : o.totalReceipts > 0
-              ? "All clear. Everything your agents did this week checks out"
-              : "No receipts yet"}
-        </h2>
-        <p className="muted m0">
-          {o.totalReceipts > 0
-            ? `${plural(week.receipts, "receipt")} this week · ${plural(o.openItems, "open checklist item")}`
-            : "Connect a repository and end an agent session: its receipt shows up here."}
-        </p>
-        {/* Roadmap Phase 9: the one next step, the same one `codeceipt status` prints. */}
-        <div className="stack gap-6" aria-labelledby="next-step">
-          <h3 id="next-step" className="subhead m0">
-            Next step
-          </h3>
-          <p className="m0">{o.next.text}</p>
-          {o.next.command ? (
-            <p className="muted m0">
-              In the terminal: <code>{o.next.command}</code>
-            </p>
-          ) : null}
-          {o.next.askAgent ? (
-            <p className="muted m0">
-              Ask your agent: <code>{o.next.askAgent}</code>
-            </p>
-          ) : null}
+        <div className="verdict-body stack">
+          <h2 id="health" className="overview-headline">
+            {week.attention > 0
+              ? `${plural(week.attention, "receipt needs", "receipts need")} your attention this week`
+              : o.totalReceipts > 0
+                ? "All clear. Everything your agents did this week checks out"
+                : "No receipts yet"}
+          </h2>
+          <p className="muted m0">
+            {o.totalReceipts > 0
+              ? `${plural(week.receipts, "receipt")} this week · ${plural(o.openItems, "open checklist item")}`
+              : "Connect a repository and end an agent session: its receipt shows up here."}
+          </p>
+          {/* Roadmap Phase 9: the one next step, the same one `codeceipt status` prints. */}
+          <div className="stack gap-6" aria-labelledby="next-step">
+            <h3 id="next-step" className="subhead m0">
+              Next step
+            </h3>
+            <p className="m0">{o.next.text}</p>
+            {o.next.command ? (
+              <p className="muted m0">
+                In the terminal: <code>{o.next.command}</code>
+              </p>
+            ) : null}
+            {o.next.askAgent ? (
+              <p className="muted m0">
+                Ask your agent: <code>{o.next.askAgent}</code>
+              </p>
+            ) : null}
+          </div>
+          {week.attention > 0 ? (
+            <Link className="btn btn-primary self-start" href={`${base}/receipts?filter=attention`}>
+              Review {week.attention === 1 ? "it" : "them"}
+            </Link>
+          ) : o.next.page === "overview" ? null : (
+            <Link
+              className="btn btn-primary self-start"
+              href={`${base}/${NEXT_LINK[o.next.page].path}`}
+            >
+              {NEXT_LINK[o.next.page].label}
+            </Link>
+          )}
         </div>
-        {week.attention > 0 ? (
-          <Link className="btn btn-primary self-start" href={`${base}/receipts?filter=attention`}>
-            Review {week.attention === 1 ? "it" : "them"}
-          </Link>
-        ) : o.next.page === "overview" ? null : (
-          <Link
-            className="btn btn-primary self-start"
-            href={`${base}/${NEXT_LINK[o.next.page].path}`}
-          >
-            {NEXT_LINK[o.next.page].label}
-          </Link>
-        )}
       </section>
 
       <div className="stat-grid">

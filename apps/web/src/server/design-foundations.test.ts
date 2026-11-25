@@ -171,8 +171,7 @@ describe("FEAT-028 shared design foundations", () => {
     expect(css).toMatch(
       /\.project-nav\[data-end="false"\] \{\s*box-shadow: inset -16px 0 12px -12px var\(--border-strong\);/,
     );
-    for (const file of ["app/projects/[id]/project-nav.tsx", "components/admin/admin-nav.tsx"]) {
-      expect(readFileSync(join(SRC, file), "utf8")).toContain("<TabRow");
-    }
+    // FEAT-040: project sections moved to the sidebar; the admin pages keep the tab row.
+    expect(readFileSync(join(SRC, "components/admin/admin-nav.tsx"), "utf8")).toContain("<TabRow");
   });
 });

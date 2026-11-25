@@ -1,9 +1,8 @@
 // FEAT-030: six project tabs (Overview, Receipts, Features, To decide, Blueprint, Settings) with counts, Settings
 // holding Connect, Connection keys, approvals and Delete, and the old addresses redirecting with a 308.
 import DecidePage from "@/app/projects/[id]/decide/page";
-import { NavCountsProvider } from "@/app/projects/[id]/nav-counts";
-import { ProjectNav } from "@/app/projects/[id]/project-nav";
 import SettingsPage from "@/app/projects/[id]/settings/page";
+import { ProjectLinks } from "@/components/shell/sidebar";
 import { projectsRepo, receiptsRepo, requestsRepo } from "@brain/db";
 import { type ReactElement, createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -19,9 +18,11 @@ vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
   cookies: async () => ({ get: () => undefined }),
 }));
+let pathname = "/";
 vi.mock("next/navigation", async (orig) => ({
   ...(await orig<typeof import("next/navigation")>()),
   useRouter: () => ({ refresh() {}, push() {} }),
+  usePathname: () => pathname,
 }));
 
 let world: TestWorld;
@@ -39,19 +40,24 @@ afterEach(async () => {
   await world.teardown();
 });
 
-const nav = (counts: { receipts: number; decide: number } | null) =>
-  renderToStaticMarkup(
-    createElement(
-      NavCountsProvider,
-      { value: counts },
-      createElement(ProjectNav, { projectId: pid, current: "overview", name: "Shop" }),
-    ),
+// FEAT-040: the sections live in the sidebar (components/shell/sidebar.tsx); its counts come from the shell.
+const nav = (counts: { receipts: number; decide: number } | null) => {
+  pathname = `/projects/${pid}/overview`;
+  return renderToStaticMarkup(
+    createElement(ProjectLinks, {
+      projects: [{ id: pid, name: "Shop" }],
+      counts: counts ? { projectId: pid, ...counts } : null,
+      variant: "sidebar",
+    }),
   );
+};
 const tabs = (html: string) =>
   [
     ...html
       .slice(html.indexOf('aria-label="Project"'))
-      .matchAll(/<a [^>]*href="[^"]+\/(\w+)"[^>]*>([^<]+)/g),
+      .matchAll(
+        /<a [^>]*href="\/projects\/[^"/]+\/(\w+)"[^>]*>(?:<svg[\s\S]*?<\/svg>)?<span class="nav-label">([^<]+)/g,
+      ),
   ].map((m) => `${m[1]}:${m[2]}`);
 const page = async (el: Promise<unknown>) => renderToStaticMarkup((await el) as ReactElement);
 
@@ -71,13 +77,15 @@ async function attentionReceipt(projectId: string) {
 describe("FEAT-030 project navigation", () => {
   it("AC-030-01 the tabs are Overview, Receipts, Features, To decide, Blueprint, Settings; Receipts and To decide show a count when something waits", () => {
     const html = nav({ receipts: 2, decide: 3 });
+    // FEAT-040 (AC-040-01): the same six places, in the sidebar: Overview is named Home, and the project's settings
+    // sit with Account and Docs at the bottom.
     expect(tabs(html)).toEqual([
-      "overview:Overview",
+      "overview:Home",
       "receipts:Receipts",
-      "features:Features",
       "decide:To decide",
+      "features:Features",
       "blueprint:Blueprint",
-      "settings:Settings",
+      "settings:Project settings",
     ]);
     expect(html).toContain('<span class="tab-badge" aria-label="2 need your attention"');
     expect(html).toContain('<span class="tab-badge" aria-label="3 waiting for you"');

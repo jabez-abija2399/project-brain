@@ -55,9 +55,12 @@ afterEach(async () => {
 describe("FEAT-019 Plan tab", () => {
   it("AC-019-04 empty state: no plan yet points to connecting an agent", async () => {
     const html = await render();
-    // FEAT-030: the plan belongs to the Features tab now.
-    expect(html).toContain(
-      `aria-current="page" href="/projects/${projectId}/features">Features</a>`,
+    // FEAT-030: the plan belongs to the Features tab now. FEAT-040: the sidebar marks Features (sectionOf), the page
+    // itself names the Plan in its breadcrumb.
+    expect(html).toContain('<span aria-current="page">Plan</span>');
+    const { sectionOf } = await import("@/components/shell/sidebar");
+    expect(sectionOf(`/projects/${projectId}/plan`, [{ id: projectId, name: "p" }])?.section).toBe(
+      "features",
     );
     expect(html).toContain("No plan yet");
     expect(html).toContain(`/projects/${projectId}/settings`);
