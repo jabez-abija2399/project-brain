@@ -202,8 +202,16 @@ describe("FEAT-039 UI polish", () => {
     expect(lastRule(sheet, ".tab-badge {")).toMatch(
       /background: var\(--accent\);\s*color: var\(--on-accent\);/,
     );
-    const token = (scope: string, name: string) =>
-      (scope.match(new RegExp(`--${name}: (#[0-9a-f]{6});`)) ?? [])[1] as string;
+    // Read each scope's colour tokens with one fixed pattern (no regex built from input).
+    // The first definition in a scope is the theme's own (later ones are receipt-paper overrides).
+    const tokens = (scope: string) => {
+      const map = new Map<string, string>();
+      for (const m of scope.matchAll(/--([a-z0-9-]+): (#[0-9a-f]{6});/g)) {
+        if (!map.has(m[1] as string)) map.set(m[1] as string, m[2] as string);
+      }
+      return map;
+    };
+    const token = (scope: string, name: string) => tokens(scope).get(name) as string;
     const light = sheet.slice(0, sheet.indexOf("@media (prefers-color-scheme: dark)"));
     const dark = sheet.slice(sheet.indexOf("@media (prefers-color-scheme: dark)"));
     for (const scope of [light, dark]) {
