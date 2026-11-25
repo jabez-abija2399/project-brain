@@ -12,7 +12,7 @@ import { ChecklistItem } from "./checklist-item";
 import { CodeRef } from "./code-ref";
 import { CopyButton } from "./ui/copy-button";
 import { Disclosure } from "./ui/disclosure";
-import { StatusBadge } from "./ui/status-badge";
+import { type Status, StatusBadge } from "./ui/status-badge";
 
 // The receipt's project: the owner's Close and Dismiss act on its items (owner item 1, 2026-11-02).
 export type ReceiptCardData = {
@@ -112,6 +112,97 @@ export function ReceiptCard({
     view.notVerified.length === 0 &&
     alarms.findings === 0 &&
     alarms.checks === 0;
+  // FEAT-033: what needs a look, most serious first. The summary shows the first one and "+N more"; the verdict
+  // sentence names them all.
+  const n = (k: number, one: string, many = `${one}s`) => `${k} ${k === 1 ? one : many}`;
+  const problems: { status: Status; label: string }[] = [
+    ...(alarms.findings > 0
+      ? [{ status: "missed" as Status, label: n(alarms.findings, "security problem") }]
+      : []),
+    ...(count("missed") > 0 && !view.noChanges
+      ? [{ status: "missed" as Status, label: `${count("missed")} missed` }]
+      : []),
+    ...(alarms.checks > 0
+      ? [{ status: "missed" as Status, label: n(alarms.checks, "test check") }]
+      : []),
+    ...(count("not_done") > 0
+      ? [{ status: "not_done" as Status, label: `${count("not_done")} not done` }]
+      : []),
+    ...(count("partial") > 0
+      ? [{ status: "partial" as Status, label: `${count("partial")} partly done` }]
+      : []),
+    ...(view.outsideScope.length > 0
+      ? [{ status: "warning" as Status, label: `${view.outsideScope.length} outside scope` }]
+      : []),
+    ...(view.dependencies.length > 0
+      ? [
+          {
+            status: "warning" as Status,
+            label: n(view.dependencies.length, "dependency", "dependencies"),
+          },
+        ]
+      : []),
+    ...(view.notVerified.length > 0
+      ? [{ status: "not_verified" as Status, label: `${view.notVerified.length} not verified` }]
+      : []),
+    ...(count("question") > 0
+      ? [{ status: "question" as Status, label: n(count("question"), "question") }]
+      : []),
+    ...(count("done_untested") > 0
+      ? [
+          {
+            status: "done_untested" as Status,
+            label: `${count("done_untested")} done, no test proves it`,
+          },
+        ]
+      : []),
+  ];
+  const notes: { status: Status; label: string }[] = [
+    ...(closedByOwner > 0
+      ? [
+          {
+            status: "closed_by_owner" as Status,
+            label: `${closedByOwner} closed by ${readOnly ? "the owner" : "you"}`,
+          },
+        ]
+      : []),
+    ...(count("already_present") > 0
+      ? [
+          {
+            status: "already_present" as Status,
+            label: `${count("already_present")} already present`,
+          },
+        ]
+      : []),
+    ...(count("postponed") > 0
+      ? [{ status: "postponed" as Status, label: `${count("postponed")} postponed` }]
+      : []),
+    ...(alarms.asked > 0
+      ? [{ status: "asked" as Status, label: `${alarms.asked} you asked for` }]
+      : []),
+  ];
+  const first: { status: Status; label: string } | null = allDone
+    ? { status: "done", label: "All done" }
+    : view.noChanges
+      ? { status: "neutral", label: "No files changed" }
+      : count("done") > 0
+        ? { status: "done", label: `${count("done")} done` }
+        : null;
+  const extras = [...problems, ...notes];
+  const badges = [
+    ...(first ? [first] : []),
+    ...extras.slice(0, 1),
+    ...(extras.length > 1
+      ? [{ status: "neutral" as Status, label: `+${extras.length - 1} more` }]
+      : []),
+  ];
+  const verdict = allDone
+    ? "All done: everything you asked for was built."
+    : view.noChanges
+      ? "No files changed in this session."
+      : problems.length > 0
+        ? `Needs a look: ${problems.map((p) => p.label).join(", ")}.`
+        : "Done, nothing needs a look.";
   return (
     <article
       // FEAT-021: a shared page carries no receipt id.
@@ -125,12 +216,6 @@ export function ReceiptCard({
           <div className="stack gap-6">
             <span className="muted receipt-meta">
               <When iso={receipt.createdAt} />
-              {receipt.commitSha && (
-                <>
-                  {" · "}
-                  <code>{receipt.commitSha}</code>
-                </>
-              )}
             </span>
             <strong className="wrap">
               {view.noRequest
@@ -139,82 +224,28 @@ export function ReceiptCard({
                   ? `Asked: ${receipt.asked}`
                   : "Asked: (request removed)"}
             </strong>
+            {/* FEAT-033: a verdict sentence first, then at most 3 badges (the details are in the body). */}
+            <span className="muted receipt-verdict wrap">{verdict}</span>
             <span className="row">
-              {allDone ? (
-                <StatusBadge status="done" label="All done" />
-              ) : count("done") > 0 ? (
-                <StatusBadge status="done" label={`${count("done")} done`} />
-              ) : null}
-              {closedByOwner > 0 && (
-                <StatusBadge
-                  status="closed_by_owner"
-                  label={`${closedByOwner} closed by ${readOnly ? "the owner" : "you"}`}
-                />
-              )}
-              {count("done_untested") > 0 && (
-                <StatusBadge
-                  status="done_untested"
-                  label={`${count("done_untested")} done, no test proves it`}
-                />
-              )}
-              {count("partial") > 0 && (
-                <StatusBadge status="partial" label={`${count("partial")} partly done`} />
-              )}
-              {view.noChanges ? (
-                <StatusBadge status="neutral" label="No files changed" />
-              ) : count("missed") > 0 ? (
-                <StatusBadge status="missed" label={`${count("missed")} missed`} />
-              ) : null}
-              {count("not_done") > 0 && (
-                <StatusBadge status="not_done" label={`${count("not_done")} not done`} />
-              )}
-              {count("already_present") > 0 && (
-                <StatusBadge
-                  status="already_present"
-                  label={`${count("already_present")} already present`}
-                />
-              )}
-              {count("postponed") > 0 && (
-                <StatusBadge status="postponed" label={`${count("postponed")} postponed`} />
-              )}
-              {count("question") > 0 && (
-                <StatusBadge
-                  status="question"
-                  label={`${count("question")} question${count("question") === 1 ? "" : "s"}`}
-                />
-              )}
-              {view.outsideScope.length > 0 && (
-                <StatusBadge status="warning" label={`${view.outsideScope.length} outside scope`} />
-              )}
-              {alarms.findings > 0 && (
-                <StatusBadge
-                  status="missed"
-                  label={`${alarms.findings} security problem${alarms.findings === 1 ? "" : "s"}`}
-                />
-              )}
-              {alarms.checks > 0 && (
-                <StatusBadge status="missed" label={`${alarms.checks} test checks`} />
-              )}
-              {alarms.asked > 0 && (
-                <StatusBadge status="asked" label={`${alarms.asked} you asked for`} />
-              )}
-              {view.dependencies.length > 0 && (
-                <StatusBadge
-                  status="warning"
-                  label={`${view.dependencies.length} dependenc${view.dependencies.length === 1 ? "y" : "ies"}`}
-                />
-              )}
-              {view.notVerified.length > 0 && (
-                <StatusBadge
-                  status="not_verified"
-                  label={`${view.notVerified.length} not verified`}
-                />
-              )}
+              {badges.map((b) => (
+                <StatusBadge key={b.label} status={b.status} label={b.label} />
+              ))}
             </span>
           </div>
         }
       >
         <div className="stack receipt-body">
+          {/* FEAT-033: a perfect receipt gets a stamp, printed once (hidden when celebrations are off). */}
+          {allDone ? (
+            <p className="done-stamp print-once m0" data-testid="done-stamp">
+              All {view.items.length} item{view.items.length === 1 ? "" : "s"} done
+            </p>
+          ) : null}
+          {receipt.commitSha && (
+            <p className="muted m0">
+              Commit <code>{receipt.commitSha}</code>. These changes are already in your files.
+            </p>
+          )}
           {view.noSnapshot && <p className="muted wrap m0">{NO_SNAPSHOT_NOTE}</p>}
           {view.noChanges && (
             <p className="muted wrap m0">
@@ -482,7 +513,12 @@ export function ReceiptCard({
             </Section>
           )}
           {!readOnly && receipt.fixPrompt && (
-            <CopyButton text={receipt.fixPrompt} label="Send fix to agent" variant="primary" />
+            <CopyButton
+              text={receipt.fixPrompt}
+              label="Copy fix for your agent"
+              copied="Copied. Paste it into Claude Code or Cursor."
+              variant="primary"
+            />
           )}
           {!readOnly && share}
         </div>

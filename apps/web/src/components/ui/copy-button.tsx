@@ -7,10 +7,13 @@ import { useState } from "react";
 export function CopyButton({
   text,
   label,
+  copied = "Copied",
   variant = "secondary",
 }: {
   text: string;
   label: string;
+  /** What it says once copied (FEAT-033: where to paste it). */
+  copied?: string;
   variant?: "primary" | "secondary";
 }) {
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
@@ -24,7 +27,7 @@ export function CopyButton({
       </button>
       <output aria-live="polite" className="muted">
         {state === "copied"
-          ? "Copied"
+          ? copied
           : state === "failed"
             ? "Copy failed: select the text and copy it by hand."
             : ""}

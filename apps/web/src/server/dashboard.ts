@@ -100,6 +100,8 @@ export async function receiptsFeed(
         return {
           id: r.id,
           projectId: project.id,
+          // FEAT-033: the request it answers, so the feed can tell a receipt the agent already redid.
+          requestId: r.requestId ?? null,
           createdAt: r.createdAt.toISOString(),
           asked,
           commitSha:

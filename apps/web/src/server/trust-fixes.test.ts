@@ -122,8 +122,13 @@ describe("FEAT-029 trust fixes", () => {
       }),
     );
     expect(mixed).toContain("done|1 done");
-    expect(mixed).toContain("missed|1 missed");
+    // FEAT-033: at most 3 badges: the worst first ("1 security problem"), then "+1 more"; the sentence names "1 missed".
+    expect(mixed).toContain("missed|1 security problem");
+    expect(mixed).toContain("neutral|+1 more");
     expect(mixed.join(" ")).not.toMatch(/\b0 (missed|partly done|done)\b/);
+    expect(
+      text(card({ items: [{ id: "b", text: "Empty state", status: "missed", evidence: [] }] })),
+    ).toContain("1 missed");
     expect(mixed.join(" ")).not.toContain("findings");
     const one = text(
       card({

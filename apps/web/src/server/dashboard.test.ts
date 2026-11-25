@@ -140,7 +140,8 @@ describe("FEAT-017 dashboard", () => {
     await seedReceipts(1);
     const page = await html(ReceiptsPage(props()));
     const copy = page.match(/data-copy="([^"]*)"/)?.[1] ?? "";
-    expect(page).toContain("Send fix to agent");
+    // FEAT-033: the button says what it does (it copies the prompt).
+    expect(page).toContain("Copy fix for your agent");
     expect(copy).toContain("2. [missed] Email the owner (0)".slice(3));
     expect(copy).not.toContain("Show the reviews list");
   });

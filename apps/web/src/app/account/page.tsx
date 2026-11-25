@@ -1,3 +1,4 @@
+import { CelebrateToggle } from "@/components/account/celebrate-toggle";
 import { ConnectedComputers } from "@/components/account/connected-computers";
 import { DeleteAccount } from "@/components/account/delete-account";
 import { OAuthConnections } from "@/components/account/oauth-connections";
@@ -7,6 +8,7 @@ import { BillingButton } from "@/components/billing-button";
 import { PageHeader } from "@/components/shell/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { When } from "@/components/ui/when";
+import { CELEBRATE_COOKIE, celebrationsOn } from "@/lib/celebrate";
 import { formatDay } from "@/lib/when";
 import { accountView, sessionsView } from "@/server/account";
 import { pageShowsAdminLink } from "@/server/admin";
@@ -14,6 +16,7 @@ import { pageUser } from "@/server/dashboard-page";
 import { getDb } from "@/server/db";
 import { connectionsFor } from "@/server/mcp-oauth";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +24,15 @@ export const metadata: Metadata = { title: "Account | Codeceipt", robots: { inde
 
 // The account page (2026-11-01): who you are, the computers that can send receipts, signing out everywhere, your data
 // as a download, and deleting the account for good. A suspended user can still export and delete.
+// FEAT-033: this browser's celebrations choice (on unless turned off; on when no cookies can be read).
+async function celebrateOn(): Promise<boolean> {
+  try {
+    return celebrationsOn((await cookies()).get(CELEBRATE_COOKIE)?.value);
+  } catch {
+    return true;
+  }
+}
+
 export default async function AccountPage() {
   const user = await pageUser({ allowSuspended: true });
   const [a, apps, browsers, admin] = await Promise.all([
@@ -63,6 +75,13 @@ export default async function AccountPage() {
             </p>
           ) : null}
         </div>
+      </section>
+
+      <section className="stack" aria-labelledby="celebrate">
+        <h2 id="celebrate" className="section-title">
+          Celebrations
+        </h2>
+        <CelebrateToggle on={await celebrateOn()} />
       </section>
 
       <section className="stack" aria-labelledby="plan">

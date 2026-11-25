@@ -32,10 +32,12 @@ export function BareHeader() {
 export function AppShell({
   user,
   projects,
+  celebrate = true,
   children,
 }: {
   user: { name: string; email: string } | null;
   projects: SwitcherProject[];
+  celebrate?: boolean;
   children: ReactNode;
 }) {
   if (!user) {
@@ -53,7 +55,7 @@ export function AppShell({
     );
   }
   return (
-    <div className="shell">
+    <div className="shell" data-celebrate={celebrate ? "on" : "off"}>
       <a className="skip-link" href="#content">
         Skip to content
       </a>

@@ -1703,3 +1703,44 @@ a.stat-card:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* FEAT-033: receipts grouped by who acts, a verdict line, the shortcut sheet, no-match text and the done stamp. */
+.receipt-group + .receipt-group {
+  margin-top: 16px;
+}
+.receipt-verdict {
+  font-size: var(--fs-small);
+}
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.shortcut-help[hidden] {
+  display: none;
+}
+.empty-match {
+  padding: 16px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+.done-stamp {
+  justify-self: start;
+  padding: 4px 12px;
+  border: 2px solid var(--success);
+  border-radius: var(--radius-sm);
+  color: var(--success);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  transform: rotate(-2deg);
+}
+[data-celebrate="off"] .done-stamp {
+  display: none;
+}
+[data-celebrate="off"] .print-once {
+  animation: none;
+}
