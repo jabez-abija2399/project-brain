@@ -176,8 +176,12 @@ describe("FEAT-029 trust fixes", () => {
     const suspended = await html(SuspendedPage({ searchParams: Promise.resolve({}) }));
     expect(suspended).toContain(`<a href="${SUPPORT_ISSUES_URL}">contact support</a>`);
     const project = await projectsRepo.create(world.db, owner.id, { name: "shop" });
+    // The cloud-session steps (with the keys link) show on the hosted server.
+    vi.stubEnv("BETTER_AUTH_URL", "https://codeceipts.vercel.app");
     const connect = await html(ConnectPage({ params: Promise.resolve({ id: project.id }) }));
-    // The keys page is the project's own page (the Tokens tab, href "").
-    expect(connect).toContain(`<a href="/projects/${project.id}">Tokens</a>`);
+    // FEAT-030: the keys live under Settings, Connection keys.
+    expect(connect).toContain(
+      `<a href="/projects/${project.id}/settings#keys">Connection keys</a>`,
+    );
   });
 });

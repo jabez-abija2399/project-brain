@@ -107,7 +107,7 @@ describe("project overview", () => {
     const t = text(await render());
     expect(t).toContain("No receipts yet");
     expect(t).toContain("Done this week —");
-    expect(await render()).toContain(`href="/projects/${projectId}/connect"`);
+    expect(await render()).toContain(`href="/projects/${projectId}/settings"`);
   });
 
   it("attack: another user's project is the 404 page, never its numbers", async () => {

@@ -1625,3 +1625,17 @@ a.stat-card:hover {
 .glossary dd {
   margin: 4px 0 0;
 }
+/* FEAT-030: a count on a project tab (Receipts, To decide). */
+.tab-badge {
+  display: inline-block;
+  min-width: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--fs-small);
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+}

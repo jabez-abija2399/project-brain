@@ -55,9 +55,12 @@ afterEach(async () => {
 describe("FEAT-019 Plan tab", () => {
   it("AC-019-04 empty state: no plan yet points to connecting an agent", async () => {
     const html = await render();
-    expect(html).toContain(`aria-current="page" href="/projects/${projectId}/plan">Plan</a>`);
+    // FEAT-030: the plan belongs to the Features tab now.
+    expect(html).toContain(
+      `aria-current="page" href="/projects/${projectId}/features">Features</a>`,
+    );
     expect(html).toContain("No plan yet");
-    expect(html).toContain(`/projects/${projectId}/connect`);
+    expect(html).toContain(`/projects/${projectId}/settings`);
   });
 
   it("AC-019-04 the draft is shown with its status in words, and the approve button names that draft", async () => {

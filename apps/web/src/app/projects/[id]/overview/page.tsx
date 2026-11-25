@@ -18,6 +18,16 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 // The project overview (2026-11-01), the dashboard's front door: what needs attention and why first, then the week
 // at a glance, the last 14 days, and progress per feature. Every number leads somewhere.
+// FEAT-030: where each next step lives now that the tabs are six (the step's page names stay as the CLI knows them).
+const NEXT_LINK = {
+  approvals: { path: "decide", label: "Open To decide" },
+  plan: { path: "features#plan", label: "See the plan" },
+  connect: { path: "settings", label: "Open Settings" },
+  features: { path: "features", label: "Open Features" },
+  blueprint: { path: "blueprint", label: "Open the Blueprint" },
+  overview: { path: "overview", label: "Open the overview" },
+} as const satisfies Record<string, { path: string; label: string }>;
+
 export default async function OverviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await pageUser();
@@ -63,7 +73,9 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
         <p className="m0">{o.next.text}</p>
         <p className="row wrap m0">
           {o.next.page === "overview" ? null : (
-            <Link href={`${base}/${o.next.page}`}>Open {o.next.page}</Link>
+            <Link href={`${base}/${NEXT_LINK[o.next.page].path}`}>
+              {NEXT_LINK[o.next.page].label}
+            </Link>
           )}
           {o.next.command ? (
             <span className="muted">
@@ -124,7 +136,7 @@ export default async function OverviewPage({ params }: { params: Promise<{ id: s
             <EmptyState
               title="No receipts yet"
               text="End an agent session in a connected repository and its receipt appears here."
-              action={{ label: "Connect a repository", href: `${base}/connect` }}
+              action={{ label: "Connect a repository", href: `${base}/settings` }}
             />
           )}
         </section>

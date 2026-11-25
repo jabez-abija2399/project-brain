@@ -6,8 +6,11 @@ import { ProgressBar } from "@/components/ui/progress-bar";
 import { type Status, StatusBadge } from "@/components/ui/status-badge";
 import { When } from "@/components/ui/when";
 import { boardSort, featureBoard } from "@/server/dashboard";
-import { type ListPageProps, loadListPage } from "@/server/dashboard-page";
+import { type ListPageProps, loadListPage, pageUser } from "@/server/dashboard-page";
+import { getDb } from "@/server/db";
+import { planView } from "@/server/plan";
 import Link from "next/link";
+import { PlanDraft } from "../plan/plan-sections";
 import { ProjectNav } from "../project-nav";
 
 export const dynamic = "force-dynamic";
@@ -49,11 +52,18 @@ export default async function FeatureBoardPage(props: ListPageProps) {
   const base = `/projects/${board.project.id}`;
   const now = new Date();
   const c = board.counts;
+  // FEAT-030: the Plan tab is gone; a draft plan waiting for approval shows at the top of Features.
+  const plan = await planView(getDb(), await pageUser(), board.project.id);
   return (
     <main className="page stack gap-20">
       <div>
         <ProjectNav projectId={board.project.id} current="features" name={board.project.name} />
       </div>
+      {plan.draft ? (
+        <section className="stack" id="plan" aria-label="Plan waiting for your approval">
+          <PlanDraft projectId={board.project.id} draft={plan.draft} />
+        </section>
+      ) : null}
       {board.total === 0 ? (
         <EmptyState
           title="No features yet"
