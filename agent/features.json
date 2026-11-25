@@ -3317,45 +3317,67 @@
           "id": "AC-033-01",
           "kind": "happy",
           "check": "Each receipt summary shows a verdict sentence and at most 3 badges; SHAs, paths and package names sit in the body or under Technical details",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-01"
         },
         {
           "id": "AC-033-02",
           "kind": "happy",
           "check": "The feed groups receipts as Needs you / Agent is fixing / All good; 'Copy fix for your agent' copies the prompt and confirms 'Copied. Paste it into Claude Code or Cursor.'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-02"
         },
         {
           "id": "AC-033-03",
           "kind": "boundary",
           "check": "A search or filter with no matches shows 'No receipts match … Clear search'; '?' opens the shortcut sheet",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-03"
         },
         {
           "id": "AC-033-04",
           "kind": "happy",
           "check": "A receipt with every item done prints an 'All N items done' stamp once; Account has a switch that turns celebrations off and it is respected on every page",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-04"
         },
         {
           "id": "AC-033-05",
           "kind": "negative",
           "check": "Text from receipts (requests, file names) is shown as text, never as HTML; a request containing <script> renders literally",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 10:19; log contains AC-033-05"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/projects/[id]/receipts/page.tsx",
+        "apps/web/src/app/start/page.tsx",
+        "apps/web/src/components/account/celebrate-toggle.tsx",
+        "apps/web/src/components/landing/content.ts",
+        "apps/web/src/components/receipt-card.tsx",
+        "apps/web/src/components/receipts-filter.tsx",
+        "apps/web/src/components/shell/app-shell.tsx",
+        "apps/web/src/components/ui/copy-button.tsx",
+        "apps/web/src/lib/celebrate.ts",
+        "apps/web/src/server/dashboard.test.ts",
+        "apps/web/src/server/dashboard.ts",
+        "apps/web/src/server/landing-guide.test.ts",
+        "apps/web/src/server/receipt-card-size.test.ts",
+        "apps/web/src/server/receipt-states.test.ts",
+        "apps/web/src/server/receipts-redesign.test.ts",
+        "apps/web/src/server/share-links.test.ts",
+        "apps/web/src/server/shell.ts",
+        "apps/web/src/server/trust-fixes.test.ts"
+      ]
     },
     {
       "id": "FEAT-034",
@@ -3608,6 +3630,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2116
+    "tests_passed": 2121
   }
 }

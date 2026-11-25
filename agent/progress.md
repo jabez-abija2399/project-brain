@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-033 receipts | status: done
+Changed: receipt-card summary = verdict sentence + at most 3 badges (first result, worst problem, "+N more"); commit and "already in your files" in the body; "Copy fix for your agent" with "Copied. Paste it into Claude Code or Cursor."; All N items done stamp; receipts feed grouped Needs you / Agent is fixing (a newer receipt for the same request) / All good (feed rows carry requestId); filter bar: no-match message with Clear search / Show all, "?" shortcut sheet; celebrations cookie (lib/celebrate.ts) read by the shell (data-celebrate) with an Account switch. Older tests now use the new button name and summary.
+Verified (ran this session): verify.sh PASS; receipts-redesign.test (5, one per AC; XSS negative).
+NOT VERIFIED: keyboard sheet and stamp in a real browser.
+Next: FEAT-034 features and plan.
+
 ## 2026-11-25 | FEAT-032 overview | status: done
 Changed: overview hero holds the headline, the next step and one primary button (Review them, or the next step's page); the list under it is this week's receipts to check (+N more link); stat cards Needs attention / Things your agent missed / Built as asked / Security problems, each linking to receipts?filter=attention|missed|good|findings; "All clear. Everything your agents did this week checks out"; receipts page takes ?filter= (unknown values ignored) with Something missed and Security problems chips; lib/receipt-filters.ts; 2x2 stats on phones.
 Verified (ran this session): verify.sh PASS; overview-redesign.test (4, one per AC; stranger isolation and 404).
