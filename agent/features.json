@@ -3192,45 +3192,57 @@
           "id": "AC-031-01",
           "kind": "happy",
           "check": "/start shows exactly one current step with a 'Waiting for…' line, one primary action per state, and a 'Never used a terminal?' helper including 'paste this into Claude Code or Cursor'",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-01"
         },
         {
           "id": "AC-031-02",
           "kind": "negative",
           "check": "/device with an expired or used code shows 'This code expired or was already used. Run npx codeceipt again' before any form",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-02"
         },
         {
           "id": "AC-031-03",
           "kind": "happy",
           "check": "/device explains in plain words what approving allows and that source code stays on the computer; after approval it links to Get started",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-03"
         },
         {
           "id": "AC-031-04",
           "kind": "happy",
           "check": "The first receipt shows 'Your first receipt is here', one summary sentence and one next action; the print animation runs once and not under prefers-reduced-motion",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-04"
         },
         {
           "id": "AC-031-05",
           "kind": "attack",
           "check": "The device approval still requires the signed-in owner's explicit Approve; a code passed in the URL alone never links a computer (attacker test)",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 09:30; log contains AC-031-05"
         }
       ],
-      "status": "in_progress",
-      "notes": ""
+      "status": "done",
+      "notes": "",
+      "files": [
+        "apps/web/src/app/device/device-approval.tsx",
+        "apps/web/src/app/device/page.tsx",
+        "apps/web/src/app/globals.css",
+        "apps/web/src/app/start/build-choice.tsx",
+        "apps/web/src/app/start/page.tsx",
+        "apps/web/src/components/journey-steps.tsx",
+        "apps/web/src/server/connect-page.test.ts",
+        "apps/web/src/server/device-page.test.ts",
+        "apps/web/src/server/onboarding-flow.test.ts",
+        "apps/web/src/server/start-page.test.ts"
+      ]
     },
     {
       "id": "FEAT-032",
@@ -3587,6 +3599,6 @@
     }
   ],
   "meta": {
-    "tests_passed": 2107
+    "tests_passed": 2112
   }
 }

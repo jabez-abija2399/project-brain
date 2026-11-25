@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-031 onboarding | status: done
+Changed: journey-steps (one current step with a Waiting line and pulse, later steps dimmed, done steps collapsed; "Never used a terminal?" with a copyable prompt for Claude Code/Cursor); /start (receipts link only once a receipt exists, chosen build style is not a primary button, first receipt: one summary sentence, printed once, How to read it in a Disclosure, next action); /device (expired or used code caught before the form, "What approving allows" in plain words, Deny warning once, after approval a link to Get started and a note about the terminal's questions).
+Verified (ran this session): verify.sh PASS; onboarding-flow.test (5, one per AC; attack: a code in the URL never links).
+NOT VERIFIED: live updates and animation in a browser.
+Next: FEAT-032 overview.
+
 ## 2026-11-25 | FEAT-030 project navigation: 6 tabs | status: done
 Changed: project-nav (Overview, Receipts, Features, To decide, Blueprint, Settings; old pages highlight their new tab); [id]/layout.tsx + server/nav-counts.ts + nav-counts.tsx (owner-only counts: this week's receipts needing attention; pending approvals + checklist and rule proposals); new decide/ and settings/ pages built from extracted sections (approval-sections, proposal-sections, connect-sections, plan-sections); a waiting plan shows on Features; Tokens renamed Connection keys; next.config 308 redirects for /proposals, /approvals, /plan, /connect and /projects/:id; overview next-step links; docs/actions.md.
 Verified (ran this session): verify.sh PASS; project-tabs.test (4, one per AC; stranger 404 and count isolation).
