@@ -153,8 +153,8 @@ export function ReceiptsFilter({
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
+      {/* FEAT-039: one quiet hint; the full list is in the "?" sheet. */}
       <p className="shortcuts muted">
-        <kbd>/</kbd> search · <kbd>j</kbd> <kbd>k</kbd> next and previous · <kbd>o</kbd> open ·{" "}
         <button type="button" className="link-button" onClick={() => setHelp((h) => !h)}>
           <kbd>?</kbd> all shortcuts
         </button>

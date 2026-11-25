@@ -41,7 +41,7 @@ export function RequestDecision({
           ariaLabel={`Reject: ${summary}`}
         />
       </span>
-      <label className="row muted">
+      <label className="check-row muted">
         <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
         <span>Remember my choice for this kind of action</span>
       </label>

@@ -36,7 +36,17 @@ export default async function DecidePage(props: ListPageProps) {
         />
       ) : (
         <>
-          {o.ready && pending > 0 ? <PendingRequests pid={pid} o={o} /> : null}
+          {/* FEAT-039: one heading, one count (the same as the tab's badge), then one list of identical cards. */}
+          <header className="group-head">
+            <h2 className="group-title m0">
+              Waiting for you{" "}
+              <span className="group-count">{pending + rules.length + list.total}</span>
+            </h2>
+            <p className="muted m0">
+              Approve what you would have done yourself. Nothing changes until you decide.
+            </p>
+          </header>
+          {o.ready && pending > 0 ? <PendingRequests pid={pid} o={o} bare /> : null}
           <RuleProposals list={list} rules={rules} />
           <ChecklistProposals
             list={list}

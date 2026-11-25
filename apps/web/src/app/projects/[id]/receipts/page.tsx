@@ -63,7 +63,7 @@ export default async function ReceiptsPage(
         />
       ) : (
         <>
-          <StateGuide />
+          <StateGuide defaultOpen={false} />
           <ReceiptsFilter
             total={feed.rows.length}
             attention={feed.rows.filter((r) => receiptNeedsAttention(r.view)).length}
@@ -82,17 +82,20 @@ export default async function ReceiptsPage(
                   data-group={g.key}
                   aria-labelledby={`group-${g.key}`}
                 >
-                  <h2 id={`group-${g.key}`} className="subhead m0">
-                    {g.title} <span className="muted">({rows.length})</span>
-                  </h2>
-                  <p className="muted m0">{g.text}</p>
+                  {/* FEAT-039: the group is the main heading; dates are smaller labels inside it. */}
+                  <header className="group-head">
+                    <h2 id={`group-${g.key}`} className="group-title m0">
+                      {g.title} <span className="group-count">{rows.length}</span>
+                    </h2>
+                    <p className="muted m0">{g.text}</p>
+                  </header>
                   <ol className="stack plain-list">
                     {rows.flatMap((r) => {
                       const day = dayLabel(r.createdAt, now);
                       const heading =
                         day !== lastDay ? (
                           <li key={`day-${g.key}-${day}`} className="day-heading">
-                            <h2 className="section-title">{day}</h2>
+                            <h3 className="day-label m0">{day}</h3>
                           </li>
                         ) : null;
                       lastDay = day;

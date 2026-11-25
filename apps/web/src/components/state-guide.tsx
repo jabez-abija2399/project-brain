@@ -8,18 +8,20 @@ const SEEN = "codeceipt.stateGuide.closed";
 
 // What each receipt state means, in one plain sentence each. Open on first view; once closed it stays closed in
 // this browser (a convenience only: reading it never depends on storage).
-export function StateGuide() {
+// FEAT-039: closed by default where the reader already knows the states (Receipts); open for a stranger.
+export function StateGuide({ defaultOpen = true }: { defaultOpen?: boolean } = {}) {
   const ref = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     try {
-      if (window.localStorage.getItem(SEEN) === "1" && ref.current) ref.current.open = false;
+      if (defaultOpen && window.localStorage.getItem(SEEN) === "1" && ref.current)
+        ref.current.open = false;
     } catch {}
-  }, []);
+  }, [defaultOpen]);
   return (
     <details
       ref={ref}
       className="state-guide"
-      open
+      open={defaultOpen}
       onToggle={(e) => {
         try {
           window.localStorage.setItem(SEEN, e.currentTarget.open ? "0" : "1");

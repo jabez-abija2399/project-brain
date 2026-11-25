@@ -1,5 +1,11 @@
 # Progress (newest entry on top; <=8 lines per entry)
 
+## 2026-11-25 | FEAT-039 UI polish | status: done
+Changed: phone menu shows "Menu"; project tabs are a wrapping segmented bar (current tab filled with the text colour, works in dark), solid count badges; /projects/<id> opens Overview (307); Receipts lead with group headings and count pills, dates are small labels, guide starts closed, small outlined action buttons, one shortcut hint, receipt cards are paper with the torn edge; To decide is one list with one count and Approve/Reject everywhere; Features: "Nothing planned", no all-zero Files column, dates on one line; Blueprint with no promises shows one empty state; Account puts the plan first; cards lift slightly, empty states are solid cards.
+Verified (ran this session): verify.sh PASS; ui-polish.test (10, one per AC); Chromium check of 14 pages at 375 and 1280 px, light and dark: no horizontal overflow. Before/after: agent/screenshots/feat-039/.
+NOT VERIFIED: the deployed site after merge.
+Next: owner review of the before/after screenshots.
+
 ## 2026-11-25 | FEAT-038 public pages | status: done
 Changed: Landing hero labels the first step ("1. Run this in your app's folder", then "Already set up? Sign in"); Checks and Where it fits moved after the FAQ (6 sections before it). Quickstart uses the landing's 3 steps (Set up with the command first, Work as usual, Get your receipt) and numbered troubleshooting. Shared receipt has the public header/footer, title, purpose sentence and state guide. 404 gives signed-out visitors Home as the one primary action; a dead share link has its own page ("Ask them to send you a new link"). Older tests follow the new order and headings.
 Verified (ran this session): verify.sh PASS; public-pages.test (5, one per AC); real Chromium pass over 10 public pages at 375 and 1280 px, light and dark: no horizontal overflow (40/40).

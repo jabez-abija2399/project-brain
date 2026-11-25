@@ -66,7 +66,8 @@ export function ShareReceipt({
     <div className="stack gap-6">
       <div className="row">
         <Button
-          variant="ghost"
+          variant="secondary"
+          size="sm"
           loading={busy === "create"}
           disabled={busy !== null}
           onClick={create}
@@ -76,7 +77,8 @@ export function ShareReceipt({
         {active.map((l, n) => (
           <Button
             key={l.id}
-            variant="ghost"
+            variant="secondary"
+            size="sm"
             aria-label={`Revoke share link ${n + 1}`}
             loading={busy === l.id}
             disabled={busy !== null}

@@ -57,7 +57,8 @@ export function OpenItemsCleanup({ projectId }: { projectId: string }) {
     return (
       <span className="stack gap-4">
         <Button
-          variant="ghost"
+          variant="secondary"
+          size="sm"
           loading={busy === "preview"}
           disabled={busy !== null}
           onClick={showPreview}

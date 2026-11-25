@@ -16,7 +16,13 @@ type Ready = Extract<View["overview"], { ready: true }>;
 const PRESETS = ["careful", "balanced", "fast"] as const;
 export const RISK_LABEL = { low: "Low", medium: "Medium", high: "High", locked: "Locked" } as const;
 
-export function PendingRequests({ pid, o }: { pid: string; o: Ready }) {
+export function PendingRequests({
+  pid,
+  o,
+  bare = false,
+}: { pid: string; o: Ready; bare?: boolean }) {
+  // FEAT-039: on To decide the requests are plain cards in the one list (the page gives the heading and count).
+  if (bare) return <RequestCards pid={pid} o={o} />;
   return (
     <section className="card stack" aria-labelledby="pending-title">
       <h2 className="section-title m0" id="pending-title">
@@ -30,44 +36,7 @@ export function PendingRequests({ pid, o }: { pid: string; o: Ready }) {
           after 24 hours.
         </p>
       ) : (
-        <ul className="plain-list stack">
-          {o.pending.map((r) => {
-            // FEAT-035: the action as a sentence, and an expired request says so instead of offering buttons.
-            const sentence =
-              ACTION_LABELS[r.action as keyof typeof ACTION_LABELS] ??
-              r.action.replaceAll("_", " ");
-            const expired = new Date(r.expiresAt).getTime() <= Date.now();
-            return (
-              <li key={r.id} className="card stack" data-request={r.id}>
-                <span className="wrap">
-                  <span className="muted">Your agent wants to: </span>
-                  <strong>{sentence}</strong>
-                  {r.feature ? ` in ${r.feature}` : ""}
-                  {r.path ? ` (${r.path})` : ""}
-                </span>
-                <span className="muted wrap">
-                  Agent says: <q>{r.summary}</q>
-                </span>
-                <span className="muted">
-                  {RISK_LABEL[r.risk as keyof typeof RISK_LABEL] ?? r.risk} risk
-                  {r.agent ? `, asked by ${r.agent}` : ""}
-                  {expired ? null : (
-                    <>
-                      , expires <When iso={r.expiresAt} />
-                    </>
-                  )}
-                </span>
-                {expired ? (
-                  <p className="m0" data-testid="request-expired">
-                    This request expired. Your agent can ask again if it still needs it.
-                  </p>
-                ) : (
-                  <RequestDecision projectId={pid} requestId={r.id} summary={r.summary} />
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <RequestCards pid={pid} o={o} />
       )}
     </section>
   );
@@ -231,5 +200,47 @@ export function ApprovalPolicy({
         </section>
       ) : null}
     </>
+  );
+}
+
+function RequestCards({ pid, o }: { pid: string; o: Ready }) {
+  return (
+    <ul className="plain-list stack">
+      {o.pending.map((r) => {
+        // FEAT-035: the action as a sentence, and an expired request says so instead of offering buttons.
+        const sentence =
+          ACTION_LABELS[r.action as keyof typeof ACTION_LABELS] ?? r.action.replaceAll("_", " ");
+        const expired = new Date(r.expiresAt).getTime() <= Date.now();
+        return (
+          <li key={r.id} className="card stack" data-request={r.id}>
+            <span className="wrap">
+              <span className="muted">Your agent wants to: </span>
+              <strong>{sentence}</strong>
+              {r.feature ? ` in ${r.feature}` : ""}
+              {r.path ? ` (${r.path})` : ""}
+            </span>
+            <span className="muted wrap">
+              Agent says: <q>{r.summary}</q>
+            </span>
+            <span className="muted">
+              {RISK_LABEL[r.risk as keyof typeof RISK_LABEL] ?? r.risk} risk
+              {r.agent ? `, asked by ${r.agent}` : ""}
+              {expired ? null : (
+                <>
+                  , expires <When iso={r.expiresAt} />
+                </>
+              )}
+            </span>
+            {expired ? (
+              <p className="m0" data-testid="request-expired">
+                This request expired. Your agent can ask again if it still needs it.
+              </p>
+            ) : (
+              <RequestDecision projectId={pid} requestId={r.id} summary={r.summary} />
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }

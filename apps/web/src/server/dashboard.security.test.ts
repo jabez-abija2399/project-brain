@@ -746,7 +746,8 @@ describe("FEAT-017 security: feature board and pagination", () => {
       );
     }
     const proposals = await html(ProposalsPage(props(projectId)));
-    expect(proposals.match(/>Confirm</g)).toHaveLength(PAGE_SIZE);
+    // FEAT-039 (AC-039-04): a proposal's button says Approve, like a request's.
+    expect(proposals.match(/>Approve</g)).toHaveLength(PAGE_SIZE);
     expect(proposals).toContain("Page 1 of 2");
   });
 });

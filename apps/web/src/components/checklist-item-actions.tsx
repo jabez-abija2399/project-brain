@@ -59,7 +59,8 @@ export function ChecklistItemActions({
     <span className="row">
       {CLOSABLE.has(status) && (
         <Button
-          variant="ghost"
+          variant="secondary"
+          size="sm"
           aria-label={`Close: ${text}`}
           loading={busy === "close"}
           disabled={busy !== null}
@@ -70,7 +71,8 @@ export function ChecklistItemActions({
       )}
       {step === "idle" && busy !== "dismiss" ? (
         <Button
-          variant="ghost"
+          variant="secondary"
+          size="sm"
           aria-label={`Dismiss: ${text}`}
           disabled={busy !== null}
           onClick={() => onDismiss("dismiss")}
@@ -80,14 +82,20 @@ export function ChecklistItemActions({
       ) : (
         <>
           <Button
-            variant="ghost"
+            variant="secondary"
+            size="sm"
             loading={busy === "dismiss"}
             disabled={busy !== null}
             onClick={() => onDismiss("confirm")}
           >
             Confirm dismiss
           </Button>
-          <Button variant="ghost" disabled={busy !== null} onClick={() => onDismiss("cancel")}>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={busy !== null}
+            onClick={() => onDismiss("cancel")}
+          >
             Cancel
           </Button>
         </>

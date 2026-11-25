@@ -73,10 +73,11 @@ export function ProposalActions({
         disabled={busy !== null}
         onClick={() => decide("confirm")}
       >
-        Confirm
+        {/* FEAT-039: the same two words as an agent's request: Approve and Reject. */}
+        Approve
       </Button>
       <Button
-        variant="ghost"
+        variant="secondary"
         loading={busy === "reject"}
         disabled={busy !== null}
         onClick={() => (asking ? decide("reject") : setAsking(true))}
