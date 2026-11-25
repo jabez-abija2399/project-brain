@@ -3946,56 +3946,76 @@
           "id": "AC-041-01",
           "kind": "happy",
           "check": "With the beta limits on, an admin creates more projects than the limit (web and device flow); a normal user still gets the 402 at the limit",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 19:20; log contains AC-041-01"
         },
         {
           "id": "AC-041-02",
           "kind": "happy",
           "check": "An admin changes the default project and AI-checked receipt limits on /admin/limits; every user without their own limits gets the new numbers at once (create check, AI check and Account page); a blank field means no limit",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 19:20; log contains AC-041-02"
         },
         {
           "id": "AC-041-03",
           "kind": "happy",
           "check": "An admin gives a specific user their own limits (found by email) and can remove them again; that user's limits win over the default, others keep the default",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 19:20; log contains AC-041-03"
         },
         {
           "id": "AC-041-04",
           "kind": "permission",
           "check": "Any non-admin (signed out, signed in, or using a project token) gets 404 from the limits page and API, and no limit changes",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 19:20; log contains AC-041-04"
         },
         {
           "id": "AC-041-05",
           "kind": "negative",
           "check": "Negative, non-integer or huge numbers, an unknown user and malformed bodies are refused with 400/404 and change nothing; every accepted change writes one audit-log row with the old and new numbers",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 19:20; log contains AC-041-05"
         },
         {
           "id": "AC-041-06",
           "kind": "boundary",
           "check": "Before migration 0058 is applied the app keeps the built-in limits (3 projects, 100 a month) and the limits page says it is not set up yet; nothing breaks",
-          "passes": false,
-          "verified_by": "",
-          "evidence": ""
+          "passes": true,
+          "verified_by": "test-log",
+          "evidence": "verify.sh PASS 2026-11-25 19:20; log contains AC-041-06"
         }
       ],
-      "status": "in_progress",
-      "notes": "Owner 2026-11-25. Null limit = no limit. Admin = ADMIN_GITHUB_LOGINS (existing)."
+      "status": "done",
+      "notes": "Owner 2026-11-25. Null limit = no limit. Admin = ADMIN_GITHUB_LOGINS (existing).",
+      "files": [
+        "apps/web/src/app/account/page.tsx",
+        "apps/web/src/app/admin/limits/page.tsx",
+        "apps/web/src/app/api/admin/limits/route.ts",
+        "apps/web/src/app/api/device/approve/route.ts",
+        "apps/web/src/app/api/projects/route.ts",
+        "apps/web/src/components/admin/admin-nav.tsx",
+        "apps/web/src/components/admin/limits-form.tsx",
+        "apps/web/src/server/admin-limits.ts",
+        "apps/web/src/server/beta-limits-admin.test.ts",
+        "apps/web/src/server/billing.ts",
+        "apps/web/src/server/device.ts",
+        "apps/web/src/server/limits.ts",
+        "packages/db/migrations/0058_usage_limits.sql",
+        "packages/db/src/migration-check.ts",
+        "packages/db/src/repos/index.ts",
+        "packages/db/src/repos/usage-limits.ts",
+        "packages/db/src/schema/index.ts",
+        "packages/db/src/schema/usage-limits.ts"
+      ]
     }
   ],
   "meta": {
-    "tests_passed": 2161
+    "tests_passed": 2167
   }
 }
