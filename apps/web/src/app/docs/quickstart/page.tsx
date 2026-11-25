@@ -84,13 +84,9 @@ const TROUBLE: { q: string; a: React.ReactNode }[] = [
   },
 ];
 
-// A screenshot to add before launch: the page is complete without it, the placeholder says what it will show.
-function Screenshot({ of }: { of: string }) {
-  return (
-    <p className="lp-doc-screenshot muted" data-screenshot={of}>
-      [SCREENSHOT: {of}]
-    </p>
-  );
+// A screenshot to add before launch (FEAT-029: nothing shows until the image exists; `of` says what it will show).
+function Screenshot(_props: { of: string }) {
+  return null;
 }
 
 // Journey part 6: the same steps, in the same words, as the start page, the terminal and the receipt.

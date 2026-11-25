@@ -101,6 +101,16 @@ export function ReceiptCard({
     checks: view.testChecks.length - askedChecks,
     asked: askedFindings + askedChecks + view.outsideScopeAsked.length,
   };
+  // FEAT-029: one green "All done" when every item is done and nothing else needs a look.
+  const allDone =
+    !attention &&
+    !view.noChanges &&
+    view.items.length > 0 &&
+    view.items.every((i) => i.closedByOwner || i.status === "done") &&
+    view.outsideScope.length === 0 &&
+    view.notVerified.length === 0 &&
+    alarms.findings === 0 &&
+    alarms.checks === 0;
   return (
     <article
       // FEAT-021: a shared page carries no receipt id.
@@ -129,7 +139,11 @@ export function ReceiptCard({
                   : "Asked: (request removed)"}
             </strong>
             <span className="row">
-              <StatusBadge status="done" label={`${count("done")} done`} />
+              {allDone ? (
+                <StatusBadge status="done" label="All done" />
+              ) : count("done") > 0 ? (
+                <StatusBadge status="done" label={`${count("done")} done`} />
+              ) : null}
               {closedByOwner > 0 && (
                 <StatusBadge
                   status="closed_by_owner"
@@ -142,12 +156,14 @@ export function ReceiptCard({
                   label={`${count("done_untested")} done, no test proves it`}
                 />
               )}
-              <StatusBadge status="partial" label={`${count("partial")} partly done`} />
+              {count("partial") > 0 && (
+                <StatusBadge status="partial" label={`${count("partial")} partly done`} />
+              )}
               {view.noChanges ? (
                 <StatusBadge status="neutral" label="No files changed" />
-              ) : (
+              ) : count("missed") > 0 ? (
                 <StatusBadge status="missed" label={`${count("missed")} missed`} />
-              )}
+              ) : null}
               {count("not_done") > 0 && (
                 <StatusBadge status="not_done" label={`${count("not_done")} not done`} />
               )}
@@ -170,7 +186,10 @@ export function ReceiptCard({
                 <StatusBadge status="warning" label={`${view.outsideScope.length} outside scope`} />
               )}
               {alarms.findings > 0 && (
-                <StatusBadge status="missed" label={`${alarms.findings} findings`} />
+                <StatusBadge
+                  status="missed"
+                  label={`${alarms.findings} security problem${alarms.findings === 1 ? "" : "s"}`}
+                />
               )}
               {alarms.checks > 0 && (
                 <StatusBadge status="missed" label={`${alarms.checks} test checks`} />

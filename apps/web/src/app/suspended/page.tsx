@@ -1,5 +1,6 @@
 import { SiteFooter } from "@/components/landing/site-footer";
 import { BareHeader } from "@/components/shell/app-shell";
+import { supportHref } from "@/lib/support";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -22,7 +23,8 @@ export default async function SuspendedPage({
             {project
               ? "Codeceipt suspended this project. Its pages, CLI and MCP access do not work until it is restored."
               : "Codeceipt suspended your account. The dashboard, the CLI and MCP do not work until it is restored."}{" "}
-            Reply to any email from Codeceipt or contact support to ask why and to restore it.
+            Reply to any email from Codeceipt or <a href={supportHref()}>contact support</a> to ask
+            why and to restore it.
           </p>
           <p className="muted m0">You can still export your data on the Account page.</p>
           <div className="row">

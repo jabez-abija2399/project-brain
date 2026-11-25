@@ -152,6 +152,15 @@ export default async function AccountPage() {
         </p>
         {a.suspended ? (
           <p className="muted m0">Not available while your account is suspended.</p>
+        ) : a.billing.subscribed && !a.billing.endsAt ? (
+          // FEAT-029: a paid plan is cancelled first, so nobody is charged for a deleted account.
+          <div className="stack" data-testid="delete-needs-cancel">
+            <p className="m0">
+              Cancel your plan in Manage billing first, then delete the account. You are never
+              charged again after cancelling.
+            </p>
+            <BillingButton action="portal" label="Manage billing" />
+          </div>
         ) : (
           <DeleteAccount name={a.name} />
         )}

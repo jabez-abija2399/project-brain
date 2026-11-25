@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import QuickstartPage, { metadata as quickstartMeta } from "@/app/docs/quickstart/page";
 import Home from "@/app/page";
 import PrivacyPage, { metadata as privacyMeta } from "@/app/privacy/page";
@@ -66,7 +67,7 @@ describe("public pages", () => {
     expect(t).not.toContain("CODECEIPT_TOKEN");
   });
 
-  it("/docs/quickstart follows the first-time journey step by step, with screenshot placeholders", async () => {
+  it("/docs/quickstart follows the first-time journey step by step, screenshot spots kept but hidden", async () => {
     const html = await render(QuickstartPage());
     const t = text(html);
     const order = [
@@ -80,7 +81,13 @@ describe("public pages", () => {
     ].map((phrase) => t.indexOf(phrase));
     expect(order.every((i) => i >= 0)).toBe(true);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
-    expect((t.match(/\[SCREENSHOT/g) ?? []).length).toBeGreaterThanOrEqual(5);
+    // FEAT-029 (AC-029-01): the 5 screenshot spots stay in the code for later, but nothing shows until the image exists.
+    expect(t).not.toContain("[SCREENSHOT");
+    const source = readFileSync(
+      new URL("../app/docs/quickstart/page.tsx", import.meta.url),
+      "utf8",
+    );
+    expect((source.match(/<Screenshot of=/g) ?? []).length).toBeGreaterThanOrEqual(5);
     expect(t).toContain("codeceipt receipt");
   });
 

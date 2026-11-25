@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 // Suspend or restore a user or project. Asks once to confirm; the server checks the admin and writes the audit log.
@@ -14,6 +15,7 @@ export function SuspendButton({
   name: string;
   suspended: boolean;
 }) {
+  const router = useRouter();
   const [state, setState] = useState(suspended);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -32,6 +34,8 @@ export function SuspendButton({
       if (!r.ok) throw new Error(String(r.status));
       setState(!state);
       setMessage(state ? `${name} is restored.` : `${name} is suspended.`);
+      // FEAT-029: the page's status badges are server-rendered; refresh them now, not on the next reload.
+      router.refresh();
     } catch {
       setMessage("That did not work. Reload the page and try again.");
     } finally {

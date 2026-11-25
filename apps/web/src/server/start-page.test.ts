@@ -82,9 +82,9 @@ describe("guided start page", () => {
     );
     const html = await render(StartPage());
     const t = text(html);
-    expect(t).toContain("Run npx codeceipt in your project");
-    expect(t).toContain("Approve in the browser");
-    expect(t).toContain("Open Claude Code or Cursor and make a change");
+    expect(t).toContain("Connect this computer");
+    expect(t).toContain("Codeceipt reads your project");
+    expect(t).toContain("Get your first receipt");
     expect(steps(html)).toEqual(["1:waiting", "2:waiting", "3:waiting"]);
     expect([...html.matchAll(/data-copy="([^"]+)"/g)].map((m) => m[1])).toEqual(["npx codeceipt"]);
     // The page keeps checking on its own while a step is waiting.

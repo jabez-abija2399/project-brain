@@ -11,15 +11,16 @@ export const metadata: Metadata = {
   description: "The plain-language terms for using Codeceipt during the beta.",
 };
 
-// Launch part 6: plain language. [REVIEW] marks questions for a lawyer before the beta opens widely.
+// Launch part 6: plain language. REVIEW comments mark questions for a lawyer before the beta opens widely.
 export default async function TermsPage() {
   const signedIn = await isSignedIn();
   return (
     <DocPage signedIn={signedIn} title="Terms of use" updated="October 30, 2026">
       <p>
         These terms are the agreement between you and Codeceipt when you use the website, the
-        dashboard or the <code>codeceipt</code> command. [REVIEW] The legal name and country of the
-        company offering the service?
+        dashboard or the <code>codeceipt</code> command.{" "}
+        {/* REVIEW: The legal name and country of the
+        company offering the service?*/}
       </p>
 
       <h2>The beta</h2>
@@ -41,7 +42,7 @@ export default async function TermsPage() {
       <p>
         A receipt checks an AI agent&apos;s work against what you asked for, but it can miss things
         or be wrong. Review changes before you ship them; you remain responsible for your app.
-        [REVIEW] Disclaimer of warranties and limitation of liability wording?
+        {/* REVIEW: Disclaimer of warranties and limitation of liability wording?*/}
       </p>
 
       <h2>Fair use</h2>
@@ -53,12 +54,13 @@ export default async function TermsPage() {
         </li>
         <li>Keep your project tokens private; anyone with a token can act on that project.</li>
       </ul>
-      <p>We may suspend accounts that break these rules. [REVIEW] Notice and appeal?</p>
+      <p>We may suspend accounts that break these rules. {/* REVIEW: Notice and appeal?*/}</p>
 
       <h2>Changes</h2>
       <p>
         If these terms change, we update this page and its date, and tell beta users by email before
-        a change that matters takes effect. [REVIEW] Governing law and how disputes are resolved?
+        a change that matters takes effect.{" "}
+        {/* REVIEW: Governing law and how disputes are resolved?*/}
       </p>
     </DocPage>
   );

@@ -211,6 +211,26 @@ describe("npx codeceipt (no arguments) sets everything up", () => {
     expect(c.out.at(-4)).toBe("What happens next:");
   });
 
+  it("AC-029-06 started with npx and codeceipt not installed, the last line says to run npx codeceipt last", async () => {
+    installed = false;
+    const repo = gitRepo();
+    const s = serverFetch();
+    let projectId = "";
+    const c = cli(repo, s.fetchImpl, async (url) => {
+      const code = new URL(url).searchParams.get("code") ?? "";
+      projectId = (
+        (await approveDevice(world.db, owner, { user_code: code, new_project_name: "app" })) as {
+          project_id: string;
+        }
+      ).project_id;
+      return true;
+    });
+    expect(await c.run()).toBe(0);
+    expect(c.out.at(-1)).toBe(
+      `  3. See your receipt: run \`npx codeceipt last\`, or open ${API}/projects/${projectId}/receipts`,
+    );
+  });
+
   it("refuses outside a git repository, before asking for any code", async () => {
     const dir = mkdtempSync(join(tmpdir(), "cc-nogit-"));
     const s = serverFetch();

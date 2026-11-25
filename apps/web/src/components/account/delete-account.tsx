@@ -24,12 +24,18 @@ export function DeleteAccount({ name }: { name: string }) {
         window.location.href = "/?deleted=1";
         return;
       }
+      const body = (await r.json().catch(() => ({}))) as { message?: unknown };
       setMessage(
         r.status === 400
           ? "The name does not match. Type it exactly as shown."
           : r.status === 429
             ? "Too many tries. Wait a minute and try again."
-            : "That did not work. Reload the page and try again.",
+            : r.status === 409
+              ? // FEAT-029: say what to do (an active paid plan is cancelled first).
+                typeof body.message === "string"
+                ? body.message
+                : "Cancel your plan in Manage billing first, then delete the account."
+              : "That did not work. Reload the page and try again.",
       );
     } catch {
       setMessage("Could not reach the server. Check your connection and try again.");

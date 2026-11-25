@@ -35,21 +35,22 @@ export function JourneySteps({
 }) {
   return (
     <ol className="stack plain-list">
-      <Step n={1} done={steps.linked} title="Run npx codeceipt in your project">
-        <p className="muted m0">In your app's folder (a git repository), run:</p>
+      <Step n={1} done={steps.linked} title="Connect this computer">
+        <p className="muted m0">
+          In your app's folder, run this command, then approve the code in the page that opens:
+        </p>
         <CopyCommand command="npx codeceipt" />
       </Step>
-      <Step n={2} done={steps.indexed} title="Approve in the browser">
+      <Step n={2} done={steps.indexed} title="Codeceipt reads your project">
         <p className="muted m0">
-          A page opens with the same short code as your terminal. Check that the codes match, pick
-          or create a project, and approve. Codeceipt then reads your code on your machine and sends
-          only names and paths.
+          After you approve, Codeceipt reads your code on your computer and sends only names and
+          paths. This takes a minute and needs nothing from you.
         </p>
       </Step>
-      <Step n={3} done={steps.receipt} title="Open Claude Code or Cursor and make a change">
+      <Step n={3} done={steps.receipt} title="Get your first receipt">
         <p className="muted m0">
-          Ask for something small, let the agent finish, then end the session. Your receipt appears
-          on the Receipts tab.
+          Open Claude Code or Cursor, ask for something small, let the agent finish, then end the
+          session. Your receipt appears here and on the Receipts tab.
         </p>
       </Step>
     </ol>
