@@ -43,14 +43,21 @@ describe("public pages", () => {
     for (const service of ["Vercel", "Neon", "GitHub", "Inngest", "Anthropic"]) {
       expect(t).toContain(service);
     }
-    expect(t).toContain("[REVIEW]");
+    // FEAT-029: the questions for a lawyer stay in the code as comments, never on the page.
+    expect(t).not.toContain("[REVIEW]");
+    expect(readFileSync(new URL("../app/privacy/page.tsx", import.meta.url), "utf8")).toContain(
+      "{/* REVIEW:",
+    );
   });
 
   it("/terms is plain language and marks the questions for a lawyer", async () => {
     const html = await render(TermsPage());
     expect(termsMeta.title).toBe("Terms | Codeceipt");
     expect(html).toMatch(/<h1[^>]*>Terms of use<\/h1>/);
-    expect(text(html)).toContain("[REVIEW]");
+    expect(text(html)).not.toContain("[REVIEW]");
+    expect(readFileSync(new URL("../app/terms/page.tsx", import.meta.url), "utf8")).toContain(
+      "{/* REVIEW:",
+    );
   });
 
   it("/docs/quickstart shows just `npx codeceipt`, plus troubleshooting", async () => {

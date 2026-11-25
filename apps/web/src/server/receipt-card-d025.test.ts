@@ -45,7 +45,8 @@ describe("receipt card (D-025)", () => {
       'data-status="question"><span aria-hidden="true">?</span><span>Question</span>',
     );
     expect(html).toContain("<span>1 question</span>");
-    expect(html).toContain("<span>0 missed</span>");
+    // FEAT-029: a question is never counted as missed, and a zero count shows no badge at all.
+    expect(html).not.toMatch(/<span>\d+ missed<\/span>/);
   });
 
   it("marks files already modified before the session and shows the no-snapshot notice", () => {

@@ -128,7 +128,7 @@ describe("FEAT-017 dashboard", () => {
       "1 done",
       "1 missed",
       "1 outside scope",
-      "1 findings",
+      "1 security problem",
       "src/billing/Invoice.tsx",
       "RLS is off.",
     ]) {

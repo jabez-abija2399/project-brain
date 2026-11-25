@@ -106,7 +106,8 @@ export function ReceiptCard({
     !attention &&
     !view.noChanges &&
     view.items.length > 0 &&
-    view.items.every((i) => i.closedByOwner || i.status === "done") &&
+    closedByOwner === 0 &&
+    view.items.every((i) => i.status === "done") &&
     view.outsideScope.length === 0 &&
     view.notVerified.length === 0 &&
     alarms.findings === 0 &&
